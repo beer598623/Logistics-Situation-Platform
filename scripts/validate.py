@@ -123,6 +123,39 @@ def source_contract_checks(registry: dict[str, Any]) -> list[str]:
     return problems
 
 
+def source_status_checks(source_status: dict[str, Any]) -> list[str]:
+    problems: list[str] = []
+    sources = source_status.get("sources", [])
+
+    no_data_like = {"no_data", "error", "disabled"}
+    for source in sources:
+        if source.get("status") in no_data_like and source.get("item_count") == 0:
+            problems.append(
+                f"{source.get('source_id')}: a gap must never be represented as zero items"
+            )
+
+    if source_status.get("overall_status") == "sufficient" and any(
+        source.get("status") in {"no_data", "error"} and source.get("required_for_publication")
+        for source in sources
+    ):
+        problems.append("required source gap cannot be sufficient")
+
+    status_by_id = {source.get("source_id"): source.get("status") for source in sources}
+    live_statuses = {"fresh", "stale"}
+    for capability in source_status.get("capabilities", []):
+        supporting = capability.get("supporting_sources", [])
+        has_live_source = any(status_by_id.get(sid) in live_statuses for sid in supporting)
+        if capability.get("status") == "sufficient" and not has_live_source:
+            problems.append(
+                f"{capability.get('capability')}: sufficient coverage requires a fresh or "
+                "stale supporting source"
+            )
+        if not supporting:
+            problems.append(f"{capability.get('capability')}: capability has no supporting sources")
+
+    return problems
+
+
 def main() -> int:
     ok = True
 
@@ -151,11 +184,8 @@ def main() -> int:
 
     source_status = load_json(ROOT / "data/source_status/latest.json")
     ok &= validate_item(source_status, "source_status.schema.json", "source_status")
-    if source_status.get("overall_status") == "sufficient" and any(
-        source.get("status") in {"no_data", "error"} and source.get("required_for_publication")
-        for source in source_status.get("sources", [])
-    ):
-        print("[FAIL] source_status semantic: required source gap cannot be sufficient")
+    for problem in source_status_checks(source_status):
+        print(f"[FAIL] source_status semantic: {problem}")
         ok = False
 
     print("Validation successful." if ok else "Validation failed.")

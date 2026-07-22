@@ -1,6 +1,6 @@
 [project]
 name = "logistics-situation-platform"
-version = "0.1.1"
+version = "0.1.2"
 description = "Organization-neutral public research dashboard for global and Thailand logistics situations."
 readme = "README.md"
 requires-python = ">=3.12"

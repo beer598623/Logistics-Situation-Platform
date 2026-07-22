@@ -4,7 +4,7 @@
   "title": "Source Health Snapshot",
   "type": "object",
   "additionalProperties": false,
-  "required": ["generated_at", "overall_status", "coverage_message", "sources"],
+  "required": ["generated_at", "overall_status", "coverage_message", "sources", "capabilities"],
   "properties": {
     "generated_at": {"type": "string", "format": "date-time"},
     "overall_status": {"enum": ["sufficient", "limited", "insufficient"]},
@@ -27,6 +27,20 @@
           "item_count": {"type": ["integer", "null"], "minimum": 0},
           "required_for_publication": {"type": "boolean"},
           "max_stale_minutes": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["capability", "status", "supporting_sources", "gap_reason"],
+        "properties": {
+          "capability": {"type": "string"},
+          "status": {"enum": ["sufficient", "limited", "insufficient"]},
+          "supporting_sources": {"type": "array", "items": {"type": "string"}},
+          "gap_reason": {"type": ["string", "null"]}
         }
       }
     }

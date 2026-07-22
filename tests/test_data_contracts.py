@@ -54,3 +54,33 @@ def test_sha256_is_deterministic() -> None:
         ResilientHttpClient.sha256(b"logistics")
         == "8880894de4fc1864c60ed6af5dc8afb16fd41c113688bc2620950259515e610e"
     )
+
+
+def test_candidate_and_reviewed_event_share_canonical_identity() -> None:
+    candidates = json.loads((ROOT / "data" / "candidates" / "latest.json").read_text())
+    reviewed = json.loads((ROOT / "data" / "reviewed" / "current_events.json").read_text())
+    candidate = candidates["candidates"][0]
+    event = reviewed["events"][0]
+
+    assert candidate["canonical_event_id"] == event["canonical_event_id"]
+    assert candidate["event_fingerprint"] == event["event_fingerprint"]
+    assert candidate["canonical_event_id"].startswith("CEVT-")
+    assert len(candidate["event_fingerprint"]) == 64
+    assert event["merge_status"] in {
+        "unmatched",
+        "matched_external_id",
+        "matched_fingerprint",
+        "merge_suggested",
+        "merged_approved",
+        "split_required",
+    }
+    assert candidate["supersedes"] == []
+    assert event["supersedes"] == []
+
+
+def test_source_status_capabilities_are_purpose_aware() -> None:
+    status = json.loads((ROOT / "data" / "source_status" / "latest.json").read_text())
+    assert status["capabilities"]
+    for capability in status["capabilities"]:
+        assert capability["supporting_sources"]
+        assert capability["status"] in {"sufficient", "limited", "insufficient"}

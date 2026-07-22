@@ -35,7 +35,7 @@ def main() -> int:
             json.dumps(
                 {
                     "status": "disabled",
-                    "reason": "Live adapters are not enabled in v0.1.1.",
+                    "reason": "Live adapters are not enabled in v0.1.2.",
                 }
             )
         )
