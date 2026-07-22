@@ -35,7 +35,7 @@ jobs:
           set +e
           ruff check collectors scripts tests --output-format=concise > ruff-check.txt 2>&1
           check_status=$?
-          ruff format --check collectors scripts tests > ruff-format.txt 2>&1
+          ruff format --diff collectors scripts tests > ruff-format.txt 2>&1
           format_status=$?
           echo "check_status=$check_status" >> "$GITHUB_OUTPUT"
           echo "format_status=$format_status" >> "$GITHUB_OUTPUT"
