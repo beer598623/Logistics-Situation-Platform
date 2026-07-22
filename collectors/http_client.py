@@ -12,6 +12,7 @@ import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 
@@ -47,6 +48,9 @@ class ResilientHttpClient:
         last_modified: str | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> HttpResponse:
+        if urlparse(url).scheme not in {"http", "https"}:
+            raise ValueError("Only HTTP and HTTPS source endpoints are permitted")
+
         request_headers = {"User-Agent": self.user_agent, "Accept": "*/*"}
         if headers:
             request_headers.update(headers)
@@ -59,13 +63,13 @@ class ResilientHttpClient:
         for attempt in range(1, attempts + 1):
             try:
                 request = Request(url, headers=request_headers, method="GET")
-                with urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
+                with urlopen(request, timeout=timeout_seconds) as response:
                     body = response.read(max_response_bytes + 1)
                     if len(body) > max_response_bytes:
                         raise ResponseTooLargeError(
                             f"Response from {url} exceeded {max_response_bytes} bytes"
                         )
-                    normalized_headers = {k.lower(): v for k, v in response.headers.items()}
+                    normalized_headers = {key.lower(): value for key, value in response.headers.items()}
                     return HttpResponse(
                         url=response.geturl(),
                         status=response.status,

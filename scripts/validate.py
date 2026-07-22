@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -34,12 +33,17 @@ def validator(schema_name: str) -> Draft202012Validator:
     schema_path = SCHEMAS / schema_name
     schema = load_json(schema_path)
     return Draft202012Validator(
-        schema, registry=schema_registry(), format_checker=FormatChecker()
+        schema,
+        registry=schema_registry(),
+        format_checker=FormatChecker(),
     )
 
 
 def validate_item(item: Any, schema_name: str, label: str) -> bool:
-    errors = sorted(validator(schema_name).iter_errors(item), key=lambda error: list(error.path))
+    errors = sorted(
+        validator(schema_name).iter_errors(item),
+        key=lambda error: list(error.path),
+    )
     if errors:
         print(f"[FAIL] {label}")
         for error in errors:
@@ -85,7 +89,9 @@ def semantic_checks(event: dict[str, Any]) -> list[str]:
             impact.get("severity") in {"high", "critical"}
             and impact.get("evidence_strength") not in {"A", "B"}
         ):
-            problems.append(f"{impact.get('area')}: high/critical impact lacks primary-grade evidence")
+            problems.append(
+                f"{impact.get('area')}: high/critical impact lacks primary-grade evidence"
+            )
         if (
             impact.get("status") in {"observed", "potential"}
             and impact.get("severity") != "none"
@@ -109,7 +115,9 @@ def source_contract_checks(registry: dict[str, Any]) -> list[str]:
     for source in registry.get("sources", []):
         if source.get("enabled"):
             if source.get("machine_readable_status") != "verified":
-                problems.append(f"{source.get('id')}: enabled source is not machine-readable verified")
+                problems.append(
+                    f"{source.get('id')}: enabled source is not machine-readable verified"
+                )
             if source.get("licence_status") != "reviewed":
                 problems.append(f"{source.get('id')}: enabled source licence has not been reviewed")
             if not source.get("endpoint"):
@@ -134,7 +142,9 @@ def main() -> int:
 
     registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
     registry_ok = validate_item(
-        registry, "source_contract.schema.json", "source_contract_registry"
+        registry,
+        "source_contract.schema.json",
+        "source_contract_registry",
     )
     for problem in source_contract_checks(registry):
         print(f"[FAIL] source_contract_registry semantic: {problem}")

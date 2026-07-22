@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft202012Validator, FormatChecker
 import yaml
+from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,7 +31,11 @@ def validate_registry(data: dict[str, Any]) -> list[str]:
         location = "/".join(map(str, error.path)) or "<root>"
         messages.append(f"{location}: {error.message}")
 
-    source_ids = [source.get("id") for source in data.get("sources", []) if isinstance(source, dict)]
+    source_ids = [
+        source.get("id")
+        for source in data.get("sources", [])
+        if isinstance(source, dict)
+    ]
     if len(source_ids) != len(set(source_ids)):
         messages.append("sources: source IDs must be unique")
     return messages

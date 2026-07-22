@@ -18,17 +18,25 @@ from collectors.registry import load_registry, source_by_id, validate_registry  
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--dry-run", action="store_true", help="Validate contracts and emit run manifests"
+        "--dry-run",
+        action="store_true",
+        help="Validate contracts and emit run manifests",
     )
     parser.add_argument(
-        "--source", action="append", default=[], help="Limit dry run to one or more source IDs"
+        "--source",
+        action="append",
+        default=[],
+        help="Limit dry run to one or more source IDs",
     )
     args = parser.parse_args()
 
     if not args.dry_run:
         print(
             json.dumps(
-                {"status": "disabled", "reason": "Live adapters are not enabled in v0.1.1."}
+                {
+                    "status": "disabled",
+                    "reason": "Live adapters are not enabled in v0.1.1.",
+                }
             )
         )
         return 0
@@ -52,7 +60,11 @@ def main() -> int:
 
     print(
         json.dumps(
-            {"status": "dry_run", "contracts": len(registry["sources"]), "runs": runs},
+            {
+                "status": "dry_run",
+                "contracts": len(registry["sources"]),
+                "runs": runs,
+            },
             indent=2,
         )
     )

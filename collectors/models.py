@@ -74,8 +74,11 @@ class CollectionRun:
 
     @classmethod
     def dry_run(
-        cls, source_id: str, adapter_version: str, request_url: str | None
-    ) -> "CollectionRun":
+        cls,
+        source_id: str,
+        adapter_version: str,
+        request_url: str | None,
+    ) -> CollectionRun:
         now = datetime.now(UTC).replace(microsecond=0)
         stamp = now.strftime("%Y%m%dT%H%M%SZ")
         iso = now.isoformat().replace("+00:00", "Z")
