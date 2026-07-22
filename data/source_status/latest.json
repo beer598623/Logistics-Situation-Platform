@@ -1,5 +1,12 @@
 {
   "generated_at": "2026-07-22T00:00:00Z",
-  "sources": [],
-  "system_status": "bootstrap"
+  "overall_status": "insufficient",
+  "coverage_message": "Live collectors are disabled during contract and provenance hardening.",
+  "sources": [
+    {"source_id": "GDACS", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 180},
+    {"source_id": "TMD_CAP", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 180},
+    {"source_id": "GSCPI", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 52560},
+    {"source_id": "TH_CUSTOMS", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 105120},
+    {"source_id": "EPPO_FUEL", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 10080}
+  ]
 }

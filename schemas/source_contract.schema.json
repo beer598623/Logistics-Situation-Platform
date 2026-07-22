@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "source_contract.schema.json",
+  "title": "Source Contract Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "policy", "last_reviewed_at", "sources"],
+  "properties": {
+    "version": {"type": "string"},
+    "policy": {"const": "free_public_sources_only"},
+    "last_reviewed_at": {"type": "string", "format": "date"},
+    "sources": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/source"},
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "nullableUri": {"type": ["string", "null"], "format": "uri"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "name", "owner", "source_class", "purposes", "authoritative_for",
+        "landing_url", "endpoint", "access_method", "format", "machine_readable_status",
+        "parser", "stable_id_field", "expected_cadence_minutes", "max_stale_minutes",
+        "publication_lag", "pagination", "http", "retry", "licence_status", "terms_url",
+        "terms_reviewed_at", "fallback_sources", "known_limitations", "enabled",
+        "required_for_publication"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "source_class": {"enum": ["official", "official_research", "international", "operator", "regulator", "industry", "news", "vendor"]},
+        "purposes": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "authoritative_for": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "landing_url": {"type": "string", "format": "uri"},
+        "endpoint": {"$ref": "#/$defs/nullableUri"},
+        "access_method": {"enum": ["api", "rss", "cap", "download", "html", "ckan", "arcgis", "manual"]},
+        "format": {"enum": ["json", "geojson", "xml", "csv", "html", "xlsx", "pdf", "mixed"]},
+        "machine_readable_status": {"enum": ["verified", "unverified", "manual_only", "disabled"]},
+        "parser": {"type": "string", "pattern": "^[a-z0-9_]+_v[0-9]+$"},
+        "stable_id_field": {"type": ["string", "null"]},
+        "expected_cadence_minutes": {"type": ["integer", "null"], "minimum": 1},
+        "max_stale_minutes": {"type": "integer", "minimum": 1},
+        "publication_lag": {"type": "string"},
+        "pagination": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "page_size"],
+          "properties": {
+            "type": {"enum": ["none", "page_number", "offset", "cursor"]},
+            "page_size": {"type": ["integer", "null"], "minimum": 1}
+          }
+        },
+        "http": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["supports_etag", "supports_last_modified", "timeout_seconds", "max_response_bytes"],
+          "properties": {
+            "supports_etag": {"enum": [true, false, "unknown"]},
+            "supports_last_modified": {"enum": [true, false, "unknown"]},
+            "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 300},
+            "max_response_bytes": {"type": "integer", "minimum": 1}
+          }
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attempts", "backoff"],
+          "properties": {
+            "attempts": {"type": "integer", "minimum": 1, "maximum": 10},
+            "backoff": {"enum": ["none", "fixed", "exponential", "exponential_jitter"]}
+          }
+        },
+        "licence_status": {"enum": ["reviewed", "pending_review", "restricted", "unknown"]},
+        "terms_url": {"$ref": "#/$defs/nullableUri"},
+        "terms_reviewed_at": {"type": ["string", "null"], "format": "date"},
+        "fallback_sources": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "known_limitations": {"type": "array", "items": {"type": "string"}},
+        "enabled": {"type": "boolean"},
+        "required_for_publication": {"type": "boolean"}
+      }
+    }
+  }
+}

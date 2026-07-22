@@ -1,38 +1,188 @@
-version: "0.1"
+version: "0.2"
 policy: free_public_sources_only
+last_reviewed_at: "2026-07-22"
 sources:
   - id: GDACS
     name: Global Disaster Alert and Coordination System
-    class: international
-    role: event_detection
-    access_cost: free
-    machine_readable: true
-    prototype_status: planned
-  - id: TMD
-    name: Thai Meteorological Department
-    class: official
-    role: thailand_weather_alerts
-    access_cost: free
-    machine_readable: true
-    prototype_status: planned
+    owner: European Commission Joint Research Centre and United Nations
+    source_class: international
+    purposes: [hazard_detection, event_context]
+    authoritative_for: [gdacs_alert_level, gdacs_event_geometry]
+    landing_url: https://www.gdacs.org/
+    endpoint: https://www.gdacs.org/gdacsapi/api/Events/geteventlist/SEARCH
+    access_method: api
+    format: geojson
+    machine_readable_status: verified
+    parser: gdacs_v1
+    stable_id_field: eventid
+    expected_cadence_minutes: 6
+    max_stale_minutes: 180
+    publication_lag: variable
+    pagination:
+      type: page_number
+      page_size: 100
+    http:
+      supports_etag: unknown
+      supports_last_modified: unknown
+      timeout_seconds: 30
+      max_response_bytes: 25000000
+    retry:
+      attempts: 3
+      backoff: exponential_jitter
+    licence_status: reviewed
+    terms_url: https://www.gdacs.org/documents/2025/GDACS_Terms_of_use_Mar_25.pdf
+    terms_reviewed_at: "2026-07-22"
+    fallback_sources: []
+    known_limitations:
+      - Hazard alerts do not by themselves establish operational logistics disruption.
+      - Publication timing and alert levels vary by hazard type.
+    enabled: false
+    required_for_publication: false
+
+  - id: TMD_CAP
+    name: Thai Meteorological Department warnings and CAP services
+    owner: Thai Meteorological Department
+    source_class: official
+    purposes: [thailand_weather_alerts, hazard_detection]
+    authoritative_for: [thailand_official_weather_warning]
+    landing_url: https://www.tmd.go.th/en/
+    endpoint: null
+    access_method: cap
+    format: xml
+    machine_readable_status: unverified
+    parser: cap_v1
+    stable_id_field: identifier
+    expected_cadence_minutes: null
+    max_stale_minutes: 180
+    publication_lag: unknown
+    pagination:
+      type: none
+      page_size: null
+    http:
+      supports_etag: unknown
+      supports_last_modified: unknown
+      timeout_seconds: 30
+      max_response_bytes: 10000000
+    retry:
+      attempts: 3
+      backoff: exponential_jitter
+    licence_status: pending_review
+    terms_url: null
+    terms_reviewed_at: null
+    fallback_sources: []
+    known_limitations:
+      - Machine-readable endpoint and update cadence must pass an integration test before enablement.
+      - A warning indicates hazard potential, not confirmed transport or facility disruption.
+    enabled: false
+    required_for_publication: false
+
   - id: GSCPI
     name: New York Fed Global Supply Chain Pressure Index
-    class: official_research
-    role: baseline_indicator
-    access_cost: free
-    machine_readable: true
-    prototype_status: planned
+    owner: Federal Reserve Bank of New York
+    source_class: official_research
+    purposes: [global_baseline_indicator]
+    authoritative_for: [gscpi_published_value]
+    landing_url: https://www.newyorkfed.org/research/policy/gscpi
+    endpoint: null
+    access_method: download
+    format: csv
+    machine_readable_status: unverified
+    parser: gscpi_v1
+    stable_id_field: observation_date
+    expected_cadence_minutes: 44640
+    max_stale_minutes: 52560
+    publication_lag: monthly
+    pagination:
+      type: none
+      page_size: null
+    http:
+      supports_etag: unknown
+      supports_last_modified: unknown
+      timeout_seconds: 30
+      max_response_bytes: 10000000
+    retry:
+      attempts: 3
+      backoff: exponential_jitter
+    licence_status: pending_review
+    terms_url: null
+    terms_reviewed_at: null
+    fallback_sources: []
+    known_limitations:
+      - Monthly baseline indicator; not suitable for real-time event detection.
+      - Download endpoint must be verified before enablement.
+    enabled: false
+    required_for_publication: false
+
   - id: TH_CUSTOMS
-    name: Thai Customs Department statistics
-    class: official
-    role: thailand_trade_indicator
-    access_cost: free
-    machine_readable: true
-    prototype_status: planned
-  - id: EPPO
-    name: Energy Policy and Planning Office fuel prices
-    class: official
-    role: thailand_fuel_indicator
-    access_cost: free
-    machine_readable: true
-    prototype_status: planned
+    name: Thai Customs import and export statistics
+    owner: Thai Customs Department
+    source_class: official
+    purposes: [thailand_trade_indicator]
+    authoritative_for: [published_thailand_customs_statistics]
+    landing_url: https://www.customs.go.th/statistic_report.php?ini_content=statistics_report&lang=en
+    endpoint: null
+    access_method: download
+    format: csv
+    machine_readable_status: unverified
+    parser: thai_customs_v1
+    stable_id_field: null
+    expected_cadence_minutes: 44640
+    max_stale_minutes: 105120
+    publication_lag: monthly_variable
+    pagination:
+      type: none
+      page_size: null
+    http:
+      supports_etag: unknown
+      supports_last_modified: unknown
+      timeout_seconds: 60
+      max_response_bytes: 50000000
+    retry:
+      attempts: 3
+      backoff: exponential_jitter
+    licence_status: pending_review
+    terms_url: null
+    terms_reviewed_at: null
+    fallback_sources: []
+    known_limitations:
+      - The website can revise published statistics.
+      - Export workflow and stable download URL require integration testing.
+    enabled: false
+    required_for_publication: false
+
+  - id: EPPO_FUEL
+    name: EPPO retail fuel price publications
+    owner: Energy Policy and Planning Office, Thailand
+    source_class: official
+    purposes: [thailand_fuel_indicator, cost_context]
+    authoritative_for: [published_retail_fuel_prices]
+    landing_url: https://www.eppo.go.th/data-energy-statistic/energy-price-th/
+    endpoint: null
+    access_method: html
+    format: html
+    machine_readable_status: unverified
+    parser: eppo_fuel_v1
+    stable_id_field: effective_date
+    expected_cadence_minutes: 1440
+    max_stale_minutes: 10080
+    publication_lag: variable
+    pagination:
+      type: none
+      page_size: null
+    http:
+      supports_etag: unknown
+      supports_last_modified: unknown
+      timeout_seconds: 30
+      max_response_bytes: 10000000
+    retry:
+      attempts: 3
+      backoff: exponential_jitter
+    licence_status: pending_review
+    terms_url: null
+    terms_reviewed_at: null
+    fallback_sources: []
+    known_limitations:
+      - Dynamic page rendering may expose placeholders before the final data loads.
+      - Parsed values require date, unit, and effective-date validation before publication.
+    enabled: false
+    required_for_publication: false

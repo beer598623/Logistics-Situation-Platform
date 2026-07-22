@@ -15,79 +15,35 @@
     "relation",
     "strength",
     "scope_supported",
-    "known_limitations"
+    "known_limitations",
+    "retrieved_at",
+    "source_record_id",
+    "content_sha256",
+    "raw_snapshot_path",
+    "parser_version",
+    "licence_status",
+    "source_revision"
   ],
   "properties": {
-    "evidence_id": {
-      "type": "string"
-    },
-    "event_id": {
-      "type": "string"
-    },
-    "source_url": {
-      "type": "string",
-      "format": "uri"
-    },
-    "source_name": {
-      "type": "string"
-    },
-    "source_class": {
-      "type": "string"
-    },
-    "publication_date": {
-      "type": "string",
-      "format": "date"
-    },
-    "data_period": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "claim": {
-      "type": "string"
-    },
-    "claim_type": {
-      "enum": [
-        "verified_fact",
-        "official_warning",
-        "reported_claim",
-        "forecast",
-        "inference"
-      ]
-    },
-    "relation": {
-      "enum": [
-        "supports",
-        "contradicts",
-        "contextual",
-        "supersedes"
-      ]
-    },
-    "strength": {
-      "enum": [
-        "A",
-        "B",
-        "C",
-        "D"
-      ]
-    },
-    "scope_supported": {
-      "enum": [
-        "asset",
-        "facility",
-        "node",
-        "route",
-        "country",
-        "region",
-        "global"
-      ]
-    },
-    "known_limitations": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    }
+    "evidence_id": {"type": "string"},
+    "event_id": {"type": "string"},
+    "source_url": {"type": "string", "format": "uri"},
+    "source_name": {"type": "string"},
+    "source_class": {"type": "string"},
+    "publication_date": {"type": "string", "format": "date"},
+    "data_period": {"type": ["string", "null"]},
+    "claim": {"type": "string"},
+    "claim_type": {"enum": ["verified_fact", "official_warning", "reported_claim", "forecast", "inference"]},
+    "relation": {"enum": ["supports", "contradicts", "contextual", "supersedes"]},
+    "strength": {"enum": ["A", "B", "C", "D"]},
+    "scope_supported": {"enum": ["asset", "facility", "node", "route", "country", "region", "global"]},
+    "known_limitations": {"type": "array", "items": {"type": "string"}},
+    "retrieved_at": {"type": "string", "format": "date-time"},
+    "source_record_id": {"type": ["string", "null"]},
+    "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "raw_snapshot_path": {"type": ["string", "null"]},
+    "parser_version": {"type": "string", "pattern": "^[a-z0-9_]+_v[0-9]+$"},
+    "licence_status": {"enum": ["reviewed", "pending_review", "restricted", "unknown"]},
+    "source_revision": {"type": ["string", "null"]}
   }
 }
