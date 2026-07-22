@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Innovation Solution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "solution_id",
+    "name",
+    "problem_addressed",
+    "mechanism",
+    "maturity",
+    "evidence",
+    "prerequisites",
+    "implementation_complexity",
+    "limitations",
+    "risks",
+    "suitable_environment",
+    "adoption_horizon",
+    "comparable_alternatives"
+  ],
+  "properties": {
+    "solution_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "problem_addressed": {
+      "type": "string"
+    },
+    "mechanism": {
+      "type": "string"
+    },
+    "maturity": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "implementation_complexity": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "suitable_environment": {
+      "type": "string"
+    },
+    "adoption_horizon": {
+      "type": "string"
+    },
+    "comparable_alternatives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

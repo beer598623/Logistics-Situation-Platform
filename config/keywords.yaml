@@ -1,0 +1,14 @@
+version: "0.1"
+categories:
+  maritime_port:
+    en: [port closure, terminal shutdown, canal restriction, vessel queue]
+    th: [ท่าเรือปิด, ปิดช่องเดินเรือ, จำกัดร่องน้ำ]
+  road_border:
+    en: [border closure, road closure, freight disruption]
+    th: [ปิดด่าน, ถนนปิด, รถบรรทุกติดค้าง]
+  air_cargo:
+    en: [airport closure, runway closure, cargo capacity reduction]
+    th: [ปิดสนามบิน, ปิดรันเวย์, ความจุขนส่งทางอากาศลดลง]
+  energy_cost:
+    en: [diesel price, bunker surcharge, crude oil surge]
+    th: [ราคาน้ำมันดีเซล, ค่าธรรมเนียมน้ำมัน]

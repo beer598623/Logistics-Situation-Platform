@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Preparedness Option",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "option_type",
+    "description",
+    "applicable_to",
+    "trigger_condition",
+    "possible_benefit",
+    "tradeoffs",
+    "limitations",
+    "exit_condition",
+    "evidence_basis"
+  ],
+  "properties": {
+    "option_type": {
+      "enum": [
+        "monitor",
+        "verify_exposure",
+        "near_term",
+        "contingency",
+        "recovery",
+        "no_action"
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
+    "applicable_to": {
+      "type": "string"
+    },
+    "trigger_condition": {
+      "type": "string"
+    },
+    "possible_benefit": {
+      "type": "string"
+    },
+    "tradeoffs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exit_condition": {
+      "type": "string"
+    },
+    "evidence_basis": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+version: "0.7"
+primary_categories:
+  - maritime_port
+  - air_cargo
+  - road_border
+  - rail_intermodal
+  - energy_commodity
+  - weather_natural_hazard
+  - geopolitical_security
+  - trade_regulation
+  - labor_operations
+  - infrastructure
+  - cyber_digital
+  - health_biosecurity
+scope_hierarchy: [asset, facility, node, route, country, region, global]
+transport_modes: [maritime, air, road, rail, inland_waterway, multimodal, digital]
+segments: [container, tanker, bulk, roro, air_cargo, passenger, domestic_freight, rail_freight, unspecified]

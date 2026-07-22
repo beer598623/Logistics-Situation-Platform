@@ -1,0 +1,13 @@
+version: "0.7"
+option_types: [monitor, verify_exposure, near_term, contingency, recovery, no_action]
+required_fields:
+  - applicable_to
+  - trigger_condition
+  - possible_benefit
+  - tradeoffs
+  - limitations
+  - exit_condition
+rules:
+  - Options are conditional and organization-neutral.
+  - Do not instruct all organizations to increase inventory, reroute, or add capacity.
+  - High-cost or high-risk options must be flagged for enhanced review.

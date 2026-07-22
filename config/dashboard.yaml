@@ -1,0 +1,12 @@
+version: "0.1"
+title: Logistics Situation Platform
+language_default: th
+pages:
+  - overview
+  - daily-intelligence
+  - impact-assessment
+  - preparedness
+  - innovation
+  - sources-methodology
+  - system-status
+risk_colors_are_supplemental_only: true

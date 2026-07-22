@@ -1,0 +1,18 @@
+version: "0.7"
+maturity_levels: [emerging_research, early_pilot, commercially_available, scaling_adoption, established_practice]
+evidence_types: [standard, independent_research, operator_result, industry_reported, vendor_claim]
+required_dimensions:
+  - problem_addressed
+  - mechanism
+  - maturity
+  - evidence
+  - prerequisites
+  - implementation_complexity
+  - limitations
+  - risks
+  - suitable_environment
+  - adoption_horizon
+  - comparable_alternatives
+rules:
+  - Separate vendor claims from independently verified results.
+  - Do not rank or promote vendors without comparative evidence.

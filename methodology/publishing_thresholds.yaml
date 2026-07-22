@@ -1,0 +1,9 @@
+version: "0.7"
+statuses:
+  main_dashboard: verified event with observed impact, or moderate-or-higher potential impact with a supported transmission mechanism
+  watchlist: relevant verified or reported event with incomplete impact evidence
+  no_material_impact_detected: event verified and logistics operations shown to be unaffected within the supported scope
+  assessment_deferred: event is real but operational evidence is insufficient
+  hold: single-source, conflicting, or unconfirmed evidence
+  rejected: duplicate, old story, opinion, advertisement, or unclear event/date/geography
+  closed_archive: recovery evidence confirms the event has ended or impact has normalized

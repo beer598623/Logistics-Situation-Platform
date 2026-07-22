@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Logistics Situation Platform</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<header>
+  <div><span class="eyebrow">PUBLIC RESEARCH DASHBOARD</span><h1>Logistics Situation Platform</h1><p class="subtitle">Global & Thailand logistics conditions, impacts, preparedness, and innovation</p></div>
+  <div id="freshness" class="freshness">กำลังโหลด…</div>
+</header>
+<nav aria-label="Dashboard sections">
+  <a href="#overview">Overview</a><a href="#events">Daily Intelligence</a><a href="#impact">Impact</a><a href="#methodology">Methodology</a>
+</nav>
+<main>
+<section id="overview">
+  <h2>Situation Overview</h2>
+  <div class="cards">
+    <article class="metric"><span>Active events</span><strong id="active-count">—</strong></article>
+    <article class="metric"><span>Thailand relevant</span><strong id="thai-count">—</strong></article>
+    <article class="metric"><span>No material impact</span><strong id="noimpact-count">—</strong></article>
+    <article class="metric"><span>Methodology</span><strong>v0.7</strong></article>
+  </div>
+  <p class="notice">Prototype data only. Facts, inference, impacts, and preparedness options are separated. Missing data is not treated as zero.</p>
+</section>
+<section id="events"><h2>Reviewed Events</h2><div id="event-list" class="event-list"></div></section>
+<section id="impact"><h2>Impact Matrix</h2><div class="table-wrap"><table><thead><tr><th>Event</th><th>Warehouse</th><th>Logistics</th><th>Transport</th><th>Import–Export</th><th>Inventory</th><th>Cost</th><th>Capacity</th><th>Service</th><th>Continuity</th></tr></thead><tbody id="impact-body"></tbody></table></div></section>
+<section id="methodology"><h2>Sources & Methodology</h2><p>This dashboard uses public sources only and applies Methodology v0.7. Every material factual claim must retain a source, publication date, evidence classification, and limitation.</p><p><a href="https://github.com/beer598623/Logistics-Situation-Platform">Open methodology and revision history on GitHub</a></p></section>
+</main>
+<footer>Organization-neutral public research · Not company-specific advice</footer>
+<script src="assets/app.js"></script>
+</body></html>

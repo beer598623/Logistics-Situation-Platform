@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-07-22T00:00:00Z",
+  "candidates": [
+    {
+      "candidate_id": "CAND-20240614-001",
+      "title": "Oil spill near Pasir Panjang Terminal",
+      "detected_at": "2024-06-14T12:00:00Z",
+      "event_date": "2024-06-14",
+      "publication_date": "2024-06-14",
+      "source_url": "https://www.mpa.gov.sg/media-centre/details/oil-spill-clean-up-in-progress-at-pasir-panjang-terminal",
+      "source_name": "Maritime and Port Authority of Singapore",
+      "source_class": "operator",
+      "primary_category": "maritime_port",
+      "secondary_tags": [
+        "oil_spill",
+        "negative_control"
+      ],
+      "geography": [
+        "Singapore",
+        "Pasir Panjang"
+      ],
+      "transport_modes": [
+        "maritime"
+      ],
+      "segments": [
+        "container"
+      ],
+      "headline_summary": "Oil spill response was initiated near the terminal.",
+      "raw_claims": [
+        "Navigational traffic and berthing operations were not affected at the time of the notice."
+      ],
+      "duplicate_cluster_id": null,
+      "collector_status": "new",
+      "retrieved_at": "2026-07-22T00:00:00Z"
+    }
+  ]
+}

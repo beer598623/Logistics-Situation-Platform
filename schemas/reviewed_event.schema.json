@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reviewed Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "title",
+    "event_status",
+    "lifecycle_stage",
+    "event_start",
+    "expected_end",
+    "last_verified_at",
+    "geography",
+    "modes",
+    "segments",
+    "verified_facts",
+    "reported_claims",
+    "conflicting_evidence",
+    "negative_operational_evidence",
+    "operational_disruption_status",
+    "scope_supported",
+    "thailand_relevance",
+    "evidence",
+    "impact_assessments",
+    "preparedness_options",
+    "known_limitations",
+    "publication_status",
+    "methodology_version"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "event_status": {
+      "type": "string"
+    },
+    "lifecycle_stage": {
+      "enum": [
+        "Detected",
+        "Reported",
+        "Verified",
+        "Operational impact observed",
+        "Monitoring",
+        "Recovering",
+        "Closed"
+      ]
+    },
+    "event_start": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "expected_end": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "last_verified_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "geography": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verified_facts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reported_claims": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "conflicting_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "negative_operational_evidence": {
+      "type": "boolean"
+    },
+    "operational_disruption_status": {
+      "enum": [
+        "observed",
+        "potential",
+        "not_detected",
+        "insufficient_evidence"
+      ]
+    },
+    "scope_supported": {
+      "enum": [
+        "asset",
+        "facility",
+        "node",
+        "route",
+        "country",
+        "region",
+        "global"
+      ]
+    },
+    "thailand_relevance": {
+      "enum": [
+        "none",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "evidence.schema.json"
+      },
+      "minItems": 1
+    },
+    "impact_assessments": {
+      "type": "array",
+      "items": {
+        "$ref": "impact_assessment.schema.json"
+      },
+      "minItems": 9,
+      "maxItems": 9
+    },
+    "preparedness_options": {
+      "type": "array",
+      "items": {
+        "$ref": "preparedness_option.schema.json"
+      }
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "publication_status": {
+      "enum": [
+        "Main dashboard",
+        "Watchlist",
+        "No material impact detected",
+        "Assessment deferred",
+        "Hold",
+        "Rejected",
+        "Closed archive"
+      ]
+    },
+    "methodology_version": {
+      "const": "0.7"
+    }
+  }
+}

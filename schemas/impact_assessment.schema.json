@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Impact Assessment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "area",
+    "status",
+    "severity",
+    "relevance",
+    "geographic_scope",
+    "time_horizon",
+    "expected_duration",
+    "transmission_mechanism",
+    "evidence_ids",
+    "evidence_strength",
+    "confidence",
+    "known_limitations"
+  ],
+  "properties": {
+    "area": {
+      "enum": [
+        "warehouse",
+        "logistics",
+        "transport",
+        "import_export",
+        "inventory",
+        "cost",
+        "capacity",
+        "service",
+        "business_continuity"
+      ]
+    },
+    "status": {
+      "enum": [
+        "observed",
+        "potential",
+        "no_material",
+        "insufficient_evidence"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "none",
+        "low",
+        "moderate",
+        "high",
+        "critical"
+      ]
+    },
+    "relevance": {
+      "enum": [
+        "none",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "geographic_scope": {
+      "type": "string"
+    },
+    "time_horizon": {
+      "enum": [
+        "immediate",
+        "1-4_weeks",
+        "1-3_months",
+        "longer_term",
+        "unknown"
+      ]
+    },
+    "expected_duration": {
+      "enum": [
+        "temporary",
+        "short",
+        "extended",
+        "unknown"
+      ]
+    },
+    "transmission_mechanism": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_strength": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

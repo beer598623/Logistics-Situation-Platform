@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evidence Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_id",
+    "event_id",
+    "source_url",
+    "source_name",
+    "source_class",
+    "publication_date",
+    "claim",
+    "claim_type",
+    "relation",
+    "strength",
+    "scope_supported",
+    "known_limitations"
+  ],
+  "properties": {
+    "evidence_id": {
+      "type": "string"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "source_class": {
+      "type": "string"
+    },
+    "publication_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "data_period": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "claim": {
+      "type": "string"
+    },
+    "claim_type": {
+      "enum": [
+        "verified_fact",
+        "official_warning",
+        "reported_claim",
+        "forecast",
+        "inference"
+      ]
+    },
+    "relation": {
+      "enum": [
+        "supports",
+        "contradicts",
+        "contextual",
+        "supersedes"
+      ]
+    },
+    "strength": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "scope_supported": {
+      "enum": [
+        "asset",
+        "facility",
+        "node",
+        "route",
+        "country",
+        "region",
+        "global"
+      ]
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

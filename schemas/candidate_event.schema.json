@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Candidate Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "title",
+    "detected_at",
+    "publication_date",
+    "source_url",
+    "source_name",
+    "source_class",
+    "primary_category",
+    "geography",
+    "transport_modes",
+    "segments",
+    "headline_summary",
+    "raw_claims",
+    "collector_status",
+    "retrieved_at"
+  ],
+  "properties": {
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^CAND-[0-9]{8}-[0-9]{3,}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3
+    },
+    "detected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "event_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "publication_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "source_class": {
+      "enum": [
+        "official",
+        "operator",
+        "international",
+        "industry",
+        "news",
+        "vendor"
+      ]
+    },
+    "primary_category": {
+      "type": "string"
+    },
+    "secondary_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "geography": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "transport_modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "headline_summary": {
+      "type": "string"
+    },
+    "raw_claims": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "duplicate_cluster_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "collector_status": {
+      "enum": [
+        "new",
+        "duplicate",
+        "updated",
+        "rejected"
+      ]
+    },
+    "retrieved_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+version: "0.7"
+impact_areas:
+  - warehouse
+  - logistics
+  - transport
+  - import_export
+  - inventory
+  - cost
+  - capacity
+  - service
+  - business_continuity
+severity: [none, low, moderate, high, critical]
+status: [observed, potential, no_material, insufficient_evidence]
+evidence_strength:
+  A: primary quantitative evidence plus independent corroboration
+  B: clear official notice or primary dataset
+  C: credible industry or news reporting without sufficient primary evidence
+  D: vendor claim, social post, forecast, or unverified lead
+rules:
+  - Do not expand impact beyond the scope supported by evidence.
+  - Separate hazard severity from operational disruption.
+  - Treat operator statements that operations are unaffected as negative operational evidence with a recheck time.
+  - A vessel-level incident does not establish corridor disruption without aggregate evidence.
+  - Segment impacts must not be generalized to all port or transport activity.
+  - Thailand relevance defaults to none or low for remote events unless exposure evidence exists.
+  - High and critical assessments require verified operational impact and primary evidence.
+  - Warehouse and inventory impacts require a stated transmission mechanism; they do not inherit transport severity.
+  - Every assessment must expose uncertainty and known limitations.

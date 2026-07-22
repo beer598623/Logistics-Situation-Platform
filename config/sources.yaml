@@ -1,0 +1,38 @@
+version: "0.1"
+policy: free_public_sources_only
+sources:
+  - id: GDACS
+    name: Global Disaster Alert and Coordination System
+    class: international
+    role: event_detection
+    access_cost: free
+    machine_readable: true
+    prototype_status: planned
+  - id: TMD
+    name: Thai Meteorological Department
+    class: official
+    role: thailand_weather_alerts
+    access_cost: free
+    machine_readable: true
+    prototype_status: planned
+  - id: GSCPI
+    name: New York Fed Global Supply Chain Pressure Index
+    class: official_research
+    role: baseline_indicator
+    access_cost: free
+    machine_readable: true
+    prototype_status: planned
+  - id: TH_CUSTOMS
+    name: Thai Customs Department statistics
+    class: official
+    role: thailand_trade_indicator
+    access_cost: free
+    machine_readable: true
+    prototype_status: planned
+  - id: EPPO
+    name: Energy Policy and Planning Office fuel prices
+    class: official
+    role: thailand_fuel_indicator
+    access_cost: free
+    machine_readable: true
+    prototype_status: planned

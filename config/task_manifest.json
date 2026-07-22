@@ -1,0 +1,21 @@
+{
+  "project": "Logistics Situation Platform",
+  "methodology_version": "0.7",
+  "base_raw_url": "https://raw.githubusercontent.com/beer598623/Logistics-Situation-Platform/main/",
+  "methodology_urls": {
+    "scope": "methodology/project_scope.md",
+    "source_policy": "methodology/source_policy.md",
+    "event_taxonomy": "methodology/event_taxonomy.yaml",
+    "impact_rulebook": "methodology/impact_rulebook.yaml",
+    "preparedness": "methodology/preparedness_framework.yaml",
+    "innovation": "methodology/innovation_framework.yaml",
+    "publishing": "methodology/publishing_thresholds.yaml"
+  },
+  "data_urls": {
+    "candidates": "data/candidates/latest.json",
+    "current_events": "data/reviewed/current_events.json",
+    "indicators": "data/indicators/latest.json",
+    "source_status": "data/source_status/latest.json"
+  },
+  "output_schema": "schemas/decision_package.schema.json"
+}

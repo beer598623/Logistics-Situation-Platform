@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Decision Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_date",
+    "methodology_version",
+    "summary",
+    "events",
+    "source_failures"
+  ],
+  "properties": {
+    "review_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "methodology_version": {
+      "const": "0.7"
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "candidates_examined",
+        "recommended_for_publication",
+        "watchlist",
+        "deferred",
+        "no_material_impact",
+        "rejected"
+      ],
+      "properties": {
+        "candidates_examined": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recommended_for_publication": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "watchlist": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deferred": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "no_material_impact": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rejected": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "recommendation",
+          "verified_summary",
+          "thailand_relevance",
+          "highest_impact",
+          "evidence_strength",
+          "confidence",
+          "review_flags",
+          "source_urls"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "recommendation": {
+            "enum": [
+              "publish",
+              "watch",
+              "defer",
+              "no_material_impact",
+              "reject"
+            ]
+          },
+          "verified_summary": {
+            "type": "string"
+          },
+          "thailand_relevance": {
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "highest_impact": {
+            "type": "string"
+          },
+          "evidence_strength": {
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "confidence": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "review_flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_urls": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "source_failures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
