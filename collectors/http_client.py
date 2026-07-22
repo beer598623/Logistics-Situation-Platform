@@ -69,7 +69,9 @@ class ResilientHttpClient:
                         raise ResponseTooLargeError(
                             f"Response from {url} exceeded {max_response_bytes} bytes"
                         )
-                    normalized_headers = {key.lower(): value for key, value in response.headers.items()}
+                    normalized_headers = {
+                        key.lower(): value for key, value in response.headers.items()
+                    }
                     return HttpResponse(
                         url=response.geturl(),
                         status=response.status,

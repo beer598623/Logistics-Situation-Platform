@@ -85,10 +85,9 @@ def semantic_checks(event: dict[str, Any]) -> list[str]:
         unknown = set(impact.get("evidence_ids", [])) - evidence_ids
         if unknown:
             problems.append(f"{impact.get('area')}: unknown evidence IDs {sorted(unknown)}")
-        if (
-            impact.get("severity") in {"high", "critical"}
-            and impact.get("evidence_strength") not in {"A", "B"}
-        ):
+        if impact.get("severity") in {"high", "critical"} and impact.get(
+            "evidence_strength"
+        ) not in {"A", "B"}:
             problems.append(
                 f"{impact.get('area')}: high/critical impact lacks primary-grade evidence"
             )
@@ -99,9 +98,8 @@ def semantic_checks(event: dict[str, Any]) -> list[str]:
         ):
             problems.append(f"{impact.get('area')}: missing transmission mechanism")
 
-    if (
-        event.get("publication_status") == "No material impact detected"
-        and not event.get("negative_operational_evidence")
+    if event.get("publication_status") == "No material impact detected" and not event.get(
+        "negative_operational_evidence"
     ):
         problems.append("no-material-impact status requires negative operational evidence")
     return problems
@@ -154,8 +152,7 @@ def main() -> int:
     source_status = load_json(ROOT / "data/source_status/latest.json")
     ok &= validate_item(source_status, "source_status.schema.json", "source_status")
     if source_status.get("overall_status") == "sufficient" and any(
-        source.get("status") in {"no_data", "error"}
-        and source.get("required_for_publication")
+        source.get("status") in {"no_data", "error"} and source.get("required_for_publication")
         for source in source_status.get("sources", [])
     ):
         print("[FAIL] source_status semantic: required source gap cannot be sufficient")

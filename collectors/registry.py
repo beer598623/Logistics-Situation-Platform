@@ -32,9 +32,7 @@ def validate_registry(data: dict[str, Any]) -> list[str]:
         messages.append(f"{location}: {error.message}")
 
     source_ids = [
-        source.get("id")
-        for source in data.get("sources", [])
-        if isinstance(source, dict)
+        source.get("id") for source in data.get("sources", []) if isinstance(source, dict)
     ]
     if len(source_ids) != len(set(source_ids)):
         messages.append("sources: source IDs must be unique")
