@@ -1,18 +1,31 @@
 name: Repository health check
+
 on:
   schedule:
     - cron: '17 0 * * 1'
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   health:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - run: test -f dashboard/public/index.html
-      - run: python -m json.tool data/reviewed/current_events.json >/dev/null
-      - run: python -m json.tool config/task_manifest.json >/dev/null
+
+      - name: Verify dashboard entry point
+        run: test -f dashboard/public/index.html
+
+      - name: Verify reviewed-event JSON
+        run: python -m json.tool data/reviewed/current_events.json >/dev/null
+
+      - name: Verify task manifest JSON
+        run: python -m json.tool config/task_manifest.json >/dev/null
