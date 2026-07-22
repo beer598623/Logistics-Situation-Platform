@@ -28,3 +28,10 @@ Apply only human-approved Daily Decision Packages to the logistics intelligence 
 6. Run `python scripts/validate.py`, `python scripts/build_dashboard.py`, and the test suite.
 7. Create a pull request; do not push directly to `main`.
 8. Include validation and build results in the pull-request description.
+
+## Collector safety
+
+- Do not enable a source unless `machine_readable_status` is `verified`, `licence_status` is `reviewed`, and an endpoint is recorded.
+- Collector adapters may detect and normalize candidates; they must not infer or publish operational impact.
+- Preserve retrieval timestamps, source record IDs, content hashes, parser versions, source revisions, and limitations.
+- A failed or missing source must become an explicit intelligence gap, never a zero value or an all-clear conclusion.

@@ -4,6 +4,13 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "approval",
+    "decision_payload_sha256",
+    "input_manifest_sha256",
+    "prompt_version",
+    "data_cutoff_at",
+    "generated_at",
+    "analysis_run_id",
     "review_date",
     "methodology_version",
     "summary",
@@ -11,127 +18,70 @@
     "source_failures"
   ],
   "properties": {
-    "review_date": {
-      "type": "string",
-      "format": "date"
-    },
-    "methodology_version": {
-      "const": "0.7"
-    },
+    "review_date": {"type": "string", "format": "date"},
+    "methodology_version": {"const": "0.7"},
     "summary": {
       "type": "object",
-      "required": [
-        "candidates_examined",
-        "recommended_for_publication",
-        "watchlist",
-        "deferred",
-        "no_material_impact",
-        "rejected"
-      ],
+      "required": ["candidates_examined", "recommended_for_publication", "watchlist", "deferred", "no_material_impact", "rejected"],
       "properties": {
-        "candidates_examined": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "recommended_for_publication": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "watchlist": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "deferred": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "no_material_impact": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "rejected": {
-          "type": "integer",
-          "minimum": 0
-        }
-      }
+        "candidates_examined": {"type": "integer", "minimum": 0},
+        "recommended_for_publication": {"type": "integer", "minimum": 0},
+        "watchlist": {"type": "integer", "minimum": 0},
+        "deferred": {"type": "integer", "minimum": 0},
+        "no_material_impact": {"type": "integer", "minimum": 0},
+        "rejected": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
     },
     "events": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "event_id",
-          "recommendation",
-          "verified_summary",
-          "thailand_relevance",
-          "highest_impact",
-          "evidence_strength",
-          "confidence",
-          "review_flags",
-          "source_urls"
-        ],
+        "required": ["event_id", "recommendation", "verified_summary", "thailand_relevance", "highest_impact", "evidence_strength", "confidence", "review_flags", "source_urls"],
         "properties": {
-          "event_id": {
-            "type": "string"
-          },
-          "recommendation": {
-            "enum": [
-              "publish",
-              "watch",
-              "defer",
-              "no_material_impact",
-              "reject"
-            ]
-          },
-          "verified_summary": {
-            "type": "string"
-          },
-          "thailand_relevance": {
-            "enum": [
-              "none",
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          "highest_impact": {
-            "type": "string"
-          },
-          "evidence_strength": {
-            "enum": [
-              "A",
-              "B",
-              "C",
-              "D"
-            ]
-          },
-          "confidence": {
-            "enum": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          "review_flags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "source_urls": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uri"
-            }
-          }
-        }
+          "event_id": {"type": "string"},
+          "recommendation": {"enum": ["publish", "watch", "defer", "no_material_impact", "reject"]},
+          "verified_summary": {"type": "string"},
+          "thailand_relevance": {"enum": ["none", "low", "medium", "high"]},
+          "highest_impact": {"type": "string"},
+          "evidence_strength": {"enum": ["A", "B", "C", "D"]},
+          "confidence": {"enum": ["low", "medium", "high"]},
+          "review_flags": {"type": "array", "items": {"type": "string"}},
+          "source_urls": {"type": "array", "items": {"type": "string", "format": "uri"}}
+        },
+        "additionalProperties": false
       }
     },
     "source_failures": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_id", "status", "message", "last_success_at"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "status": {"enum": ["stale", "very_stale", "no_data", "disabled", "error"]},
+          "message": {"type": "string"},
+          "last_success_at": {"type": ["string", "null"], "format": "date-time"}
+        }
+      }
+    },
+    "analysis_run_id": {"type": "string", "pattern": "^ANL-[0-9]{8}T[0-9]{6}Z$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "data_cutoff_at": {"type": "string", "format": "date-time"},
+    "prompt_version": {"type": "string"},
+    "input_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "decision_payload_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "approved_at", "approval_command", "approved_event_ids", "notes"],
+      "properties": {
+        "status": {"enum": ["pending", "approved", "revised", "rejected"]},
+        "approved_at": {"type": ["string", "null"], "format": "date-time"},
+        "approval_command": {"type": ["string", "null"]},
+        "approved_event_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "notes": {"type": "array", "items": {"type": "string"}}
       }
     }
   }

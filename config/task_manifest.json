@@ -17,5 +17,13 @@
     "indicators": "data/indicators/latest.json",
     "source_status": "data/source_status/latest.json"
   },
-  "output_schema": "schemas/decision_package.schema.json"
+  "output_schema": "schemas/decision_package.schema.json",
+  "implementation_version": "0.1.1",
+  "contract_urls": {
+    "sources": "config/sources.yaml",
+    "source_contract_schema": "schemas/source_contract.schema.json",
+    "source_status_schema": "schemas/source_status.schema.json",
+    "collection_run_schema": "schemas/collection_run.schema.json",
+    "evidence_schema": "schemas/evidence.schema.json"
+  }
 }

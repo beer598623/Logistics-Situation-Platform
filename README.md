@@ -2,8 +2,6 @@
 
 Public research dashboard for global and Thailand logistics conditions, operational impacts, preparedness options, and innovation signals.
 
-Public-research dashboard for monitoring global and Thailand logistics conditions, assessing potential operational impacts, and tracking emerging logistics solutions.
-
 ## Project principles
 
 - Public sources only.
@@ -24,22 +22,30 @@ Public-research dashboard for monitoring global and Thailand logistics condition
 ## Local validation
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.lock pytest==9.1.1 ruff==0.15.22
+ruff check collectors scripts tests
+ruff format --check collectors scripts tests
 python scripts/validate.py
+python scripts/collect.py --dry-run
 python scripts/build_dashboard.py
-python -m unittest discover -s tests -v
+pytest
 ```
 
 Open `dashboard/public/index.html` after building.
 
-## Initial setup
+## Deployment
 
-1. Create a public repository named `Logistics-Situation-Platform`.
-2. Upload this bootstrap package to the repository root.
-3. In **Settings → Pages**, select **GitHub Actions** as the source.
-4. Run the `Validate repository` workflow.
-5. Run the `Deploy GitHub Pages` workflow.
+GitHub Actions validates the repository and deploys `dashboard/public` to GitHub Pages.
+The published site must retain the latest successful version when validation or collection fails.
 
 ## Current status
 
-Implementation v0.1: repository structure, schemas, validation, sample negative control, and static dashboard skeleton.
+Implementation v0.1.1: source contracts, collection provenance, source-health gates, adapter interfaces, locked runtime dependencies, and quality checks. Live collectors remain disabled until source-specific integration tests pass.
+
+## Data contracts
+
+- `config/sources.yaml` is the source contract registry.
+- `schemas/collection_run.schema.json` records collection-run lineage.
+- `schemas/source_status.schema.json` prevents a source outage from appearing as an all-clear.
+- Evidence records retain retrieval time, content hash, parser version, reuse status, and source revision.
+- Live collection is disabled unless the source endpoint and machine-readable status are verified and the reuse position is reviewed.

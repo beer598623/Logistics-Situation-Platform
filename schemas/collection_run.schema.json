@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "collection_run.schema.json",
+  "title": "Collection Run Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id", "source_id", "started_at", "completed_at", "status", "workflow_sha",
+    "adapter_version", "request_url", "http_status", "etag", "last_modified",
+    "content_sha256", "records_received", "records_emitted", "records_rejected",
+    "data_cutoff_at", "warnings", "errors"
+  ],
+  "properties": {
+    "run_id": {"type": "string", "pattern": "^COL-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$"},
+    "source_id": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["success", "not_modified", "disabled", "error", "dry_run"]},
+    "workflow_sha": {"type": ["string", "null"]},
+    "adapter_version": {"type": "string"},
+    "request_url": {"type": ["string", "null"], "format": "uri"},
+    "http_status": {"type": ["integer", "null"], "minimum": 100, "maximum": 599},
+    "etag": {"type": ["string", "null"]},
+    "last_modified": {"type": ["string", "null"]},
+    "content_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "records_received": {"type": ["integer", "null"], "minimum": 0},
+    "records_emitted": {"type": ["integer", "null"], "minimum": 0},
+    "records_rejected": {"type": ["integer", "null"], "minimum": 0},
+    "data_cutoff_at": {"type": ["string", "null"], "format": "date-time"},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "errors": {"type": "array", "items": {"type": "string"}}
+  }
+}
