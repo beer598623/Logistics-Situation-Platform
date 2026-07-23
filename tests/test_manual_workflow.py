@@ -12,13 +12,20 @@ WORKFLOW_PATH = ROOT / ".github" / "workflows" / "manual-live-source-test.yml"
 
 sys.path.insert(0, str(ROOT))
 
+from collectors.adapters.cap import CapSecurityError, MalformedCapAlertError  # noqa: E402
+from collectors.adapters.rss_discovery import NotAnRssEnvelopeError, RssSecurityError  # noqa: E402
+from collectors.adapters.xml_envelope import EnvelopeSecurityError  # noqa: E402
+from collectors.http_client import UnexpectedContentTypeError  # noqa: E402
 from collectors.registry import load_registry, source_by_id  # noqa: E402
+from scripts import manual_live_source_test  # noqa: E402
 from scripts.manual_live_source_test import (  # noqa: E402
     MAX_REPORT_BYTES,
     MAX_REPORT_LIST_ITEMS,
+    _classify_error_category,
     _enforce_report_size_cap,
     _redact_staging_record,
     _sanitize_report,
+    main,
     run_gdacs,
     run_tmd_cap,
 )
@@ -48,6 +55,53 @@ def test_manual_workflow_inputs_cover_required_fields(workflow: dict) -> None:
     inputs = triggers["workflow_dispatch"]["inputs"]
     assert set(inputs) >= {"source", "dry_run", "from_date", "to_date", "language"}
     assert inputs["source"]["options"] == ["gdacs", "tmd_cap"]
+
+
+# --- Scope E: bounded TMD discovery-mode input --------------------------------
+
+
+def test_manual_workflow_has_a_bounded_tmd_operation_input(workflow: dict) -> None:
+    triggers = workflow.get("on", workflow.get(True))
+    inputs = triggers["workflow_dispatch"]["inputs"]
+    assert "tmd_operation" in inputs
+    assert inputs["tmd_operation"]["default"] == "direct_cap"
+    assert inputs["tmd_operation"]["options"] == ["direct_cap", "rss_discovery"]
+
+
+def test_manual_workflow_permissions_are_read_only(workflow: dict) -> None:
+    assert workflow["permissions"] == {"contents": "read"}
+
+
+# --- Scope F: safety checks still run after an expected script failure -----
+
+
+def test_manual_workflow_confirm_step_runs_even_after_a_prior_failure(workflow: dict) -> None:
+    steps = workflow["jobs"]["manual-live-test"]["steps"]
+    confirm_steps = [
+        step
+        for step in steps
+        if step.get("name") == "Confirm public dashboard/current-event data are unchanged"
+    ]
+    assert len(confirm_steps) == 1
+    assert confirm_steps[0]["if"] == "always()"
+
+
+def test_manual_workflow_upload_step_runs_even_after_a_prior_failure(workflow: dict) -> None:
+    steps = workflow["jobs"]["manual-live-test"]["steps"]
+    upload_steps = [
+        step for step in steps if step.get("uses", "").startswith("actions/upload-artifact")
+    ]
+    assert len(upload_steps) == 1
+    assert upload_steps[0]["if"] == "always()"
+
+
+def test_manual_workflow_script_step_has_no_continue_on_error(workflow: dict) -> None:
+    """The run-script step must not silently swallow a non-zero exit -- a
+    parser/security failure must still fail the job."""
+    steps = workflow["jobs"]["manual-live-test"]["steps"]
+    script_steps = [step for step in steps if "manual_live_source_test.py" in step.get("run", "")]
+    assert len(script_steps) == 1
+    assert "continue-on-error" not in script_steps[0]
 
 
 def test_manual_workflow_does_not_auto_create_a_pull_request(workflow: dict) -> None:
@@ -167,10 +221,121 @@ def test_run_tmd_cap_dry_run_never_touches_network() -> None:
 
     class Args:
         language = "primary"
+        tmd_operation = "direct_cap"
 
     report = run_tmd_cap(Args(), contract, dry_run=True)
     assert report["mode"] == "dry_run"
     assert "collection_run" not in report
+
+
+def test_run_tmd_cap_rss_discovery_dry_run_never_touches_network() -> None:
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "rss_discovery"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["mode"] == "dry_run"
+    assert report["operation"] == "rss_discovery"
+    assert "fetch" not in report
+    assert "discovery" not in report
+    assert "envelope_classification" not in report
+
+
+# --- _classify_error_category: stable vocabulary for sanitized diagnostics --
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected_category"),
+    [
+        (SystemExit("bad range"), "validation"),
+        (CapSecurityError("boom"), "security"),
+        (EnvelopeSecurityError("boom"), "security"),
+        (RssSecurityError("boom"), "security"),
+        (MalformedCapAlertError("boom"), "parse"),
+        (NotAnRssEnvelopeError("boom"), "parse"),
+        (UnexpectedContentTypeError("boom"), "content_type"),
+        (ValueError("boom"), "validation"),
+        (RuntimeError("boom"), "unexpected"),
+    ],
+)
+def test_classify_error_category_maps_known_exception_types(exc, expected_category) -> None:
+    assert _classify_error_category(exc) == expected_category
+
+
+# --- main(): failure path still produces a sanitized report + non-zero exit -
+
+
+def test_main_produces_sanitized_error_report_for_an_out_of_bound_gdacs_date_range(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    exit_code = main(
+        [
+            "--source",
+            "gdacs",
+            "--dry-run",
+            "true",
+            "--from-date",
+            "2026-01-01",
+            "--to-date",
+            "2026-12-31",
+        ]
+    )
+    assert exit_code == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["error_category"] == "validation"
+    assert report["errors"]
+    assert report["forbidden_path_check"] == "clean"
+    assert report["contract_state"]["enabled"] is False
+
+
+def test_main_produces_sanitized_error_report_for_an_unknown_tmd_language_label(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An unexpected exception raised before an adapter's own try/except
+    (here, resolve_endpoint's ValueError for an unknown alternate-endpoint
+    label) must still produce a sanitized report and a non-zero exit --
+    never a crash with no artifact."""
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "true",
+            "--language",
+            "unknown_language_label",
+        ]
+    )
+    assert exit_code == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["error_code"] == "ValueError"
+    assert report["error_category"] == "validation"
+    assert report["operation"] == "direct_cap"
+    assert report["forbidden_path_check"] == "clean"
+
+
+def test_main_succeeds_for_a_valid_dry_run_and_leaves_forbidden_paths_untouched(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "true",
+            "--tmd-operation",
+            "rss_discovery",
+        ]
+    )
+    assert exit_code == 0
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["mode"] == "dry_run"
+    assert report["forbidden_path_check"] == "clean"
 
 
 # --- Whole-report sanitizer: bounded strings, capped lists, capped bytes ----

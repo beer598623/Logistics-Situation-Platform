@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog>
+  <book id="bk101">
+    <author>Synthetic Author</author>
+    <title>Synthetic Unrelated XML Fixture</title>
+    <genre>Fixture</genre>
+    <price>0.00</price>
+  </book>
+</catalog>

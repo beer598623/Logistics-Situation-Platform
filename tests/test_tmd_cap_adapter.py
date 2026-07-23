@@ -8,15 +8,21 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from collectors.adapters.cap import parse_cap_alert
 from collectors.adapters.tmd_cap import TmdCapAdapter, normalize_tmd_alert, resolve_endpoint
+from collectors.adapters.xml_envelope import RSS
 from collectors.registry import load_registry, source_by_id
 from tests.conftest import FakeHttpClient
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "cap"
+RSS_FIXTURES = ROOT / "tests" / "fixtures" / "rss"
 
 
 def _read(name: str) -> bytes:
     return (FIXTURES / name).read_bytes()
+
+
+def _read_rss(name: str) -> bytes:
+    return (RSS_FIXTURES / name).read_bytes()
 
 
 @pytest.fixture
@@ -318,3 +324,99 @@ def test_collect_handles_304_safely_for_response_url_and_content_type(
     assert result.run.status.value == "not_modified"
     assert result.run.response_url is not None
     assert result.run.content_type is None
+
+
+# --- collect() diagnostic enrichment: envelope classification on rejection --
+
+
+def test_collect_still_rejects_rss_content_and_appends_envelope_classification_warning(
+    tmd_contract: dict,
+) -> None:
+    """Regression matching WO-003's observed live evidence: an RSS envelope
+    served at a recorded CAP endpoint must still be rejected by the strict
+    CAP parser (Scope A untouched), with the envelope classification
+    surfaced only as an additional diagnostic warning."""
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"), headers={"content-type": "text/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    result = adapter.collect()
+    assert result.run.status.value == "error"
+    assert result.records == []
+    assert any("MalformedCapAlertError" in error for error in result.errors)
+    assert any("envelope_classification: kind=rss" in warning for warning in result.warnings)
+
+
+# --- discover_rss(): exactly one network request, structural metadata only --
+
+
+def test_discover_rss_makes_exactly_one_http_call(tmd_contract: dict) -> None:
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"), headers={"content-type": "text/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    adapter.discover_rss()
+    assert fake_http.call_count == 1
+
+
+def test_discover_rss_classifies_an_rss_envelope_and_extracts_candidates(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"), headers={"content-type": "text/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.errors == []
+    assert outcome.envelope_classification is not None
+    assert outcome.envelope_classification["envelope_kind"] == RSS
+    assert outcome.discovery is not None
+    assert outcome.discovery["channel_item_count"] == 1
+
+
+def test_discover_rss_on_a_cap_alert_response_performs_no_discovery(
+    tmd_contract: dict,
+) -> None:
+    """A direct CAP response is classified but never run through the RSS
+    discovery parser -- discovery only ever applies to an RSS envelope."""
+    fake_http = FakeHttpClient(
+        body=_read("valid_bilingual_alert.xml"), headers={"content-type": "application/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.errors == []
+    assert outcome.envelope_classification["envelope_kind"] == "cap_alert"
+    assert outcome.discovery is None
+    assert any("no RSS discovery performed" in warning for warning in outcome.warnings)
+
+
+def test_discover_rss_surfaces_security_rejection_as_an_error_not_a_crash(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(
+        body=_read("dtd_entity_attack.xml"), headers={"content-type": "application/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.discovery is None
+    assert any("EnvelopeSecurityError" in error for error in outcome.errors)
+
+
+def test_discover_rss_retains_workflow_sha_and_response_metadata(
+    tmd_contract: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "cafef00d")
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"),
+        headers={
+            "content-type": "text/xml",
+            "etag": '"tmd-etag-2"',
+            "last-modified": "Thu, 23 Jul 2026 09:00:00 GMT",
+        },
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.workflow_sha == "cafef00d"
+    assert outcome.etag == '"tmd-etag-2"'
+    assert outcome.last_modified == "Thu, 23 Jul 2026 09:00:00 GMT"
+    assert outcome.http_status == 200

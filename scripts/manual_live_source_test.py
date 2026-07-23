@@ -28,8 +28,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from collectors.adapters.cap import CapSecurityError, MalformedCapAlertError  # noqa: E402
 from collectors.adapters.gdacs import GdacsAdapter, build_search_request  # noqa: E402
+from collectors.adapters.rss_discovery import NotAnRssEnvelopeError, RssSecurityError  # noqa: E402
 from collectors.adapters.tmd_cap import TmdCapAdapter, resolve_endpoint  # noqa: E402
+from collectors.adapters.xml_envelope import EnvelopeSecurityError  # noqa: E402
+from collectors.http_client import UnexpectedContentTypeError  # noqa: E402
 from collectors.registry import load_registry, source_by_id  # noqa: E402
 
 OUTPUT_DIR = ROOT / "manual_live_test_output"
@@ -77,6 +81,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="primary",
         help="TMD CAP only: 'primary' for the English endpoint, or an alternate_endpoints "
         "label (e.g. 'thai_language_cap') for the Thai endpoint.",
+    )
+    parser.add_argument(
+        "--tmd-operation",
+        default="direct_cap",
+        choices=["direct_cap", "rss_discovery"],
+        help="TMD CAP only: 'direct_cap' (default; current strict CAP behavior) or "
+        "'rss_discovery' (classify and inspect one RSS envelope only -- never fetches "
+        "any discovered item link or enclosure).",
     )
     return parser.parse_args(argv)
 
@@ -240,15 +252,43 @@ def run_gdacs(args: argparse.Namespace, contract: dict[str, Any], dry_run: bool)
 def run_tmd_cap(
     args: argparse.Namespace, contract: dict[str, Any], dry_run: bool
 ) -> dict[str, Any]:
+    operation = args.tmd_operation
     endpoint = resolve_endpoint(contract, language=args.language)
-    report: dict[str, Any] = {"endpoint": endpoint, "language": args.language}
+    report: dict[str, Any] = {
+        "operation": operation,
+        "endpoint": endpoint,
+        "language": args.language,
+    }
 
     if dry_run:
         report["mode"] = "dry_run"
-        report["note"] = "Endpoint resolved from contract only; no network call was made."
+        report["note"] = (
+            f"Endpoint resolved from contract only for operation={operation!r}; "
+            "no network call was made."
+        )
         return report
 
     adapter = TmdCapAdapter(contract, language=args.language)
+
+    if operation == "rss_discovery":
+        outcome = adapter.discover_rss()
+        report["mode"] = "live"
+        report["fetch"] = {
+            "request_url": outcome.request_url,
+            "response_url": outcome.response_url,
+            "http_status": outcome.http_status,
+            "content_type": outcome.content_type,
+            "etag": outcome.etag,
+            "last_modified": outcome.last_modified,
+            "content_sha256": outcome.content_sha256,
+            "workflow_sha": outcome.workflow_sha,
+        }
+        report["envelope_classification"] = outcome.envelope_classification
+        report["discovery"] = outcome.discovery
+        report["warnings"] = outcome.warnings
+        report["errors"] = outcome.errors
+        return report
+
     result = adapter.collect()
     report["mode"] = "live"
     report["collection_run"] = result.run.to_dict()
@@ -269,6 +309,26 @@ def run_tmd_cap(
     return report
 
 
+def _classify_error_category(exc: BaseException) -> str:
+    """Map an exception to a short, stable error category for the report.
+
+    Best-effort classification only -- an unrecognized exception type
+    still yields a report (category ``"unexpected"``), it is never a
+    reason to skip writing one.
+    """
+    if isinstance(exc, SystemExit):
+        return "validation"
+    if isinstance(exc, (CapSecurityError, EnvelopeSecurityError, RssSecurityError)):
+        return "security"
+    if isinstance(exc, (MalformedCapAlertError, NotAnRssEnvelopeError)):
+        return "parse"
+    if isinstance(exc, UnexpectedContentTypeError):
+        return "content_type"
+    if isinstance(exc, ValueError):
+        return "validation"
+    return "unexpected"
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     dry_run = args.dry_run == "true"
@@ -278,10 +338,32 @@ def main(argv: list[str] | None = None) -> int:
 
     before = _snapshot_forbidden_paths()
 
-    if args.source == "gdacs":
-        report = run_gdacs(args, contract, dry_run)
-    else:
-        report = run_tmd_cap(args, contract, dry_run)
+    try:
+        if args.source == "gdacs":
+            report = run_gdacs(args, contract, dry_run)
+        else:
+            report = run_tmd_cap(args, contract, dry_run)
+    except (SystemExit, Exception) as exc:
+        # Scope F: an expected adapter/parser failure or an unexpected
+        # exception raised before/outside an adapter's own try/except must
+        # still produce a sanitized diagnostic report -- the forbidden-path
+        # snapshot was already taken above, and the check below still runs
+        # against it regardless of this branch. This must never suppress
+        # the failure: the returned report always carries a non-empty
+        # "errors" list, so the exit-code check further down still returns
+        # non-zero.
+        error_message = (
+            str(exc.code) if isinstance(exc, SystemExit) else f"{type(exc).__name__}: {exc}"
+        )
+        report = {
+            "mode": "dry_run" if dry_run else "live",
+            "operation": getattr(args, "tmd_operation", None) if args.source == "tmd_cap" else None,
+            "endpoint": None,
+            "error_code": type(exc).__name__,
+            "error_category": _classify_error_category(exc),
+            "warnings": [],
+            "errors": [error_message],
+        }
 
     problems = _check_forbidden_paths_untouched(before)
     report["source_id"] = contract["id"]

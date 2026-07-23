@@ -19,20 +19,27 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlparse
 
 from ..base import SourceAdapter
 from ..http_client import validate_content_type
 from ..models import CollectionResult, CollectionRun, RunStatus, SourceHealth, SourceStatus
 from ..staging import build_staging_record
 from .cap import CapSecurityError, MalformedCapAlertError, parse_cap_alert
+from .rss_discovery import discover_rss_candidates
+from .xml_envelope import RSS, classify_envelope
 
 ADAPTER_VERSION = "tmd_cap_v1"
 
 #: TMD's CAP endpoints are documented as XML. A response with any other
 #: Content-Type (most commonly an HTML error/login page) is rejected before
-#: parsing rather than fed to the XML parser.
+#: parsing rather than fed to the XML parser. This allowlist is reused
+#: unchanged for RSS discovery mode -- the source is still serving "some
+#: XML" either way; the CAP-specific structural check lives in
+#: parse_cap_alert's root-tag requirement, not here.
 TMD_CAP_ALLOWED_CONTENT_TYPES = ("application/cap+xml", "application/xml", "text/xml")
 
 _KNOWN_LIMITATIONS = (
@@ -205,6 +212,49 @@ def normalize_tmd_alert(
     return records, warnings
 
 
+@dataclass(slots=True)
+class RssDiscoveryOutcome:
+    """Result of one bounded, discovery-only GET against a TMD endpoint.
+
+    Deliberately not shaped like ``schemas/collection_run.schema.json`` --
+    RSS discovery never collects candidate records (``records_received`` /
+    ``records_emitted`` / ``records_rejected`` do not apply to it), so it
+    is a distinct, undocumented-by-schema diagnostic result rather than a
+    ``CollectionRun``. This is a deliberate architecture separation: a
+    ``CollectionRun`` is what a source adapter produces when it collects;
+    RSS discovery never collects anything.
+    """
+
+    request_url: str
+    response_url: str | None
+    http_status: int | None
+    content_type: str | None
+    etag: str | None
+    last_modified: str | None
+    content_sha256: str | None
+    workflow_sha: str | None
+    envelope_classification: dict[str, Any] | None
+    discovery: dict[str, Any] | None
+    warnings: list[str]
+    errors: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "request_url": self.request_url,
+            "response_url": self.response_url,
+            "http_status": self.http_status,
+            "content_type": self.content_type,
+            "etag": self.etag,
+            "last_modified": self.last_modified,
+            "content_sha256": self.content_sha256,
+            "workflow_sha": self.workflow_sha,
+            "envelope_classification": self.envelope_classification,
+            "discovery": self.discovery,
+            "warnings": self.warnings,
+            "errors": self.errors,
+        }
+
+
 class TmdCapAdapter(SourceAdapter):
     """Adapter for the TMD CAP 1.2 warning feed.
 
@@ -266,9 +316,31 @@ class TmdCapAdapter(SourceAdapter):
                 )
                 if content_type_warning:
                     warnings.append(content_type_warning)
-                alert, parse_warnings = parse_cap_alert(
-                    response.body, max_bytes=int(http_contract["max_response_bytes"])
-                )
+                try:
+                    alert, parse_warnings = parse_cap_alert(
+                        response.body, max_bytes=int(http_contract["max_response_bytes"])
+                    )
+                except MalformedCapAlertError:
+                    # Best-effort diagnostic only: classifying the same
+                    # in-memory payload never performs a second network
+                    # request and must never mask or replace the original
+                    # error, so any classification failure is swallowed
+                    # here and the original exception re-raised unchanged.
+                    try:
+                        classification = classify_envelope(
+                            response.body,
+                            max_bytes=int(http_contract["max_response_bytes"]),
+                            content_sha256=content_sha256,
+                        )
+                        warnings.append(
+                            "envelope_classification: kind="
+                            f"{classification.envelope_kind} "
+                            f"root_local_name={classification.root_local_name!r} "
+                            f"root_namespace={classification.root_namespace!r}"
+                        )
+                    except Exception:  # noqa: BLE001, S110 -- diagnostics must never mask the real error
+                        pass
+                    raise
                 warnings.extend(parse_warnings)
                 records, normalize_warnings = normalize_tmd_alert(
                     alert, content_sha256=content_sha256, source_url=self.endpoint
@@ -322,4 +394,85 @@ class TmdCapAdapter(SourceAdapter):
         )
         return CollectionResult(
             records=records, run=run, health=health, warnings=warnings, errors=errors
+        )
+
+    def discover_rss(self) -> RssDiscoveryOutcome:
+        """Perform exactly one bounded GET against this adapter's endpoint,
+        classify the envelope, and -- only if it classifies as RSS --
+        extract discovery-only structural metadata.
+
+        This is a discovery-only operation: it never creates a staging
+        record, never treats a non-CAP envelope as a CAP alert (Scope A
+        stays untouched), and never fetches a discovered candidate URL --
+        this method makes exactly one network request, full stop. See
+        ``collectors/adapters/xml_envelope.py`` and
+        ``collectors/adapters/rss_discovery.py`` for the generic,
+        source-agnostic parsers this method delegates to; nothing
+        TMD-specific lives in either of those modules.
+        """
+        http_contract = self.contract["http"]
+        warnings: list[str] = []
+        errors: list[str] = []
+        http_status: int | None = None
+        content_sha256: str | None = None
+        etag: str | None = None
+        last_modified: str | None = None
+        response_url: str | None = None
+        content_type: str | None = None
+        envelope_classification: dict[str, Any] | None = None
+        discovery: dict[str, Any] | None = None
+
+        try:
+            response = self.http.get(
+                self.endpoint,
+                timeout_seconds=int(http_contract["timeout_seconds"]),
+                max_response_bytes=int(http_contract["max_response_bytes"]),
+                attempts=int(self.contract["retry"]["attempts"]),
+            )
+            http_status = response.status
+            content_sha256 = response.content_sha256
+            etag = response.headers.get("etag")
+            last_modified = response.headers.get("last-modified")
+            response_url = response.url
+            if response.status != 304:
+                content_type, content_type_warning = validate_content_type(
+                    response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
+                )
+                if content_type_warning:
+                    warnings.append(content_type_warning)
+
+                max_bytes = int(http_contract["max_response_bytes"])
+                classification = classify_envelope(
+                    response.body, max_bytes=max_bytes, content_sha256=content_sha256
+                )
+                envelope_classification = classification.to_dict()
+
+                if classification.envelope_kind == RSS:
+                    feed_host = urlparse(self.endpoint).hostname
+                    result, discovery_warnings = discover_rss_candidates(
+                        response.body, max_bytes=max_bytes, feed_host=feed_host
+                    )
+                    discovery = result.to_dict()
+                    warnings.extend(discovery_warnings)
+                else:
+                    warnings.append(
+                        f"envelope classified as {classification.envelope_kind!r}, not "
+                        "'rss'; no RSS discovery performed"
+                    )
+        except Exception as exc:  # noqa: BLE001 -- surfaced as a discovery error, not a crash
+            errors.append(f"{type(exc).__name__}: {exc}")
+
+        return RssDiscoveryOutcome(
+            request_url=self.endpoint,
+            response_url=response_url,
+            http_status=http_status,
+            content_type=content_type,
+            etag=etag,
+            last_modified=last_modified,
+            content_sha256=content_sha256,
+            workflow_sha=os.environ.get("GITHUB_SHA"),
+            envelope_classification=envelope_classification,
+            discovery=discovery,
+            warnings=warnings,
+            errors=errors,
         )

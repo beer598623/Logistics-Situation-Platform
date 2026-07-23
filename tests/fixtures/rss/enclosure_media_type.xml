@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic Test Feed</title>
+    <link>https://feed.example.test/</link>
+    <description>Synthetic RSS fixture for discovery testing only.</description>
+    <item>
+      <title>Synthetic enclosure item</title>
+      <link>https://feed.example.test/warnings/item-002</link>
+      <guid isPermaLink="true">https://feed.example.test/warnings/item-002</guid>
+      <pubDate>Wed, 23 Jul 2026 11:00:00 GMT</pubDate>
+      <description>Synthetic description text for fixture purposes only.</description>
+      <enclosure url="https://feed.example.test/warnings/item-002.cap" type="application/cap+xml" />
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic Test Feed</title>
+    <link>https://feed.example.test/</link>
+    <description>Synthetic RSS fixture for discovery testing only.</description>
+    <item>
+      <title>CANARY-MARKER-DO-NOT-RETAIN-9f3c2b1a-title Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated</title>
+      <link>https://feed.example.test/warnings/item-005</link>
+      <guid isPermaLink="true">https://feed.example.test/warnings/item-005</guid>
+      <pubDate>Wed, 23 Jul 2026 14:00:00 GMT</pubDate>
+      <description>CANARY-MARKER-DO-NOT-RETAIN-9f3c2b1a-description Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated repeated</description>
+    </item>
+  </channel>
+</rss>
