@@ -221,7 +221,7 @@ event date never reachable through this path even when dates would
 otherwise coincide; and a known record missing `event_date` or
 `identity_date_bucket` staying conservatively ineligible.
 
-### Explicit candidate ↔ reviewed date-field mapping
+### Explicit candidate ↔ reviewed date-field mapping, and the required-nullable contract
 
 Candidates store their identity date under `event_date`; reviewed events
 store the same concept under `event_start` — the schemas were not unified
@@ -235,13 +235,47 @@ to remember, `collectors/event_identity.py` provides it as code:
   every other field `resolve_event_identity` reads) from a stored record,
   so a caller never constructs that dict by hand.
 
-`tests/test_event_identity.py::test_event_date_accessors_map_candidate_and_reviewed_fields_explicitly`
-and `::test_known_event_builders_map_event_date_field_explicitly` test the
-accessors directly;
+Both `event_date` (`schemas/candidate_event.schema.json`) and `event_start`
+(`schemas/reviewed_event.schema.json`) are **required, nullable** fields: a
+schema-valid record always carries the key, using `null` to mean "not yet
+known". This distinction matters because `_find_by_frozen_bucket` treats a
+known record with `event_date: None` as eligible for unknown-date
+promotion — so a record that merely *omitted* the key must never be
+allowed to look the same as one that explicitly recorded `null`, or a
+malformed record could silently become eligible for promotion it never
+earned. The four accessor/builder functions above enforce this: each reads
+its key with a strict `_require_key` helper and raises
+`MalformedEventRecordError` if the key is absent, rather than defaulting a
+missing key to `None` the way `dict.get` would. A genuinely unknown date
+(`event_date: null`, key present) still returns `None` normally and
+remains fully eligible for promotion — only *omission* is rejected.
+
+`tests/test_event_identity.py::test_event_date_accessors_map_candidate_and_reviewed_fields_explicitly`,
+`::test_event_date_accessors_reject_a_record_missing_the_key`,
+`::test_known_event_builders_map_event_date_field_explicitly`, and
+`::test_known_event_builders_reject_a_record_missing_the_date_key` test the
+accessors and builders directly (both the explicit-null-still-works case
+and the missing-key-raises case).
 `tests/test_data_contracts.py::test_reviewed_event_promotion_from_candidate_resolves_via_explicit_mapping`
 replays a candidate → reviewed promotion end-to-end through
 `resolve_event_identity` using these helpers and asserts it lands on the
-same canonical event the fixtures already share.
+same canonical event the fixtures already share;
+`::test_candidate_missing_event_date_fails_schema_validation`,
+`::test_candidate_with_explicit_null_event_date_passes_schema_validation`,
+and `::test_known_event_from_candidate_rejects_a_record_missing_event_date`
+lock in the schema contract and its enforcement together, using the real
+Pasir Panjang fixture as the base record.
+
+Note that `_find_by_frozen_bucket`'s own eligibility check
+(`event.get("event_date", _UNKNOWN) is not None`) is a *separate*,
+lower-level safeguard that still treats an arbitrary `known_events` dict
+missing the key as conservatively ineligible — it does not raise, because
+it operates on already-matching-shaped dicts from any source, not
+specifically on records claiming to come from validated storage. The
+accessor/builder functions above are the stricter boundary meant for
+loading real stored candidate/reviewed records; `_find_by_frozen_bucket`'s
+lenient-but-conservative check is defense in depth for callers that
+construct `known_events` entries by hand.
 
 ### Known limitation: controlled-field collisions
 
@@ -275,6 +309,10 @@ also gained `primary_category` (previously only on candidates) so the same
 controlled fields are available for fingerprinting at every lifecycle
 stage. `event_start` (reviewed) was not renamed to `event_date` — use the
 explicit accessors above instead of reading the field by name.
+`event_date` on `candidate_event.schema.json` was moved into the `required`
+list (`event_start` on `reviewed_event.schema.json` already was) — both
+remain nullable, so "unknown" must still be represented explicitly as
+`event_date: null`, never by leaving the key out.
 
 ## Migration notes
 

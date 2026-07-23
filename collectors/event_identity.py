@@ -156,34 +156,70 @@ def compute_content_signature(*, title: str, text_fields: Sequence[str]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+class MalformedEventRecordError(ValueError):
+    """Raised when a stored candidate/reviewed record omits a field its
+    schema requires it to always carry (even as ``null``).
+
+    Both ``event_date`` (``schemas/candidate_event.schema.json``) and
+    ``event_start`` (``schemas/reviewed_event.schema.json``) are required,
+    nullable fields: a schema-valid record always has the key, using
+    ``null`` to mean "not yet known". A record that omits the key entirely
+    did not pass schema validation and must not be treated as if it had
+    explicitly recorded an unknown date — doing so would make a malformed
+    record silently eligible for the unknown-date-promotion path in
+    ``resolve_event_identity``.
+    """
+
+
+def _require_key(record: Mapping[str, Any], key: str, *, record_kind: str) -> Any:
+    if key not in record:
+        raise MalformedEventRecordError(
+            f"{record_kind} record is missing required field {key!r}. A "
+            f"schema-valid {record_kind} record always carries this key "
+            "(null when the date is not yet known); an absent key means "
+            "this record did not pass schema validation and must not be "
+            "used for identity resolution."
+        )
+    return record[key]
+
+
 def event_date_from_candidate(candidate: Mapping[str, Any]) -> str | None:
     """Read the identity date from a stored candidate record.
 
-    Candidates carry it under ``event_date`` (nullable — see
-    ``schemas/candidate_event.schema.json``). This accessor exists so every
-    caller reads the field the same, explicit way rather than re-deriving
-    the key name inline.
+    Candidates carry it under ``event_date``, a required (nullable) field
+    on ``schemas/candidate_event.schema.json``. This accessor requires the
+    key to be present — raising ``MalformedEventRecordError`` if it is
+    missing — rather than defaulting a missing key to ``None`` the same as
+    an explicit ``null``: those two cases must stay distinguishable so a
+    malformed record can never enter unknown-date promotion by accident.
     """
-    return candidate.get("event_date")
+    return _require_key(candidate, "event_date", record_kind="candidate")
 
 
 def event_date_from_reviewed_event(event: Mapping[str, Any]) -> str | None:
     """Read the identity date from a stored reviewed event record.
 
-    Reviewed events carry the same concept under ``event_start`` (nullable
-    — see ``schemas/reviewed_event.schema.json``), not ``event_date``. No
-    separate schema field was added for this; this accessor is the single
-    place that encodes the field-name mapping between the two record
-    shapes, so a caller promoting a candidate into a reviewed event (or
-    building a ``known_events`` entry from either) never has to remember
-    which schema uses which name.
+    Reviewed events carry the same concept under ``event_start`` (required,
+    nullable — see ``schemas/reviewed_event.schema.json``), not
+    ``event_date``. No separate schema field was added for this; this
+    accessor is the single place that encodes the field-name mapping
+    between the two record shapes. Like ``event_date_from_candidate``, a
+    missing key raises ``MalformedEventRecordError`` rather than silently
+    becoming ``None``.
     """
-    return event.get("event_start")
+    return _require_key(event, "event_start", record_kind="reviewed event")
 
 
 def known_event_from_candidate(candidate: Mapping[str, Any]) -> dict[str, Any]:
     """Build a ``resolve_event_identity`` ``known_events`` entry from a
-    stored candidate record, explicitly mapping its ``event_date`` field."""
+    stored candidate record, explicitly mapping its ``event_date`` field.
+
+    Raises ``MalformedEventRecordError`` (via ``event_date_from_candidate``)
+    if ``event_date`` is missing entirely, so a candidate that did not pass
+    schema validation can never silently enter the ``known_events`` list —
+    and therefore never the unknown-date-promotion path — as if it had
+    explicitly recorded an unknown date.
+    """
     return {
         "source_id": candidate.get("source_id"),
         "external_event_id": candidate.get("external_event_id"),
@@ -201,7 +237,12 @@ def known_event_from_candidate(candidate: Mapping[str, Any]) -> dict[str, Any]:
 def known_event_from_reviewed_event(event: Mapping[str, Any]) -> dict[str, Any]:
     """Build a ``resolve_event_identity`` ``known_events`` entry from a
     stored reviewed event record, explicitly mapping its ``event_start``
-    field to the ``event_date`` key ``resolve_event_identity`` expects."""
+    field to the ``event_date`` key ``resolve_event_identity`` expects.
+
+    Raises ``MalformedEventRecordError`` (via
+    ``event_date_from_reviewed_event``) if ``event_start`` is missing
+    entirely, for the same reason ``known_event_from_candidate`` does.
+    """
     return {
         "source_id": event.get("source_id"),
         "external_event_id": event.get("external_event_id"),

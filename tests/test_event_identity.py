@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
+import pytest
+
 from collectors.event_identity import (
+    MalformedEventRecordError,
     compute_content_signature,
     compute_event_fingerprint,
     event_date_from_candidate,
@@ -206,6 +209,29 @@ def test_event_date_accessors_map_candidate_and_reviewed_fields_explicitly() -> 
     assert event_date_from_reviewed_event({"event_start": None}) is None
 
 
+def test_event_date_accessors_reject_a_record_missing_the_key() -> None:
+    """Regression for the final data-contract review: a record that omits
+    ``event_date``/``event_start`` entirely is not schema-valid and must not
+    be silently treated the same as one that explicitly recorded ``null``.
+    """
+    with pytest.raises(MalformedEventRecordError):
+        event_date_from_candidate({"other_field": "x"})
+    with pytest.raises(MalformedEventRecordError):
+        event_date_from_reviewed_event({"other_field": "x"})
+
+
+def test_known_event_builders_reject_a_record_missing_the_date_key() -> None:
+    """A malformed record (the date key omitted) must not be able to enter
+    the unknown-date-promotion path through either builder — it must raise
+    instead of silently producing ``{"event_date": None, ...}``."""
+    malformed_candidate = {"other_field": "x"}
+    malformed_reviewed = {"other_field": "x"}
+    with pytest.raises(MalformedEventRecordError):
+        known_event_from_candidate(malformed_candidate)
+    with pytest.raises(MalformedEventRecordError):
+        known_event_from_reviewed_event(malformed_reviewed)
+
+
 def test_known_event_builders_map_event_date_field_explicitly() -> None:
     first = _resolve(event_date=None)
     candidate_record = first.to_dict() | {
@@ -228,10 +254,16 @@ def test_known_event_builders_map_event_date_field_explicitly() -> None:
     assert known_from_reviewed["identity_date_bucket"] == first.identity_date_bucket
 
     # A promotion lookup must work identically regardless of which builder
-    # produced the known_events entry, since both map to the same shape.
-    later = _resolve(event_date="2024-06-20", known_events=[known_from_reviewed])
-    assert later.canonical_event_id == first.canonical_event_id
-    assert later.merge_status == "matched_fingerprint"
+    # produced the known_events entry, since both map to the same shape:
+    # event_date: null (key present) stays eligible for unknown-date
+    # promotion through either builder.
+    later_via_reviewed = _resolve(event_date="2024-06-20", known_events=[known_from_reviewed])
+    assert later_via_reviewed.canonical_event_id == first.canonical_event_id
+    assert later_via_reviewed.merge_status == "matched_fingerprint"
+
+    later_via_candidate = _resolve(event_date="2024-06-20", known_events=[known_from_candidate])
+    assert later_via_candidate.canonical_event_id == first.canonical_event_id
+    assert later_via_candidate.merge_status == "matched_fingerprint"
 
 
 def test_content_signature_is_stable_across_a_json_round_trip_when_unchanged() -> None:

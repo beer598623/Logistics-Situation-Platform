@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 from collectors.event_identity import (
+    MalformedEventRecordError,
     compute_content_signature,
+    event_date_from_candidate,
     event_date_from_reviewed_event,
     known_event_from_candidate,
     resolve_event_identity,
@@ -118,6 +121,56 @@ def test_reviewed_event_promotion_from_candidate_resolves_via_explicit_mapping()
     assert resolved.canonical_event_id == event["canonical_event_id"]
     assert resolved.canonical_event_id == candidate["canonical_event_id"]
     assert resolved.merge_status == "matched_fingerprint"
+
+
+def test_candidate_missing_event_date_fails_schema_validation() -> None:
+    """Regression for the final data-contract review: ``event_date`` is a
+    required (nullable) field on ``candidate_event.schema.json``, so a
+    candidate that omits the key entirely — as opposed to one that carries
+    ``event_date: null`` for a genuinely unknown date — must fail schema
+    validation, not silently pass as if the date were merely unknown."""
+    schema = load_schema("candidate_event.schema.json")
+    candidates = json.loads((ROOT / "data" / "candidates" / "latest.json").read_text())
+    valid_candidate = candidates["candidates"][0]
+    assert "event_date" in valid_candidate
+
+    malformed = dict(valid_candidate)
+    del malformed["event_date"]
+
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors = list(validator.iter_errors(malformed))
+    assert errors
+    assert any(list(error.path) == [] and "event_date" in error.message for error in errors)
+
+
+def test_candidate_with_explicit_null_event_date_passes_schema_validation() -> None:
+    """The nullable contract still allows a genuinely unknown date: a
+    candidate with ``event_date: null`` (key present, value null) remains
+    schema-valid, distinguishing "unknown" from "malformed/omitted"."""
+    schema = load_schema("candidate_event.schema.json")
+    candidates = json.loads((ROOT / "data" / "candidates" / "latest.json").read_text())
+    candidate_with_unknown_date = dict(candidates["candidates"][0])
+    candidate_with_unknown_date["event_date"] = None
+
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    assert list(validator.iter_errors(candidate_with_unknown_date)) == []
+    assert event_date_from_candidate(candidate_with_unknown_date) is None
+
+
+def test_known_event_from_candidate_rejects_a_record_missing_event_date() -> None:
+    """Regression for the final data-contract review: a malformed record
+    (the ``event_date`` key omitted, not set to ``null``) must not be able
+    to enter the unknown-date-promotion path through
+    ``known_event_from_candidate`` — it must raise instead of silently
+    producing ``{"event_date": None, ...}``, which would make a record
+    that never passed schema validation look identical to one that
+    legitimately recorded an unknown date."""
+    candidates = json.loads((ROOT / "data" / "candidates" / "latest.json").read_text())
+    malformed_candidate = dict(candidates["candidates"][0])
+    del malformed_candidate["event_date"]
+
+    with pytest.raises(MalformedEventRecordError):
+        known_event_from_candidate(malformed_candidate)
 
 
 def test_source_status_capabilities_are_purpose_aware() -> None:
