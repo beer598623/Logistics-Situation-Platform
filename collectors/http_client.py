@@ -1,6 +1,6 @@
 """Small standard-library HTTP client with bounded retries and provenance.
 
-No credentials are supported in v0.1.1. Live adapters remain disabled until
+No credentials are supported in v0.1.2. Live adapters remain disabled until
 source terms, endpoint behavior, and fixtures have been reviewed.
 """
 
@@ -30,7 +30,7 @@ class ResponseTooLargeError(RuntimeError):
 
 
 class ResilientHttpClient:
-    def __init__(self, user_agent: str = "Logistics-Situation-Platform/0.1.1") -> None:
+    def __init__(self, user_agent: str = "Logistics-Situation-Platform/0.1.2") -> None:
         self.user_agent = user_agent
 
     @staticmethod

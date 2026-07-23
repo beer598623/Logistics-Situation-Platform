@@ -123,6 +123,74 @@ def source_contract_checks(registry: dict[str, Any]) -> list[str]:
     return problems
 
 
+_LIVE_SOURCE_STATUSES = {"fresh", "stale"}
+
+
+def source_status_checks(source_status: dict[str, Any]) -> list[str]:
+    problems: list[str] = []
+    sources = source_status.get("sources", [])
+
+    no_data_like = {"no_data", "error", "disabled"}
+    for source in sources:
+        if source.get("status") in no_data_like and source.get("item_count") == 0:
+            problems.append(
+                f"{source.get('source_id')}: a gap must never be represented as zero items"
+            )
+
+    # A required source that is anything other than fresh/stale is a
+    # publication gap, matching collectors/source_health.py's
+    # _required_source_gap precedence (checked ahead of "is anything live").
+    required_gap_sources = [
+        source.get("source_id")
+        for source in sources
+        if source.get("required_for_publication")
+        and source.get("status") not in _LIVE_SOURCE_STATUSES
+    ]
+    if required_gap_sources and source_status.get("overall_status") != "insufficient":
+        problems.append(
+            "required source gap must force overall_status to insufficient, not "
+            f"{source_status.get('overall_status')!r} (degraded required sources: "
+            f"{sorted(required_gap_sources)})"
+        )
+
+    status_by_id = {source.get("source_id"): source.get("status") for source in sources}
+    required_by_id = {
+        source.get("source_id"): bool(source.get("required_for_publication")) for source in sources
+    }
+    for capability in source_status.get("capabilities", []):
+        capability_name = capability.get("capability")
+        supporting = capability.get("supporting_sources", [])
+        has_live_source = any(status_by_id.get(sid) in _LIVE_SOURCE_STATUSES for sid in supporting)
+        degraded_required = [
+            sid
+            for sid in supporting
+            if required_by_id.get(sid) and status_by_id.get(sid) not in _LIVE_SOURCE_STATUSES
+        ]
+
+        if capability.get("status") == "sufficient":
+            if not has_live_source:
+                problems.append(
+                    f"{capability_name}: sufficient coverage requires a fresh or stale "
+                    "supporting source"
+                )
+            if degraded_required:
+                problems.append(
+                    f"{capability_name}: sufficient coverage cannot include a degraded "
+                    f"required supporting source {sorted(degraded_required)}"
+                )
+        elif degraded_required and capability.get("status") != "insufficient":
+            problems.append(
+                f"{capability_name}: a degraded required supporting source "
+                f"{sorted(degraded_required)} must make coverage insufficient, "
+                f"not {capability.get('status')!r}"
+            )
+
+        if not supporting:
+            problems.append(f"{capability_name}: capability has no supporting sources")
+
+    return problems
+
+
 def main() -> int:
     ok = True
 
@@ -151,11 +219,8 @@ def main() -> int:
 
     source_status = load_json(ROOT / "data/source_status/latest.json")
     ok &= validate_item(source_status, "source_status.schema.json", "source_status")
-    if source_status.get("overall_status") == "sufficient" and any(
-        source.get("status") in {"no_data", "error"} and source.get("required_for_publication")
-        for source in source_status.get("sources", [])
-    ):
-        print("[FAIL] source_status semantic: required source gap cannot be sufficient")
+    for problem in source_status_checks(source_status):
+        print(f"[FAIL] source_status semantic: {problem}")
         ok = False
 
     print("Validation successful." if ok else "Validation failed.")

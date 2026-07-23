@@ -31,7 +31,19 @@
       ],
       "duplicate_cluster_id": null,
       "collector_status": "new",
-      "retrieved_at": "2026-07-22T00:00:00Z"
+      "retrieved_at": "2026-07-22T00:00:00Z",
+      "source_id": null,
+      "external_event_id": null,
+      "source_revision": null,
+      "canonical_event_id": "CEVT-c7df9e8cc1521246",
+      "event_fingerprint": "0bc975201d91739df5131426832342a5c0dd6013be27263afad317ecc7b262c3",
+      "merge_status": "unmatched",
+      "first_seen_at": "2026-07-22T00:00:00Z",
+      "last_seen_at": "2026-07-22T00:00:00Z",
+      "last_changed_at": "2026-07-22T00:00:00Z",
+      "supersedes": [],
+      "content_signature": "2f646ca66bad0bb5b84ceeb86a5e80f1b2a0b4ddca17259c02cb52418055d964",
+      "identity_date_bucket": "2024-06-14"
     }
   ]
 }

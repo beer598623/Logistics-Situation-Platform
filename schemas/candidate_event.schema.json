@@ -7,6 +7,7 @@
     "candidate_id",
     "title",
     "detected_at",
+    "event_date",
     "publication_date",
     "source_url",
     "source_name",
@@ -18,7 +19,16 @@
     "headline_summary",
     "raw_claims",
     "collector_status",
-    "retrieved_at"
+    "retrieved_at",
+    "canonical_event_id",
+    "event_fingerprint",
+    "merge_status",
+    "first_seen_at",
+    "last_seen_at",
+    "last_changed_at",
+    "supersedes",
+    "content_signature",
+    "identity_date_bucket"
   ],
   "properties": {
     "candidate_id": {
@@ -115,6 +125,61 @@
     "retrieved_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "source_id": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Z0-9_]+$"
+    },
+    "external_event_id": {
+      "type": ["string", "null"]
+    },
+    "source_revision": {
+      "type": ["string", "null"]
+    },
+    "canonical_event_id": {
+      "type": "string",
+      "pattern": "^CEVT-[0-9a-f]{16}$"
+    },
+    "event_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "merge_status": {
+      "enum": [
+        "unmatched",
+        "matched_external_id",
+        "matched_fingerprint",
+        "merge_suggested",
+        "merged_approved",
+        "split_required"
+      ]
+    },
+    "first_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_changed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^CEVT-[0-9a-f]{16}$"
+      }
+    },
+    "content_signature": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity_date_bucket": {
+      "type": "string",
+      "format": "date"
     }
   }
 }

@@ -3,10 +3,114 @@
   "overall_status": "insufficient",
   "coverage_message": "Live collectors are disabled during contract and provenance hardening.",
   "sources": [
-    {"source_id": "GDACS", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 180},
-    {"source_id": "TMD_CAP", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 180},
-    {"source_id": "GSCPI", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 52560},
-    {"source_id": "TH_CUSTOMS", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 105120},
-    {"source_id": "EPPO_FUEL", "status": "disabled", "last_checked_at": null, "last_success_at": null, "last_error": null, "item_count": null, "required_for_publication": false, "max_stale_minutes": 10080}
+    {
+      "source_id": "GDACS",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 180
+    },
+    {
+      "source_id": "TMD_CAP",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 180
+    },
+    {
+      "source_id": "GSCPI",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 52560
+    },
+    {
+      "source_id": "TH_CUSTOMS",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 105120
+    },
+    {
+      "source_id": "EPPO_FUEL",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 10080
+    }
+  ],
+  "capabilities": [
+    {
+      "capability": "cost_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "EPPO_FUEL"
+      ],
+      "gap_reason": "No enabled source currently backs cost_context."
+    },
+    {
+      "capability": "event_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "GDACS"
+      ],
+      "gap_reason": "No enabled source currently backs event_context."
+    },
+    {
+      "capability": "global_baseline_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "GSCPI"
+      ],
+      "gap_reason": "No enabled source currently backs global_baseline_indicator."
+    },
+    {
+      "capability": "hazard_detection",
+      "status": "insufficient",
+      "supporting_sources": [
+        "GDACS",
+        "TMD_CAP"
+      ],
+      "gap_reason": "No enabled source currently backs hazard_detection."
+    },
+    {
+      "capability": "thailand_fuel_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "EPPO_FUEL"
+      ],
+      "gap_reason": "No enabled source currently backs thailand_fuel_indicator."
+    },
+    {
+      "capability": "thailand_trade_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "TH_CUSTOMS"
+      ],
+      "gap_reason": "No enabled source currently backs thailand_trade_indicator."
+    },
+    {
+      "capability": "thailand_weather_alerts",
+      "status": "insufficient",
+      "supporting_sources": [
+        "TMD_CAP"
+      ],
+      "gap_reason": "No enabled source currently backs thailand_weather_alerts."
+    }
   ]
 }

@@ -18,7 +18,7 @@
     "source_status": "data/source_status/latest.json"
   },
   "output_schema": "schemas/decision_package.schema.json",
-  "implementation_version": "0.1.1",
+  "implementation_version": "0.1.2",
   "contract_urls": {
     "sources": "config/sources.yaml",
     "source_contract_schema": "schemas/source_contract.schema.json",
