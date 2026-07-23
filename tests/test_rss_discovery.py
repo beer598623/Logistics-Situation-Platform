@@ -59,6 +59,105 @@ def test_malformed_link_is_grouped_malformed_not_a_crash() -> None:
     assert link_candidates[0].host is None
 
 
+# --- Review round 3, finding 2: malformed credential-like text never leaks --
+
+
+def test_malformed_single_slash_credential_like_link_never_leaks_credentials() -> None:
+    """redact_url_userinfo cannot strip credentials from a value that never
+    parsed as having an authority component (a single-slash
+    "https:/user:pass@host" form has no netloc at all) -- the malformed
+    value must be replaced entirely with a non-reversible marker, not
+    retained bounded-but-unredacted."""
+    canary_user = "canaryuser"
+    canary_pass = "canarysecret"  # noqa: S105 -- synthetic test canary, not a real credential
+    xml = f"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://{FEED_HOST}/</link>
+    <item>
+      <link>https:/{canary_user}:{canary_pass}@{FEED_HOST}/path</link>
+    </item>
+  </channel>
+</rss>""".encode()
+    result, _ = discover_rss_candidates(xml, max_bytes=1_000_000, feed_host=FEED_HOST)
+    link_candidates = [c for c in result.candidates if c.source_field == "link"]
+    assert len(link_candidates) == 1
+    assert link_candidates[0].group == MALFORMED
+    assert canary_user not in link_candidates[0].url
+    assert canary_pass not in link_candidates[0].url
+    assert link_candidates[0].url.startswith("<malformed value:")
+    assert "sha256=" in link_candidates[0].url
+    import json
+
+    serialized = json.dumps(result.to_dict())
+    assert canary_user not in serialized
+    assert canary_pass not in serialized
+
+
+def test_malformed_single_slash_credential_like_enclosure_never_leaks_credentials() -> None:
+    canary_user = "canaryenclosureuser"
+    canary_pass = "canaryenclosuresecret"  # noqa: S105 -- synthetic test canary
+    enclosure_url = f"https:/{canary_user}:{canary_pass}@{FEED_HOST}/file.cap"
+    xml = f"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://{FEED_HOST}/</link>
+    <item>
+      <link>https://{FEED_HOST}/item</link>
+      <enclosure url="{enclosure_url}" type="application/cap+xml" />
+    </item>
+  </channel>
+</rss>""".encode()
+    result, _ = discover_rss_candidates(xml, max_bytes=1_000_000, feed_host=FEED_HOST)
+    enclosure_candidates = [c for c in result.candidates if c.source_field == "enclosure"]
+    assert len(enclosure_candidates) == 1
+    assert enclosure_candidates[0].group == MALFORMED
+    assert canary_user not in enclosure_candidates[0].url
+    assert canary_pass not in enclosure_candidates[0].url
+    assert enclosure_candidates[0].url.startswith("<malformed value:")
+    import json
+
+    serialized = json.dumps(result.to_dict())
+    assert canary_user not in serialized
+    assert canary_pass not in serialized
+
+
+def test_malformed_non_http_credential_like_value_never_leaks_credentials() -> None:
+    """A malformed value with no scheme separator recognized as a netloc
+    at all (not merely a single-slash http(s) variant) must also be
+    marker-replaced, not retained."""
+    canary_user = "nonhttpcanaryuser"
+    canary_pass = "nonhttpcanarysecret"  # noqa: S105 -- synthetic test canary
+    xml = f"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://{FEED_HOST}/</link>
+    <item>
+      <link>{canary_user}:{canary_pass}@{FEED_HOST}/path</link>
+    </item>
+  </channel>
+</rss>""".encode()
+    result, _ = discover_rss_candidates(xml, max_bytes=1_000_000, feed_host=FEED_HOST)
+    link_candidates = [c for c in result.candidates if c.source_field == "link"]
+    assert len(link_candidates) == 1
+    assert link_candidates[0].group == MALFORMED
+    assert canary_user not in link_candidates[0].url
+    assert canary_pass not in link_candidates[0].url
+
+
+def test_malformed_marker_is_deterministic_and_reflects_length() -> None:
+    from collectors.adapters.rss_discovery import _malformed_marker
+
+    value = "not a url at all"
+    marker = _malformed_marker(value)
+    assert marker == _malformed_marker(value)  # deterministic
+    assert f"{len(value)} chars" in marker
+    assert value not in marker
+
+
 def test_non_http_scheme_is_grouped_non_http() -> None:
     xml = f"""<?xml version="1.0"?>
 <rss version="2.0">

@@ -9,7 +9,13 @@ XML, or a source's warning prose, and it never creates a staging record.
 Every retained URL string also has any embedded user-info
 (``user:password@host``) stripped via ``collectors.url_redaction`` before
 it is bounded or stored -- a retained URL string must never carry
-credentials (review round 2, finding 2).
+credentials (review round 2, finding 2). A ``link``/``enclosure`` value
+that fails to parse as a well-formed URL at all (grouped ``malformed``)
+is never retained verbatim, redacted or not -- it is replaced with a
+bounded, non-reversible length+SHA-256 marker, since a value that never
+parsed as having an authority component cannot be reliably checked for
+embedded credentials by ``redact_url_userinfo`` in the first place
+(review round 3, finding 2).
 
 SSRF / follow-link boundary: this module has no HTTP client, imports none,
 and cannot reach the network under any input -- discovering a candidate
@@ -30,6 +36,7 @@ non-RSS root.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from datetime import UTC
 from email.utils import parsedate_to_datetime
@@ -47,13 +54,20 @@ MAX_ITEMS = 50
 
 #: A candidate URL string itself is structural (not free text), but its
 #: length is still bounded defensively -- a query string could otherwise
-#: be used to smuggle an arbitrarily large value into a report.
+#: be used to smuggle an arbitrarily large value into a report. This is the
+#: length of the retained *prefix*: a value longer than this keeps its
+#: first MAX_URL_LENGTH characters plus a bounded "...(+N chars omitted)"
+#: marker appended, so the final stored string is a little longer than
+#: MAX_URL_LENGTH, never an unbounded amount longer.
 MAX_URL_LENGTH = 500
 
 #: The root tag echoed in NotAnRssEnvelopeError's message is untrusted,
 #: attacker-controlled XML-name/namespace text -- bounded independently of
 #: the overall payload byte cap at the point the exception is raised, not
 #: left to a downstream report-level sanitizer (review round 2, finding 4).
+#: As with MAX_URL_LENGTH above, this is the retained prefix length: the
+#: final value is this many characters plus a bounded omission marker, not
+#: a strict total-length cap.
 MAX_ROOT_NAME_LENGTH = 200
 
 SAME_HOST = "same_host"
@@ -95,6 +109,25 @@ def _bounded_name(value: str) -> str:
         return value
     omitted = len(value) - MAX_ROOT_NAME_LENGTH
     return value[:MAX_ROOT_NAME_LENGTH] + f"...(+{omitted} chars omitted)"
+
+
+def _malformed_marker(value: str) -> str:
+    """Non-reversible replacement for a ``link``/``enclosure`` value that
+    ``_classify_url`` grouped as ``MALFORMED``.
+
+    A value that fails to parse as a well-formed URL at all is arbitrary,
+    untrusted text of unknown origin -- unlike a well-formed same-host/
+    cross-host/non-http URL, it was never validated to *be* a URL, so
+    ``redact_url_userinfo`` cannot reliably strip credential-shaped
+    substrings from it (there is no parsed authority component to strip
+    from). Rather than retain that raw text verbatim (bounded only by
+    length), this returns a bounded, non-reversible marker -- length and a
+    SHA-256 digest -- so malformed-URL grouping and counts stay
+    deterministic without ever re-exposing the source text (review round
+    3, finding 2).
+    """
+    digest = hashlib.sha256(value.encode("utf-8", errors="surrogatepass")).hexdigest()
+    return f"<malformed value: {len(value)} chars, sha256={digest}>"
 
 
 def _classify_url(
@@ -242,12 +275,20 @@ def discover_rss_candidates(
     for index, item in enumerate(considered):
         link_el = item.find("link")
         if link_el is not None and link_el.text and link_el.text.strip():
+            raw_link = link_el.text.strip()
             # redact_url_userinfo runs before _bounded_url so any embedded
             # credential is stripped before length truncation, not after
             # (review round 2, finding 2: a retained URL string must never
             # carry username/password, regardless of its length).
-            url = _bounded_url(redact_url_userinfo(link_el.text.strip()))
+            url = _bounded_url(redact_url_userinfo(raw_link))
             group, scheme, host, path = _classify_url(url, feed_host=feed_host)
+            if group == MALFORMED:
+                # redact_url_userinfo cannot strip credentials from text
+                # that never parsed as having an authority component in
+                # the first place (e.g. "https:/user:pass@host/path", a
+                # single slash) -- replace the value entirely rather than
+                # retain unredactable raw text (review round 3, finding 2).
+                url = _malformed_marker(raw_link)
             candidates.append(RssUrlCandidate(index, "link", url, scheme, host, path, group))
 
         guid_el = item.find("guid")
@@ -272,8 +313,11 @@ def discover_rss_candidates(
             enclosure_url = enclosure_el.get("url")
             enclosure_type = enclosure_el.get("type")
             if enclosure_url:
-                url = _bounded_url(redact_url_userinfo(enclosure_url.strip()))
+                raw_enclosure = enclosure_url.strip()
+                url = _bounded_url(redact_url_userinfo(raw_enclosure))
                 group, scheme, host, path = _classify_url(url, feed_host=feed_host)
+                if group == MALFORMED:
+                    url = _malformed_marker(raw_enclosure)
                 candidates.append(
                     RssUrlCandidate(
                         index,

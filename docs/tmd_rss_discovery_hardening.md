@@ -211,6 +211,22 @@ plus a deduplicated, sorted list of `candidate_media_types` seen across
 `<enclosure type="...">` values. Grouping is deterministic: the same input
 always produces the same groups in the same order.
 
+**Malformed `link`/`enclosure` values are never retained verbatim, even
+redacted (review round 3, finding 2).** `redact_url_userinfo` only strips
+user-info from a value `urlsplit` recognizes as having an authority
+(`netloc`) component; a malformed value that never parsed as having one
+in the first place -- for example a single-slash `https:/user:pass@host`
+form -- passes through that function unchanged, so its own byte-length
+bounding was not sufficient to guarantee no credential-shaped substring
+could reach a report. Any `link`/`enclosure` value `_classify_url` groups
+`malformed` is therefore replaced entirely with a bounded, non-reversible
+marker (`<malformed value: N chars, sha256=...>`) instead of the source
+text -- grouping and counts stay deterministic, but the value itself is
+never re-exposed. (A `guid` never reaches this state in the first place:
+it is only ever retained when it starts with a literal `http://` or
+`https://` prefix, which already implies a `urlsplit`-recognized
+authority component.)
+
 ## 5. Failure-path hardening (Scope F)
 
 Two independent fixes:
@@ -285,7 +301,20 @@ Two independent fixes:
    `RssSecurityError`, `ResponseTooLargeError`, `DiscoveryRedirectError`),
    `parse` (`MalformedCapAlertError`, `NotAnRssEnvelopeError`,
    `EnvelopeParseError`, `RssParseError`), `content_type`
-   (`UnexpectedContentTypeError`), and `unexpected` (anything else).
+   (`UnexpectedContentTypeError`), and `unexpected` (anything else,
+   including `UnexpectedNotModifiedError` below).
+4. **Discovery fails closed on an uncacheable HTTP 304 (review round 3,
+   finding 1).** `discover_rss()` never sends an `If-None-Match` or
+   `If-Modified-Since` validator (it calls `get_no_redirect()` with no
+   `etag`/`last_modified` argument), and discovery mode keeps no cached
+   prior body. A 304 response in that context cannot establish the
+   envelope kind, so it is no longer treated as a quiet success with
+   `envelope_classification`/`discovery` left `null` and an empty
+   `errors` list -- `discover_rss()` now raises `UnexpectedNotModifiedError`
+   (new, in `collectors/adapters/tmd_cap.py`) for this case, which
+   `main()`'s existing exit-code logic turns into a non-zero exit with a
+   sanitized, structured report, exactly like any other adapter-handled
+   failure.
 
 ## 6. SSRF and follow-link boundary
 

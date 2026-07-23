@@ -522,6 +522,59 @@ def test_main_rss_discovery_never_leaks_url_credentials_in_the_report(
     assert report["discovery"]["cross_host_urls"]
 
 
+def test_main_rss_discovery_never_leaks_malformed_credential_like_url_text(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review round 3, finding 2: a malformed (not well-formed) URL value
+    that happens to contain credential-shaped text -- e.g. a single-slash
+    "https:/user:pass@host" form with no parsed authority component --
+    must never survive into the report, even though the producer-level
+    redact_url_userinfo cannot reliably strip it (there is no parsed
+    netloc to strip from for a value that never parsed as having one)."""
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    body = b"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://feed.example.test/</link>
+    <item>
+      <link>https:/malformeduser:malformedsecret@feed.example.test/path</link>
+    </item>
+  </channel>
+</rss>"""
+    _install_fake_tmd_adapter(monkeypatch, body=body, headers={"content-type": "text/xml"})
+    exit_code = main(
+        ["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "rss_discovery"]
+    )
+    assert exit_code == 0
+    report_text = (tmp_path / "report.json").read_text()
+    assert "malformeduser" not in report_text
+    assert "malformedsecret" not in report_text
+    report = json.loads(report_text)
+    assert report["discovery"]["malformed_urls"]
+    assert report["discovery"]["malformed_urls"][0].startswith("<malformed value:")
+
+
+def test_main_rss_discovery_304_is_a_non_zero_structured_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review round 3, finding 1: end-to-end proof that an uncacheable 304
+    in discovery mode produces a non-zero exit and a structured failure
+    report, not a quiet success with null classification/discovery."""
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    _install_fake_tmd_adapter(monkeypatch, body=b"", status=304, headers={"etag": '"same"'})
+    exit_code = main(
+        ["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "rss_discovery"]
+    )
+    assert exit_code == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["error_code"] == "UnexpectedNotModifiedError"
+    assert report["error_category"] == "unexpected"
+    assert report["envelope_classification"] is None
+    assert report["discovery"] is None
+    assert report["forbidden_path_check"] == "clean"
+
+
 # --- Whole-report sanitizer: bounded strings, capped lists, capped bytes ----
 
 

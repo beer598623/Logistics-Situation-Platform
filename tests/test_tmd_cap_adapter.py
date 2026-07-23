@@ -615,3 +615,25 @@ def test_discover_rss_success_leaves_error_code_and_category_none(
     outcome = adapter.discover_rss()
     assert outcome.error_code is None
     assert outcome.error_category is None
+
+
+# --- discover_rss(): review round 3, finding 1 -- 304 fails closed, not silently ---
+
+
+def test_discover_rss_304_is_a_non_zero_structured_failure_not_a_silent_success(
+    tmd_contract: dict,
+) -> None:
+    """discover_rss() sends no ETag/Last-Modified and keeps no cached
+    prior body, so a 304 cannot establish the envelope kind. It must never
+    exit as a quiet success with null classification/discovery."""
+    fake_http = FakeHttpClient(body=b"", status=304, headers={"etag": '"same"'})
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.error_code == "UnexpectedNotModifiedError"
+    assert outcome.error_category == "unexpected"
+    assert outcome.errors != []
+    assert outcome.envelope_classification is None
+    assert outcome.discovery is None
+    # Response metadata gathered before the 304 check is still preserved.
+    assert outcome.http_status == 304
+    assert outcome.etag == '"same"'

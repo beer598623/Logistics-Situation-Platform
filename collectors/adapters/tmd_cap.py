@@ -36,6 +36,18 @@ from .xml_envelope import RSS, classify_envelope
 
 ADAPTER_VERSION = "tmd_cap_v1"
 
+
+class UnexpectedNotModifiedError(RuntimeError):
+    """Raised by ``TmdCapAdapter.discover_rss`` when the response is HTTP
+    304 despite this request never sending an ``If-None-Match`` or
+    ``If-Modified-Since`` validator (``discover_rss`` calls
+    ``get_no_redirect`` with no ``etag``/``last_modified`` argument at
+    all). Discovery mode keeps no cached prior body to fall back to, so a
+    304 here cannot establish the envelope kind and must never be treated
+    as a successful validation with no body (WO-004 review round 3,
+    finding 1)."""
+
+
 #: TMD's CAP endpoints are documented as XML. A response with any other
 #: Content-Type (most commonly an HTML error/login page) is rejected before
 #: parsing rather than fed to the XML parser. This allowlist is reused
@@ -472,37 +484,50 @@ class TmdCapAdapter(SourceAdapter):
             etag = response.headers.get("etag")
             last_modified = response.headers.get("last-modified")
             response_url = redact_url_userinfo(response.url)
-            if response.status != 304:
-                content_type, content_type_warning = validate_content_type(
-                    response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
+            if response.status == 304:
+                # This request sent no If-None-Match/If-Modified-Since
+                # (discover_rss never passes etag/last_modified to
+                # get_no_redirect), and discovery mode keeps no cached
+                # prior body -- an uncacheable 304 cannot establish the
+                # envelope kind and must not silently exit 0 with
+                # envelope_classification/discovery left null (review
+                # round 3, finding 1). Fail closed instead.
+                raise UnexpectedNotModifiedError(
+                    "received HTTP 304 Not Modified, but this request sent no "
+                    "validator and discovery mode has no cached prior body to "
+                    "validate against; a 304 here cannot establish the "
+                    "envelope kind"
                 )
-                if content_type_warning:
-                    warnings.append(content_type_warning)
+            content_type, content_type_warning = validate_content_type(
+                response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
+            )
+            if content_type_warning:
+                warnings.append(content_type_warning)
 
-                max_bytes = int(http_contract["max_response_bytes"])
-                classification = classify_envelope(
-                    response.body, max_bytes=max_bytes, content_sha256=content_sha256
+            max_bytes = int(http_contract["max_response_bytes"])
+            classification = classify_envelope(
+                response.body, max_bytes=max_bytes, content_sha256=content_sha256
+            )
+            envelope_classification = classification.to_dict()
+
+            if classification.envelope_kind == RSS:
+                # Grouping uses the requested endpoint's own host, not
+                # response.url: since get_no_redirect() never follows a
+                # redirect, a successful (non-raised) response was
+                # necessarily served directly by self.endpoint's host,
+                # so there is no separate "redirect-resolved origin" to
+                # consider here.
+                feed_host = urlparse(self.endpoint).hostname
+                result, discovery_warnings = discover_rss_candidates(
+                    response.body, max_bytes=max_bytes, feed_host=feed_host
                 )
-                envelope_classification = classification.to_dict()
-
-                if classification.envelope_kind == RSS:
-                    # Grouping uses the requested endpoint's own host, not
-                    # response.url: since get_no_redirect() never follows a
-                    # redirect, a successful (non-raised) response was
-                    # necessarily served directly by self.endpoint's host,
-                    # so there is no separate "redirect-resolved origin" to
-                    # consider here.
-                    feed_host = urlparse(self.endpoint).hostname
-                    result, discovery_warnings = discover_rss_candidates(
-                        response.body, max_bytes=max_bytes, feed_host=feed_host
-                    )
-                    discovery = result.to_dict()
-                    warnings.extend(discovery_warnings)
-                else:
-                    warnings.append(
-                        f"envelope classified as {classification.envelope_kind!r}, not "
-                        "'rss'; no RSS discovery performed"
-                    )
+                discovery = result.to_dict()
+                warnings.extend(discovery_warnings)
+            else:
+                warnings.append(
+                    f"envelope classified as {classification.envelope_kind!r}, not "
+                    "'rss'; no RSS discovery performed"
+                )
         except Exception as exc:  # noqa: BLE001 -- surfaced as a discovery error, not a crash
             error_code, error_category = classify_error(exc)
             errors.append(f"{error_code}: {exc}")

@@ -42,7 +42,10 @@ OTHER_XML = "other_xml"
 #: size, and this classifier must never surface an unbounded raw value in
 #: its own returned classification, regardless of what a downstream
 #: report-level sanitizer would later do (review round 2, finding 4: bound
-#: untrusted root metadata at the parser boundary itself).
+#: untrusted root metadata at the parser boundary itself). This is the
+#: retained prefix length, not a strict total-length cap: a longer value
+#: keeps its first MAX_ROOT_NAME_LENGTH characters plus a bounded
+#: "...(+N chars omitted)" marker appended.
 MAX_ROOT_NAME_LENGTH = 200
 
 
