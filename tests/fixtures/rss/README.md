@@ -33,6 +33,13 @@ mistaken for a captured live response or a real TMD deep link.
 - `unrelated_xml.xml` -- an arbitrary, unrelated XML root
   (`<catalog>...</catalog>`), used to prove the classifier's `other_xml`
   fallback.
+- `guid_canary_non_url.xml` -- an RSS 2.0 feed whose single item has
+  **no** `<link>`, and a `<guid>` (no `isPermaLink` attribute, so it
+  defaults to `"true"` per the RSS spec) containing a unique canary marker
+  that is *not* URL-shaped. Added for review-round-1 finding 3: proves a
+  non-URL guid is never retained verbatim just because `isPermaLink`
+  defaults to true -- retention must depend on the value's own shape, not
+  the publisher's unverified claim.
 
 The CAP fixtures already committed under `tests/fixtures/cap/` are reused
 directly (not duplicated here) for: direct-CAP-alert envelope

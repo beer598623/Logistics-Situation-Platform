@@ -25,6 +25,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from ..base import SourceAdapter
+from ..error_classification import classify_error
 from ..http_client import validate_content_type
 from ..models import CollectionResult, CollectionRun, RunStatus, SourceHealth, SourceStatus
 from ..staging import build_staging_record
@@ -237,6 +238,8 @@ class RssDiscoveryOutcome:
     discovery: dict[str, Any] | None
     warnings: list[str]
     errors: list[str]
+    error_code: str | None = None
+    error_category: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -252,6 +255,8 @@ class RssDiscoveryOutcome:
             "discovery": self.discovery,
             "warnings": self.warnings,
             "errors": self.errors,
+            "error_code": self.error_code,
+            "error_category": self.error_category,
         }
 
 
@@ -292,6 +297,9 @@ class TmdCapAdapter(SourceAdapter):
         response_url: str | None = None
         content_type: str | None = None
         status = RunStatus.ERROR
+        error_code: str | None = None
+        error_category: str | None = None
+        envelope_classification: dict[str, Any] | None = None
 
         try:
             response = self.http.get(
@@ -326,12 +334,20 @@ class TmdCapAdapter(SourceAdapter):
                     # request and must never mask or replace the original
                     # error, so any classification failure is swallowed
                     # here and the original exception re-raised unchanged.
+                    # The classification is kept both as a human-readable
+                    # warning string (unchanged, for log readability) and,
+                    # newly, as a structured field on the returned
+                    # CollectionResult -- this is exactly the direct-CAP
+                    # RSS-rejection path WO-003 observed, and review round
+                    # 1 required it be exposed structurally, not only as
+                    # a warning string.
                     try:
                         classification = classify_envelope(
                             response.body,
                             max_bytes=int(http_contract["max_response_bytes"]),
                             content_sha256=content_sha256,
                         )
+                        envelope_classification = classification.to_dict()
                         warnings.append(
                             "envelope_classification: kind="
                             f"{classification.envelope_kind} "
@@ -348,10 +364,12 @@ class TmdCapAdapter(SourceAdapter):
                 warnings.extend(normalize_warnings)
                 status = RunStatus.SUCCESS
         except (CapSecurityError, MalformedCapAlertError) as exc:
-            errors.append(f"{type(exc).__name__}: {exc}")
+            error_code, error_category = classify_error(exc)
+            errors.append(f"{error_code}: {exc}")
             status = RunStatus.ERROR
         except Exception as exc:  # noqa: BLE001 -- surfaced as a run error, not a crash
-            errors.append(f"{type(exc).__name__}: {exc}")
+            error_code, error_category = classify_error(exc)
+            errors.append(f"{error_code}: {exc}")
             status = RunStatus.ERROR
 
         completed_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -393,7 +411,14 @@ class TmdCapAdapter(SourceAdapter):
             max_stale_minutes=int(self.contract["max_stale_minutes"]),
         )
         return CollectionResult(
-            records=records, run=run, health=health, warnings=warnings, errors=errors
+            records=records,
+            run=run,
+            health=health,
+            warnings=warnings,
+            errors=errors,
+            error_code=error_code,
+            error_category=error_category,
+            envelope_classification=envelope_classification,
         )
 
     def discover_rss(self) -> RssDiscoveryOutcome:
@@ -421,13 +446,23 @@ class TmdCapAdapter(SourceAdapter):
         content_type: str | None = None
         envelope_classification: dict[str, Any] | None = None
         discovery: dict[str, Any] | None = None
+        error_code: str | None = None
+        error_category: str | None = None
 
         try:
             response = self.http.get(
                 self.endpoint,
                 timeout_seconds=int(http_contract["timeout_seconds"]),
                 max_response_bytes=int(http_contract["max_response_bytes"]),
-                attempts=int(self.contract["retry"]["attempts"]),
+                # Pinned to 1 regardless of the source contract's retry
+                # policy (unchanged for collect()'s direct-CAP mode,
+                # above): discovery mode's one-request maximum must hold
+                # at the transport layer, not just at this call site --
+                # ResilientHttpClient.get() itself retries up to
+                # `attempts` physical GETs internally, so passing the
+                # contract's attempts value here would let discovery mode
+                # silently issue more than one network request.
+                attempts=1,
             )
             http_status = response.status
             content_sha256 = response.content_sha256
@@ -448,7 +483,14 @@ class TmdCapAdapter(SourceAdapter):
                 envelope_classification = classification.to_dict()
 
                 if classification.envelope_kind == RSS:
-                    feed_host = urlparse(self.endpoint).hostname
+                    # Same-host/cross-host grouping must be judged against
+                    # the redirect-resolved response origin, not the
+                    # originally requested endpoint -- otherwise a
+                    # legitimate configured-endpoint redirect to another
+                    # host would mislabel that host's own candidates as
+                    # cross-host. Falls back to self.endpoint only if the
+                    # HTTP layer somehow returned no response_url.
+                    feed_host = urlparse(response_url or self.endpoint).hostname
                     result, discovery_warnings = discover_rss_candidates(
                         response.body, max_bytes=max_bytes, feed_host=feed_host
                     )
@@ -460,7 +502,8 @@ class TmdCapAdapter(SourceAdapter):
                         "'rss'; no RSS discovery performed"
                     )
         except Exception as exc:  # noqa: BLE001 -- surfaced as a discovery error, not a crash
-            errors.append(f"{type(exc).__name__}: {exc}")
+            error_code, error_category = classify_error(exc)
+            errors.append(f"{error_code}: {exc}")
 
         return RssDiscoveryOutcome(
             request_url=self.endpoint,
@@ -475,4 +518,6 @@ class TmdCapAdapter(SourceAdapter):
             discovery=discovery,
             warnings=warnings,
             errors=errors,
+            error_code=error_code,
+            error_category=error_category,
         )

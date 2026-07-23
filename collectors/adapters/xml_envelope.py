@@ -43,6 +43,15 @@ class EnvelopeSecurityError(ValueError):
     The message must never include the raw payload."""
 
 
+class EnvelopeParseError(ValueError):
+    """A payload is not well-formed XML at all (no DTD/entity/oversize
+    involved -- ``defusedxml`` never flagged a security concern; the
+    document simply does not parse). Kept distinct from
+    ``EnvelopeSecurityError`` so a diagnostic report can categorize this as
+    a parse failure rather than a security rejection. The message must
+    never include the raw payload."""
+
+
 @dataclass(slots=True, frozen=True)
 class EnvelopeClassification:
     """Structural metadata only -- never full content, never a decision
@@ -70,10 +79,12 @@ def classify_envelope(
     """Classify a bounded XML payload's root element structurally.
 
     Raises ``EnvelopeSecurityError`` for an oversized payload (checked
-    before any parsing) or a DTD/entity/parse-failure during the hardened
-    parse. Never creates a staging record and never treats the classified
-    kind as authorization to parse it with a different profile's parser --
-    the caller decides what to do with the classification.
+    before any parsing) or a DTD/entity rejection during the hardened parse,
+    and ``EnvelopeParseError`` for ordinary malformed (not well-formed) XML
+    that raised no security concern. Never creates a staging record and
+    never treats the classified kind as authorization to parse it with a
+    different profile's parser -- the caller decides what to do with the
+    classification.
     """
     if len(payload) > max_bytes:
         raise EnvelopeSecurityError(
@@ -91,7 +102,11 @@ def classify_envelope(
     except DefusedXmlException as exc:
         raise EnvelopeSecurityError(f"payload rejected: {type(exc).__name__}") from None
     except Exception as exc:  # noqa: BLE001 -- never echo the raw payload back
-        raise EnvelopeSecurityError(
+        # Not a DTD/entity/oversize security rejection (that's the branch
+        # above) -- this is ordinary malformed XML (e.g. a ParseError), so
+        # it is categorized separately as a parse failure, not a security
+        # one.
+        raise EnvelopeParseError(
             f"payload could not be parsed as XML: {type(exc).__name__}"
         ) from None
 

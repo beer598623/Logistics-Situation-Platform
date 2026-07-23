@@ -28,12 +28,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from collectors.adapters.cap import CapSecurityError, MalformedCapAlertError  # noqa: E402
 from collectors.adapters.gdacs import GdacsAdapter, build_search_request  # noqa: E402
-from collectors.adapters.rss_discovery import NotAnRssEnvelopeError, RssSecurityError  # noqa: E402
 from collectors.adapters.tmd_cap import TmdCapAdapter, resolve_endpoint  # noqa: E402
-from collectors.adapters.xml_envelope import EnvelopeSecurityError  # noqa: E402
-from collectors.http_client import UnexpectedContentTypeError  # noqa: E402
+from collectors.error_classification import classify_error  # noqa: E402
 from collectors.registry import load_registry, source_by_id  # noqa: E402
 
 OUTPUT_DIR = ROOT / "manual_live_test_output"
@@ -243,6 +240,9 @@ def run_gdacs(args: argparse.Namespace, contract: dict[str, Any], dry_run: bool)
     }
     report["warnings"] = result.warnings
     report["errors"] = result.errors
+    report["error_code"] = result.error_code
+    report["error_category"] = result.error_category
+    report["envelope_classification"] = result.envelope_classification
     report["staging_sample"] = [
         _redact_staging_record(record) for record in result.records[:MAX_STAGING_SAMPLE_SIZE]
     ]
@@ -287,6 +287,8 @@ def run_tmd_cap(
         report["discovery"] = outcome.discovery
         report["warnings"] = outcome.warnings
         report["errors"] = outcome.errors
+        report["error_code"] = outcome.error_code
+        report["error_category"] = outcome.error_category
         return report
 
     result = adapter.collect()
@@ -299,6 +301,15 @@ def run_tmd_cap(
     }
     report["warnings"] = result.warnings
     report["errors"] = result.errors
+    # A direct-CAP failure that stems from receiving a non-CAP envelope
+    # (e.g. the WO-003 "received rss" rejection) is handled inside
+    # TmdCapAdapter.collect() itself, not raised to this caller -- expose
+    # its structured error_code/error_category and, when computed, the
+    # envelope classification here too, rather than leaving them buried in
+    # a warning string only.
+    report["error_code"] = result.error_code
+    report["error_category"] = result.error_category
+    report["envelope_classification"] = result.envelope_classification
     # Never include the raw XML payload or full description/instruction text:
     # staging records never carry those fields in the first place (see
     # collectors/adapters/tmd_cap.py::normalize_tmd_alert), and the redaction
@@ -312,21 +323,13 @@ def run_tmd_cap(
 def _classify_error_category(exc: BaseException) -> str:
     """Map an exception to a short, stable error category for the report.
 
+    Thin wrapper over ``collectors.error_classification.classify_error``,
+    kept so existing callers/tests can ask for just the category string.
     Best-effort classification only -- an unrecognized exception type
-    still yields a report (category ``"unexpected"``), it is never a
-    reason to skip writing one.
+    still yields a result (category ``"unexpected"``), never a reason to
+    skip writing a report.
     """
-    if isinstance(exc, SystemExit):
-        return "validation"
-    if isinstance(exc, (CapSecurityError, EnvelopeSecurityError, RssSecurityError)):
-        return "security"
-    if isinstance(exc, (MalformedCapAlertError, NotAnRssEnvelopeError)):
-        return "parse"
-    if isinstance(exc, UnexpectedContentTypeError):
-        return "content_type"
-    if isinstance(exc, ValueError):
-        return "validation"
-    return "unexpected"
+    return classify_error(exc)[1]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -355,12 +358,13 @@ def main(argv: list[str] | None = None) -> int:
         error_message = (
             str(exc.code) if isinstance(exc, SystemExit) else f"{type(exc).__name__}: {exc}"
         )
+        error_code, error_category = classify_error(exc)
         report = {
             "mode": "dry_run" if dry_run else "live",
             "operation": getattr(args, "tmd_operation", None) if args.source == "tmd_cap" else None,
             "endpoint": None,
-            "error_code": type(exc).__name__,
-            "error_category": _classify_error_category(exc),
+            "error_code": error_code,
+            "error_category": error_category,
             "warnings": [],
             "errors": [error_message],
         }

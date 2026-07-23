@@ -56,6 +56,13 @@ class RssSecurityError(ValueError):
     message must never include the raw payload."""
 
 
+class RssParseError(ValueError):
+    """A payload is not well-formed XML at all (no DTD/entity/oversize
+    involved). Kept distinct from ``RssSecurityError`` so a diagnostic
+    report can categorize this as a parse failure rather than a security
+    rejection. The message must never include the raw payload."""
+
+
 class NotAnRssEnvelopeError(ValueError):
     """The root element is not ``<rss>``. Run
     ``collectors.adapters.xml_envelope.classify_envelope`` first and only
@@ -74,18 +81,31 @@ def _bounded_url(value: str) -> str:
 def _classify_url(
     value: str, *, feed_host: str | None
 ) -> tuple[str, str | None, str | None, str | None]:
-    """Return ``(group, scheme, host, path)`` for one candidate URL string."""
+    """Return ``(group, scheme, host, path)`` for one candidate URL string.
+
+    ``host`` is always ``urlparse(...).hostname`` -- never the raw
+    ``netloc`` -- so embedded user-info (``user:pass@host``) is never
+    exposed in a discovery result or report, and comparison against
+    ``feed_host`` cannot be confused by it either. Host comparison and
+    storage deliberately consider only the hostname component, ignoring
+    any port: this is a discovery-only module that never connects to any
+    candidate URL in this iteration, so a same-hostname/different-port
+    candidate is grouped as ``same_host`` here. A future controlled fetch
+    work order must treat host and port together as part of its own
+    allowlist policy -- this grouping is not itself an authorization to
+    connect to any port.
+    """
     try:
         parsed = urlparse(value)
     except ValueError:
         return MALFORMED, None, None, None
-    if not parsed.scheme or not parsed.netloc:
+    if not parsed.scheme or not parsed.hostname:
         return MALFORMED, None, None, None
     if parsed.scheme not in {"http", "https"}:
-        return NON_HTTP, parsed.scheme, parsed.netloc, (parsed.path or None)
-    if feed_host and parsed.netloc.lower() == feed_host.lower():
-        return SAME_HOST, parsed.scheme, parsed.netloc, (parsed.path or None)
-    return CROSS_HOST, parsed.scheme, parsed.netloc, (parsed.path or None)
+        return NON_HTTP, parsed.scheme, parsed.hostname, (parsed.path or None)
+    if feed_host and parsed.hostname == feed_host.lower():
+        return SAME_HOST, parsed.scheme, parsed.hostname, (parsed.path or None)
+    return CROSS_HOST, parsed.scheme, parsed.hostname, (parsed.path or None)
 
 
 def _parse_pub_date(raw: str | None) -> str | None:
@@ -156,9 +176,10 @@ def discover_rss_candidates(
     """Parse an RSS 2.x envelope into discovery-only structural metadata.
 
     Raises ``RssSecurityError`` for an oversized or DTD/entity-bearing
-    payload (before any parsing), and ``NotAnRssEnvelopeError`` if the root
-    element is not ``<rss>``. Never fetches any discovered URL -- this
-    module has no HTTP client at all.
+    payload (before any parsing), ``RssParseError`` for ordinary malformed
+    XML that raised no security concern, and ``NotAnRssEnvelopeError`` if
+    the root element is not ``<rss>``. Never fetches any discovered URL --
+    this module has no HTTP client at all.
     """
     if len(payload) > max_bytes:
         raise RssSecurityError(
@@ -176,9 +197,10 @@ def discover_rss_candidates(
     except DefusedXmlException as exc:
         raise RssSecurityError(f"payload rejected: {type(exc).__name__}") from None
     except Exception as exc:  # noqa: BLE001 -- never echo the raw payload back
-        raise RssSecurityError(
-            f"payload could not be parsed as XML: {type(exc).__name__}"
-        ) from None
+        # Not a DTD/entity/oversize security rejection (that's the branch
+        # above) -- this is ordinary malformed XML, categorized separately
+        # as a parse failure, not a security one.
+        raise RssParseError(f"payload could not be parsed as XML: {type(exc).__name__}") from None
 
     if root.tag != "rss":
         raise NotAnRssEnvelopeError(f"root element is not <rss>, got {root.tag!r}")
@@ -206,9 +228,16 @@ def discover_rss_candidates(
         guid_el = item.find("guid")
         if guid_el is not None and guid_el.text and guid_el.text.strip():
             guid_text = guid_el.text.strip()
-            is_permalink = guid_el.get("isPermaLink", "true").lower() != "false"
-            looks_like_url = guid_text.startswith(("http://", "https://"))
-            if is_permalink or looks_like_url:
+            # A guid is retained only when its text is itself URL-shaped.
+            # RSS's isPermaLink defaults to "true" when the attribute is
+            # absent, but that attribute is only the *publisher's claim*
+            # that the guid is a dereferenceable URL -- it is not proof,
+            # and trusting it blindly would let arbitrary non-URL guid
+            # text (an opaque message ID, or worse, warning prose) be
+            # retained verbatim in a public diagnostic artifact. The
+            # isPermaLink attribute is therefore never consulted here;
+            # only the value's own shape decides retention.
+            if guid_text.startswith(("http://", "https://")):
                 url = _bounded_url(guid_text)
                 group, scheme, host, path = _classify_url(url, feed_host=feed_host)
                 candidates.append(RssUrlCandidate(index, "guid", url, scheme, host, path, group))

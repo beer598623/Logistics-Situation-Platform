@@ -335,7 +335,8 @@ def test_collect_still_rejects_rss_content_and_appends_envelope_classification_w
     """Regression matching WO-003's observed live evidence: an RSS envelope
     served at a recorded CAP endpoint must still be rejected by the strict
     CAP parser (Scope A untouched), with the envelope classification
-    surfaced only as an additional diagnostic warning."""
+    surfaced both as a diagnostic warning and (review round 1, finding 4)
+    as a structured field."""
     fake_http = FakeHttpClient(
         body=_read_rss("same_host_link.xml"), headers={"content-type": "text/xml"}
     )
@@ -345,6 +346,66 @@ def test_collect_still_rejects_rss_content_and_appends_envelope_classification_w
     assert result.records == []
     assert any("MalformedCapAlertError" in error for error in result.errors)
     assert any("envelope_classification: kind=rss" in warning for warning in result.warnings)
+    assert result.error_code == "MalformedCapAlertError"
+    assert result.error_category == "parse"
+    assert result.envelope_classification is not None
+    assert result.envelope_classification["envelope_kind"] == RSS
+
+
+# --- collect(): structured error_code/error_category on other failures -----
+
+
+def test_collect_security_rejection_carries_structured_error_category(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(
+        body=_read("dtd_entity_attack.xml"), headers={"content-type": "application/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    result = adapter.collect()
+    assert result.error_code == "CapSecurityError"
+    assert result.error_category == "security"
+    assert result.envelope_classification is None
+
+
+def test_collect_unexpected_content_type_carries_structured_error_category(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(
+        body=b"<html><body>Not Found</body></html>",
+        headers={"content-type": "text/html; charset=utf-8"},
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    result = adapter.collect()
+    assert result.error_code == "UnexpectedContentTypeError"
+    assert result.error_category == "content_type"
+
+
+def test_collect_success_leaves_error_code_and_category_none(tmd_contract: dict) -> None:
+    fake_http = FakeHttpClient(
+        body=_read("valid_bilingual_alert.xml"), headers={"content-type": "application/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    result = adapter.collect()
+    assert result.error_code is None
+    assert result.error_category is None
+    assert result.envelope_classification is None
+
+
+# --- collect(): retry policy is unchanged (regression) ----------------------
+
+
+def test_collect_still_uses_the_contract_retry_attempts(tmd_contract: dict) -> None:
+    """Regression: only discover_rss() is pinned to attempts=1 (review
+    round 1, finding 1); collect()'s existing retry policy must be
+    unaffected."""
+    fake_http = FakeHttpClient(
+        body=_read("valid_bilingual_alert.xml"), headers={"content-type": "application/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    adapter.collect()
+    assert fake_http.last_attempts == int(tmd_contract["retry"]["attempts"])
+    assert fake_http.last_attempts != 1
 
 
 # --- discover_rss(): exactly one network request, structural metadata only --
@@ -420,3 +481,80 @@ def test_discover_rss_retains_workflow_sha_and_response_metadata(
     assert outcome.etag == '"tmd-etag-2"'
     assert outcome.last_modified == "Thu, 23 Jul 2026 09:00:00 GMT"
     assert outcome.http_status == 200
+
+
+# --- discover_rss(): review round 1, finding 1 -- pinned to one attempt ------
+
+
+def test_discover_rss_pins_attempts_to_one_regardless_of_contract_retry_policy(
+    tmd_contract: dict,
+) -> None:
+    assert int(tmd_contract["retry"]["attempts"]) != 1  # sanity: the contract itself allows retries
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"), headers={"content-type": "text/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    adapter.discover_rss()
+    assert fake_http.last_attempts == 1
+
+
+# --- discover_rss(): review round 1, finding 2 -- origin is the redirect-resolved URL --
+
+
+def test_discover_rss_groups_candidates_by_the_redirect_resolved_host(
+    tmd_contract: dict,
+) -> None:
+    """The contract's configured endpoint is on www.tmd.go.th, but the fake
+    response resolves (redirects) to feed.example.test -- the same host as
+    the fixture's item link. Grouping must use the redirect-resolved
+    response host, not the originally requested endpoint host, or this
+    same-host candidate would be mislabelled cross-host."""
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"),
+        headers={"content-type": "text/xml"},
+        response_url="https://feed.example.test/redirected/rss",
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.discovery["same_host_urls"]
+    assert outcome.discovery["cross_host_urls"] == []
+
+
+# --- discover_rss(): review round 1, finding 4 -- structured error category --
+
+
+def test_discover_rss_security_rejection_carries_structured_error_category(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(
+        body=_read("dtd_entity_attack.xml"), headers={"content-type": "application/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.error_code == "EnvelopeSecurityError"
+    assert outcome.error_category == "security"
+
+
+def test_discover_rss_malformed_xml_carries_structured_parse_category(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(
+        body=b"<rss><channel><title>unterminated", headers={"content-type": "text/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.error_code == "EnvelopeParseError"
+    assert outcome.error_category == "parse"
+    assert "unterminated" not in json.dumps(outcome.to_dict())
+
+
+def test_discover_rss_success_leaves_error_code_and_category_none(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"), headers={"content-type": "text/xml"}
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.error_code is None
+    assert outcome.error_category is None

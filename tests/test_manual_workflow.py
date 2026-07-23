@@ -13,8 +13,13 @@ WORKFLOW_PATH = ROOT / ".github" / "workflows" / "manual-live-source-test.yml"
 sys.path.insert(0, str(ROOT))
 
 from collectors.adapters.cap import CapSecurityError, MalformedCapAlertError  # noqa: E402
-from collectors.adapters.rss_discovery import NotAnRssEnvelopeError, RssSecurityError  # noqa: E402
-from collectors.adapters.xml_envelope import EnvelopeSecurityError  # noqa: E402
+from collectors.adapters.rss_discovery import (  # noqa: E402
+    NotAnRssEnvelopeError,
+    RssParseError,
+    RssSecurityError,
+)
+from collectors.adapters.tmd_cap import TmdCapAdapter as RealTmdCapAdapter  # noqa: E402
+from collectors.adapters.xml_envelope import EnvelopeParseError, EnvelopeSecurityError  # noqa: E402
 from collectors.http_client import UnexpectedContentTypeError  # noqa: E402
 from collectors.registry import load_registry, source_by_id  # noqa: E402
 from scripts import manual_live_source_test  # noqa: E402
@@ -29,11 +34,40 @@ from scripts.manual_live_source_test import (  # noqa: E402
     run_gdacs,
     run_tmd_cap,
 )
+from tests.conftest import FakeHttpClient  # noqa: E402
+
+CAP_FIXTURES = ROOT / "tests" / "fixtures" / "cap"
+RSS_FIXTURES = ROOT / "tests" / "fixtures" / "rss"
 
 
 @pytest.fixture
 def workflow() -> dict:
     return yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+
+def _install_fake_tmd_adapter(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    body: bytes,
+    headers: dict[str, str] | None = None,
+    status: int = 200,
+    response_url: str | None = None,
+) -> FakeHttpClient:
+    """Make ``run_tmd_cap``'s live-mode adapter construction (inside
+    ``scripts.manual_live_source_test``) return a real ``TmdCapAdapter``
+    wired to a ``FakeHttpClient`` instead of the real network client, so
+    ``main()`` can be exercised end-to-end (full report construction,
+    sanitization, forbidden-path check, exit code) with zero network
+    access."""
+    fake_http = FakeHttpClient(
+        body=body, status=status, headers=headers or {}, response_url=response_url
+    )
+
+    def _factory(contract, http=None, *, language="primary"):
+        return RealTmdCapAdapter(contract, http=fake_http, language=language)
+
+    monkeypatch.setattr(manual_live_source_test, "TmdCapAdapter", _factory)
+    return fake_http
 
 
 # --- Manual workflow has no schedule trigger ---------------------------------
@@ -256,6 +290,8 @@ def test_run_tmd_cap_rss_discovery_dry_run_never_touches_network() -> None:
         (RssSecurityError("boom"), "security"),
         (MalformedCapAlertError("boom"), "parse"),
         (NotAnRssEnvelopeError("boom"), "parse"),
+        (EnvelopeParseError("boom"), "parse"),
+        (RssParseError("boom"), "parse"),
         (UnexpectedContentTypeError("boom"), "content_type"),
         (ValueError("boom"), "validation"),
         (RuntimeError("boom"), "unexpected"),
@@ -335,6 +371,92 @@ def test_main_succeeds_for_a_valid_dry_run_and_leaves_forbidden_paths_untouched(
     assert exit_code == 0
     report = json.loads((tmp_path / "report.json").read_text())
     assert report["mode"] == "dry_run"
+    assert report["forbidden_path_check"] == "clean"
+
+
+# --- main(): end-to-end structured reports for adapter-handled failures ----
+# Review round 1, finding 4: these exercise the actual paths TmdCapAdapter
+# catches internally (collect()/discover_rss()), not just exceptions that
+# escape to main()'s own try/except -- each must produce a sanitized
+# report, return non-zero, retain the forbidden-path result, and carry the
+# correct structured error_category.
+
+
+def test_main_direct_cap_receiving_rss_produces_structured_parse_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The exact WO-003 failure: a direct-CAP fetch that receives an RSS
+    envelope. collect() catches MalformedCapAlertError itself and never
+    lets it escape to main() -- the structured category and the envelope
+    classification must still surface in the report."""
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    _install_fake_tmd_adapter(
+        monkeypatch,
+        body=(RSS_FIXTURES / "same_host_link.xml").read_bytes(),
+        headers={"content-type": "text/xml"},
+    )
+    exit_code = main(["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "direct_cap"])
+    assert exit_code == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["error_code"] == "MalformedCapAlertError"
+    assert report["error_category"] == "parse"
+    assert report["envelope_classification"]["envelope_kind"] == "rss"
+    assert report["forbidden_path_check"] == "clean"
+
+
+def test_main_rss_discovery_dtd_xxe_produces_structured_security_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    _install_fake_tmd_adapter(
+        monkeypatch,
+        body=(CAP_FIXTURES / "dtd_entity_attack.xml").read_bytes(),
+        headers={"content-type": "application/xml"},
+    )
+    exit_code = main(
+        ["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "rss_discovery"]
+    )
+    assert exit_code == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["error_category"] == "security"
+    assert "EnvelopeSecurityError" in report["error_code"]
+    assert report["forbidden_path_check"] == "clean"
+
+
+def test_main_rss_discovery_malformed_xml_produces_structured_parse_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    _install_fake_tmd_adapter(
+        monkeypatch,
+        body=b"<rss><channel><title>unterminated",
+        headers={"content-type": "text/xml"},
+    )
+    exit_code = main(
+        ["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "rss_discovery"]
+    )
+    assert exit_code == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["error_category"] == "parse"
+    assert "EnvelopeParseError" in report["error_code"]
+    assert "unterminated" not in json.dumps(report)
+    assert report["forbidden_path_check"] == "clean"
+
+
+def test_main_unexpected_content_type_produces_structured_content_type_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    _install_fake_tmd_adapter(
+        monkeypatch,
+        body=b"<html><body>Not Found</body></html>",
+        headers={"content-type": "text/html; charset=utf-8"},
+    )
+    exit_code = main(["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "direct_cap"])
+    assert exit_code == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["error_category"] == "content_type"
+    assert report["error_code"] == "UnexpectedContentTypeError"
     assert report["forbidden_path_check"] == "clean"
 
 

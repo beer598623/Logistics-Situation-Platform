@@ -110,8 +110,26 @@ class CollectionRun:
 
 @dataclass(slots=True)
 class CollectionResult:
+    """Wraps one adapter run's records and provenance.
+
+    ``error_code`` / ``error_category`` / ``envelope_classification`` are
+    deliberately *not* part of ``CollectionRun`` or
+    ``schemas/collection_run.schema.json`` -- that schema is shared with
+    every adapter (including GDACS) and is intentionally frozen. These
+    three fields are optional, script-facing diagnostics only (WO-004
+    v0.2.1 review round 1, finding 4): a stable structured error
+    code/category for an adapter-handled failure, and the structural
+    envelope classification when one was computed, so the manual-test
+    report can surface them without a schema change. They default to
+    ``None`` and are left unset by every adapter that has no reason to
+    populate them (e.g. GDACS, or a successful TMD run).
+    """
+
     records: list[dict[str, Any]]
     run: CollectionRun
     health: SourceHealth
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    error_code: str | None = None
+    error_category: str | None = None
+    envelope_classification: dict[str, Any] | None = None

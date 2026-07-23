@@ -9,6 +9,7 @@ from collectors.adapters.xml_envelope import (
     CAP_ALERT,
     OTHER_XML,
     RSS,
+    EnvelopeParseError,
     EnvelopeSecurityError,
     classify_envelope,
 )
@@ -78,10 +79,16 @@ def test_oversized_payload_is_rejected_before_parsing() -> None:
 
 
 def test_malformed_xml_is_rejected_without_echoing_the_payload() -> None:
+    """Review round 1, finding 4: ordinary malformed (not well-formed) XML
+    that raises no DTD/entity/external-reference concern must be a
+    distinct EnvelopeParseError, not EnvelopeSecurityError, so a
+    diagnostic report can categorize it as a parse failure rather than a
+    security rejection."""
     payload = b"<not-valid-xml"
-    with pytest.raises(EnvelopeSecurityError) as excinfo:
+    with pytest.raises(EnvelopeParseError) as excinfo:
         classify_envelope(payload, max_bytes=1_000_000, content_sha256="g" * 64)
     assert "not-valid-xml" not in str(excinfo.value)
+    assert not isinstance(excinfo.value, EnvelopeSecurityError)
 
 
 # --- to_dict() shape ----------------------------------------------------------

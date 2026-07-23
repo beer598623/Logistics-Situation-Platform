@@ -59,6 +59,23 @@ overridden by the other here. `config/sources.yaml`'s `known_limitations`
 for `TMD_CAP` records both verbatim, side by side, per the issue's
 explicit instruction not to resolve this conflict by assumption.
 
+### Source-evidence table
+
+Review round 1, finding 5: publication date and WO-003 event timestamps
+alone do not separately establish each cited source's own retrieval date
+and freshness. This table records both, per source/page, and states
+`unknown` rather than guessing wherever a value was not independently
+verified -- no page was re-fetched to produce this table; the WMO/TMD
+reference-page rows record what was already cited in `config/sources.yaml`
+prior to this increment.
+
+| Source / page | Publication or last-updated date | Retrieval date | Evidence / event date or data period | Freshness limitation | Verified claim |
+| --- | --- | --- | --- | --- | --- |
+| TMD English CAP endpoint (`endpoint`) | unknown (no `Last-Modified` header returned) | 2026-07-23 | 2026-07-23 (WO-003 English live run) | No cadence established from one observation; may change without notice | Served RSS 2.x (`<rss>` root), HTTP 200, `Content-Type: text/xml`, no redirect, no ETag/Last-Modified |
+| TMD Thai CAP endpoint (`alternate_endpoints[thai_language_cap]`) | unknown (no `Last-Modified` header returned) | 2026-07-23 | 2026-07-23 (WO-003 Thai live run) | No cadence established from one observation; may change without notice | Served RSS 2.x (`<rss>` root), HTTP 200, `Content-Type: text/xml`, no redirect, no ETag/Last-Modified |
+| WMO Register of Alerting Authorities (TMD record, recId=164) | unknown (register page does not expose a per-record last-updated date) | 2026-07-23 | not applicable -- a static reference listing, not a time-bound event | Registration text alone does not establish current endpoint behavior; not re-verified live by this increment | Lists both TMD URLs above as "CAP Feed URL" |
+| TMD RSS service page (`/en/service/rss`) | unknown (page does not expose a visible last-updated date) | 2026-07-23 | not applicable -- a static reference page, not a time-bound event | Page wording alone does not establish current endpoint behavior; not re-verified live by this increment | Labels the same feed(s) "CAP Warning" under "RSS format open data" |
+
 ### Inference this document does *not* make
 
 - That the RSS envelope is a permanent replacement for a direct CAP 1.2
@@ -131,15 +148,26 @@ per RSS `<item>`, only:
 
 - item index
 - `<link>` (a URL string, bounded to 500 characters)
-- `<guid>` **only** when it is `isPermaLink="true"` (the RSS default) or
-  otherwise looks like an `http(s)://` URL
+- `<guid>` **only** when its own text is `http(s)://`-shaped -- the RSS
+  `isPermaLink` attribute (which defaults to `"true"` when absent) is
+  never consulted for this decision (review round 1, finding 3: trusting
+  that default would let arbitrary non-URL guid text, including warning
+  prose, be retained verbatim just because the publisher's unverified
+  attribute claims it is a permalink)
 - `<enclosure url=... type=...>` (URL string plus a bounded MIME-type
   string)
 - `<pubDate>` **only** when it parses as a valid RFC 2822 timestamp,
   normalized to ISO-8601 UTC -- an unparseable value is dropped entirely,
   never retained as raw text
-- each retained URL's `scheme`, `host` (netloc), and `path` (query strings
-  and fragments are not separately retained as structured fields)
+- each retained URL's `scheme`, `host` (`urlparse(...).hostname` --
+  never the raw `netloc`, so embedded user-info is never exposed), and
+  `path` (query strings and fragments are not separately retained as
+  structured fields). Host comparison/storage considers only the
+  hostname, deliberately ignoring any port (review round 1, finding 2):
+  this is a discovery-only module that never connects to any candidate
+  URL in this iteration, so a same-hostname/different-port candidate is
+  grouped `same_host` here -- a future controlled fetch work order must
+  treat host and port together as part of its own allowlist policy
 
 It never retains, under any circumstance:
 
@@ -193,9 +221,10 @@ Two independent fixes:
    - `endpoint` (when known; `None` when resolution itself failed)
    - `error_code` (the exception's class name) and `error_category` (one
      of `validation`, `security`, `parse`, `content_type`, `unexpected`)
-   - `envelope_classification` (present for `rss_discovery`, and appended
-     as a diagnostic warning for a `direct_cap` `MalformedCapAlertError`,
-     per Section 3 item 4)
+   - `envelope_classification` (present for `rss_discovery`, and, since
+     review round 1 finding 4, also present as a structured field --
+     not merely a diagnostic warning string -- for a `direct_cap`
+     `MalformedCapAlertError`, per Section 3 item 4)
    - `forbidden_path_check` and `contract_state` (added identically to
      every report, success or failure, unchanged from before this
      increment)
@@ -203,6 +232,28 @@ Two independent fixes:
    This never suppresses failure: the report's `errors` list is always
    non-empty on this path, so `main()`'s existing exit-code logic still
    returns `1`.
+
+   **Review round 1, finding 4** additionally required `error_code` /
+   `error_category` / `envelope_classification` to be exposed structurally
+   even for failures an adapter already catches internally (a direct-CAP
+   RSS rejection never raises past `TmdCapAdapter.collect()`; an RSS
+   discovery DTD/XXE or Content-Type rejection never raises past
+   `discover_rss()`). `collectors/error_classification.py` (new) is a
+   single shared classifier both the adapter and this script call, so the
+   same stable vocabulary applies whether a failure was caught inside the
+   adapter or escaped to this script's own dispatch wrapper.
+   `CollectionResult` and `RssDiscoveryOutcome` (both non-schema-bound;
+   see Section 3) now carry `error_code` / `error_category` fields (and
+   `CollectionResult` also carries `envelope_classification`), populated
+   by the adapter itself, so `run_tmd_cap()` copies them straight into the
+   report rather than only classifying an exception that already escaped.
+   It also separates ordinary malformed (not well-formed) XML from a
+   DTD/entity/oversize security rejection: `EnvelopeParseError` /
+   `RssParseError` (new, category `parse`) versus `EnvelopeSecurityError`
+   / `RssSecurityError` (unchanged, category `security`) --
+   previously any parse failure during the hardened XML parse, including
+   ordinary malformed XML with no security concern, was misclassified as
+   a security rejection.
 
 ## 6. SSRF and follow-link boundary
 
@@ -219,9 +270,16 @@ This increment is discovery only:
   merely a policy comment; there is no code path in that module capable of
   making a request.
 - `TmdCapAdapter.discover_rss()` makes **exactly one** bounded GET request
-  per invocation, the same request budget as `collect()`. No RSS item
-  link, `guid`, or `enclosure` URL is ever fetched, followed, or resolved
-  -- not same-host, not cross-host.
+  per invocation: it passes `attempts=1` to the HTTP client explicitly,
+  regardless of the source contract's `retry.attempts` value (review
+  round 1, finding 1 -- `ResilientHttpClient.get()` itself performs up to
+  `attempts` physical GET attempts internally, so passing the contract's
+  retry policy through, as an earlier version of this code did, could let
+  discovery mode silently issue more than one physical request on a
+  transient failure). `collect()`'s existing retry policy is unchanged
+  and continues to use the contract's configured `attempts` value. No RSS
+  item link, `guid`, or `enclosure` URL is ever fetched, followed, or
+  resolved -- not same-host, not cross-host.
 - No redirect discovered *within* an RSS item is followed; the one HTTP
   request already made by `ResilientHttpClient` still resolves at most the
   redirect chain for the single configured endpoint URL itself (unchanged,
