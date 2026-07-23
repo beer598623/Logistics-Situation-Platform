@@ -40,16 +40,17 @@ The published site must retain the latest successful version when validation or 
 
 ## Current status
 
-Implementation v0.1.2: cadence-aware source-health evaluation with purpose-aware coverage, and deterministic event identity/lifecycle metadata across the candidate → reviewed lifecycle, on top of the v0.1.1 provenance hardening (source contracts, collection provenance, adapter interfaces, locked runtime dependencies, quality checks). Live collectors remain disabled until source-specific integration tests pass.
+Implementation v0.2 pilot: a controlled, fixture-first GDACS adapter and a generic CAP 1.2 parser with a thin TMD CAP profile (`collectors/adapters/gdacs.py`, `collectors/adapters/cap.py`, `collectors/adapters/tmd_cap.py`), on top of the v0.1.2 source-health/event-identity work and the v0.1.1 provenance hardening. **No live source is enabled for production.** GDACS and TMD_CAP remain `enabled: false`; the only network-capable path is a `workflow_dispatch`-only manual workflow (`.github/workflows/manual-live-source-test.yml`) that never writes to public dashboard or candidate data and never uploads a raw TMD payload.
 
-See [`docs/source_health_and_event_identity.md`](docs/source_health_and_event_identity.md) for how source health, coverage, and event identity are computed.
+See [`docs/gdacs_tmd_cap_pilot.md`](docs/gdacs_tmd_cap_pilot.md) for the pilot's design, verified source facts, and the manual workflow's safety controls, and [`docs/source_health_and_event_identity.md`](docs/source_health_and_event_identity.md) for how source health, coverage, and event identity are computed.
 
 ## Data contracts
 
 - `config/sources.yaml` is the source contract registry.
 - `schemas/collection_run.schema.json` records collection-run lineage.
+- `schemas/staging_record.schema.json` is the shared normalized-output contract for the GDACS and CAP/TMD adapters (Implementation v0.2) -- a candidate-level record with provenance, never an assigned `canonical_event_id` and never an operational-impact field.
 - `schemas/source_status.schema.json` prevents a source outage from appearing as an all-clear, and breaks coverage down by purpose-aware capability.
 - `collectors/source_health.py` evaluates each source's freshness deterministically from its contract and known collection runs.
 - `collectors/event_identity.py` assigns a stable `canonical_event_id` from a source's external ID or a controlled-field fingerprint, never from title wording.
 - Evidence records retain retrieval time, content hash, parser version, reuse status, and source revision.
-- Live collection is disabled unless the source endpoint and machine-readable status are verified and the reuse position is reviewed.
+- Live collection is disabled unless the source endpoint and machine-readable status are verified and the reuse position is reviewed; the only network-capable path is the `workflow_dispatch`-only manual workflow described in [`docs/gdacs_tmd_cap_pilot.md`](docs/gdacs_tmd_cap_pilot.md).

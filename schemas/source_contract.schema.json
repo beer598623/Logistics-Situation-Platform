@@ -37,11 +37,31 @@
         "authoritative_for": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "landing_url": {"type": "string", "format": "uri"},
         "endpoint": {"$ref": "#/$defs/nullableUri"},
+        "alternate_endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "url"],
+            "properties": {
+              "label": {"type": "string", "minLength": 1},
+              "url": {"$ref": "#/$defs/nullableUri"}
+            }
+          },
+          "uniqueItems": true
+        },
         "access_method": {"enum": ["api", "rss", "cap", "download", "html", "ckan", "arcgis", "manual"]},
         "format": {"enum": ["json", "geojson", "xml", "csv", "html", "xlsx", "pdf", "mixed"]},
         "machine_readable_status": {"enum": ["verified", "unverified", "manual_only", "disabled"]},
         "parser": {"type": "string", "pattern": "^[a-z0-9_]+_v[0-9]+$"},
-        "stable_id_field": {"type": ["string", "null"]},
+        "stable_id_field": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "null"},
+            {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 2, "uniqueItems": true}
+          ]
+        },
+        "revision_id_field": {"type": ["string", "null"]},
         "expected_cadence_minutes": {"type": ["integer", "null"], "minimum": 1},
         "max_stale_minutes": {"type": "integer", "minimum": 1},
         "publication_lag": {"type": "string"},
@@ -51,7 +71,8 @@
           "required": ["type", "page_size"],
           "properties": {
             "type": {"enum": ["none", "page_number", "offset", "cursor"]},
-            "page_size": {"type": ["integer", "null"], "minimum": 1}
+            "page_size": {"type": ["integer", "null"], "minimum": 1},
+            "max_page_size": {"type": ["integer", "null"], "minimum": 1}
           }
         },
         "http": {
@@ -77,6 +98,19 @@
         "licence_status": {"enum": ["reviewed", "pending_review", "restricted", "unknown"]},
         "terms_url": {"$ref": "#/$defs/nullableUri"},
         "terms_reviewed_at": {"type": ["string", "null"], "format": "date"},
+        "reuse_reference_urls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "url"],
+            "properties": {
+              "label": {"type": "string", "minLength": 1},
+              "url": {"$ref": "#/$defs/nullableUri"}
+            }
+          },
+          "uniqueItems": true
+        },
         "fallback_sources": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "known_limitations": {"type": "array", "items": {"type": "string"}},
         "enabled": {"type": "boolean"},

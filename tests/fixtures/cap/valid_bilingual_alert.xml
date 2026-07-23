@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-tmd-cap-0001</identifier>
+  <sender>synthetic-tmd@example.test</sender>
+  <sent>2026-07-20T14:39:01+07:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <source>Synthetic Thai Meteorological Department (test fixture)</source>
+  <scope>Public</scope>
+  <code>IPAWSv1.0</code>
+  <info>
+    <language>en-US</language>
+    <category>Met</category>
+    <event>Synthetic Severe Thunderstorm Warning</event>
+    <responseType>Monitor</responseType>
+    <urgency>Immediate</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <audience>Public</audience>
+    <eventCode>
+      <valueName>SAME</valueName>
+      <value>SVR</value>
+    </eventCode>
+    <effective>2026-07-20T14:39:01+07:00</effective>
+    <onset>2026-07-20T15:00:00+07:00</onset>
+    <expires>2026-07-20T20:00:00+07:00</expires>
+    <senderName>Synthetic Test Meteorological Authority</senderName>
+    <headline>Synthetic severe thunderstorm warning for the test province</headline>
+    <description>Synthetic hazard description for fixture purposes only.</description>
+    <instruction>Synthetic instruction text for fixture purposes only.</instruction>
+    <web>https://example.test/synthetic-warning-0001</web>
+    <contact>synthetic-contact@example.test</contact>
+    <parameter>
+      <valueName>synthetic_test_parameter</valueName>
+      <value>synthetic_value</value>
+    </parameter>
+    <area>
+      <areaDesc>Synthetic Test Province</areaDesc>
+      <polygon>15.0,100.0 15.0,101.0 16.0,101.0 16.0,100.0 15.0,100.0</polygon>
+      <geocode>
+        <valueName>ISO3166_2</valueName>
+        <value>TH-10</value>
+      </geocode>
+      <altitude>0</altitude>
+      <ceiling>1000</ceiling>
+    </area>
+  </info>
+  <info>
+    <language>th-TH</language>
+    <category>Met</category>
+    <event>คำเตือนพายุฝนฟ้าคะนองสังเคราะห์ (ทดสอบ)</event>
+    <responseType>Monitor</responseType>
+    <urgency>Immediate</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-07-20T14:39:01+07:00</effective>
+    <expires>2026-07-20T20:00:00+07:00</expires>
+    <senderName>หน่วยงานทดสอบสังเคราะห์</senderName>
+    <headline>คำเตือนพายุฝนฟ้าคะนองสังเคราะห์สำหรับจังหวัดทดสอบ</headline>
+    <description>คำอธิบายภัยพิบัติสังเคราะห์สำหรับการทดสอบเท่านั้น</description>
+    <area>
+      <areaDesc>จังหวัดทดสอบ (Synthetic Test Province)</areaDesc>
+      <geocode>
+        <valueName>ISO3166_2</valueName>
+        <value>TH-10</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

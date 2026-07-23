@@ -1,0 +1,99 @@
+name: Manual live source test (GDACS / TMD CAP)
+
+# workflow_dispatch only. Do not add `schedule:` or a `push:`/`pull_request:`
+# trigger to this workflow -- it is the one place in the repository allowed
+# to make a live network call to GDACS or TMD, and it must stay
+# human-triggered per WO-002 Implementation v0.2 (Issue #5).
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Source to test"
+        required: true
+        type: choice
+        options:
+          - gdacs
+          - tmd_cap
+      dry_run:
+        description: "true: validate request construction only (no network call). false: perform one live fetch."
+        required: true
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+      from_date:
+        description: "GDACS only: SEARCH fromdate (YYYY-MM-DD)"
+        required: false
+        type: string
+      to_date:
+        description: "GDACS only: SEARCH todate (YYYY-MM-DD)"
+        required: false
+        type: string
+      event_types:
+        description: "GDACS only: comma-separated eventtype filter (e.g. EQ,TC)"
+        required: false
+        type: string
+      alert_levels:
+        description: "GDACS only: comma-separated alertlevel filter (e.g. Orange,Red)"
+        required: false
+        type: string
+      language:
+        description: "TMD CAP only: 'primary' (English) or an alternate_endpoints label (e.g. thai_language_cap)"
+        required: false
+        type: string
+        default: "primary"
+
+permissions:
+  contents: read
+
+jobs:
+  manual-live-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install locked runtime dependencies
+        run: python -m pip install -r requirements.lock
+
+      - name: Run controlled manual live-test script
+        env:
+          SOURCE: ${{ inputs.source }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          FROM_DATE: ${{ inputs.from_date }}
+          TO_DATE: ${{ inputs.to_date }}
+          EVENT_TYPES: ${{ inputs.event_types }}
+          ALERT_LEVELS: ${{ inputs.alert_levels }}
+          LANGUAGE: ${{ inputs.language }}
+        run: |
+          python scripts/manual_live_source_test.py \
+            --source "$SOURCE" \
+            --dry-run "$DRY_RUN" \
+            --from-date "$FROM_DATE" \
+            --to-date "$TO_DATE" \
+            --event-types "$EVENT_TYPES" \
+            --alert-levels "$ALERT_LEVELS" \
+            --language "$LANGUAGE"
+
+      - name: Confirm public dashboard/current-event data are unchanged
+        run: |
+          git status --porcelain data/candidates data/reviewed data/source_status dashboard/public/data
+          test -z "$(git status --porcelain data/candidates data/reviewed data/source_status dashboard/public/data)"
+
+      - name: Upload redacted manual-test report only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-live-test-report-${{ inputs.source }}
+          path: manual_live_test_output/report.json
+          if-no-files-found: error
+          retention-days: 14

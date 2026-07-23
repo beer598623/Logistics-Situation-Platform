@@ -1,0 +1,63 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1234567,
+        "episodeid": 1,
+        "eventname": "Synthetic Earthquake near Testland",
+        "name": "Synthetic Earthquake near Testland",
+        "description": "Synthetic fixture description of a model-estimated earthquake impact.",
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 2,
+        "country": "Testland",
+        "iso3": "TSL",
+        "fromdate": "2026-07-20T03:15:00",
+        "todate": "2026-07-20T03:15:00",
+        "datemodified": "2026-07-21T06:00:00",
+        "severitydata": {
+          "severity": 6.5,
+          "severitytext": "Magnitude 6.5M, Depth:10km"
+        },
+        "url": {
+          "report": "https://www.gdacs.org/report.aspx?eventid=1234567&eventtype=EQ&eventname=synthetic"
+        },
+        "iscurrent": "true",
+        "version": 3
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [120.98, 14.6]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "eventtype": "FL",
+        "eventid": 7654321,
+        "country": "Testland",
+        "iso3": "TSL",
+        "fromdate": "2026-07-18T00:00:00",
+        "todate": "2026-07-22T00:00:00",
+        "alertlevel": "Green"
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "eventtype": "TC",
+        "country": "Testland",
+        "iso3": "TSL",
+        "fromdate": "2026-07-19T00:00:00",
+        "todate": "2026-07-23T00:00:00",
+        "alertlevel": "Red"
+      },
+      "geometry": null
+    }
+  ]
+}

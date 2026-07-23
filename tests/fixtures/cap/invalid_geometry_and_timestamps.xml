@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-tmd-cap-invalid-0003</identifier>
+  <sender>synthetic-tmd@example.test</sender>
+  <sent>2026-07-20T14:39:01+07:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>en-US</language>
+    <category>Met</category>
+    <event>Synthetic Alert With Invalid Geometry</event>
+    <urgency>Immediate</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <effective>not-a-real-timestamp</effective>
+    <expires>2026-07-20T20:00:00+07:00</expires>
+    <headline>Synthetic alert used to test invalid geometry/timestamp handling</headline>
+    <area>
+      <areaDesc>Synthetic Test Province</areaDesc>
+      <polygon>15.0,100.0 15.0,101.0 16.0,101.0</polygon>
+      <circle>999.0,999.0 -5</circle>
+    </area>
+  </info>
+</alert>
