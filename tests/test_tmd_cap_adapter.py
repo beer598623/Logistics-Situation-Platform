@@ -174,6 +174,41 @@ def test_source_url_is_never_the_source_provided_cap_web_deep_link() -> None:
     assert "should-not-surface" not in (records[0]["source_url"] or "")
 
 
+# --- publication_date comes only from CAP <sent>, never onset/effective ----
+
+
+def test_publication_date_stays_null_when_sent_is_absent_even_with_onset() -> None:
+    """Regression for the ChatGPT review: publication_date must come only
+    from CAP <sent> (a verified message-publication timestamp). It must not
+    fall back to onset/effective (the hazard period) when <sent> is
+    missing -- that would mislabel the event date as a publication date."""
+    xml = b"""<?xml version="1.0"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-no-sent</identifier>
+  <info>
+    <language>en-US</language>
+    <event>Synthetic alert with no sent timestamp</event>
+    <headline>Synthetic alert with no sent timestamp</headline>
+    <onset>2026-07-20T10:00:00+07:00</onset>
+    <effective>2026-07-20T11:00:00+07:00</effective>
+    <area><areaDesc>Synthetic area</areaDesc></area>
+  </info>
+</alert>"""
+    alert, _ = parse_cap_alert(xml, max_bytes=1_000_000)
+    assert alert["sent"] is None
+    records, _ = normalize_tmd_alert(alert, content_sha256="a" * 64, source_url=None)
+    assert records[0]["candidate_identity_inputs"]["event_date"] == "2026-07-20"
+    assert records[0]["candidate_identity_inputs"]["publication_date"] is None
+    assert records[0]["source_publication_time"] is None
+
+
+def test_publication_date_comes_from_sent_when_present() -> None:
+    alert, _ = parse_cap_alert(_read("valid_bilingual_alert.xml"), max_bytes=1_000_000)
+    records, _ = normalize_tmd_alert(alert, content_sha256="b" * 64, source_url=None)
+    assert alert["sent"].startswith("2026-07-20")
+    assert records[0]["candidate_identity_inputs"]["publication_date"] == "2026-07-20"
+
+
 # --- A TMD warning never becomes an observed logistics impact ---------------
 
 
@@ -247,3 +282,39 @@ def test_collect_retains_etag_last_modified_and_workflow_sha(
     assert result.run.etag == '"tmd-etag-1"'
     assert result.run.last_modified == "Mon, 20 Jul 2026 07:39:01 GMT"
     assert result.run.workflow_sha == "deadbeef"
+
+
+def test_collect_retains_response_url_distinct_from_request_url_on_redirect(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(
+        body=_read("valid_bilingual_alert.xml"),
+        headers={"content-type": "application/xml"},
+        response_url="https://mirror.tmd.example/api/xml/CAP?redirected=1",
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    result = adapter.collect()
+    assert result.run.request_url == "https://www.tmd.go.th/en/api/xml/CAP"
+    assert result.run.response_url == "https://mirror.tmd.example/api/xml/CAP?redirected=1"
+    assert result.run.request_url != result.run.response_url
+
+
+def test_collect_retains_content_type_on_success(tmd_contract: dict) -> None:
+    fake_http = FakeHttpClient(
+        body=_read("valid_bilingual_alert.xml"),
+        headers={"content-type": "application/cap+xml"},
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    result = adapter.collect()
+    assert result.run.content_type == "application/cap+xml"
+
+
+def test_collect_handles_304_safely_for_response_url_and_content_type(
+    tmd_contract: dict,
+) -> None:
+    fake_http = FakeHttpClient(body=b"", status=304, headers={"etag": '"same"'})
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    result = adapter.collect()
+    assert result.run.status.value == "not_modified"
+    assert result.run.response_url is not None
+    assert result.run.content_type is None

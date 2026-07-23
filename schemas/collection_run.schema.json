@@ -6,9 +6,9 @@
   "additionalProperties": false,
   "required": [
     "run_id", "source_id", "started_at", "completed_at", "status", "workflow_sha",
-    "adapter_version", "request_url", "http_status", "etag", "last_modified",
-    "content_sha256", "records_received", "records_emitted", "records_rejected",
-    "data_cutoff_at", "warnings", "errors"
+    "adapter_version", "request_url", "response_url", "content_type", "http_status",
+    "etag", "last_modified", "content_sha256", "records_received", "records_emitted",
+    "records_rejected", "data_cutoff_at", "warnings", "errors"
   ],
   "properties": {
     "run_id": {"type": "string", "pattern": "^COL-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$"},
@@ -18,7 +18,20 @@
     "status": {"enum": ["success", "not_modified", "disabled", "error", "dry_run"]},
     "workflow_sha": {"type": ["string", "null"]},
     "adapter_version": {"type": "string"},
-    "request_url": {"type": ["string", "null"], "format": "uri"},
+    "request_url": {
+      "description": "The URL this adapter built and requested. May differ from response_url if the source redirected.",
+      "type": ["string", "null"],
+      "format": "uri"
+    },
+    "response_url": {
+      "description": "The final, redirect-resolved URL the response actually came from (HttpResponse.url). Distinct from request_url so a redirect that changes host/path is visible and auditable, not silently discarded.",
+      "type": ["string", "null"],
+      "format": "uri"
+    },
+    "content_type": {
+      "description": "The response's Content-Type header, verbatim (including any parameters, e.g. '; charset=utf-8'), after collectors.http_client.validate_content_type has checked it against the source's allowlist. Null when the header was absent or the run never reached a response (e.g. dry_run).",
+      "type": ["string", "null"]
+    },
     "http_status": {"type": ["integer", "null"], "minimum": 100, "maximum": 599},
     "etag": {"type": ["string", "null"]},
     "last_modified": {"type": ["string", "null"]},

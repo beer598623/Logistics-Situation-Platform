@@ -56,6 +56,8 @@ class CollectionRun:
     workflow_sha: str | None
     adapter_version: str
     request_url: str | None
+    response_url: str | None
+    content_type: str | None
     http_status: int | None
     etag: str | None
     last_modified: str | None
@@ -91,6 +93,8 @@ class CollectionRun:
             workflow_sha=None,
             adapter_version=adapter_version,
             request_url=request_url,
+            response_url=None,
+            content_type=None,
             http_status=None,
             etag=None,
             last_modified=None,

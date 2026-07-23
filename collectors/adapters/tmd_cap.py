@@ -153,7 +153,13 @@ def normalize_tmd_alert(
             if value:
                 event_date = value[:10]
                 break
-        publication_date = (alert.get("sent") or event_date or "")[:10] or None
+        # publication_date must come only from CAP <sent> (a verified
+        # message-publication timestamp), never from onset/effective (the
+        # hazard period) -- missing publication provenance stays null
+        # rather than being inferred from the event date, mirroring the
+        # GDACS datemodified-only rule in collectors/adapters/gdacs.py.
+        sent = alert.get("sent")
+        publication_date = sent[:10] if sent else None
 
         source_signal: dict[str, Any] = {
             "language": info.get("language"),
@@ -233,6 +239,8 @@ class TmdCapAdapter(SourceAdapter):
         content_sha256: str | None = None
         etag: str | None = None
         last_modified: str | None = None
+        response_url: str | None = None
+        content_type: str | None = None
         status = RunStatus.ERROR
 
         try:
@@ -246,10 +254,14 @@ class TmdCapAdapter(SourceAdapter):
             content_sha256 = response.content_sha256
             etag = response.headers.get("etag")
             last_modified = response.headers.get("last-modified")
+            # response.url is the redirect-resolved final URL, preserved
+            # separately from the requested self.endpoint so a redirect
+            # that changes host/path stays visible in the run manifest.
+            response_url = response.url
             if response.status == 304:
                 status = RunStatus.NOT_MODIFIED
             else:
-                _content_type, content_type_warning = validate_content_type(
+                content_type, content_type_warning = validate_content_type(
                     response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
                 )
                 if content_type_warning:
@@ -280,6 +292,8 @@ class TmdCapAdapter(SourceAdapter):
             workflow_sha=os.environ.get("GITHUB_SHA"),
             adapter_version=self.adapter_version,
             request_url=self.endpoint,
+            response_url=response_url,
+            content_type=content_type,
             http_status=http_status,
             etag=etag,
             last_modified=last_modified,

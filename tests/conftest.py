@@ -20,6 +20,7 @@ class FakeHttpClient:
     body: bytes
     status: int = 200
     headers: dict[str, str] = field(default_factory=dict)
+    response_url: str | None = None
 
     def get(
         self,
@@ -35,7 +36,7 @@ class FakeHttpClient:
         if len(self.body) > max_response_bytes:
             raise RuntimeError("fake response exceeds max_response_bytes")
         return HttpResponse(
-            url=url,
+            url=self.response_url or url,
             status=self.status,
             headers=dict(self.headers),
             body=self.body,

@@ -372,3 +372,61 @@ def test_collect_warns_but_proceeds_when_content_type_header_is_missing(
     result = adapter.collect()
     assert result.run.status.value == "success"
     assert any("Content-Type header was not present" in warning for warning in result.warnings)
+
+
+def test_collect_retains_response_url_distinct_from_request_url_on_redirect(
+    gdacs_contract: dict,
+) -> None:
+    """Regression for the ChatGPT review: a source redirect can change
+    host/path, which matters for endpoint verification and reuse
+    provenance -- request_url (what we asked for) and response_url (what
+    we actually got back) must both be retained, not collapsed into one."""
+    fake_http = FakeHttpClient(
+        body=FIXTURE.read_bytes(),
+        headers={"content-type": "application/json"},
+        response_url="https://mirror.gdacs.example/gdacsapi/api/Events/geteventlist/SEARCH?redirected=1",
+    )
+    adapter = GdacsAdapter(
+        gdacs_contract, http=fake_http, from_date="2026-07-01", to_date="2026-07-23"
+    )
+    result = adapter.collect()
+    assert result.run.request_url != result.run.response_url
+    assert result.run.request_url.startswith(gdacs_contract["endpoint"])
+    assert result.run.response_url == (
+        "https://mirror.gdacs.example/gdacsapi/api/Events/geteventlist/SEARCH?redirected=1"
+    )
+
+
+def test_collect_retains_content_type_on_success(gdacs_contract: dict) -> None:
+    fake_http = FakeHttpClient(
+        body=FIXTURE.read_bytes(), headers={"content-type": "application/json; charset=utf-8"}
+    )
+    adapter = GdacsAdapter(
+        gdacs_contract, http=fake_http, from_date="2026-07-01", to_date="2026-07-23"
+    )
+    result = adapter.collect()
+    assert result.run.content_type == "application/json; charset=utf-8"
+
+
+def test_collect_handles_304_safely_for_response_url_and_content_type(
+    gdacs_contract: dict,
+) -> None:
+    """A 304 Not Modified has no fresh body to describe: response_url is
+    still retained (the request did reach a server), but content_type
+    stays null rather than being guessed."""
+    fake_http = FakeHttpClient(body=b"", status=304, headers={"etag": '"same"'})
+    adapter = GdacsAdapter(
+        gdacs_contract, http=fake_http, from_date="2026-07-01", to_date="2026-07-23"
+    )
+    result = adapter.collect()
+    assert result.run.status.value == "not_modified"
+    assert result.run.response_url is not None
+    assert result.run.content_type is None
+
+
+def test_dry_run_manifest_has_null_response_url_and_content_type() -> None:
+    from collectors.models import CollectionRun
+
+    run = CollectionRun.dry_run("GDACS", "gdacs_v1", "https://example.test").to_dict()
+    assert run["response_url"] is None
+    assert run["content_type"] is None

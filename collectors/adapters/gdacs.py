@@ -449,6 +449,8 @@ class GdacsAdapter(SourceAdapter):
         content_sha256: str | None = None
         etag: str | None = None
         last_modified: str | None = None
+        response_url: str | None = None
+        content_type: str | None = None
         status = RunStatus.ERROR
 
         try:
@@ -462,10 +464,15 @@ class GdacsAdapter(SourceAdapter):
             content_sha256 = response.content_sha256
             etag = response.headers.get("etag")
             last_modified = response.headers.get("last-modified")
+            # response.url is the redirect-resolved final URL, which may
+            # differ in host/path from the requested url -- preserved
+            # separately (request_url vs response_url) rather than
+            # discarded, so a redirect is visible in the run manifest.
+            response_url = response.url
             if response.status == 304:
                 status = RunStatus.NOT_MODIFIED
             else:
-                _content_type, content_type_warning = validate_content_type(
+                content_type, content_type_warning = validate_content_type(
                     response.headers, GDACS_ALLOWED_CONTENT_TYPES
                 )
                 if content_type_warning:
@@ -490,6 +497,8 @@ class GdacsAdapter(SourceAdapter):
             workflow_sha=os.environ.get("GITHUB_SHA"),
             adapter_version=self.adapter_version,
             request_url=url,
+            response_url=response_url,
+            content_type=content_type,
             http_status=http_status,
             etag=etag,
             last_modified=last_modified,

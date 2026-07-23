@@ -74,6 +74,12 @@ review remain with ChatGPT and the human approval gate (see
   `fromdate`/`todate`/`datemodified` are still preserved verbatim, all
   three, as distinct `source_signal` fields regardless of which one (if
   any) fed publication provenance.
+- The same rule applies to CAP/TMD: `collectors/adapters/tmd_cap.py::normalize_tmd_alert`
+  derives `publication_date`/`source_publication_time` **only** from CAP
+  `<sent>` (a verified message-publication timestamp) and leaves them
+  explicitly `null` when `<sent>` is absent, rather than substituting
+  `onset`/`effective` (the hazard period, which separately feeds
+  `event_date`).
 
 ### Unresolved / still assumptions
 
@@ -225,9 +231,17 @@ an HTML error/login page returned in place of real data is rejected as an
 `UnexpectedContentTypeError` run failure rather than fed to the JSON/XML
 parser; a missing (not merely mismatched) `Content-Type` header is not
 fatal but is recorded as a warning. Each collection run also retains the
-response's `ETag`/`Last-Modified` headers and, when running in GitHub
-Actions, `GITHUB_SHA` as `workflow_sha` -- all previously hardcoded to
-`null`.
+response's `ETag`/`Last-Modified` headers, the validated `content_type`,
+the redirect-resolved `response_url` (kept separate from `request_url` --
+the URL the adapter built and asked for -- so a source redirect that
+changes host or path stays visible rather than silently discarded), and,
+when running in GitHub Actions, `GITHUB_SHA` as `workflow_sha` -- all
+previously hardcoded to `null`. `schemas/collection_run.schema.json` gained
+`response_url` and `content_type` as required, nullable fields to carry
+this; both stay `null` for a `dry_run` (no request was ever made) and
+`content_type` stays `null` on a `304 Not Modified` (no fresh body to
+describe), while `response_url` is still populated there since the request
+did reach a server.
 
 The workflow uploads exactly one artifact: a redacted JSON report
 (`manual_live_test_output/report.json`) containing the collection-run
@@ -318,8 +332,8 @@ for this pilot):
   response in CI (by design -- "No network calls in unit tests"); the
   first live validation only happens through the controlled manual
   workflow, reviewed by a human.
-- The manual workflow's collection-run manifest records the *requested*
+- ~~The manual workflow's collection-run manifest records the *requested*
   URL as `request_url`; it does not separately track the final URL after
-  any HTTP redirect. In practice these coincide for the documented GDACS/
-  TMD endpoints; a future increment could add a dedicated field if
-  redirect tracking becomes load-bearing.
+  any HTTP redirect.~~ Fixed: `response_url` (redirect-resolved) and
+  `content_type` (validated) are now both retained on every
+  `CollectionRun`, distinct from `request_url` (Section 6, Section 7).

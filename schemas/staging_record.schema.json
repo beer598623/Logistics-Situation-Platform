@@ -45,7 +45,7 @@
       "type": ["string", "null"]
     },
     "source_publication_time": {
-      "description": "The source's own publication/sent timestamp (e.g. GDACS fromdate/todate/datetime, or CAP <sent>), not the retrieval time.",
+      "description": "The source's own verified publication/update timestamp -- GDACS properties.datemodified only (never fromdate/todate, which describe the event's own period, not an update time), or CAP <sent> only (never onset/effective, which describe the hazard period). Null when the source did not supply that specific field, never inferred from the event period. Not the retrieval time.",
       "type": ["string", "null"],
       "format": "date-time"
     },
