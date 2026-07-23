@@ -211,21 +211,26 @@ plus a deduplicated, sorted list of `candidate_media_types` seen across
 `<enclosure type="...">` values. Grouping is deterministic: the same input
 always produces the same groups in the same order.
 
-**Malformed `link`/`enclosure` values are never retained verbatim, even
-redacted (review round 3, finding 2).** `redact_url_userinfo` only strips
-user-info from a value `urlsplit` recognizes as having an authority
-(`netloc`) component; a malformed value that never parsed as having one
-in the first place -- for example a single-slash `https:/user:pass@host`
-form -- passes through that function unchanged, so its own byte-length
-bounding was not sufficient to guarantee no credential-shaped substring
-could reach a report. Any `link`/`enclosure` value `_classify_url` groups
-`malformed` is therefore replaced entirely with a bounded, non-reversible
-marker (`<malformed value: N chars, sha256=...>`) instead of the source
-text -- grouping and counts stay deterministic, but the value itself is
-never re-exposed. (A `guid` never reaches this state in the first place:
-it is only ever retained when it starts with a literal `http://` or
-`https://` prefix, which already implies a `urlsplit`-recognized
-authority component.)
+**Malformed `link`/`enclosure`/`guid` values are never retained verbatim,
+even redacted (review round 3 finding 2; extended to `guid` in review
+round 4).** `redact_url_userinfo` only strips user-info from a value
+`urlsplit` recognizes as having an authority (`netloc`) component; a
+malformed value that never parsed as having one in the first place --
+for example a single-slash `https:/user:pass@host` form, or a value with
+an invalid IPv6 authority like `https://user:pass@[bad` that makes
+`urlsplit`/`urlparse` raise `ValueError` -- passes through that function
+unchanged, so its own byte-length bounding was not sufficient to
+guarantee no credential-shaped substring could reach a report. Starting
+with a literal `http://`/`https://` prefix (the guid retention gate) is
+*not* proof a value is well-formed enough to have a parsed authority
+component -- round 3 fixed this for `link`/`enclosure`, but the `guid`
+branch was still missing the same check, so a `guid` beginning with
+`https://` but otherwise malformed could still leak verbatim. Any
+`link`/`enclosure`/`guid` value `_classify_url` groups `malformed` is
+therefore replaced entirely with a bounded, non-reversible marker
+(`<malformed value: N chars, sha256=...>`) instead of the source text --
+grouping and counts stay deterministic, but the value itself is never
+re-exposed.
 
 ## 5. Failure-path hardening (Scope F)
 

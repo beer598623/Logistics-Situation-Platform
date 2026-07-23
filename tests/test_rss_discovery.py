@@ -158,6 +158,40 @@ def test_malformed_marker_is_deterministic_and_reflects_length() -> None:
     assert value not in marker
 
 
+def test_malformed_credential_bearing_guid_never_leaks_credentials() -> None:
+    """Review round 4: starting with a literal 'https://' prefix (the
+    guid retention gate) is not proof a value is well-formed enough to
+    have a parsed authority component -- an invalid IPv6 authority like
+    'https://user:pass@[bad' makes urlsplit/urlparse raise ValueError, so
+    redact_url_userinfo returns it unchanged and _classify_url reports
+    MALFORMED. The guid branch must apply the same marker replacement as
+    link/enclosure in that case."""
+    canary_user = "guidcanaryuser"
+    canary_pass = "guidcanarysecret"  # noqa: S105 -- synthetic test canary
+    xml = f"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://{FEED_HOST}/</link>
+    <item>
+      <guid isPermaLink="true">https://{canary_user}:{canary_pass}@[bad</guid>
+    </item>
+  </channel>
+</rss>""".encode()
+    result, _ = discover_rss_candidates(xml, max_bytes=1_000_000, feed_host=FEED_HOST)
+    guid_candidates = [c for c in result.candidates if c.source_field == "guid"]
+    assert len(guid_candidates) == 1
+    assert guid_candidates[0].group == MALFORMED
+    assert guid_candidates[0].url.startswith("<malformed value:")
+    assert canary_user not in guid_candidates[0].url
+    assert canary_pass not in guid_candidates[0].url
+    import json
+
+    serialized = json.dumps(result.to_dict())
+    assert canary_user not in serialized
+    assert canary_pass not in serialized
+
+
 def test_non_http_scheme_is_grouped_non_http() -> None:
     xml = f"""<?xml version="1.0"?>
 <rss version="2.0">

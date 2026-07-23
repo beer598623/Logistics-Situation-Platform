@@ -306,6 +306,18 @@ def discover_rss_candidates(
             if guid_text.startswith(("http://", "https://")):
                 url = _bounded_url(redact_url_userinfo(guid_text))
                 group, scheme, host, path = _classify_url(url, feed_host=feed_host)
+                if group == MALFORMED:
+                    # Starting with "http(s)://" is not proof the value is
+                    # actually a well-formed URL -- e.g. an invalid IPv6
+                    # authority ("https://user:pass@[bad") makes
+                    # urlsplit/urlparse raise, so redact_url_userinfo
+                    # returns it unchanged and _classify_url reports
+                    # MALFORMED. Scope C permits a guid only *when it is a
+                    # URL*, so a malformed one is not a valid retained
+                    # guid either way -- replace it with the same
+                    # non-reversible marker used for link/enclosure
+                    # (review round 4).
+                    url = _malformed_marker(guid_text)
                 candidates.append(RssUrlCandidate(index, "guid", url, scheme, host, path, group))
 
         enclosure_el = item.find("enclosure")

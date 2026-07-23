@@ -698,3 +698,32 @@ def test_discover_rss_malformed_non_http_credential_like_link_never_leaks_at_ada
     serialized = json.dumps(outcome.to_dict())
     assert canary_user not in serialized
     assert canary_pass not in serialized
+
+
+def test_discover_rss_malformed_credential_bearing_guid_never_leaks_at_adapter_level(
+    tmd_contract: dict,
+) -> None:
+    """Review round 4: a guid beginning with 'https://' but with an
+    invalid IPv6 authority (urlsplit/urlparse raise ValueError) must not
+    surface raw credential-like text in the adapter's outcome either."""
+    canary_user = "adapterguidcanaryuser"
+    canary_pass = "adapterguidcanarysecret"  # noqa: S105 -- synthetic test canary
+    body = f"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://feed.example.test/</link>
+    <item>
+      <guid isPermaLink="true">https://{canary_user}:{canary_pass}@[bad</guid>
+    </item>
+  </channel>
+</rss>""".encode()
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "text/xml"})
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.errors == []
+    assert outcome.discovery["malformed_urls"]
+    assert outcome.discovery["malformed_urls"][0].startswith("<malformed value:")
+    serialized = json.dumps(outcome.to_dict())
+    assert canary_user not in serialized
+    assert canary_pass not in serialized
