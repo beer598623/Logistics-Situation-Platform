@@ -637,3 +637,64 @@ def test_discover_rss_304_is_a_non_zero_structured_failure_not_a_silent_success(
     # Response metadata gathered before the 304 check is still preserved.
     assert outcome.http_status == 304
     assert outcome.etag == '"same"'
+
+
+# --- discover_rss(): review round 3, finding 2 -- malformed credential-like text --
+
+
+def test_discover_rss_malformed_http_credential_like_link_never_leaks_at_adapter_level(
+    tmd_contract: dict,
+) -> None:
+    """A single-slash 'https:/user:pass@host' link is malformed (no parsed
+    authority component), so redact_url_userinfo cannot reach it -- the
+    adapter's discover_rss() outcome must still never surface the raw
+    credential-like text anywhere."""
+    canary_user = "adaptercanaryuser"
+    canary_pass = "adaptercanarysecret"  # noqa: S105 -- synthetic test canary
+    body = f"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://feed.example.test/</link>
+    <item>
+      <link>https:/{canary_user}:{canary_pass}@feed.example.test/path</link>
+    </item>
+  </channel>
+</rss>""".encode()
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "text/xml"})
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.errors == []
+    assert outcome.discovery["malformed_urls"]
+    serialized = json.dumps(outcome.to_dict())
+    assert canary_user not in serialized
+    assert canary_pass not in serialized
+    assert outcome.discovery["malformed_urls"][0].startswith("<malformed value:")
+
+
+def test_discover_rss_malformed_non_http_credential_like_link_never_leaks_at_adapter_level(
+    tmd_contract: dict,
+) -> None:
+    """A value with no scheme separator recognized as an authority at all
+    (not merely a single-slash http(s) variant) must also never surface
+    raw credential-like text in the adapter's outcome."""
+    canary_user = "adapternonhttpuser"
+    canary_pass = "adapternonhttpsecret"  # noqa: S105 -- synthetic test canary
+    body = f"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://feed.example.test/</link>
+    <item>
+      <link>{canary_user}:{canary_pass}@feed.example.test/path</link>
+    </item>
+  </channel>
+</rss>""".encode()
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "text/xml"})
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.errors == []
+    assert outcome.discovery["malformed_urls"]
+    serialized = json.dumps(outcome.to_dict())
+    assert canary_user not in serialized
+    assert canary_pass not in serialized

@@ -555,6 +555,36 @@ def test_main_rss_discovery_never_leaks_malformed_credential_like_url_text(
     assert report["discovery"]["malformed_urls"][0].startswith("<malformed value:")
 
 
+def test_main_rss_discovery_never_leaks_malformed_non_http_credential_like_url_text(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review round 3, finding 2: the non-HTTP-scheme variant -- a value
+    with no scheme separator recognized as an authority component at all
+    -- must also never survive into the report."""
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    body = b"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://feed.example.test/</link>
+    <item>
+      <link>nonhttpmalformeduser:nonhttpmalformedsecret@feed.example.test/path</link>
+    </item>
+  </channel>
+</rss>"""
+    _install_fake_tmd_adapter(monkeypatch, body=body, headers={"content-type": "text/xml"})
+    exit_code = main(
+        ["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "rss_discovery"]
+    )
+    assert exit_code == 0
+    report_text = (tmp_path / "report.json").read_text()
+    assert "nonhttpmalformeduser" not in report_text
+    assert "nonhttpmalformedsecret" not in report_text
+    report = json.loads(report_text)
+    assert report["discovery"]["malformed_urls"]
+    assert report["discovery"]["malformed_urls"][0].startswith("<malformed value:")
+
+
 def test_main_rss_discovery_304_is_a_non_zero_structured_failure(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
