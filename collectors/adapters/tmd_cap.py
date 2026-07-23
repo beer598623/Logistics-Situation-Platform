@@ -29,6 +29,7 @@ from ..error_classification import classify_error
 from ..http_client import validate_content_type
 from ..models import CollectionResult, CollectionRun, RunStatus, SourceHealth, SourceStatus
 from ..staging import build_staging_record
+from ..url_redaction import redact_url_userinfo
 from .cap import CapSecurityError, MalformedCapAlertError, parse_cap_alert
 from .rss_discovery import discover_rss_candidates
 from .xml_envelope import RSS, classify_envelope
@@ -315,7 +316,9 @@ class TmdCapAdapter(SourceAdapter):
             # response.url is the redirect-resolved final URL, preserved
             # separately from the requested self.endpoint so a redirect
             # that changes host/path stays visible in the run manifest.
-            response_url = response.url
+            # Redacted defensively (review round 2, finding 2) even though
+            # this is a server-controlled value we do not otherwise trust.
+            response_url = redact_url_userinfo(response.url)
             if response.status == 304:
                 status = RunStatus.NOT_MODIFIED
             else:
@@ -381,7 +384,7 @@ class TmdCapAdapter(SourceAdapter):
             status=status,
             workflow_sha=os.environ.get("GITHUB_SHA"),
             adapter_version=self.adapter_version,
-            request_url=self.endpoint,
+            request_url=redact_url_userinfo(self.endpoint),
             response_url=response_url,
             content_type=content_type,
             http_status=http_status,
@@ -422,15 +425,16 @@ class TmdCapAdapter(SourceAdapter):
         )
 
     def discover_rss(self) -> RssDiscoveryOutcome:
-        """Perform exactly one bounded GET against this adapter's endpoint,
-        classify the envelope, and -- only if it classifies as RSS --
-        extract discovery-only structural metadata.
+        """Perform exactly one bounded, non-redirect-following GET against
+        this adapter's endpoint, classify the envelope, and -- only if it
+        classifies as RSS -- extract discovery-only structural metadata.
 
         This is a discovery-only operation: it never creates a staging
         record, never treats a non-CAP envelope as a CAP alert (Scope A
         stays untouched), and never fetches a discovered candidate URL --
-        this method makes exactly one network request, full stop. See
-        ``collectors/adapters/xml_envelope.py`` and
+        this method makes exactly one physical HTTP request and never
+        follows a redirect (``ResilientHttpClient.get_no_redirect``), full
+        stop. See ``collectors/adapters/xml_envelope.py`` and
         ``collectors/adapters/rss_discovery.py`` for the generic,
         source-agnostic parsers this method delegates to; nothing
         TMD-specific lives in either of those modules.
@@ -450,25 +454,24 @@ class TmdCapAdapter(SourceAdapter):
         error_category: str | None = None
 
         try:
-            response = self.http.get(
+            # get_no_redirect() (not get()) makes exactly one physical
+            # request and never follows a redirect at all -- a 3xx raises
+            # DiscoveryRedirectError before any request to its Location
+            # target is made (review round 2, finding 1: a plain
+            # `attempts=1` on get() would still transparently follow a
+            # redirect to another host or a private address, since retry
+            # count and redirect-following are unrelated urllib
+            # behaviors). No attempts/retry parameter exists here at all.
+            response = self.http.get_no_redirect(
                 self.endpoint,
                 timeout_seconds=int(http_contract["timeout_seconds"]),
                 max_response_bytes=int(http_contract["max_response_bytes"]),
-                # Pinned to 1 regardless of the source contract's retry
-                # policy (unchanged for collect()'s direct-CAP mode,
-                # above): discovery mode's one-request maximum must hold
-                # at the transport layer, not just at this call site --
-                # ResilientHttpClient.get() itself retries up to
-                # `attempts` physical GETs internally, so passing the
-                # contract's attempts value here would let discovery mode
-                # silently issue more than one network request.
-                attempts=1,
             )
             http_status = response.status
             content_sha256 = response.content_sha256
             etag = response.headers.get("etag")
             last_modified = response.headers.get("last-modified")
-            response_url = response.url
+            response_url = redact_url_userinfo(response.url)
             if response.status != 304:
                 content_type, content_type_warning = validate_content_type(
                     response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
@@ -483,14 +486,13 @@ class TmdCapAdapter(SourceAdapter):
                 envelope_classification = classification.to_dict()
 
                 if classification.envelope_kind == RSS:
-                    # Same-host/cross-host grouping must be judged against
-                    # the redirect-resolved response origin, not the
-                    # originally requested endpoint -- otherwise a
-                    # legitimate configured-endpoint redirect to another
-                    # host would mislabel that host's own candidates as
-                    # cross-host. Falls back to self.endpoint only if the
-                    # HTTP layer somehow returned no response_url.
-                    feed_host = urlparse(response_url or self.endpoint).hostname
+                    # Grouping uses the requested endpoint's own host, not
+                    # response.url: since get_no_redirect() never follows a
+                    # redirect, a successful (non-raised) response was
+                    # necessarily served directly by self.endpoint's host,
+                    # so there is no separate "redirect-resolved origin" to
+                    # consider here.
+                    feed_host = urlparse(self.endpoint).hostname
                     result, discovery_warnings = discover_rss_candidates(
                         response.body, max_bytes=max_bytes, feed_host=feed_host
                     )
@@ -506,7 +508,7 @@ class TmdCapAdapter(SourceAdapter):
             errors.append(f"{error_code}: {exc}")
 
         return RssDiscoveryOutcome(
-            request_url=self.endpoint,
+            request_url=redact_url_userinfo(self.endpoint),
             response_url=response_url,
             http_status=http_status,
             content_type=content_type,

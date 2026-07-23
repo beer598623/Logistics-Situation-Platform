@@ -113,7 +113,13 @@ keeping four concerns in four separate places:
    `other_xml`, content length, and the content SHA-256 the HTTP layer
    already computed). Generic across any source; contains nothing
    TMD-specific. Never creates a staging record and never decides what a
-   caller should do with the classification.
+   caller should do with the classification. `root_local_name` /
+   `root_namespace` (and, in `rss_discovery.py`, the root tag echoed by
+   `NotAnRssEnvelopeError`) are themselves attacker-controlled strings up
+   to the response-size limit, so each is bounded to 200 characters at
+   the point it is produced -- at the classifier/parser boundary itself,
+   not left to the downstream report sanitizer (review round 2,
+   finding 4).
 2. **RSS discovery** (`collectors/adapters/rss_discovery.py`, new) --
    discovery-only RSS 2.x parsing, generic across any RSS source. Raises
    rather than silently reinterpreting a non-`<rss>` root. Has no HTTP
@@ -168,6 +174,18 @@ per RSS `<item>`, only:
   URL in this iteration, so a same-hostname/different-port candidate is
   grouped `same_host` here -- a future controlled fetch work order must
   treat host and port together as part of its own allowlist policy
+
+Review round 2, finding 2 went further than the `host` field: the
+retained **URL string itself** (`RssUrlCandidate.url`, and every
+`link`/`guid`/`enclosure.url` value) also has any embedded user-info
+stripped, via `collectors.url_redaction.redact_url_userinfo`, *before*
+it is bounded or stored -- `https://user:pass@host/...` is never
+retained verbatim anywhere, not merely re-derived correctly for the
+`host` field. The manual-test script's report sanitizer
+(`scripts/manual_live_source_test.py::_redact_string`) additionally
+scrubs any `scheme://user@`/`scheme://user:pass@` pattern from every
+string in the whole report tree as a second, independent line of
+defense, mirroring the existing length-bounding layering below.
 
 It never retains, under any circumstance:
 
@@ -254,6 +272,20 @@ Two independent fixes:
    previously any parse failure during the hardened XML parse, including
    ordinary malformed XML with no security concern, was misclassified as
    a security rejection.
+3. **Final error taxonomy (review round 2, finding 3).**
+   `collectors/http_client.py`'s `ResponseTooLargeError` (raised by
+   `ResilientHttpClient` itself for a real oversized HTTP response, before
+   any XML parsing is even attempted) and the new `DiscoveryRedirectError`
+   are both classified `security` by `collectors/error_classification.py`,
+   the same category as the XML layer's own oversized-payload rejection --
+   previously `ResponseTooLargeError` was unrecognized by the shared
+   classifier and fell through to `unexpected`. The full stable vocabulary
+   is now: `validation` (a `SystemExit`/bad-argument `ValueError`),
+   `security` (`CapSecurityError`, `EnvelopeSecurityError`,
+   `RssSecurityError`, `ResponseTooLargeError`, `DiscoveryRedirectError`),
+   `parse` (`MalformedCapAlertError`, `NotAnRssEnvelopeError`,
+   `EnvelopeParseError`, `RssParseError`), `content_type`
+   (`UnexpectedContentTypeError`), and `unexpected` (anything else).
 
 ## 6. SSRF and follow-link boundary
 
@@ -269,21 +301,29 @@ This increment is discovery only:
   a candidate URL is structurally incapable of fetching it. This is not
   merely a policy comment; there is no code path in that module capable of
   making a request.
-- `TmdCapAdapter.discover_rss()` makes **exactly one** bounded GET request
-  per invocation: it passes `attempts=1` to the HTTP client explicitly,
-  regardless of the source contract's `retry.attempts` value (review
-  round 1, finding 1 -- `ResilientHttpClient.get()` itself performs up to
-  `attempts` physical GET attempts internally, so passing the contract's
-  retry policy through, as an earlier version of this code did, could let
-  discovery mode silently issue more than one physical request on a
-  transient failure). `collect()`'s existing retry policy is unchanged
-  and continues to use the contract's configured `attempts` value. No RSS
-  item link, `guid`, or `enclosure` URL is ever fetched, followed, or
-  resolved -- not same-host, not cross-host.
-- No redirect discovered *within* an RSS item is followed; the one HTTP
-  request already made by `ResilientHttpClient` still resolves at most the
-  redirect chain for the single configured endpoint URL itself (unchanged,
-  pre-existing behavior also used by `direct_cap` mode and GDACS).
+- `TmdCapAdapter.discover_rss()` makes **exactly one physical HTTP
+  request** per invocation, via `ResilientHttpClient.get_no_redirect()`
+  (new). This method has no `attempts`/retry parameter at all -- there is
+  no retry loop to configure -- and, more importantly, **never follows a
+  redirect of any kind, including for the configured endpoint URL
+  itself**: a 3xx response raises `DiscoveryRedirectError` via a custom
+  `_NoRedirectHandler.redirect_request` before urllib would otherwise
+  construct and send a second request to the redirect's `Location`
+  target. `collect()`'s existing retry-and-redirect-following `get()` is
+  completely unchanged and continues to serve `direct_cap` mode and
+  GDACS exactly as before. No RSS item link, `guid`, or `enclosure` URL is
+  ever fetched, followed, or resolved -- not same-host, not cross-host.
+- Review round 1's initial fix (`get(..., attempts=1)`) was **not
+  sufficient** and was superseded by `get_no_redirect()` above: capping
+  the retry count does not stop `urlopen`'s default behavior of
+  transparently following an HTTP redirect, which could otherwise still
+  reach a second host (or, in principle, a private/internal address) even
+  with `attempts=1` (review round 2, finding 1). Because discovery mode
+  never follows a redirect at all, a successful discovery response was
+  necessarily served directly by the requested endpoint's own host, so
+  same-host/cross-host grouping uses that requested host, not
+  `response.url` -- there is no separate "redirect-resolved origin" to
+  consider in discovery mode.
 
 **Any future controlled fetch of a discovered candidate URL requires a
 separate work order** with, at minimum: explicit host allowlisting,

@@ -392,6 +392,40 @@ def test_collect_success_leaves_error_code_and_category_none(tmd_contract: dict)
     assert result.envelope_classification is None
 
 
+# --- review round 2, finding 3: ResponseTooLargeError classified consistently --
+
+
+def test_collect_response_too_large_via_tiny_contract_cap_is_classified_security(
+    tmd_contract: dict,
+) -> None:
+    """Uses a real (not merely simulated) ResponseTooLargeError, raised by
+    FakeHttpClient.get()'s own oversized-body check -- the same exception
+    type ResilientHttpClient.get() raises for a real oversized response."""
+    tiny_contract = json.loads(json.dumps(tmd_contract))
+    tiny_contract["http"]["max_response_bytes"] = 10
+    fake_http = FakeHttpClient(
+        body=_read("valid_bilingual_alert.xml"), headers={"content-type": "application/xml"}
+    )
+    adapter = TmdCapAdapter(tiny_contract, http=fake_http)
+    result = adapter.collect()
+    assert result.error_code == "ResponseTooLargeError"
+    assert result.error_category == "security"
+    assert any("ResponseTooLargeError" in error for error in result.errors)
+
+
+def test_discover_rss_response_too_large_is_classified_security(tmd_contract: dict) -> None:
+    from collectors.http_client import ResponseTooLargeError
+
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"), headers={"content-type": "text/xml"}
+    )
+    fake_http.raise_on_get_no_redirect = ResponseTooLargeError("oversized")
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    assert outcome.error_code == "ResponseTooLargeError"
+    assert outcome.error_category == "security"
+
+
 # --- collect(): retry policy is unchanged (regression) ----------------------
 
 
@@ -483,41 +517,64 @@ def test_discover_rss_retains_workflow_sha_and_response_metadata(
     assert outcome.http_status == 200
 
 
-# --- discover_rss(): review round 1, finding 1 -- pinned to one attempt ------
+# --- discover_rss(): review round 2, finding 1 -- no-redirect transport, not just attempts=1 --
 
 
-def test_discover_rss_pins_attempts_to_one_regardless_of_contract_retry_policy(
-    tmd_contract: dict,
-) -> None:
-    assert int(tmd_contract["retry"]["attempts"]) != 1  # sanity: the contract itself allows retries
+def test_discover_rss_uses_get_no_redirect_exclusively(tmd_contract: dict) -> None:
+    """Superseded round-1 fix (attempts=1 on get()) was insufficient: get()
+    still transparently follows redirects regardless of attempts. discover_rss()
+    must call get_no_redirect() -- which has no attempts/retry concept at
+    all -- and never call get() even once."""
     fake_http = FakeHttpClient(
         body=_read_rss("same_host_link.xml"), headers={"content-type": "text/xml"}
     )
     adapter = TmdCapAdapter(tmd_contract, http=fake_http)
     adapter.discover_rss()
-    assert fake_http.last_attempts == 1
+    assert fake_http.no_redirect_call_count == 1
+    assert fake_http.call_count == 1
+    assert fake_http.last_attempts is None  # get() (the attempts-based method) was never called
 
 
-# --- discover_rss(): review round 1, finding 2 -- origin is the redirect-resolved URL --
-
-
-def test_discover_rss_groups_candidates_by_the_redirect_resolved_host(
+def test_discover_rss_propagates_a_rejected_redirect_as_a_security_error(
     tmd_contract: dict,
 ) -> None:
-    """The contract's configured endpoint is on www.tmd.go.th, but the fake
-    response resolves (redirects) to feed.example.test -- the same host as
-    the fixture's item link. Grouping must use the redirect-resolved
-    response host, not the originally requested endpoint host, or this
-    same-host candidate would be mislabelled cross-host."""
-    fake_http = FakeHttpClient(
-        body=_read_rss("same_host_link.xml"),
-        headers={"content-type": "text/xml"},
-        response_url="https://feed.example.test/redirected/rss",
+    from collectors.http_client import DiscoveryRedirectError
+
+    fake_http = FakeHttpClient(body=b"", headers={})
+    fake_http.raise_on_get_no_redirect = DiscoveryRedirectError(
+        "refused to follow HTTP 302 redirect"
     )
     adapter = TmdCapAdapter(tmd_contract, http=fake_http)
     outcome = adapter.discover_rss()
-    assert outcome.discovery["same_host_urls"]
-    assert outcome.discovery["cross_host_urls"] == []
+    assert outcome.discovery is None
+    assert outcome.error_code == "DiscoveryRedirectError"
+    assert outcome.error_category == "security"
+
+
+# --- discover_rss(): review round 2, finding 1 -- grouping uses the requested endpoint host --
+
+
+def test_discover_rss_groups_candidates_by_the_requested_endpoint_host_not_response_url(
+    tmd_contract: dict,
+) -> None:
+    """Since get_no_redirect() never follows a redirect, a successful
+    (non-raised) response was necessarily served directly by the requested
+    endpoint's own host -- grouping must use that host, never response.url,
+    even if a test double's response_url claims otherwise."""
+    fake_http = FakeHttpClient(
+        body=_read_rss("same_host_link.xml"),
+        headers={"content-type": "text/xml"},
+        response_url="https://not-the-requested-host.example.test/rss",
+    )
+    adapter = TmdCapAdapter(tmd_contract, http=fake_http)
+    outcome = adapter.discover_rss()
+    # The fixture's item link is on feed.example.test, which is neither
+    # the TMD contract's real host (www.tmd.go.th) nor the fake
+    # response_url host above -- so it must land in cross_host_urls,
+    # proving grouping used the requested endpoint's host and not
+    # response_url.
+    assert outcome.discovery["cross_host_urls"]
+    assert outcome.discovery["same_host_urls"] == []
 
 
 # --- discover_rss(): review round 1, finding 4 -- structured error category --

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -89,6 +90,34 @@ def test_malformed_xml_is_rejected_without_echoing_the_payload() -> None:
         classify_envelope(payload, max_bytes=1_000_000, content_sha256="g" * 64)
     assert "not-valid-xml" not in str(excinfo.value)
     assert not isinstance(excinfo.value, EnvelopeSecurityError)
+
+
+# --- Review round 2, finding 4: untrusted root metadata is bounded at the parser boundary --
+
+
+def test_long_root_local_name_is_bounded_at_the_classifier_boundary() -> None:
+    canary = "CANARY_ROOT_NAME_DO_NOT_RETAIN_" + ("A" * 5000)
+    payload = f"<{canary}/>".encode()
+    classification = classify_envelope(payload, max_bytes=1_000_000, content_sha256="i" * 64)
+    assert classification.envelope_kind == OTHER_XML
+    assert classification.root_local_name is not None
+    assert len(classification.root_local_name) < len(canary)
+    assert "chars omitted" in classification.root_local_name
+    serialized = json.dumps(classification.to_dict())
+    assert canary not in serialized
+    assert "CANARY_ROOT_NAME_DO_NOT_RETAIN_" in serialized  # a bounded prefix is fine
+
+
+def test_long_root_namespace_is_bounded_at_the_classifier_boundary() -> None:
+    canary = "urn:canary-namespace-do-not-retain:" + ("B" * 5000)
+    payload = f'<root xmlns="{canary}"/>'.encode()
+    classification = classify_envelope(payload, max_bytes=1_000_000, content_sha256="j" * 64)
+    assert classification.envelope_kind == OTHER_XML
+    assert classification.root_namespace is not None
+    assert len(classification.root_namespace) < len(canary)
+    assert "chars omitted" in classification.root_namespace
+    serialized = json.dumps(classification.to_dict())
+    assert canary not in serialized
 
 
 # --- to_dict() shape ----------------------------------------------------------

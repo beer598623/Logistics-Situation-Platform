@@ -20,9 +20,23 @@ from __future__ import annotations
 from .adapters.cap import CapSecurityError, MalformedCapAlertError
 from .adapters.rss_discovery import NotAnRssEnvelopeError, RssParseError, RssSecurityError
 from .adapters.xml_envelope import EnvelopeParseError, EnvelopeSecurityError
-from .http_client import UnexpectedContentTypeError
+from .http_client import DiscoveryRedirectError, ResponseTooLargeError, UnexpectedContentTypeError
 
-_SECURITY_ERRORS = (CapSecurityError, EnvelopeSecurityError, RssSecurityError)
+#: A real oversized HTTP response (ResponseTooLargeError, enforced by
+#: ResilientHttpClient itself, before any XML parsing is even attempted)
+#: and a rejected discovery-mode redirect (DiscoveryRedirectError) are
+#: both resource/transport-limit rejections in the same spirit as the XML
+#: layer's own oversized-payload rejection (EnvelopeSecurityError /
+#: RssSecurityError) -- all four share the "security" category rather than
+#: falling through to "unexpected", keeping one stable vocabulary across
+#: the HTTP and XML layers (review round 2, finding 3).
+_SECURITY_ERRORS = (
+    CapSecurityError,
+    EnvelopeSecurityError,
+    RssSecurityError,
+    ResponseTooLargeError,
+    DiscoveryRedirectError,
+)
 _PARSE_ERRORS = (
     MalformedCapAlertError,
     NotAnRssEnvelopeError,

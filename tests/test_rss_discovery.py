@@ -171,6 +171,20 @@ def test_cap_alert_root_raises_not_an_rss_envelope_error() -> None:
         discover_rss_candidates(payload, max_bytes=1_000_000, feed_host=FEED_HOST)
 
 
+def test_long_non_rss_root_tag_is_bounded_in_the_error_message() -> None:
+    """Review round 2, finding 4: the root tag echoed in
+    NotAnRssEnvelopeError's message is untrusted, attacker-controlled XML
+    name text and must be bounded at the point the exception is raised,
+    not left to a downstream report-level sanitizer."""
+    canary = "CANARY_NON_RSS_ROOT_DO_NOT_RETAIN_" + ("C" * 5000)
+    payload = f"<{canary}/>".encode()
+    with pytest.raises(NotAnRssEnvelopeError) as excinfo:
+        discover_rss_candidates(payload, max_bytes=1_000_000, feed_host=FEED_HOST)
+    message = str(excinfo.value)
+    assert canary not in message
+    assert "chars omitted" in message
+
+
 # --- Security: DTD/XXE and oversized payloads are rejected before parsing ------
 
 

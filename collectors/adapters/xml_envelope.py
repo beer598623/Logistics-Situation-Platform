@@ -36,6 +36,22 @@ RSS = "rss"
 ATOM = "atom"
 OTHER_XML = "other_xml"
 
+#: Root local-name/namespace strings are structural, but still bounded
+#: independently of the overall payload byte cap -- an XML document's root
+#: tag can itself carry an attacker-controlled string up to that cap's
+#: size, and this classifier must never surface an unbounded raw value in
+#: its own returned classification, regardless of what a downstream
+#: report-level sanitizer would later do (review round 2, finding 4: bound
+#: untrusted root metadata at the parser boundary itself).
+MAX_ROOT_NAME_LENGTH = 200
+
+
+def _bounded_name(value: str | None) -> str | None:
+    if value is None or len(value) <= MAX_ROOT_NAME_LENGTH:
+        return value
+    omitted = len(value) - MAX_ROOT_NAME_LENGTH
+    return value[:MAX_ROOT_NAME_LENGTH] + f"...(+{omitted} chars omitted)"
+
 
 class EnvelopeSecurityError(ValueError):
     """A payload was rejected before or during classification for a
@@ -55,7 +71,9 @@ class EnvelopeParseError(ValueError):
 @dataclass(slots=True, frozen=True)
 class EnvelopeClassification:
     """Structural metadata only -- never full content, never a decision
-    about whether the document is usable by any specific profile parser."""
+    about whether the document is usable by any specific profile parser.
+    ``root_local_name``/``root_namespace`` are bounded to
+    ``MAX_ROOT_NAME_LENGTH`` before this dataclass is even constructed."""
 
     root_local_name: str | None
     root_namespace: str | None
@@ -126,8 +144,8 @@ def classify_envelope(
         kind = OTHER_XML
 
     return EnvelopeClassification(
-        root_local_name=local_name,
-        root_namespace=namespace,
+        root_local_name=_bounded_name(local_name),
+        root_namespace=_bounded_name(namespace),
         envelope_kind=kind,
         content_length=len(payload),
         content_sha256=content_sha256,

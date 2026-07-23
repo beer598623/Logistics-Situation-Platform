@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -40,6 +41,17 @@ MAX_STAGING_SAMPLE_SIZE = 5
 MAX_REPORT_LIST_ITEMS = 50
 MAX_REPORT_BYTES = 200_000
 MAX_SANITIZE_DEPTH = 8
+
+#: Matches the user-info component of an http(s) URL (``user:pass@`` or
+#: ``user@``) anywhere inside a string. This is the report-level second
+#: line of defense (review round 2, finding 2): every URL field an adapter
+#: produces is already redacted at the source via
+#: ``collectors.url_redaction.redact_url_userinfo``, but this pattern is
+#: applied unconditionally to *every* string in the report -- including one
+#: a future field might add without routing it through that helper -- the
+#: same "first pass at creation time, second pass at the artifact boundary"
+#: layering ``_sanitize_report`` already uses for length bounding.
+_URL_USERINFO_PATTERN = re.compile(r"(https?://)[^\s/@]+@")
 
 # Paths this workflow must never write to, checked defensively even though
 # this script never opens them.
@@ -91,6 +103,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def _redact_string(value: str) -> str:
+    value = _URL_USERINFO_PATTERN.sub(r"\1", value)
     if len(value) <= MAX_REDACTED_STRING_LENGTH:
         return value
     return f"<redacted: {len(value)} chars>"

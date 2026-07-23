@@ -460,6 +460,68 @@ def test_main_unexpected_content_type_produces_structured_content_type_report(
     assert report["forbidden_path_check"] == "clean"
 
 
+def test_main_response_too_large_produces_structured_security_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review round 2, finding 3: a real ResponseTooLargeError (the same
+    exception ResilientHttpClient itself raises for a real oversized
+    response) must be classified security, not unexpected, in the final
+    report."""
+    from collectors.http_client import ResponseTooLargeError
+
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch,
+        body=(RSS_FIXTURES / "same_host_link.xml").read_bytes(),
+        headers={"content-type": "text/xml"},
+    )
+    fake_http.raise_on_get_no_redirect = ResponseTooLargeError("oversized response")
+    exit_code = main(
+        ["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "rss_discovery"]
+    )
+    assert exit_code == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["error_code"] == "ResponseTooLargeError"
+    assert report["error_category"] == "security"
+    assert report["forbidden_path_check"] == "clean"
+
+
+def test_main_rss_discovery_never_leaks_url_credentials_in_the_report(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review round 2, finding 2: end-to-end proof that embedded
+    username/password never survive into the serialized report JSON, for
+    both the discovery-parser-level redaction and the report-level second
+    line of defense."""
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+    body = b"""<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic</title>
+    <link>https://feed.example.test/</link>
+    <item>
+      <link>https://canaryuser:canarysecret@feed.example.test/warnings/item-1</link>
+      <guid isPermaLink="true">https://canaryuser:canarysecret@feed.example.test/warnings/item-1</guid>
+    </item>
+  </channel>
+</rss>"""
+    _install_fake_tmd_adapter(monkeypatch, body=body, headers={"content-type": "text/xml"})
+    exit_code = main(
+        ["--source", "tmd_cap", "--dry-run", "false", "--tmd-operation", "rss_discovery"]
+    )
+    assert exit_code == 0
+    report_text = (tmp_path / "report.json").read_text()
+    assert "canaryuser" not in report_text
+    assert "canarysecret" not in report_text
+    report = json.loads(report_text)
+    # The fixture's host (feed.example.test) differs from the TMD
+    # contract's real requested endpoint host (www.tmd.go.th), so these
+    # land in cross_host_urls -- the credentials-redaction assertions
+    # above are this test's actual point; this just confirms candidates
+    # were produced at all.
+    assert report["discovery"]["cross_host_urls"]
+
+
 # --- Whole-report sanitizer: bounded strings, capped lists, capped bytes ----
 
 

@@ -6,6 +6,10 @@ Extracts only bounded, structural candidate-resource metadata from an RSS
 timestamp when parseable, and each URL's scheme/host/path. It never
 retains full titles, descriptions, instruction text, HTML content, raw
 XML, or a source's warning prose, and it never creates a staging record.
+Every retained URL string also has any embedded user-info
+(``user:password@host``) stripped via ``collectors.url_redaction`` before
+it is bounded or stored -- a retained URL string must never carry
+credentials (review round 2, finding 2).
 
 SSRF / follow-link boundary: this module has no HTTP client, imports none,
 and cannot reach the network under any input -- discovering a candidate
@@ -35,6 +39,8 @@ from urllib.parse import urlparse
 import defusedxml.ElementTree as DefusedET
 from defusedxml.common import DefusedXmlException
 
+from ..url_redaction import redact_url_userinfo
+
 #: Bounded so an adversarial feed with an enormous item count cannot
 #: inflate the discovery result or the eventual report artifact.
 MAX_ITEMS = 50
@@ -43,6 +49,12 @@ MAX_ITEMS = 50
 #: length is still bounded defensively -- a query string could otherwise
 #: be used to smuggle an arbitrarily large value into a report.
 MAX_URL_LENGTH = 500
+
+#: The root tag echoed in NotAnRssEnvelopeError's message is untrusted,
+#: attacker-controlled XML-name/namespace text -- bounded independently of
+#: the overall payload byte cap at the point the exception is raised, not
+#: left to a downstream report-level sanitizer (review round 2, finding 4).
+MAX_ROOT_NAME_LENGTH = 200
 
 SAME_HOST = "same_host"
 CROSS_HOST = "cross_host"
@@ -76,6 +88,13 @@ def _bounded_url(value: str) -> str:
         return value
     omitted = len(value) - MAX_URL_LENGTH
     return value[:MAX_URL_LENGTH] + f"...(+{omitted} chars omitted)"
+
+
+def _bounded_name(value: str) -> str:
+    if len(value) <= MAX_ROOT_NAME_LENGTH:
+        return value
+    omitted = len(value) - MAX_ROOT_NAME_LENGTH
+    return value[:MAX_ROOT_NAME_LENGTH] + f"...(+{omitted} chars omitted)"
 
 
 def _classify_url(
@@ -203,7 +222,9 @@ def discover_rss_candidates(
         raise RssParseError(f"payload could not be parsed as XML: {type(exc).__name__}") from None
 
     if root.tag != "rss":
-        raise NotAnRssEnvelopeError(f"root element is not <rss>, got {root.tag!r}")
+        raise NotAnRssEnvelopeError(
+            f"root element is not <rss>, got {_bounded_name(str(root.tag))!r}"
+        )
 
     warnings: list[str] = []
     channel = root.find("channel")
@@ -221,7 +242,11 @@ def discover_rss_candidates(
     for index, item in enumerate(considered):
         link_el = item.find("link")
         if link_el is not None and link_el.text and link_el.text.strip():
-            url = _bounded_url(link_el.text.strip())
+            # redact_url_userinfo runs before _bounded_url so any embedded
+            # credential is stripped before length truncation, not after
+            # (review round 2, finding 2: a retained URL string must never
+            # carry username/password, regardless of its length).
+            url = _bounded_url(redact_url_userinfo(link_el.text.strip()))
             group, scheme, host, path = _classify_url(url, feed_host=feed_host)
             candidates.append(RssUrlCandidate(index, "link", url, scheme, host, path, group))
 
@@ -238,7 +263,7 @@ def discover_rss_candidates(
             # isPermaLink attribute is therefore never consulted here;
             # only the value's own shape decides retention.
             if guid_text.startswith(("http://", "https://")):
-                url = _bounded_url(guid_text)
+                url = _bounded_url(redact_url_userinfo(guid_text))
                 group, scheme, host, path = _classify_url(url, feed_host=feed_host)
                 candidates.append(RssUrlCandidate(index, "guid", url, scheme, host, path, group))
 
@@ -247,7 +272,7 @@ def discover_rss_candidates(
             enclosure_url = enclosure_el.get("url")
             enclosure_type = enclosure_el.get("type")
             if enclosure_url:
-                url = _bounded_url(enclosure_url.strip())
+                url = _bounded_url(redact_url_userinfo(enclosure_url.strip()))
                 group, scheme, host, path = _classify_url(url, feed_host=feed_host)
                 candidates.append(
                     RssUrlCandidate(
