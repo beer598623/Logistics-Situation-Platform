@@ -136,8 +136,23 @@ class CapabilityCoverage:
         }
 
 
-_DEGRADED_STATUSES = {SourceStatus.NO_DATA, SourceStatus.ERROR, SourceStatus.VERY_STALE}
 _LIVE_STATUSES = {SourceStatus.FRESH, SourceStatus.STALE}
+
+
+def _required_source_gap(healths: Sequence[SourceHealth]) -> bool:
+    """True when a source required for publication is not currently live.
+
+    A required source that is stale-but-fresh-enough is fine (it is
+    ``fresh``/``stale``, i.e. live); anything else — ``no_data``, ``error``,
+    ``very_stale``, or even ``disabled`` — is a publication gap. This check
+    must run before any "is something live?" check: a required source
+    failing must never be papered over by an unrelated optional source that
+    happens to be healthy.
+    """
+    return any(
+        health.required_for_publication and health.status not in _LIVE_STATUSES
+        for health in healths
+    )
 
 
 def _capability_coverage(
@@ -150,17 +165,17 @@ def _capability_coverage(
     source failing does not degrade capabilities it does not serve, and no
     source becomes publication-critical just because it is registered — only
     an explicit ``required_for_publication`` source gap can force
-    ``insufficient``.
+    ``insufficient``. That required-source check runs first, ahead of the
+    "is anything live?" check, so a required source failing can never be
+    hidden behind an unrelated optional source that happens to be fresh.
+    Likewise, one disabled source sharing a capability with an enabled (even
+    if degraded) source must not be reported as "nothing backs this
+    capability" — that phrasing is reserved for when every supporting
+    source is disabled.
     """
     supporting = [health.source_id for health in healths]
-    if any(health.status in _LIVE_STATUSES for health in healths):
-        return CapabilityCoverage(capability, "sufficient", supporting, None)
 
-    required_gap = any(
-        health.required_for_publication and health.status in _DEGRADED_STATUSES
-        for health in healths
-    )
-    if required_gap:
+    if _required_source_gap(healths):
         return CapabilityCoverage(
             capability,
             "insufficient",
@@ -168,7 +183,10 @@ def _capability_coverage(
             f"A source required for publication is unavailable for {capability}.",
         )
 
-    if any(health.status == SourceStatus.DISABLED for health in healths):
+    if any(health.status in _LIVE_STATUSES for health in healths):
+        return CapabilityCoverage(capability, "sufficient", supporting, None)
+
+    if healths and all(health.status == SourceStatus.DISABLED for health in healths):
         return CapabilityCoverage(
             capability,
             "insufficient",
@@ -187,11 +205,7 @@ def _capability_coverage(
 def _overall_status(
     coverages: Sequence[CapabilityCoverage], healths: Sequence[SourceHealth]
 ) -> str:
-    required_gap = any(
-        health.required_for_publication and health.status in _DEGRADED_STATUSES
-        for health in healths
-    )
-    if required_gap:
+    if _required_source_gap(healths):
         return "insufficient"
     if not coverages:
         return "insufficient"

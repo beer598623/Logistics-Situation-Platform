@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
+from collectors.event_identity import compute_content_signature
 from collectors.http_client import ResilientHttpClient
 from collectors.models import CollectionRun
 from collectors.registry import load_registry, validate_registry
@@ -84,3 +85,28 @@ def test_source_status_capabilities_are_purpose_aware() -> None:
     for capability in status["capabilities"]:
         assert capability["supporting_sources"]
         assert capability["status"] in {"sufficient", "limited", "insufficient"}
+
+
+def test_content_signature_matches_its_documented_source_fields() -> None:
+    """The persisted ``content_signature`` on each fixture must be
+    reproducible from exactly the fields documented in
+    docs/source_health_and_event_identity.md: title + raw_claims (+
+    headline_summary) for a candidate, title + verified_facts +
+    reported_claims for a reviewed event. This is what lets
+    ``last_changed_at`` recompute correctly after a real JSON round trip."""
+    candidates = json.loads((ROOT / "data" / "candidates" / "latest.json").read_text())
+    reviewed = json.loads((ROOT / "data" / "reviewed" / "current_events.json").read_text())
+    candidate = candidates["candidates"][0]
+    event = reviewed["events"][0]
+
+    assert len(candidate["content_signature"]) == 64
+    assert candidate["content_signature"] == compute_content_signature(
+        title=candidate["title"],
+        text_fields=[candidate["headline_summary"], *candidate["raw_claims"]],
+    )
+
+    assert len(event["content_signature"]) == 64
+    assert event["content_signature"] == compute_content_signature(
+        title=event["title"],
+        text_fields=[*event["verified_facts"], *event["reported_claims"]],
+    )

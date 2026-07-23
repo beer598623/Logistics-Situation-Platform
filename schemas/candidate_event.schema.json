@@ -25,7 +25,8 @@
     "first_seen_at",
     "last_seen_at",
     "last_changed_at",
-    "supersedes"
+    "supersedes",
+    "content_signature"
   ],
   "properties": {
     "candidate_id": {
@@ -169,6 +170,10 @@
         "type": "string",
         "pattern": "^CEVT-[0-9a-f]{16}$"
       }
+    },
+    "content_signature": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }

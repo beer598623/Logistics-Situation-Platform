@@ -141,3 +141,65 @@ def test_registered_but_disabled_source_is_not_publication_critical_by_default()
     # itself has no live coverage.
     source = snapshot["sources"][0]
     assert source["status"] == "disabled"
+
+
+def test_required_source_gap_is_not_hidden_by_an_optional_fresh_source() -> None:
+    """Regression for review finding #1: required-source precedence.
+
+    A capability backed by one optional fresh source and one required,
+    failed source must be ``insufficient`` — the required gap must be
+    checked before the "is anything live?" check, not after.
+    """
+    registry = {
+        "sources": [
+            _contract(id="OPTIONAL", required_for_publication=False, purposes=["cap"]),
+            _contract(id="REQUIRED", required_for_publication=True, purposes=["cap"]),
+        ]
+    }
+    snapshot = evaluate_registry_health(registry, {"OPTIONAL": [_run(5)]}, now=NOW)
+    optional_health = next(s for s in snapshot["sources"] if s["source_id"] == "OPTIONAL")
+    required_health = next(s for s in snapshot["sources"] if s["source_id"] == "REQUIRED")
+    assert optional_health["status"] == "fresh"
+    assert required_health["status"] == "no_data"
+
+    capability = next(c for c in snapshot["capabilities"] if c["capability"] == "cap")
+    assert capability["status"] == "insufficient"
+    assert snapshot["overall_status"] == "insufficient"
+
+
+def test_disabled_sibling_does_not_override_a_degraded_enabled_source() -> None:
+    """Regression for review finding #2: mixed disabled/enabled handling.
+
+    One disabled source and one enabled-but-degraded (very_stale) source
+    sharing a capability must read as ``limited`` (something is enabled and
+    trying, just stale), not ``insufficient`` with a "no enabled source"
+    message that is only true when *every* supporting source is disabled.
+    """
+    registry = {
+        "sources": [
+            _contract(id="DISABLED_SRC", enabled=False, purposes=["cap"]),
+            _contract(id="DEGRADED_SRC", enabled=True, purposes=["cap"]),
+        ]
+    }
+    snapshot = evaluate_registry_health(registry, {"DEGRADED_SRC": [_run(400)]}, now=NOW)
+    disabled_health = next(s for s in snapshot["sources"] if s["source_id"] == "DISABLED_SRC")
+    degraded_health = next(s for s in snapshot["sources"] if s["source_id"] == "DEGRADED_SRC")
+    assert disabled_health["status"] == "disabled"
+    assert degraded_health["status"] == "very_stale"
+
+    capability = next(c for c in snapshot["capabilities"] if c["capability"] == "cap")
+    assert capability["status"] == "limited"
+    assert "degraded or stale" in capability["gap_reason"]
+
+
+def test_all_disabled_sources_for_a_capability_is_insufficient() -> None:
+    registry = {
+        "sources": [
+            _contract(id="DISABLED_A", enabled=False, purposes=["cap"]),
+            _contract(id="DISABLED_B", enabled=False, purposes=["cap"]),
+        ]
+    }
+    snapshot = evaluate_registry_health(registry, {}, now=NOW)
+    capability = next(c for c in snapshot["capabilities"] if c["capability"] == "cap")
+    assert capability["status"] == "insufficient"
+    assert "No enabled source" in capability["gap_reason"]

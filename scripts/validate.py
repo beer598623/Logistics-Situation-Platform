@@ -123,6 +123,9 @@ def source_contract_checks(registry: dict[str, Any]) -> list[str]:
     return problems
 
 
+_LIVE_SOURCE_STATUSES = {"fresh", "stale"}
+
+
 def source_status_checks(source_status: dict[str, Any]) -> list[str]:
     problems: list[str] = []
     sources = source_status.get("sources", [])
@@ -134,24 +137,55 @@ def source_status_checks(source_status: dict[str, Any]) -> list[str]:
                 f"{source.get('source_id')}: a gap must never be represented as zero items"
             )
 
-    if source_status.get("overall_status") == "sufficient" and any(
-        source.get("status") in {"no_data", "error"} and source.get("required_for_publication")
+    # A required source that is anything other than fresh/stale is a
+    # publication gap, matching collectors/source_health.py's
+    # _required_source_gap precedence (checked ahead of "is anything live").
+    required_gap_sources = [
+        source.get("source_id")
         for source in sources
-    ):
-        problems.append("required source gap cannot be sufficient")
+        if source.get("required_for_publication")
+        and source.get("status") not in _LIVE_SOURCE_STATUSES
+    ]
+    if source_status.get("overall_status") == "sufficient" and required_gap_sources:
+        problems.append(
+            f"required source gap cannot be sufficient (degraded required sources: "
+            f"{sorted(required_gap_sources)})"
+        )
 
     status_by_id = {source.get("source_id"): source.get("status") for source in sources}
-    live_statuses = {"fresh", "stale"}
+    required_by_id = {
+        source.get("source_id"): bool(source.get("required_for_publication")) for source in sources
+    }
     for capability in source_status.get("capabilities", []):
+        capability_name = capability.get("capability")
         supporting = capability.get("supporting_sources", [])
-        has_live_source = any(status_by_id.get(sid) in live_statuses for sid in supporting)
-        if capability.get("status") == "sufficient" and not has_live_source:
+        has_live_source = any(status_by_id.get(sid) in _LIVE_SOURCE_STATUSES for sid in supporting)
+        degraded_required = [
+            sid
+            for sid in supporting
+            if required_by_id.get(sid) and status_by_id.get(sid) not in _LIVE_SOURCE_STATUSES
+        ]
+
+        if capability.get("status") == "sufficient":
+            if not has_live_source:
+                problems.append(
+                    f"{capability_name}: sufficient coverage requires a fresh or stale "
+                    "supporting source"
+                )
+            if degraded_required:
+                problems.append(
+                    f"{capability_name}: sufficient coverage cannot include a degraded "
+                    f"required supporting source {sorted(degraded_required)}"
+                )
+        elif degraded_required and capability.get("status") != "insufficient":
             problems.append(
-                f"{capability.get('capability')}: sufficient coverage requires a fresh or "
-                "stale supporting source"
+                f"{capability_name}: a degraded required supporting source "
+                f"{sorted(degraded_required)} must make coverage insufficient, "
+                f"not {capability.get('status')!r}"
             )
+
         if not supporting:
-            problems.append(f"{capability.get('capability')}: capability has no supporting sources")
+            problems.append(f"{capability_name}: capability has no supporting sources")
 
     return problems
 

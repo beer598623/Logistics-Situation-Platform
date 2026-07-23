@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
-from collectors.event_identity import compute_event_fingerprint, resolve_event_identity
+from collectors.event_identity import (
+    compute_content_signature,
+    compute_event_fingerprint,
+    resolve_event_identity,
+)
 
 NOW = datetime(2026, 7, 22, tzinfo=UTC)
 
@@ -30,18 +35,7 @@ def _resolve(known_events=(), **overrides):
 
 def test_same_external_id_resolves_to_same_canonical_event() -> None:
     first = _resolve(source_id="GDACS", external_event_id="EQ-99")
-    known = [
-        {
-            "source_id": "GDACS",
-            "external_event_id": "EQ-99",
-            "event_fingerprint": first.event_fingerprint,
-            "canonical_event_id": first.canonical_event_id,
-            "first_seen_at": first.first_seen_at,
-            "last_changed_at": first.last_changed_at,
-            "content_signature": "signature-1",
-            "supersedes": [],
-        }
-    ]
+    known = [_as_known(first, source_id="GDACS", external_event_id="EQ-99")]
     second = _resolve(
         source_id="GDACS",
         external_event_id="EQ-99",
@@ -59,18 +53,7 @@ def test_same_controlled_fingerprint_resolves_deterministically() -> None:
     assert fingerprint_a == fingerprint_b
 
     first = _resolve()
-    known = [
-        {
-            "source_id": None,
-            "external_event_id": None,
-            "event_fingerprint": first.event_fingerprint,
-            "canonical_event_id": first.canonical_event_id,
-            "first_seen_at": first.first_seen_at,
-            "last_changed_at": first.last_changed_at,
-            "content_signature": "signature-1",
-            "supersedes": [],
-        }
-    ]
+    known = [_as_known(first)]
     second = _resolve(known_events=known)
     assert second.canonical_event_id == first.canonical_event_id
     assert second.merge_status == "matched_fingerprint"
@@ -101,6 +84,12 @@ def test_different_category_prevents_unsafe_merge() -> None:
 
 
 def test_different_date_bucket_prevents_unsafe_merge() -> None:
+    """The reference event's date was known from the start (not ``None``),
+    so it must never match through the event-date-promotion fallback either
+    — only a known record whose own persisted ``event_date`` is ``None`` is
+    eligible for that fallback (see
+    ``test_canonical_identity_preserved_when_event_date_resolves_from_unknown``
+    below)."""
     reference = _resolve()
     known = [_as_known(reference)]
     other_date = _resolve(event_date="2024-07-01", known_events=known)
@@ -130,16 +119,114 @@ def test_unmatched_new_event_gets_empty_supersedes_and_self_consistent_timestamp
     assert identity.first_seen_at == identity.last_seen_at == identity.last_changed_at
 
 
+def test_canonical_identity_preserved_when_event_date_resolves_from_unknown() -> None:
+    """Regression for review finding #4.
+
+    A candidate first observed with ``event_date=None`` (bucket falls back
+    to ``publication_date``) must keep its canonical ID once the real event
+    date becomes known, even though the fingerprint itself changes to the
+    more precise, date-based value.
+    """
+    first = _resolve(event_date=None)
+    known = [_as_known(first, event_date=None)]
+
+    later = _resolve(event_date="2024-06-20", known_events=known)
+    assert later.canonical_event_id == first.canonical_event_id
+    assert later.merge_status == "matched_fingerprint"
+    assert later.event_fingerprint != first.event_fingerprint
+
+
+def test_event_date_promotion_ignores_known_records_with_a_real_date() -> None:
+    """A known record that already had a real event date must never be
+    reachable through the unknown-to-known promotion fallback, even if its
+    fingerprint would coincidentally match the provisional (publication-date)
+    bucket — that would resurrect the exact "different date bucket" merge
+    the fingerprint is designed to prevent."""
+    reference = _resolve(event_date="2024-06-14", publication_date="2024-06-14")
+    known = [_as_known(reference, event_date="2024-06-14")]
+
+    other = _resolve(event_date="2024-07-01", publication_date="2024-06-14", known_events=known)
+    assert other.canonical_event_id != reference.canonical_event_id
+    assert other.merge_status == "unmatched"
+
+
+def test_known_event_missing_event_date_key_is_conservatively_ineligible() -> None:
+    """A stored record that omits ``event_date`` altogether (e.g. an older
+    record migrated before this field existed) must not be treated as
+    "unknown date" by default — the promotion fallback only fires when a
+    record explicitly persisted ``event_date: null``."""
+    first = _resolve(event_date=None)
+    known = [_as_known(first, event_date=None)]
+    del known[0]["event_date"]
+
+    later = _resolve(event_date="2024-06-20", known_events=known)
+    assert later.canonical_event_id != first.canonical_event_id
+    assert later.merge_status == "unmatched"
+
+
+def test_content_signature_is_stable_across_a_json_round_trip_when_unchanged() -> None:
+    """Regression for review finding #3.
+
+    ``last_changed_at`` must only be recomputed from a *persisted*
+    ``content_signature`` read back through an actual JSON round trip, not
+    from an in-memory value that a real pipeline would never have.
+    """
+    signature = compute_content_signature(
+        title="Oil spill near Pasir Panjang Terminal", text_fields=["claim a", "claim b"]
+    )
+    first = _resolve(content_signature=signature)
+    stored = json.loads(json.dumps(_as_known(first)))
+
+    same_signature = compute_content_signature(
+        title="Oil spill near Pasir Panjang Terminal", text_fields=["claim a", "claim b"]
+    )
+    second = _resolve(content_signature=same_signature, known_events=[stored])
+
+    assert same_signature == signature
+    assert second.canonical_event_id == first.canonical_event_id
+    assert second.last_changed_at == first.last_changed_at
+    assert second.content_signature == signature
+
+
+def test_content_signature_round_trip_detects_a_real_change() -> None:
+    original_signature = compute_content_signature(
+        title="Oil spill near Pasir Panjang Terminal", text_fields=["claim a"]
+    )
+    first = _resolve(content_signature=original_signature, now=NOW)
+    stored = json.loads(json.dumps(_as_known(first)))
+
+    changed_signature = compute_content_signature(
+        title="Pasir Panjang oil spill - operations reported unaffected",
+        text_fields=["claim a", "claim b (new)"],
+    )
+    later = datetime(2026, 7, 23, tzinfo=UTC)
+    second = _resolve(content_signature=changed_signature, known_events=[stored], now=later)
+
+    assert changed_signature != original_signature
+    assert second.canonical_event_id == first.canonical_event_id
+    assert second.first_seen_at == first.first_seen_at
+    assert second.last_changed_at != first.last_changed_at
+    assert second.content_signature == changed_signature
+
+
 def _as_known(
-    identity, *, content_signature: str = "signature-1", source_id=None, external_event_id=None
+    identity,
+    *,
+    content_signature: str | None = None,
+    source_id=None,
+    external_event_id=None,
+    event_date: str | None = "2024-06-14",
 ) -> dict:
     return {
         "source_id": source_id,
         "external_event_id": external_event_id,
+        "event_date": event_date,
         "event_fingerprint": identity.event_fingerprint,
         "canonical_event_id": identity.canonical_event_id,
         "first_seen_at": identity.first_seen_at,
         "last_changed_at": identity.last_changed_at,
-        "content_signature": content_signature,
+        "content_signature": (
+            content_signature if content_signature is not None else identity.content_signature
+        ),
         "supersedes": identity.supersedes,
     }
