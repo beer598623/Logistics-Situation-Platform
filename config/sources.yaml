@@ -46,6 +46,7 @@ sources:
       - Hazard alerts do not by themselves establish operational logistics disruption.
       - Publication timing and alert levels vary by hazard type.
       - No official fixed polling cadence or public rate-limit quota was found; expected_cadence_minutes is unknown, not a proven six-minute cadence.
+      - Because expected_cadence_minutes is unknown, source-health evaluation currently derives its fresh/stale boundary from half of max_stale_minutes; this derived boundary is an implementation default, not an official GDACS cadence, and any future production-enablement change must define this explicitly rather than treating the derived value as fact.
       - Responses are limited to 100 records per page; callers must page with pagenumber (and optionally pagesize) to retrieve a full result set.
       - GDACS alert levels and impact estimates are model outputs and must remain a source signal (source_alert_level), never platform logistics severity.
       - Automatic notifications may contain uncertainty or error, do not replace national authorities, and have no guaranteed completeness or timeliness.

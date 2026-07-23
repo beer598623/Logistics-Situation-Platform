@@ -17,16 +17,23 @@ distinction is enforced by never emitting anything but a hazard/context
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
 from ..base import SourceAdapter
+from ..http_client import validate_content_type
 from ..models import CollectionResult, CollectionRun, RunStatus, SourceHealth, SourceStatus
 from ..staging import build_staging_record
 from .cap import CapSecurityError, MalformedCapAlertError, parse_cap_alert
 
 ADAPTER_VERSION = "tmd_cap_v1"
+
+#: TMD's CAP endpoints are documented as XML. A response with any other
+#: Content-Type (most commonly an HTML error/login page) is rejected before
+#: parsing rather than fed to the XML parser.
+TMD_CAP_ALLOWED_CONTENT_TYPES = ("application/cap+xml", "application/xml", "text/xml")
 
 _KNOWN_LIMITATIONS = (
     "TMD's copyright notice permits non-commercial public republication with "
@@ -46,9 +53,14 @@ _FIELD_MAPPING_NOTES = (
     "One staging record is produced per CAP <info> block so multilingual "
     "content is preserved independently; translated text is never merged "
     "into a single asserted fact.",
-    "source_signal.msgType / source_signal.references preserve the CAP "
-    "<msgType> and <references> values verbatim so a later step can "
-    "associate Update/Cancel messages with the alerts they refer to.",
+    "source_references = CAP <references> triples verbatim (CAP has no "
+    "single-value revision field, so source_revision stays null here and "
+    "Update/Cancel cross-message association lives in this dedicated field "
+    "instead); source_signal.msgType is kept separately as a quick-glance "
+    "hazard/context signal.",
+    "source_url is always the contract-level CAP endpoint, never the "
+    "source-provided CAP <web> deep link, while TMD's deep-link permission "
+    "question remains pending_review.",
     "geography = area geocode values when present, else areaDesc text, else "
     "a Thailand country-level fallback when neither is provided.",
 )
@@ -153,7 +165,6 @@ def normalize_tmd_alert(
             "msgType": alert.get("msgType"),
             "status": alert.get("status"),
             "scope": alert.get("scope"),
-            "references": alert.get("references"),
         }
         source_signal = {key: value for key, value in source_signal.items() if value}
 
@@ -166,7 +177,11 @@ def normalize_tmd_alert(
             source_revision=None,
             source_publication_time=alert.get("sent"),
             title=str(title),
-            source_url=info.get("web") or source_url,
+            # Always the contract-level endpoint -- never the CAP <web>
+            # deep link the source may supply, while TMD's deep-link
+            # permission question remains pending_review (see
+            # _FIELD_MAPPING_NOTES and known_limitations).
+            source_url=source_url,
             primary_category="weather_natural_hazard",
             geography=geography,
             transport_modes=[],
@@ -174,6 +189,7 @@ def normalize_tmd_alert(
             event_date=event_date,
             publication_date=publication_date,
             source_signal=source_signal,
+            source_references=alert.get("references", []),
             field_mapping_notes=list(_FIELD_MAPPING_NOTES),
             warnings=[],
             known_limitations=list(_KNOWN_LIMITATIONS),
@@ -215,6 +231,8 @@ class TmdCapAdapter(SourceAdapter):
         records: list[dict[str, Any]] = []
         http_status: int | None = None
         content_sha256: str | None = None
+        etag: str | None = None
+        last_modified: str | None = None
         status = RunStatus.ERROR
 
         try:
@@ -226,9 +244,16 @@ class TmdCapAdapter(SourceAdapter):
             )
             http_status = response.status
             content_sha256 = response.content_sha256
+            etag = response.headers.get("etag")
+            last_modified = response.headers.get("last-modified")
             if response.status == 304:
                 status = RunStatus.NOT_MODIFIED
             else:
+                _content_type, content_type_warning = validate_content_type(
+                    response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
+                )
+                if content_type_warning:
+                    warnings.append(content_type_warning)
                 alert, parse_warnings = parse_cap_alert(
                     response.body, max_bytes=int(http_contract["max_response_bytes"])
                 )
@@ -242,7 +267,7 @@ class TmdCapAdapter(SourceAdapter):
             errors.append(f"{type(exc).__name__}: {exc}")
             status = RunStatus.ERROR
         except Exception as exc:  # noqa: BLE001 -- surfaced as a run error, not a crash
-            errors.append(str(exc))
+            errors.append(f"{type(exc).__name__}: {exc}")
             status = RunStatus.ERROR
 
         completed_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -252,16 +277,19 @@ class TmdCapAdapter(SourceAdapter):
             started_at=started_at,
             completed_at=completed_at,
             status=status,
-            workflow_sha=None,
+            workflow_sha=os.environ.get("GITHUB_SHA"),
             adapter_version=self.adapter_version,
             request_url=self.endpoint,
             http_status=http_status,
-            etag=None,
-            last_modified=None,
+            etag=etag,
+            last_modified=last_modified,
             content_sha256=content_sha256,
             records_received=len(records),
             records_emitted=len(records),
             records_rejected=0,
+            # TMD's CAP feed is a live "current warnings" snapshot with no
+            # bounded query window (unlike GDACS's dated SEARCH request),
+            # so retrieval time is the only meaningful data-period bound.
             data_cutoff_at=completed_at,
             warnings=warnings,
             errors=errors,

@@ -30,6 +30,13 @@ from defusedxml.common import DefusedXmlException
 
 CAP_NAMESPACE_1_2 = "urn:oasis:names:tc:emergency:cap:1.2"
 _NS = {"cap": CAP_NAMESPACE_1_2}
+_EXPECTED_ROOT_TAG = f"{{{CAP_NAMESPACE_1_2}}}alert"
+
+#: Untrusted raw text is bounded to this length before it is embedded in
+#: any warning string, so a single oversized or crafted XML text node
+#: cannot inflate downstream logs/artifacts -- independent of and in
+#: addition to the overall payload byte cap enforced before parsing.
+_MAX_WARNING_VALUE_LENGTH = 120
 
 
 class CapSecurityError(ValueError):
@@ -41,6 +48,17 @@ class CapSecurityError(ValueError):
 class MalformedCapAlertError(ValueError):
     """The top-level <alert> element itself is unusable (wrong/missing CAP
     namespace, or missing the required <identifier>)."""
+
+
+def _bounded(value: str) -> str:
+    """Bound an untrusted raw value before embedding it in a warning
+    string. Applied at warning-creation time (not just at the final report
+    layer) so no single caller downstream needs to know a value was ever
+    untrusted."""
+    if len(value) <= _MAX_WARNING_VALUE_LENGTH:
+        return repr(value)
+    omitted = len(value) - _MAX_WARNING_VALUE_LENGTH
+    return repr(value[:_MAX_WARNING_VALUE_LENGTH]) + f"...(+{omitted} chars omitted)"
 
 
 def _text(element: Any, tag: str) -> str | None:
@@ -94,16 +112,17 @@ def _parse_polygon(text: str | None, warnings: list[str], context: str) -> list[
     if not text or not text.strip():
         return None
     points: list[list[float]] = []
-    try:
-        for pair in text.strip().split():
+    for pair in text.strip().split():
+        try:
             lat_str, lon_str = pair.split(",")
             lat, lon = float(lat_str), float(lon_str)
-            if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
-                raise ValueError(f"coordinate out of range: {pair}")
-            points.append([lat, lon])
-    except (ValueError, IndexError) as exc:
-        warnings.append(f"{context}: invalid polygon geometry rejected -- {exc}")
-        return None
+        except ValueError:
+            warnings.append(f"{context}: invalid polygon coordinate rejected -- {_bounded(pair)}")
+            return None
+        if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+            warnings.append(f"{context}: polygon coordinate out of range -- {_bounded(pair)}")
+            return None
+        points.append([lat, lon])
     if len(points) < 4 or points[0] != points[-1]:
         warnings.append(f"{context}: polygon is not a closed ring of at least 4 points; rejected")
         return None
@@ -113,14 +132,16 @@ def _parse_polygon(text: str | None, warnings: list[str], context: str) -> list[
 def _parse_circle(text: str | None, warnings: list[str], context: str) -> dict[str, float] | None:
     if not text or not text.strip():
         return None
+    stripped = text.strip()
     try:
-        point, radius_str = text.strip().rsplit(" ", 1)
+        point, radius_str = stripped.rsplit(" ", 1)
         lat_str, lon_str = point.split(",")
         lat, lon, radius = float(lat_str), float(lon_str), float(radius_str)
-        if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0) or radius < 0:
-            raise ValueError(f"circle out of range: {text}")
-    except (ValueError, IndexError) as exc:
-        warnings.append(f"{context}: invalid circle geometry rejected -- {exc}")
+    except ValueError:
+        warnings.append(f"{context}: invalid circle geometry rejected -- {_bounded(stripped)}")
+        return None
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0) or radius < 0:
+        warnings.append(f"{context}: circle out of range -- {_bounded(stripped)}")
         return None
     return {"lat": lat, "lon": lon, "radius_km": radius}
 
@@ -156,11 +177,11 @@ def _parse_area(area_element: Any, warnings: list[str], context: str) -> dict[st
     try:
         altitude = float(altitude_raw) if altitude_raw else None
     except ValueError:
-        warnings.append(f"{context}: altitude {altitude_raw!r} is not numeric; dropped")
+        warnings.append(f"{context}: altitude {_bounded(altitude_raw)} is not numeric; dropped")
     try:
         ceiling = float(ceiling_raw) if ceiling_raw else None
     except ValueError:
-        warnings.append(f"{context}: ceiling {ceiling_raw!r} is not numeric; dropped")
+        warnings.append(f"{context}: ceiling {_bounded(ceiling_raw)} is not numeric; dropped")
 
     return {
         "areaDesc": area_desc,
@@ -191,7 +212,8 @@ def _parse_info(info_element: Any, warnings: list[str], context: str) -> dict[st
         raw = _text(info_element, label)
         if raw and _parse_cap_timestamp(raw) is None:
             warnings.append(
-                f"{context}: {label} {raw!r} is not a valid CAP timestamp; treated as unknown"
+                f"{context}: {label} {_bounded(raw)} is not a valid CAP timestamp; "
+                "treated as unknown"
             )
 
     areas = [
@@ -230,10 +252,13 @@ def parse_cap_alert(payload: bytes, *, max_bytes: int) -> tuple[dict[str, Any], 
     DOCTYPE/DTD or entity-expansion attempt during parsing
     (``CapSecurityError``). A malformed <area>, polygon, circle, or
     timestamp inside one <info> block is dropped with a warning rather than
-    aborting the whole document; only a missing/wrong CAP namespace or a
-    missing top-level <identifier> raises (``MalformedCapAlertError``),
-    since ``identifier`` is CAP's mandatory external message ID and this
-    parser has nothing safe to fall back to without it.
+    aborting the whole document; only a root element that is not *exactly*
+    ``{urn:oasis:names:tc:emergency:cap:1.2}alert`` (e.g. a same-namespace
+    ``<info>`` or ``<circle>`` document, not just any element in the CAP
+    namespace) or a missing top-level <identifier> raises
+    (``MalformedCapAlertError``), since ``identifier`` is CAP's mandatory
+    external message ID and this parser has nothing safe to fall back to
+    without it.
     """
     if len(payload) > max_bytes:
         raise CapSecurityError(
@@ -255,11 +280,9 @@ def parse_cap_alert(payload: bytes, *, max_bytes: int) -> tuple[dict[str, Any], 
             f"CAP payload could not be parsed as XML: {type(exc).__name__}"
         ) from None
 
-    tag = root.tag
-    namespace = tag.split("}", 1)[0][1:] if tag.startswith("{") else None
-    if namespace != CAP_NAMESPACE_1_2:
+    if root.tag != _EXPECTED_ROOT_TAG:
         raise MalformedCapAlertError(
-            f"root element is not in the CAP 1.2 namespace ({CAP_NAMESPACE_1_2})"
+            f"root element must be {_EXPECTED_ROOT_TAG!r} (CAP 1.2 <alert>), not {root.tag!r}"
         )
 
     identifier = _text(root, "identifier")
@@ -270,7 +293,7 @@ def parse_cap_alert(payload: bytes, *, max_bytes: int) -> tuple[dict[str, Any], 
     sent_raw = _text(root, "sent")
     sent = _parse_cap_timestamp(sent_raw)
     if sent_raw and sent is None:
-        warnings.append(f"{identifier}: <sent> {sent_raw!r} is not a valid CAP timestamp")
+        warnings.append(f"{identifier}: <sent> {_bounded(sent_raw)} is not a valid CAP timestamp")
 
     infos = [
         _parse_info(info_el, warnings, f"{identifier} info[{index}]")

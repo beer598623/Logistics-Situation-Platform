@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import random
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -27,6 +27,38 @@ class HttpResponse:
 
 class ResponseTooLargeError(RuntimeError):
     """Raised when a response exceeds the source contract limit."""
+
+
+class UnexpectedContentTypeError(RuntimeError):
+    """Raised when a response's Content-Type does not match a source's
+    documented allowlist (e.g. an HTML error/login page returned in place of
+    JSON or XML data). Callers should treat this the same as any other
+    fetch failure -- the body must not be parsed."""
+
+
+def validate_content_type(
+    headers: Mapping[str, str], allowed_media_types: Sequence[str]
+) -> tuple[str | None, str | None]:
+    """Check a response's Content-Type header against an allowlist.
+
+    Returns ``(content_type, warning)``. Content-Type parameters (e.g.
+    ``; charset=utf-8``) are ignored for the comparison. A missing
+    Content-Type header is not fatal -- some sources omit it -- but is
+    surfaced as a warning since it could not be validated. A *present but
+    unexpected* Content-Type (for example ``text/html``, typically an error
+    or login page rather than real data) raises
+    ``UnexpectedContentTypeError`` so the caller never parses the body.
+    """
+    content_type = headers.get("content-type")
+    if not content_type:
+        return None, "Content-Type header was not present; content type could not be validated"
+    base_type = content_type.split(";", 1)[0].strip().lower()
+    if base_type not in {media_type.lower() for media_type in allowed_media_types}:
+        raise UnexpectedContentTypeError(
+            f"unexpected Content-Type {content_type!r}; expected one of "
+            f"{sorted(allowed_media_types)}"
+        )
+    return content_type, None
 
 
 class ResilientHttpClient:
@@ -81,10 +113,13 @@ class ResilientHttpClient:
                     )
             except HTTPError as exc:
                 if exc.code == 304:
+                    not_modified_headers = {
+                        key.lower(): value for key, value in (exc.headers or {}).items()
+                    }
                     return HttpResponse(
                         url=url,
                         status=304,
-                        headers={},
+                        headers=not_modified_headers,
                         body=b"",
                         content_sha256=self.sha256(b""),
                     )

@@ -36,6 +36,7 @@ def build_staging_record(
     event_date: str | None = None,
     publication_date: str | None = None,
     source_signal: Mapping[str, Any] | None = None,
+    source_references: Sequence[str] = (),
     field_mapping_notes: Sequence[str] = (),
     warnings: Sequence[str] = (),
     known_limitations: Sequence[str] = (),
@@ -45,7 +46,10 @@ def build_staging_record(
     ``source_signal`` must only ever carry source-native hazard/context
     classifications (a GDACS alert level, a CAP severity/certainty/urgency
     triple); callers must never place a platform impact-severity value
-    there.
+    there. ``source_references`` is the dedicated home for CAP
+    ``<references>`` triples (Update/Cancel cross-message association);
+    ``source_revision`` remains reserved for a single source-native
+    revision value such as GDACS's ``episodeid``.
     """
     record: dict[str, Any] = {
         "source_id": source_id,
@@ -71,4 +75,6 @@ def build_staging_record(
     }
     if source_signal:
         record["source_signal"] = dict(source_signal)
+    if source_references:
+        record["source_references"] = list(source_references)
     return record

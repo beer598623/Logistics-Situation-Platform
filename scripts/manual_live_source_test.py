@@ -36,6 +36,9 @@ OUTPUT_DIR = ROOT / "manual_live_test_output"
 MAX_GDACS_DATE_SPAN_DAYS = 31
 MAX_REDACTED_STRING_LENGTH = 300
 MAX_STAGING_SAMPLE_SIZE = 5
+MAX_REPORT_LIST_ITEMS = 50
+MAX_REPORT_BYTES = 200_000
+MAX_SANITIZE_DEPTH = 8
 
 # Paths this workflow must never write to, checked defensively even though
 # this script never opens them.
@@ -91,6 +94,9 @@ def _redact_staging_record(record: dict[str, Any]) -> dict[str, Any]:
     is replaced with a length marker. Neither this function nor any caller
     ever has access to the raw XML/JSON response body -- adapters only ever
     return normalized staging records, so there is nothing to redact there.
+    This is a semantic, field-aware first pass; ``_sanitize_report`` below
+    is the unconditional, whole-report backstop that still applies even if
+    a future field is added here without updating this function.
     """
     redacted = copy.deepcopy(record)
     if isinstance(redacted.get("title"), str):
@@ -101,6 +107,53 @@ def _redact_staging_record(record: dict[str, Any]) -> dict[str, Any]:
             if isinstance(value, str):
                 signal[key] = _redact_string(value)
     return redacted
+
+
+def _sanitize_report(value: Any, *, _depth: int = 0) -> Any:
+    """Recursively bound every string and list in the report before it is
+    written to disk, printed to the Actions log, or uploaded as an
+    artifact.
+
+    This is intentionally unconditional -- it walks every value in the
+    report (top-level ``warnings``/``errors``, nested dicts/lists, URLs,
+    geography, field-mapping notes, and the already-redacted
+    ``staging_sample``) rather than trusting that each producer already
+    bounded its own output. A CAP parser warning can legitimately embed
+    attacker-controlled XML text (see ``collectors/adapters/cap.py``'s own
+    ``_bounded`` helper, which is a first line of defense at
+    warning-creation time); this is the second, independent line of
+    defense at the artifact boundary.
+    """
+    if _depth > MAX_SANITIZE_DEPTH:
+        return "<redacted: report nesting too deep>"
+    if isinstance(value, str):
+        return _redact_string(value)
+    if isinstance(value, list):
+        kept = value[:MAX_REPORT_LIST_ITEMS]
+        sanitized = [_sanitize_report(item, _depth=_depth + 1) for item in kept]
+        omitted = len(value) - len(kept)
+        if omitted > 0:
+            sanitized.append(f"<redacted: {omitted} more list items omitted>")
+        return sanitized
+    if isinstance(value, dict):
+        return {key: _sanitize_report(val, _depth=_depth + 1) for key, val in value.items()}
+    return value
+
+
+def _enforce_report_size_cap(report: dict[str, Any]) -> dict[str, Any]:
+    """Drop the (largest, least essential) staging_sample entirely if the
+    fully-sanitized report still exceeds a total byte cap, rather than
+    uploading an unbounded artifact."""
+    serialized_length = len(json.dumps(report).encode("utf-8"))
+    if serialized_length <= MAX_REPORT_BYTES:
+        return report
+    reduced = dict(report)
+    omitted_count = len(reduced.get("staging_sample") or [])
+    reduced["staging_sample"] = (
+        f"<redacted: {omitted_count} record(s) omitted -- report exceeded the "
+        f"{MAX_REPORT_BYTES}-byte cap>"
+    )
+    return reduced
 
 
 def _check_forbidden_paths_untouched(before: dict[Path, float | None]) -> list[str]:
@@ -241,6 +294,12 @@ def main(argv: list[str] | None = None) -> int:
         "note": "A successful manual test does not change these fields; that requires a "
         "separate reviewed pull request.",
     }
+
+    # Unconditional final pass: bound every string/list in the whole
+    # report, then drop the staging sample entirely if it is still too
+    # large. This must run after every field above has been added.
+    report = _sanitize_report(report)
+    report = _enforce_report_size_cap(report)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     report_path = OUTPUT_DIR / "report.json"

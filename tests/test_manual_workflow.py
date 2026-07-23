@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -13,7 +14,11 @@ sys.path.insert(0, str(ROOT))
 
 from collectors.registry import load_registry, source_by_id  # noqa: E402
 from scripts.manual_live_source_test import (  # noqa: E402
+    MAX_REPORT_BYTES,
+    MAX_REPORT_LIST_ITEMS,
+    _enforce_report_size_cap,
     _redact_staging_record,
+    _sanitize_report,
     run_gdacs,
     run_tmd_cap,
 )
@@ -166,3 +171,72 @@ def test_run_tmd_cap_dry_run_never_touches_network() -> None:
     report = run_tmd_cap(Args(), contract, dry_run=True)
     assert report["mode"] == "dry_run"
     assert "collection_run" not in report
+
+
+# --- Whole-report sanitizer: bounded strings, capped lists, capped bytes ----
+
+
+def test_sanitize_report_truncates_long_strings_anywhere_in_the_tree() -> None:
+    canary = "CANARY_REPORT_MARKER_" + ("z" * 1000)
+    report = {
+        "warnings": [canary],
+        "nested": {"deep": {"deeper": [canary, {"leaf": canary}]}},
+    }
+    sanitized = _sanitize_report(report)
+    serialized = json.dumps(sanitized)
+    # _redact_string replaces the whole oversized value with a length
+    # marker (no partial prefix retained), so not even a bounded fragment
+    # of the canary should survive anywhere in the tree.
+    assert "CANARY_REPORT_MARKER_" not in serialized
+    assert serialized.count("<redacted:") == 3
+
+
+def test_sanitize_report_caps_list_length() -> None:
+    report = {"warnings": [f"warning {i}" for i in range(MAX_REPORT_LIST_ITEMS + 25)]}
+    sanitized = _sanitize_report(report)
+    assert len(sanitized["warnings"]) == MAX_REPORT_LIST_ITEMS + 1  # + one omission marker
+    assert "omitted" in sanitized["warnings"][-1]
+
+
+def test_sanitize_report_does_not_mutate_the_original() -> None:
+    report = {"warnings": ["x" * 1000]}
+    _sanitize_report(report)
+    assert report["warnings"][0] == "x" * 1000
+
+
+def test_enforce_report_size_cap_drops_staging_sample_when_oversized() -> None:
+    huge_sample = [{"title": "x" * 10_000} for _ in range(50)]
+    report = {"staging_sample": huge_sample, "warnings": []}
+    reduced = _enforce_report_size_cap(report)
+    assert isinstance(reduced["staging_sample"], str)
+    assert "50" in reduced["staging_sample"]
+    assert len(json.dumps(reduced).encode("utf-8")) < MAX_REPORT_BYTES
+
+
+def test_enforce_report_size_cap_is_a_no_op_for_a_small_report() -> None:
+    report = {"staging_sample": [{"title": "short"}], "warnings": []}
+    assert _enforce_report_size_cap(report) == report
+
+
+def test_report_pipeline_never_leaks_a_canary_placed_in_a_cap_warning() -> None:
+    """End-to-end canary: a value invalid enough to trigger a CAP parser
+    warning, then run through the full report sanitizer, must never appear
+    verbatim in the final serialized report."""
+    from collectors.adapters.cap import parse_cap_alert
+
+    canary = "CANARY_END_TO_END_MARKER_" + ("Q" * 400)
+    xml = f"""<?xml version="1.0"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-e2e-canary</identifier>
+  <info>
+    <event>Synthetic event</event>
+    <effective>{canary}</effective>
+    <area><areaDesc>Synthetic area</areaDesc></area>
+  </info>
+</alert>""".encode()
+    _alert, warnings = parse_cap_alert(xml, max_bytes=1_000_000)
+    report = {"warnings": warnings, "errors": []}
+    sanitized = _sanitize_report(report)
+    serialized = json.dumps(sanitized)
+    assert canary not in serialized
+    assert "CANARY_END_TO_END_MARKER_" in serialized

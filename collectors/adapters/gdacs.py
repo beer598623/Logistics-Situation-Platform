@@ -13,6 +13,7 @@ source facts this adapter relies on.
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -20,6 +21,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from ..base import SourceAdapter
+from ..http_client import validate_content_type
 from ..models import CollectionResult, CollectionRun, RunStatus, SourceHealth, SourceStatus
 from ..staging import build_staging_record
 
@@ -29,6 +31,16 @@ ADAPTER_VERSION = "gdacs_v1"
 #: No official fixed polling cadence was found; this cap is the one hard
 #: numeric limit verified against the official documentation.
 OFFICIAL_MAX_PAGE_SIZE = 100
+
+#: GDACS's SEARCH endpoint is documented as GeoJSON/JSON. A response with
+#: any other Content-Type (most commonly an HTML error/redirect page) is
+#: rejected before parsing rather than fed to the JSON parser.
+GDACS_ALLOWED_CONTENT_TYPES = (
+    "application/json",
+    "application/geo+json",
+    "application/vnd.geo+json",
+    "text/json",
+)
 
 _KNOWN_LIMITATIONS = (
     "GDACS alert levels and impact estimates are model outputs (a hazard/"
@@ -47,9 +59,17 @@ _FIELD_MAPPING_NOTES = (
     "kept separate from source_external_id).",
     "source_signal.source_alert_level = properties.alertlevel (or "
     "episodealertlevel) -- a source hazard signal, never platform severity.",
-    "candidate_identity_inputs.event_date = properties.fromdate (date "
-    "component only); publication_date = properties.todate or "
-    "properties.datemodified, falling back to fromdate.",
+    "candidate_identity_inputs.event_date = properties.fromdate (date component only).",
+    "candidate_identity_inputs.publication_date / source_publication_time = "
+    "properties.datemodified ONLY -- a verified update timestamp. todate is "
+    "documented as the SEARCH result-ordering field (the event's own period "
+    "end), not an update/publication time, and is never substituted for it; "
+    "publication_date/source_publication_time stay null when datemodified "
+    "is absent rather than falling back to the event period.",
+    "source_signal.source_event_from_date / source_event_to_date / "
+    "source_date_modified preserve properties.fromdate/todate/datemodified "
+    "verbatim as distinct source-native fields, independent of which one "
+    "(if any) is used for publication provenance above.",
     "geography = [properties.iso3, properties.country], filtered to "
     "whichever of the two the response actually provided.",
 )
@@ -160,6 +180,13 @@ def _date_only(iso_datetime: str | None) -> str | None:
     return iso_datetime[:10]
 
 
+def _end_of_day_utc(date_str: str) -> str:
+    """Render a plain YYYY-MM-DD date as an end-of-day UTC date-time, used
+    as the collection run's ``data_cutoff_at`` -- the bounded request's own
+    bounded ``to_date``, not whenever the workflow happened to finish."""
+    return f"{date_str}T23:59:59Z"
+
+
 def _extract_geometry(feature: Mapping[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
     """Return (validated geometry, warning). Invalid geometry degrades to
     None with a warning rather than rejecting the whole record."""
@@ -182,14 +209,32 @@ def _extract_geometry(feature: Mapping[str, Any]) -> tuple[dict[str, Any] | None
             return {"type": "Point", "coordinates": [lon, lat]}, None
         return None, f"Point geometry coordinates out of range: {coordinates!r}"
 
-    if geom_type in {"Polygon", "MultiPolygon"} and isinstance(coordinates, (list, tuple)):
-        return {"type": geom_type, "coordinates": coordinates}, None
+    if geom_type in {"Polygon", "MultiPolygon"}:
+        # No validated parser exists yet for GDACS Polygon/MultiPolygon
+        # (ring closure, coordinate ranges, and nesting are unchecked) --
+        # drop rather than trust an unvalidated structure. Point geometry
+        # above is fully validated; only Polygon/MultiPolygon are affected.
+        return None, (
+            f"{geom_type} geometry validation is not yet implemented for GDACS; "
+            "dropped rather than accepted unvalidated"
+        )
 
     return None, f"unrecognized or malformed geometry type: {geom_type!r}"
 
 
-def normalize_event(feature: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
+def normalize_event(
+    feature: Mapping[str, Any],
+    *,
+    retrieved_at: str,
+    content_sha256: str,
+) -> tuple[dict[str, Any], list[str]]:
     """Normalize one GDACS GeoJSON feature into a staging record.
+
+    ``retrieved_at`` and ``content_sha256`` come from the single HTTP
+    response this feature was parsed out of, so every record this function
+    returns is already a schema-valid, fully-provenanced staging record --
+    there is no post-hoc mutation step a caller needs to perform, and every
+    record from one response shares identical retrieval provenance.
 
     Raises ``MalformedGdacsRecordError`` if the feature lacks the minimum
     fields required for stable identity or geography; callers must catch
@@ -227,9 +272,15 @@ def normalize_event(feature: Mapping[str, Any]) -> tuple[dict[str, Any], list[st
     from_date = _parse_gdacs_datetime(properties.get("fromdate"))
     to_date = _parse_gdacs_datetime(properties.get("todate"))
     date_modified = _parse_gdacs_datetime(properties.get("datemodified"))
-    publication_time = to_date or date_modified or from_date
     event_date = _date_only(from_date)
-    publication_date = _date_only(publication_time) or event_date
+    # todate is documented as the field GDACS SEARCH uses to order results
+    # (the event's own period end), not an update/publication timestamp --
+    # it must never be substituted for one. Only a verified update time
+    # (datemodified) counts as publication provenance; if GDACS did not
+    # supply it, publication stays explicitly unknown rather than
+    # defaulting to the event period.
+    publication_time = date_modified
+    publication_date = _date_only(publication_time)
 
     alert_level = properties.get("alertlevel") or properties.get("episodealertlevel")
     alert_score = properties.get("alertscore")
@@ -240,6 +291,15 @@ def normalize_event(feature: Mapping[str, Any]) -> tuple[dict[str, Any], list[st
         source_signal["source_alert_level"] = alert_level
     if alert_score is not None:
         source_signal["source_alert_score"] = alert_score
+    # Preserve fromdate/todate/datemodified as distinct, verbatim
+    # source-native fields, independent of which one (if any) fed
+    # source_publication_time/publication_date above.
+    if from_date is not None:
+        source_signal["source_event_from_date"] = from_date
+    if to_date is not None:
+        source_signal["source_event_to_date"] = to_date
+    if date_modified is not None:
+        source_signal["source_date_modified"] = date_modified
     severity_data = properties.get("severitydata")
     if isinstance(severity_data, Mapping):
         if severity_data.get("severity") is not None:
@@ -273,8 +333,8 @@ def normalize_event(feature: Mapping[str, Any]) -> tuple[dict[str, Any], list[st
 
     record = build_staging_record(
         source_id="GDACS",
-        retrieved_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-        content_sha256="",  # filled in by the caller from the raw response bytes
+        retrieved_at=retrieved_at,
+        content_sha256=content_sha256,
         parser_version=ADAPTER_VERSION,
         source_external_id=source_external_id,
         source_revision=source_revision,
@@ -297,8 +357,17 @@ def normalize_event(feature: Mapping[str, Any]) -> tuple[dict[str, Any], list[st
 
 def parse_event_list(
     payload: bytes | str | Mapping[str, Any],
+    *,
+    retrieved_at: str,
+    content_sha256: str,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Parse a GDACS event-list response into staging records.
+
+    ``retrieved_at`` and ``content_sha256`` describe the single HTTP
+    response this payload came from and are threaded into every emitted
+    record, so the return value is immediately a list of schema-valid
+    staging records sharing one retrieval provenance -- never an
+    intermediate object a caller must patch up afterwards.
 
     Every feature is attempted independently: a malformed feature is
     rejected with a structured warning and does not discard the rest of an
@@ -323,7 +392,9 @@ def parse_event_list(
     warnings: list[str] = []
     for index, feature in enumerate(features):
         try:
-            record, record_warnings = normalize_event(feature)
+            record, record_warnings = normalize_event(
+                feature, retrieved_at=retrieved_at, content_sha256=content_sha256
+            )
         except MalformedGdacsRecordError as exc:
             warnings.append(f"feature[{index}]: rejected -- {exc}")
             continue
@@ -376,6 +447,8 @@ class GdacsAdapter(SourceAdapter):
         records: list[dict[str, Any]] = []
         http_status: int | None = None
         content_sha256: str | None = None
+        etag: str | None = None
+        last_modified: str | None = None
         status = RunStatus.ERROR
 
         try:
@@ -387,16 +460,24 @@ class GdacsAdapter(SourceAdapter):
             )
             http_status = response.status
             content_sha256 = response.content_sha256
+            etag = response.headers.get("etag")
+            last_modified = response.headers.get("last-modified")
             if response.status == 304:
                 status = RunStatus.NOT_MODIFIED
             else:
-                records, parse_warnings = parse_event_list(response.body)
-                for record in records:
-                    record["content_sha256"] = content_sha256
+                _content_type, content_type_warning = validate_content_type(
+                    response.headers, GDACS_ALLOWED_CONTENT_TYPES
+                )
+                if content_type_warning:
+                    warnings.append(content_type_warning)
+                retrieved_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+                records, parse_warnings = parse_event_list(
+                    response.body, retrieved_at=retrieved_at, content_sha256=content_sha256
+                )
                 warnings.extend(parse_warnings)
                 status = RunStatus.SUCCESS
         except Exception as exc:  # noqa: BLE001 -- surfaced as a run error, not a crash
-            errors.append(str(exc))
+            errors.append(f"{type(exc).__name__}: {exc}")
             status = RunStatus.ERROR
 
         completed_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -406,17 +487,20 @@ class GdacsAdapter(SourceAdapter):
             started_at=started_at,
             completed_at=completed_at,
             status=status,
-            workflow_sha=None,
+            workflow_sha=os.environ.get("GITHUB_SHA"),
             adapter_version=self.adapter_version,
             request_url=url,
             http_status=http_status,
-            etag=None,
-            last_modified=None,
+            etag=etag,
+            last_modified=last_modified,
             content_sha256=content_sha256,
             records_received=len(records) + sum(1 for w in warnings if w.startswith("feature[")),
             records_emitted=len(records),
             records_rejected=sum(1 for w in warnings if w.startswith("feature[")),
-            data_cutoff_at=completed_at,
+            # The bounded request's own to_date (end of day, UTC), not the
+            # wall-clock time this workflow run happened to finish --
+            # data_cutoff_at describes the requested source data period.
+            data_cutoff_at=_end_of_day_utc(self.request.to_date),
             warnings=warnings,
             errors=errors,
         )

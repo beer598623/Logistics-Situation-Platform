@@ -65,6 +65,15 @@ review remain with ChatGPT and the human approval gate (see
   for deep-linking to internal pages. Both URLs are now recorded
   (`terms_url` + `reuse_reference_urls`), and `known_limitations` states
   plainly that these two statements are not fully aligned.
+- GDACS's SEARCH `todate` field orders result pages (the event's own period
+  end); it is documented for that purpose only, not as an update/publication
+  timestamp. `collectors/adapters/gdacs.py::normalize_event` derives
+  `source_publication_time`/`publication_date` **only** from `datemodified`
+  (a verified update timestamp) and leaves them explicitly `null` when
+  `datemodified` is absent, rather than substituting `todate`/`fromdate`.
+  `fromdate`/`todate`/`datemodified` are still preserved verbatim, all
+  three, as distinct `source_signal` fields regardless of which one (if
+  any) fed publication provenance.
 
 ### Unresolved / still assumptions
 
@@ -93,7 +102,7 @@ review remain with ChatGPT and the human approval gate (see
 | Source | External ID | Revision/episode axis | Notes |
 | --- | --- | --- | --- |
 | GDACS | `f"{eventtype}:{eventid}"` (composite) | `episodeid` (via `source_revision`) | `stable_id_field` is `["eventtype", "eventid"]`; `eventid` alone is not stable across event types. |
-| TMD CAP | CAP `<identifier>` | Not separately modeled; `msgType`/`references` preserved instead | CAP has no separate "revision" field distinct from `identifier`; an `Update`/`Cancel` message gets its *own* `identifier` and points back at the prior message via `<references>` (`sender,identifier,sent` triples). `source_revision` is left `null` for CAP records; associating an Update/Cancel with what it references is a later, human-reviewed step this pilot does not automate. |
+| TMD CAP | CAP `<identifier>` | `source_references` (dedicated array field); `source_revision` stays `null` | CAP has no separate single-value "revision" field distinct from `identifier`; an `Update`/`Cancel` message gets its *own* `identifier` and points back at the prior message via `<references>` (`sender,identifier,sent` triples). Those triples are preserved verbatim in the staging record's dedicated `source_references` array (not `source_revision`, and not duplicated into `source_signal`); associating an Update/Cancel with what it references is a later, human-reviewed step this pilot does not automate. |
 
 Both adapters produce **staging records** only
 (`schemas/staging_record.schema.json`, Section 6) -- neither assigns a
@@ -124,21 +133,29 @@ severity/impact field:
 
 - GDACS: `source_signal.source_alert_level` / `source_alert_score` (and,
   where present, `source_severity_value`/`source_severity_text` from
-  `severitydata`, plus `geometry` and `source_version`). GDACS alert
+  `severitydata`, `source_event_from_date`/`source_event_to_date`/
+  `source_date_modified` preserving `fromdate`/`todate`/`datemodified`
+  verbatim, plus a validated `geometry` and `source_version`). GDACS alert
   levels and impact estimates are model outputs -- a hazard/context
   signal -- and are never mapped to platform logistics severity anywhere
-  in `collectors/adapters/gdacs.py`.
+  in `collectors/adapters/gdacs.py`. Only validated `Point` geometry is
+  ever placed in `source_signal.geometry`; `Polygon`/`MultiPolygon` are
+  dropped with a warning until a tested validator exists (Section 9).
 - CAP/TMD: `source_signal.severity`/`urgency`/`certainty` (the CAP enums),
-  `cap_category`, `msgType`, `status`, `scope`, `references`, `language`.
-  A TMD warning establishes official hazard/warning status only; nothing
-  in `collectors/adapters/tmd_cap.py` or `collectors/adapters/cap.py`
-  infers or emits an observed transport, facility, port, airport,
-  warehouse, or trade disruption. Every staging record's
-  `known_limitations` states this explicitly, and missing operational
-  evidence stays absent (not a zero or "no impact" value) -- staging
-  records simply carry no impact/severity field for a later, human-driven
-  promotion step to populate as `insufficient_evidence` if nothing else is
-  known.
+  `cap_category`, `msgType`, `status`, `scope`, `language`. CAP
+  `<references>` triples go in the dedicated `source_references` array
+  (Section 3), not `source_signal`. A TMD warning establishes official
+  hazard/warning status only; nothing in `collectors/adapters/tmd_cap.py`
+  or `collectors/adapters/cap.py` infers or emits an observed transport,
+  facility, port, airport, warehouse, or trade disruption. Every staging
+  record's `known_limitations` states this explicitly, and missing
+  operational evidence stays absent (not a zero or "no impact" value) --
+  staging records simply carry no impact/severity field for a later,
+  human-driven promotion step to populate as `insufficient_evidence` if
+  nothing else is known. `source_url` for TMD records is always the
+  contract-level CAP endpoint, never a source-provided CAP `<web>` deep
+  link, while TMD's deep-link permission question remains
+  `pending_review`.
 
 ## 6. Schema/contract extensions (Scope A)
 
@@ -170,9 +187,16 @@ output contract both adapters build through
 retrieval time, content hash, parser version, source external ID,
 `candidate_identity_inputs` (the controlled fields a later promotion step
 would pass to `resolve_event_identity`), source publication/sent time,
-source revision, `source_signal` (hazard/context only), field-mapping
-notes, warnings, and known limitations. It intentionally has no impact,
-severity-of-disruption, or `canonical_event_id` field.
+source revision, `source_signal` (hazard/context only), an optional
+`source_references` array (CAP `<references>` triples, kept separate from
+`source_revision` -- Section 3), field-mapping notes, warnings, and known
+limitations. It intentionally has no impact, severity-of-disruption, or
+`canonical_event_id` field. Every record returned by
+`collectors/adapters/gdacs.py::parse_event_list` /
+`collectors/adapters/tmd_cap.py::normalize_tmd_alert` is immediately
+schema-valid -- `retrieved_at` and `content_sha256` are threaded in from
+the single HTTP response a batch of records came from, not patched onto
+the record afterwards by a caller.
 
 ## 7. Manual workflow instructions (Scope D)
 
@@ -194,14 +218,37 @@ creation. To run it:
 5. For `tmd_cap`, set `language` to `primary` (English) or
    `thai_language_cap` (Thai), matching `alternate_endpoints`.
 
+Both adapters validate the response `Content-Type` against a documented
+allowlist (`GDACS_ALLOWED_CONTENT_TYPES` / `TMD_CAP_ALLOWED_CONTENT_TYPES`
+in `collectors/http_client.py::validate_content_type`) before parsing --
+an HTML error/login page returned in place of real data is rejected as an
+`UnexpectedContentTypeError` run failure rather than fed to the JSON/XML
+parser; a missing (not merely mismatched) `Content-Type` header is not
+fatal but is recorded as a warning. Each collection run also retains the
+response's `ETag`/`Last-Modified` headers and, when running in GitHub
+Actions, `GITHUB_SHA` as `workflow_sha` -- all previously hardcoded to
+`null`.
+
 The workflow uploads exactly one artifact: a redacted JSON report
 (`manual_live_test_output/report.json`) containing the collection-run
-manifest, safe status fields (HTTP status, content hash, record counts),
-parser warnings/errors, and a staging-record sample with long free-text
-values truncated (`scripts/manual_live_source_test.py::_redact_staging_record`).
-For TMD, the raw XML payload is never written to disk or uploaded --
-adapters only ever return normalized staging records, which never carry
-full `description`/`instruction` text in the first place. A `git status
+manifest, safe status fields (HTTP status, content type, content hash,
+record counts), parser warnings/errors, and a staging-record sample with
+long free-text values truncated
+(`scripts/manual_live_source_test.py::_redact_staging_record`). Before
+writing or printing the report, `_sanitize_report` recursively bounds
+**every** string and caps every list length across the *entire* report
+tree (not just the staging sample) -- top-level `warnings`/`errors`,
+nested dicts/lists, URLs, geography, field-mapping notes -- and
+`_enforce_report_size_cap` drops the staging sample entirely (replacing it
+with a short summary) if the fully-sanitized report still exceeds a total
+byte cap. This is deliberately a second, independent line of defense: the
+CAP parser's own `_bounded` helper already truncates untrusted values at
+warning-creation time (`collectors/adapters/cap.py`), and the report-level
+pass still re-applies regardless. For TMD, the raw XML payload is never
+written to disk or uploaded -- adapters only ever return normalized
+staging records, which never carry full `description`/`instruction` text
+or a source-provided CAP `<web>` deep link in the first place
+(`source_url` is always the contract-level endpoint). A `git status
 --porcelain` check on `data/candidates`, `data/reviewed`,
 `data/source_status`, and `dashboard/public/data` runs as a workflow step
 and fails the job if any of those paths changed; the script itself also
@@ -251,7 +298,28 @@ for this pilot):
   CAP `<info>` block has no `<area>` with a `geocode`/`areaDesc`; this is
   coarser than a real sub-national geocode and is flagged with an explicit
   warning every time it triggers.
+- GDACS `Polygon`/`MultiPolygon` geometry has no tested validator yet
+  (ring closure, coordinate ranges, and nesting are unchecked); until one
+  exists, `_extract_geometry` drops both geometry types with a warning
+  rather than trusting them unvalidated. Only `Point` geometry (fully
+  range-validated) is ever placed in `source_signal.geometry`.
+- The CAP root-element check now requires the tag to be *exactly*
+  `{urn:oasis:names:tc:emergency:cap:1.2}alert`, not merely any element in
+  the CAP 1.2 namespace -- a same-namespace `<info>` or `<circle>` document
+  is rejected as malformed rather than misread as an alert.
+- `collectors/source_health.py::_fresh_boundary_minutes` falls back to half
+  of `max_stale_minutes` whenever `expected_cadence_minutes` is `null`
+  (true for GDACS in this pilot). That derived boundary is an
+  implementation default for freshness *evaluation*, not an official GDACS
+  cadence fact; a later production-enablement change must define GDACS
+  freshness explicitly rather than treating the derived ~90-minute value as
+  verified.
 - Neither adapter's `collect()` method is exercised against a live
   response in CI (by design -- "No network calls in unit tests"); the
   first live validation only happens through the controlled manual
   workflow, reviewed by a human.
+- The manual workflow's collection-run manifest records the *requested*
+  URL as `request_url`; it does not separately track the final URL after
+  any HTTP redirect. In practice these coincide for the documented GDACS/
+  TMD endpoints; a future increment could add a dedicated field if
+  redirect tracking becomes load-bearing.

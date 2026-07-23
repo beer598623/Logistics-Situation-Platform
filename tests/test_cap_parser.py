@@ -35,6 +35,18 @@ def test_valid_alert_is_recognized_in_the_cap_1_2_namespace() -> None:
     assert CAP_NAMESPACE_1_2 == "urn:oasis:names:tc:emergency:cap:1.2"
 
 
+def test_root_element_must_be_exactly_alert_not_any_cap_namespace_element() -> None:
+    """Regression for the ChatGPT review: a same-namespace element that is
+    not <alert> (e.g. a bare <info> document) must not be accepted just
+    because it sits in the CAP 1.2 namespace and happens to contain an
+    <identifier> child."""
+    non_alert_root = (
+        b'<info xmlns="urn:oasis:names:tc:emergency:cap:1.2"><identifier>x</identifier></info>'
+    )
+    with pytest.raises(MalformedCapAlertError):
+        parse_cap_alert(non_alert_root, max_bytes=10_000)
+
+
 # --- Required identifier handling --------------------------------------------
 
 
@@ -130,6 +142,70 @@ def test_invalid_geometry_and_timestamp_are_dropped_with_warnings_not_a_crash() 
     assert any("polygon is not a closed ring" in warning for warning in warnings)
     assert any("circle out of range" in warning for warning in warnings)
     assert any("not a valid CAP timestamp" in warning for warning in warnings)
+
+
+# --- Canary: untrusted values are bounded before reaching a warning ---------
+
+
+def _make_alert_with_circle(circle_text: str) -> bytes:
+    return f"""<?xml version="1.0"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-canary-circle</identifier>
+  <info>
+    <event>Synthetic canary event</event>
+    <area>
+      <areaDesc>Synthetic canary area</areaDesc>
+      <circle>{circle_text}</circle>
+    </area>
+  </info>
+</alert>""".encode()
+
+
+def test_invalid_circle_value_is_truncated_not_echoed_verbatim_in_a_warning() -> None:
+    canary = "CANARY_CIRCLE_MARKER_" + ("Z" * 500)
+    _alert, warnings = parse_cap_alert(_make_alert_with_circle(canary), max_bytes=1_000_000)
+    joined = " ".join(warnings)
+    assert canary not in joined
+    assert "CANARY_CIRCLE_MARKER_" in joined  # the bounded prefix is still visible
+    assert "chars omitted" in joined
+
+
+def test_invalid_polygon_coordinate_is_truncated_not_echoed_verbatim_in_a_warning() -> None:
+    canary_pair = "CANARY_POLY_MARKER_" + ("9" * 500) + ",0"
+    xml = f"""<?xml version="1.0"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-canary-polygon</identifier>
+  <info>
+    <event>Synthetic canary event</event>
+    <area>
+      <areaDesc>Synthetic canary area</areaDesc>
+      <polygon>{canary_pair} 1.0,1.0 2.0,2.0</polygon>
+    </area>
+  </info>
+</alert>""".encode()
+    _alert, warnings = parse_cap_alert(xml, max_bytes=1_000_000)
+    joined = " ".join(warnings)
+    assert canary_pair not in joined
+    assert "CANARY_POLY_MARKER_" in joined
+    assert "chars omitted" in joined
+
+
+def test_invalid_timestamp_value_is_truncated_not_echoed_verbatim_in_a_warning() -> None:
+    canary = "CANARY_TIMESTAMP_MARKER_" + ("x" * 500)
+    xml = f"""<?xml version="1.0"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-canary-timestamp</identifier>
+  <info>
+    <event>Synthetic canary event</event>
+    <effective>{canary}</effective>
+    <area><areaDesc>Synthetic canary area</areaDesc></area>
+  </info>
+</alert>""".encode()
+    _alert, warnings = parse_cap_alert(xml, max_bytes=1_000_000)
+    joined = " ".join(warnings)
+    assert canary not in joined
+    assert "CANARY_TIMESTAMP_MARKER_" in joined
+    assert "chars omitted" in joined
 
 
 # --- DTD/XXE rejection ---------------------------------------------------------

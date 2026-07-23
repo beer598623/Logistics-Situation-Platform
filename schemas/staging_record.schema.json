@@ -41,7 +41,7 @@
       "type": ["string", "null"]
     },
     "source_revision": {
-      "description": "Episode/revision/message-reference identity, kept separate from source_external_id (e.g. GDACS episodeid, or a CAP <references> value for Update/Cancel messages).",
+      "description": "A single source-native episode/revision value, kept separate from source_external_id (e.g. GDACS episodeid). CAP has no equivalent single-value revision field -- its Update/Cancel cross-message association goes in source_references instead, not here.",
       "type": ["string", "null"]
     },
     "source_publication_time": {
@@ -99,6 +99,11 @@
     "source_signal": {
       "description": "Source-native hazard/context classification, e.g. {\"source_alert_level\": \"Orange\"} for GDACS or {\"severity\": \"Severe\", \"certainty\": \"Likely\", \"urgency\": \"Immediate\"} for CAP. Never a platform impact-severity value.",
       "type": "object"
+    },
+    "source_references": {
+      "description": "CAP <references> triples ('sender,identifier,sent'), preserved verbatim, that this message points at -- used to associate an Update/Cancel message with the alert(s) it refers to. Distinct from source_revision, which is reserved for a single source-native revision value (e.g. GDACS episodeid); CAP has no such single-value field, so its cross-message association goes here instead. Omitted or empty when a source has no such references.",
+      "type": "array",
+      "items": {"type": "string"}
     },
     "field_mapping_notes": {
       "description": "Short notes documenting which raw source field each normalized field came from, and any transformation applied.",
