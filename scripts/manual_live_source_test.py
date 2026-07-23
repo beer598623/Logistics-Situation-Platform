@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -30,6 +31,7 @@ sys.path.insert(0, str(ROOT))
 
 from collectors.adapters.gdacs import GdacsAdapter, build_search_request  # noqa: E402
 from collectors.adapters.tmd_cap import TmdCapAdapter, resolve_endpoint  # noqa: E402
+from collectors.error_classification import classify_error  # noqa: E402
 from collectors.registry import load_registry, source_by_id  # noqa: E402
 
 OUTPUT_DIR = ROOT / "manual_live_test_output"
@@ -39,6 +41,17 @@ MAX_STAGING_SAMPLE_SIZE = 5
 MAX_REPORT_LIST_ITEMS = 50
 MAX_REPORT_BYTES = 200_000
 MAX_SANITIZE_DEPTH = 8
+
+#: Matches the user-info component of an http(s) URL (``user:pass@`` or
+#: ``user@``) anywhere inside a string. This is the report-level second
+#: line of defense (review round 2, finding 2): every URL field an adapter
+#: produces is already redacted at the source via
+#: ``collectors.url_redaction.redact_url_userinfo``, but this pattern is
+#: applied unconditionally to *every* string in the report -- including one
+#: a future field might add without routing it through that helper -- the
+#: same "first pass at creation time, second pass at the artifact boundary"
+#: layering ``_sanitize_report`` already uses for length bounding.
+_URL_USERINFO_PATTERN = re.compile(r"(https?://)[^\s/@]+@")
 
 # Paths this workflow must never write to, checked defensively even though
 # this script never opens them.
@@ -78,10 +91,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="TMD CAP only: 'primary' for the English endpoint, or an alternate_endpoints "
         "label (e.g. 'thai_language_cap') for the Thai endpoint.",
     )
+    parser.add_argument(
+        "--tmd-operation",
+        default="direct_cap",
+        choices=["direct_cap", "rss_discovery"],
+        help="TMD CAP only: 'direct_cap' (default; current strict CAP behavior) or "
+        "'rss_discovery' (classify and inspect one RSS envelope only -- never fetches "
+        "any discovered item link or enclosure).",
+    )
     return parser.parse_args(argv)
 
 
 def _redact_string(value: str) -> str:
+    value = _URL_USERINFO_PATTERN.sub(r"\1", value)
     if len(value) <= MAX_REDACTED_STRING_LENGTH:
         return value
     return f"<redacted: {len(value)} chars>"
@@ -231,6 +253,9 @@ def run_gdacs(args: argparse.Namespace, contract: dict[str, Any], dry_run: bool)
     }
     report["warnings"] = result.warnings
     report["errors"] = result.errors
+    report["error_code"] = result.error_code
+    report["error_category"] = result.error_category
+    report["envelope_classification"] = result.envelope_classification
     report["staging_sample"] = [
         _redact_staging_record(record) for record in result.records[:MAX_STAGING_SAMPLE_SIZE]
     ]
@@ -240,15 +265,45 @@ def run_gdacs(args: argparse.Namespace, contract: dict[str, Any], dry_run: bool)
 def run_tmd_cap(
     args: argparse.Namespace, contract: dict[str, Any], dry_run: bool
 ) -> dict[str, Any]:
+    operation = args.tmd_operation
     endpoint = resolve_endpoint(contract, language=args.language)
-    report: dict[str, Any] = {"endpoint": endpoint, "language": args.language}
+    report: dict[str, Any] = {
+        "operation": operation,
+        "endpoint": endpoint,
+        "language": args.language,
+    }
 
     if dry_run:
         report["mode"] = "dry_run"
-        report["note"] = "Endpoint resolved from contract only; no network call was made."
+        report["note"] = (
+            f"Endpoint resolved from contract only for operation={operation!r}; "
+            "no network call was made."
+        )
         return report
 
     adapter = TmdCapAdapter(contract, language=args.language)
+
+    if operation == "rss_discovery":
+        outcome = adapter.discover_rss()
+        report["mode"] = "live"
+        report["fetch"] = {
+            "request_url": outcome.request_url,
+            "response_url": outcome.response_url,
+            "http_status": outcome.http_status,
+            "content_type": outcome.content_type,
+            "etag": outcome.etag,
+            "last_modified": outcome.last_modified,
+            "content_sha256": outcome.content_sha256,
+            "workflow_sha": outcome.workflow_sha,
+        }
+        report["envelope_classification"] = outcome.envelope_classification
+        report["discovery"] = outcome.discovery
+        report["warnings"] = outcome.warnings
+        report["errors"] = outcome.errors
+        report["error_code"] = outcome.error_code
+        report["error_category"] = outcome.error_category
+        return report
+
     result = adapter.collect()
     report["mode"] = "live"
     report["collection_run"] = result.run.to_dict()
@@ -259,6 +314,15 @@ def run_tmd_cap(
     }
     report["warnings"] = result.warnings
     report["errors"] = result.errors
+    # A direct-CAP failure that stems from receiving a non-CAP envelope
+    # (e.g. the WO-003 "received rss" rejection) is handled inside
+    # TmdCapAdapter.collect() itself, not raised to this caller -- expose
+    # its structured error_code/error_category and, when computed, the
+    # envelope classification here too, rather than leaving them buried in
+    # a warning string only.
+    report["error_code"] = result.error_code
+    report["error_category"] = result.error_category
+    report["envelope_classification"] = result.envelope_classification
     # Never include the raw XML payload or full description/instruction text:
     # staging records never carry those fields in the first place (see
     # collectors/adapters/tmd_cap.py::normalize_tmd_alert), and the redaction
@@ -267,6 +331,18 @@ def run_tmd_cap(
         _redact_staging_record(record) for record in result.records[:MAX_STAGING_SAMPLE_SIZE]
     ]
     return report
+
+
+def _classify_error_category(exc: BaseException) -> str:
+    """Map an exception to a short, stable error category for the report.
+
+    Thin wrapper over ``collectors.error_classification.classify_error``,
+    kept so existing callers/tests can ask for just the category string.
+    Best-effort classification only -- an unrecognized exception type
+    still yields a result (category ``"unexpected"``), never a reason to
+    skip writing a report.
+    """
+    return classify_error(exc)[1]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -278,10 +354,33 @@ def main(argv: list[str] | None = None) -> int:
 
     before = _snapshot_forbidden_paths()
 
-    if args.source == "gdacs":
-        report = run_gdacs(args, contract, dry_run)
-    else:
-        report = run_tmd_cap(args, contract, dry_run)
+    try:
+        if args.source == "gdacs":
+            report = run_gdacs(args, contract, dry_run)
+        else:
+            report = run_tmd_cap(args, contract, dry_run)
+    except (SystemExit, Exception) as exc:
+        # Scope F: an expected adapter/parser failure or an unexpected
+        # exception raised before/outside an adapter's own try/except must
+        # still produce a sanitized diagnostic report -- the forbidden-path
+        # snapshot was already taken above, and the check below still runs
+        # against it regardless of this branch. This must never suppress
+        # the failure: the returned report always carries a non-empty
+        # "errors" list, so the exit-code check further down still returns
+        # non-zero.
+        error_message = (
+            str(exc.code) if isinstance(exc, SystemExit) else f"{type(exc).__name__}: {exc}"
+        )
+        error_code, error_category = classify_error(exc)
+        report = {
+            "mode": "dry_run" if dry_run else "live",
+            "operation": getattr(args, "tmd_operation", None) if args.source == "tmd_cap" else None,
+            "endpoint": None,
+            "error_code": error_code,
+            "error_category": error_category,
+            "warnings": [],
+            "errors": [error_message],
+        }
 
     problems = _check_forbidden_paths_untouched(before)
     report["source_id"] = contract["id"]

@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import random
 import time
+import urllib.request
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
@@ -34,6 +35,38 @@ class UnexpectedContentTypeError(RuntimeError):
     documented allowlist (e.g. an HTML error/login page returned in place of
     JSON or XML data). Callers should treat this the same as any other
     fetch failure -- the body must not be parsed."""
+
+
+class DiscoveryRedirectError(RuntimeError):
+    """Raised by ``ResilientHttpClient.get_no_redirect`` when the response
+    was an HTTP redirect (3xx). Discovery mode (WO-004 review round 2,
+    finding 1) makes at most one physical request to the configured
+    endpoint and must never request a redirect's ``Location`` target --
+    this is enforced at the transport layer, before any such request could
+    be made, not merely by capping retry attempts. The message carries only
+    the rejected status code, never response body content."""
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Rejects every HTTP redirect instead of the default urllib behavior
+    of transparently following it. ``redirect_request`` is urllib's own
+    extension point for this -- raising here happens before urllib would
+    otherwise construct and send a second request to ``newurl``."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ARG002
+        raise DiscoveryRedirectError(
+            f"refused to follow HTTP {code} redirect; discovery mode makes at "
+            "most one request to the configured endpoint and never requests "
+            "a redirect target"
+        )
+
+
+def _build_no_redirect_opener() -> urllib.request.OpenerDirector:
+    """Factored out of ``get_no_redirect`` so tests can substitute a fully
+    in-memory opener (a fake protocol handler alongside this same
+    ``_NoRedirectHandler``) without touching production networking code or
+    opening a real socket."""
+    return urllib.request.build_opener(_NoRedirectHandler)
 
 
 def validate_content_type(
@@ -136,3 +169,71 @@ class ResilientHttpClient:
                 time.sleep(delay)
 
         raise RuntimeError(f"GET failed after {attempts} attempts: {url}") from last_error
+
+    def get_no_redirect(
+        self,
+        url: str,
+        *,
+        timeout_seconds: int,
+        max_response_bytes: int,
+        etag: str | None = None,
+        last_modified: str | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> HttpResponse:
+        """Discovery-only fetch (WO-004 review round 2, finding 1): exactly
+        one physical HTTP request, no retry loop, and no redirect ever
+        followed. A 3xx response raises ``DiscoveryRedirectError`` -- via
+        ``_NoRedirectHandler.redirect_request`` -- before urllib would
+        otherwise construct and send a request to the redirect's
+        ``Location`` target. This is a stronger, transport-level guarantee
+        than merely capping a retry count: even a single ``attempts=1``
+        call to ``get()`` would still transparently follow a redirect to
+        another host (or a private address), since retry count and
+        redirect-following are unrelated urllib behaviors.
+
+        Used only by ``TmdCapAdapter.discover_rss()``. GDACS and
+        direct-CAP collection (``get()``, above) are unaffected and keep
+        following redirects and retrying exactly as before this method was
+        added.
+        """
+        if urlparse(url).scheme not in {"http", "https"}:
+            raise ValueError("Only HTTP and HTTPS source endpoints are permitted")
+
+        request_headers = {"User-Agent": self.user_agent, "Accept": "*/*"}
+        if headers:
+            request_headers.update(headers)
+        if etag:
+            request_headers["If-None-Match"] = etag
+        if last_modified:
+            request_headers["If-Modified-Since"] = last_modified
+
+        opener = _build_no_redirect_opener()
+        request = Request(url, headers=request_headers, method="GET")
+        try:
+            with opener.open(request, timeout=timeout_seconds) as response:
+                body = response.read(max_response_bytes + 1)
+                if len(body) > max_response_bytes:
+                    raise ResponseTooLargeError(
+                        f"Response from {url} exceeded {max_response_bytes} bytes"
+                    )
+                normalized_headers = {key.lower(): value for key, value in response.headers.items()}
+                return HttpResponse(
+                    url=response.geturl(),
+                    status=response.status,
+                    headers=normalized_headers,
+                    body=body,
+                    content_sha256=self.sha256(body),
+                )
+        except HTTPError as exc:
+            if exc.code == 304:
+                not_modified_headers = {
+                    key.lower(): value for key, value in (exc.headers or {}).items()
+                }
+                return HttpResponse(
+                    url=url,
+                    status=304,
+                    headers=not_modified_headers,
+                    body=b"",
+                    content_sha256=self.sha256(b""),
+                )
+            raise

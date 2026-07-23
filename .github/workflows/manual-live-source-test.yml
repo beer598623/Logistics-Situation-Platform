@@ -43,6 +43,14 @@ on:
         required: false
         type: string
         default: "primary"
+      tmd_operation:
+        description: "TMD CAP only: 'direct_cap' (current strict CAP behavior) or 'rss_discovery' (classify and inspect one RSS envelope only, no fetch of items/enclosures)"
+        required: false
+        type: choice
+        default: "direct_cap"
+        options:
+          - direct_cap
+          - rss_discovery
 
 permissions:
   contents: read
@@ -74,6 +82,7 @@ jobs:
           EVENT_TYPES: ${{ inputs.event_types }}
           ALERT_LEVELS: ${{ inputs.alert_levels }}
           LANGUAGE: ${{ inputs.language }}
+          TMD_OPERATION: ${{ inputs.tmd_operation }}
         run: |
           python scripts/manual_live_source_test.py \
             --source "$SOURCE" \
@@ -82,9 +91,18 @@ jobs:
             --to-date "$TO_DATE" \
             --event-types "$EVENT_TYPES" \
             --alert-levels "$ALERT_LEVELS" \
-            --language "$LANGUAGE"
+            --language "$LANGUAGE" \
+            --tmd-operation "$TMD_OPERATION"
 
+      # Scope F (WO-004): this check must still run even when the script
+      # step above failed (an expected adapter/parser failure, e.g. a
+      # strict CAP rejection of an RSS envelope, still exits non-zero) --
+      # a skipped safety check is itself a gap. `if: always()` does not
+      # weaken the gate: the job still fails if the script step failed,
+      # and this step's own `test -z` still fails the job independently if
+      # a forbidden path was touched.
       - name: Confirm public dashboard/current-event data are unchanged
+        if: always()
         run: |
           git status --porcelain data/candidates data/reviewed data/source_status dashboard/public/data
           test -z "$(git status --porcelain data/candidates data/reviewed data/source_status dashboard/public/data)"

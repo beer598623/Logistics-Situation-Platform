@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic Test Feed</title>
+    <link>https://feed.example.test/</link>
+    <description>Synthetic RSS fixture for discovery testing only.</description>
+    <item>
+      <title>Synthetic same-host item</title>
+      <link>https://feed.example.test/warnings/item-001</link>
+      <guid isPermaLink="true">https://feed.example.test/warnings/item-001</guid>
+      <pubDate>Wed, 23 Jul 2026 10:00:00 GMT</pubDate>
+      <description>Synthetic description text for fixture purposes only.</description>
+    </item>
+  </channel>
+</rss>

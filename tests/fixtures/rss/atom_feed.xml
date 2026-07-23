@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Synthetic Atom Feed</title>
+  <link href="https://feed.example.test/atom" />
+  <updated>2026-07-23T15:00:00Z</updated>
+  <id>urn:uuid:00000000-0000-0000-0000-000000000000</id>
+  <entry>
+    <title>Synthetic Atom entry</title>
+    <link href="https://feed.example.test/atom/item-006" />
+    <id>urn:uuid:11111111-1111-1111-1111-111111111111</id>
+    <updated>2026-07-23T15:00:00Z</updated>
+    <summary>Synthetic entry for fixture purposes only.</summary>
+  </entry>
+</feed>
