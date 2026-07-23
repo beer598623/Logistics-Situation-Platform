@@ -1,6 +1,6 @@
 version: "0.2"
 policy: free_public_sources_only
-last_reviewed_at: "2026-07-22"
+last_reviewed_at: "2026-07-23"
 sources:
   - id: GDACS
     name: Global Disaster Alert and Coordination System
@@ -14,13 +14,15 @@ sources:
     format: geojson
     machine_readable_status: verified
     parser: gdacs_v1
-    stable_id_field: eventid
-    expected_cadence_minutes: 6
+    stable_id_field: [eventtype, eventid]
+    revision_id_field: episodeid
+    expected_cadence_minutes: null
     max_stale_minutes: 180
     publication_lag: variable
     pagination:
       type: page_number
       page_size: 100
+      max_page_size: 100
     http:
       supports_etag: unknown
       supports_last_modified: unknown
@@ -31,11 +33,22 @@ sources:
       backoff: exponential_jitter
     licence_status: reviewed
     terms_url: https://www.gdacs.org/documents/2025/GDACS_Terms_of_use_Mar_25.pdf
-    terms_reviewed_at: "2026-07-22"
+    terms_reviewed_at: "2026-07-23"
+    reuse_reference_urls:
+      - label: gdacs_api_quickstart
+        url: https://gdacs.org/Documents/2025/GDACS_API_quickstart_v1.pdf
+      - label: gdacs_swagger_openapi
+        url: https://www.gdacs.org/gdacsapi/swagger/index.html
+      - label: gdacs_terms_of_use_page
+        url: https://www.gdacs.org/About/termofuse.aspx
     fallback_sources: []
     known_limitations:
       - Hazard alerts do not by themselves establish operational logistics disruption.
       - Publication timing and alert levels vary by hazard type.
+      - No official fixed polling cadence or public rate-limit quota was found; expected_cadence_minutes is unknown, not a proven six-minute cadence.
+      - Responses are limited to 100 records per page; callers must page with pagenumber (and optionally pagesize) to retrieve a full result set.
+      - GDACS alert levels and impact estimates are model outputs and must remain a source signal (source_alert_level), never platform logistics severity.
+      - Automatic notifications may contain uncertainty or error, do not replace national authorities, and have no guaranteed completeness or timeliness.
     enabled: false
     required_for_publication: false
 
@@ -46,11 +59,14 @@ sources:
     purposes: [thailand_weather_alerts, hazard_detection]
     authoritative_for: [thailand_official_weather_warning]
     landing_url: https://www.tmd.go.th/en/
-    endpoint: null
+    endpoint: https://www.tmd.go.th/en/api/xml/CAP
+    alternate_endpoints:
+      - label: thai_language_cap
+        url: https://www.tmd.go.th/api/xml/CAP
     access_method: cap
     format: xml
     machine_readable_status: unverified
-    parser: cap_v1
+    parser: tmd_cap_v1
     stable_id_field: identifier
     expected_cadence_minutes: null
     max_stale_minutes: 180
@@ -67,12 +83,21 @@ sources:
       attempts: 3
       backoff: exponential_jitter
     licence_status: pending_review
-    terms_url: null
-    terms_reviewed_at: null
+    terms_url: https://www.tmd.go.th/content/copyright
+    terms_reviewed_at: "2026-07-23"
+    reuse_reference_urls:
+      - label: tmd_website_policy
+        url: https://www.tmd.go.th/content/policy
+      - label: wmo_alerting_authority_registration
+        url: https://alertingauthority.wmo.int/authorities.php?recId=164
+      - label: tmd_rss_open_data_page
+        url: https://www.tmd.go.th/en/service/rss
     fallback_sources: []
     known_limitations:
       - Machine-readable endpoint and update cadence must pass an integration test before enablement.
       - A warning indicates hazard potential, not confirmed transport or facility disruption.
+      - TMD's copyright notice permits non-commercial public republication with source attribution, but its separate website policy states that deep-linking to internal pages requires written permission; these statements are not fully aligned, so licence_status remains pending_review and the conflict is not assumed resolved.
+      - Content type and parseability of the live English and Thai CAP endpoints have not yet been validated by the controlled manual workflow; machine_readable_status remains unverified until that validation occurs.
     enabled: false
     required_for_publication: false
 

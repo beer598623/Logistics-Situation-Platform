@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE alert [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-xxe-attack-0004</identifier>
+  <sender>attacker@example.test</sender>
+  <sent>2026-07-20T14:39:01+07:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>en-US</language>
+    <category>Met</category>
+    <event>&xxe;</event>
+    <urgency>Immediate</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <headline>&xxe;</headline>
+    <area>
+      <areaDesc>Synthetic Test Province</areaDesc>
+    </area>
+  </info>
+</alert>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>synthetic-tmd-cap-0002</identifier>
+  <sender>synthetic-tmd@example.test</sender>
+  <sent>2026-07-20T18:00:00+07:00</sent>
+  <status>Actual</status>
+  <msgType>Update</msgType>
+  <scope>Public</scope>
+  <references>synthetic-tmd@example.test,synthetic-tmd-cap-0001,2026-07-20T14:39:01+07:00</references>
+  <info>
+    <language>en-US</language>
+    <category>Met</category>
+    <event>Synthetic Severe Thunderstorm Warning (Updated)</event>
+    <urgency>Expected</urgency>
+    <severity>Moderate</severity>
+    <certainty>Observed</certainty>
+    <effective>2026-07-20T18:00:00+07:00</effective>
+    <expires>2026-07-20T21:00:00+07:00</expires>
+    <headline>Synthetic thunderstorm warning downgraded for the test province</headline>
+    <description>Synthetic updated hazard description for fixture purposes only.</description>
+    <area>
+      <areaDesc>Synthetic Test Province</areaDesc>
+      <geocode>
+        <valueName>ISO3166_2</valueName>
+        <value>TH-10</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <sender>synthetic-tmd@example.test</sender>
+  <sent>2026-07-20T14:39:01+07:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <info>
+    <language>en-US</language>
+    <category>Met</category>
+    <event>Synthetic Alert Missing Identifier</event>
+    <urgency>Immediate</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <headline>This alert is missing the required identifier element</headline>
+    <area>
+      <areaDesc>Synthetic Test Province</areaDesc>
+    </area>
+  </info>
+</alert>

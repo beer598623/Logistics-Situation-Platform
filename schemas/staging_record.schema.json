@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "staging_record.schema.json",
+  "title": "Normalized Staging Record",
+  "description": "Adapter output for the controlled manual live-test workflow (Scope E). A staging record is a candidate-level normalized observation with provenance; it is never written to data/candidates/latest.json, data/reviewed/**, or dashboard/public/data/** directly, and it never carries an inferred operational logistics impact. source_signal preserves source-native classifications (e.g. a GDACS alert level or a CAP severity/certainty/urgency triple) as a hazard/context signal only, kept separate from any platform severity or impact field.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_id",
+    "retrieved_at",
+    "content_sha256",
+    "parser_version",
+    "source_external_id",
+    "source_revision",
+    "source_publication_time",
+    "title",
+    "source_url",
+    "candidate_identity_inputs",
+    "field_mapping_notes",
+    "warnings",
+    "known_limitations"
+  ],
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$"
+    },
+    "retrieved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "parser_version": {
+      "type": "string"
+    },
+    "source_external_id": {
+      "description": "Stable source-native identifier. For GDACS this is the composite 'eventtype:eventid'; for CAP/TMD this is the CAP <identifier>.",
+      "type": ["string", "null"]
+    },
+    "source_revision": {
+      "description": "Episode/revision/message-reference identity, kept separate from source_external_id (e.g. GDACS episodeid, or a CAP <references> value for Update/Cancel messages).",
+      "type": ["string", "null"]
+    },
+    "source_publication_time": {
+      "description": "The source's own publication/sent timestamp (e.g. GDACS fromdate/todate/datetime, or CAP <sent>), not the retrieval time.",
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_url": {
+      "type": ["string", "null"],
+      "format": "uri"
+    },
+    "candidate_identity_inputs": {
+      "description": "The controlled fields a later, human-reviewed promotion step would pass to collectors.event_identity.resolve_event_identity. This staging record does not itself assign a canonical_event_id.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_category",
+        "geography",
+        "transport_modes",
+        "segments",
+        "event_date",
+        "publication_date"
+      ],
+      "properties": {
+        "primary_category": {
+          "type": "string"
+        },
+        "geography": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "transport_modes": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "segments": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "event_date": {
+          "type": ["string", "null"],
+          "format": "date"
+        },
+        "publication_date": {
+          "type": ["string", "null"],
+          "format": "date"
+        }
+      }
+    },
+    "source_signal": {
+      "description": "Source-native hazard/context classification, e.g. {\"source_alert_level\": \"Orange\"} for GDACS or {\"severity\": \"Severe\", \"certainty\": \"Likely\", \"urgency\": \"Immediate\"} for CAP. Never a platform impact-severity value.",
+      "type": "object"
+    },
+    "field_mapping_notes": {
+      "description": "Short notes documenting which raw source field each normalized field came from, and any transformation applied.",
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "warnings": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}
