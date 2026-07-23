@@ -146,9 +146,10 @@ def source_status_checks(source_status: dict[str, Any]) -> list[str]:
         if source.get("required_for_publication")
         and source.get("status") not in _LIVE_SOURCE_STATUSES
     ]
-    if source_status.get("overall_status") == "sufficient" and required_gap_sources:
+    if required_gap_sources and source_status.get("overall_status") != "insufficient":
         problems.append(
-            f"required source gap cannot be sufficient (degraded required sources: "
+            "required source gap must force overall_status to insufficient, not "
+            f"{source_status.get('overall_status')!r} (degraded required sources: "
             f"{sorted(required_gap_sources)})"
         )
 

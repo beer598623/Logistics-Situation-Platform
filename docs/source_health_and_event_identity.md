@@ -84,10 +84,21 @@ its contract.
 array (`capability`, `status`, `supporting_sources`, `gap_reason`) to carry
 this breakdown; `data/source_status/latest.json` and the dashboard's
 System Status section were regenerated/updated to render it.
-`scripts/validate.py` re-checks both invariants independently at the data
-layer: a `sufficient` capability may never list a degraded
-`required_for_publication` supporting source, and a capability with one
-must be `insufficient`.
+
+`scripts/validate.py::source_status_checks` re-checks this precedence
+independently at the data layer, since a hand-edited, stale, or partially
+generated snapshot is not guaranteed to have come from the canonical
+evaluator:
+
+- A `sufficient` capability may never list a degraded
+  `required_for_publication` supporting source, and a capability with one
+  must be `insufficient` (not `limited`, not `sufficient`).
+- **Whenever any source has a degraded required-source gap,
+  `overall_status` must be `insufficient` — not just "not sufficient".**
+  Because `_overall_status` can only ever produce `insufficient` in that
+  situation, a snapshot claiming `overall_status: limited` (or
+  `sufficient`) while a required source is degraded cannot have come from
+  the evaluator and fails validation just as `sufficient` does.
 
 ## Event identity (`collectors/event_identity.py`)
 
@@ -162,53 +173,108 @@ candidate first observed with `event_date=None` fingerprints using
 newer observation would look `unmatched` and mint a *new* canonical ID for
 what is really the same event.
 
-`resolve_event_identity` handles this with a third, narrowly-scoped lookup
-that only runs when (a) no external-ID or direct fingerprint match was
-found, and (b) this observation's `event_date` is not `None`. It
-recomputes what the fingerprint *would have been* with `event_date` forced
-back to `None` (i.e. the publication-date fallback bucket) and looks for a
-known record whose **own persisted `event_date` is `None`** with a matching
-`event_fingerprint`. Requiring the known record's `event_date` to be
-`None` — not just checking whether the fingerprints happen to coincide — is
-what keeps this safe: a known record that already had a real event date
-(even one that happens to equal the new observation's publication date) is
-never eligible, so the "different date bucket" guarantee above still holds.
-A known-event dict that omits the `event_date` key entirely is treated
-conservatively as *ineligible* (not as "unknown"), so older or
-third-party-constructed `known_events` entries that don't provide this key
-never get silently promoted.
+**A first attempt at this fix recomputed a "provisional" fingerprint from
+the *new* observation's own `publication_date`.** That broke if
+`publication_date` itself changed between observations (e.g. a source
+revision, or a reviewed record built from different provenance than the
+candidate) — the promotion lookup would search for the wrong bucket and
+the event would still split. The fix that ships here instead **persists a
+stable `identity_date_bucket`** on every candidate/reviewed record:
 
-On a match through this path, the canonical ID and `first_seen_at` are
-carried forward unchanged, but the returned `event_fingerprint` is the new,
-more precise value — the record's identity is preserved while its
-precision improves. `tests/test_event_identity.py` covers both the positive
-case (unknown → known preserves identity) and the negative case (a known
-record with a real event date is never reachable through this path, even
-when dates would otherwise coincide).
+- `identity_date_bucket` freezes to the real `event_date` as soon as one is
+  known.
+- Until then, it freezes to whatever `publication_date` was in effect the
+  *first* time the record was resolved — and, critically, it is carried
+  forward unchanged on every subsequent match, never recomputed from a
+  later observation's `publication_date`.
+- `compute_event_fingerprint_from_bucket` is the single primitive that
+  turns `(category, geography, date_bucket, modes, segments)` into a hash;
+  both "today's fingerprint" and "the frozen bucket's fingerprint" go
+  through it, so they're always comparable.
 
-### No automatic merging
+`resolve_event_identity` tries, in order: (1) external ID, (2) an exact
+fingerprint match using this observation's own fields, (3)
+`_find_by_frozen_bucket` — for each known record whose **own persisted
+`event_date` is `None`**, recompute what its fingerprint would be using
+*that record's own* `identity_date_bucket` (not this observation's
+`publication_date` at all) plus this observation's current category,
+geography, modes, and segments, and compare against the record's stored
+`event_fingerprint`. Because step 3 never reads this observation's
+`publication_date`, identity survives `publication_date` changing between
+observations as well as `event_date` resolving from unknown to known —
+even both at once. Requiring the known record's `event_date` to be `None`
+(not just checking whether fingerprints coincide) is what keeps this safe:
+a known record that already had a real event date is never eligible, so
+the "different date bucket" guarantee above still holds. A known-event
+dict that omits the `event_date` key entirely, or that has no persisted
+`identity_date_bucket`, is conservatively treated as *ineligible* rather
+than "unknown".
+
+On a match through step 3, the canonical ID and `first_seen_at` are carried
+forward unchanged; `identity_date_bucket` promotes to the real `event_date`
+(now known), and the returned `event_fingerprint` is recomputed from that
+promoted bucket — the record's identity is preserved while its precision
+improves. `tests/test_event_identity.py` covers: unknown → known preserving
+identity; unknown → known surviving a *simultaneous* `publication_date`
+change (the scenario the first fix missed); a known record with a real
+event date never reachable through this path even when dates would
+otherwise coincide; and a known record missing `event_date` or
+`identity_date_bucket` staying conservatively ineligible.
+
+### Explicit candidate ↔ reviewed date-field mapping
+
+Candidates store their identity date under `event_date`; reviewed events
+store the same concept under `event_start` — the schemas were not unified
+onto one field name. Rather than leaving that mapping as prose for callers
+to remember, `collectors/event_identity.py` provides it as code:
+
+- `event_date_from_candidate(candidate)` / `event_date_from_reviewed_event(event)`
+  read the correct field for each record shape.
+- `known_event_from_candidate(candidate)` / `known_event_from_reviewed_event(event)`
+  build a full `known_events` entry (including the `event_date` mapping and
+  every other field `resolve_event_identity` reads) from a stored record,
+  so a caller never constructs that dict by hand.
+
+`tests/test_event_identity.py::test_event_date_accessors_map_candidate_and_reviewed_fields_explicitly`
+and `::test_known_event_builders_map_event_date_field_explicitly` test the
+accessors directly;
+`tests/test_data_contracts.py::test_reviewed_event_promotion_from_candidate_resolves_via_explicit_mapping`
+replays a candidate → reviewed promotion end-to-end through
+`resolve_event_identity` using these helpers and asserts it lands on the
+same canonical event the fixtures already share.
+
+### Known limitation: controlled-field collisions
 
 This module intentionally implements **only exact matching** (external ID
-or fingerprint). It does not run any similarity, clustering, or AI-based
-deduplication — that is out of scope for this increment. The
-`merge_suggested`, `merged_approved`, and `split_required` values exist in
-the `merge_status` enum for a human reviewer's later decision, but no code
-path here ever assigns them automatically; two events can only become
-`matched_fingerprint` when their controlled fields are byte-for-byte equal
-after normalization. This is what makes an unsafe automatic merge
-impossible by design.
+or fingerprint/frozen-bucket). It does not run any similarity, clustering,
+or AI-based deduplication — that is out of scope for this increment, and
+no code path here ever *automatically* merges two events based on a
+semantic or fuzzy relationship. The `merge_suggested`, `merged_approved`,
+and `split_required` values exist in the `merge_status` enum for a human
+reviewer's later decision, but nothing in this module assigns them.
+
+That guarantee is about *semantic* merging, not about matching in general.
+Exact-field matching is exactly that — exact: **two genuinely distinct
+real-world incidents that happen to share the same category, geography,
+date bucket, transport mode, and segment are indistinguishable by these
+controlled fields alone**, and will resolve to the same canonical event.
+This is a known limitation of deterministic fingerprinting, not a claim
+that collisions cannot happen. A source-supplied `external_event_id`
+sidesteps the risk entirely (matching never falls through to the
+fingerprint when one is available); for sources without a stable ID, a
+controlled-field collision is a gap this increment does not close and a
+later increment (or human review, via `merge_suggested`/`split_required`)
+is expected to handle.
 
 `schemas/candidate_event.schema.json` and `schemas/reviewed_event.schema.json`
 both gained: `source_id`, `external_event_id`, `source_revision`
 (nullable), `canonical_event_id`, `event_fingerprint`, `merge_status`,
-`first_seen_at`, `last_seen_at`, `last_changed_at`, `supersedes`, and
-`content_signature`. `reviewed_event.schema.json` also gained
-`primary_category` (previously only on candidates) so the same controlled
-fields are available for fingerprinting at every lifecycle stage. Note
-that a caller mapping a reviewed event into `resolve_event_identity`'s
-`event_date` parameter and a `known_events` entry's `event_date` key should
-use the existing `event_start` field — no separate schema field was added
-for it, since `event_start` already carries the same nullable date.
+`first_seen_at`, `last_seen_at`, `last_changed_at`, `supersedes`,
+`content_signature`, and `identity_date_bucket`. `reviewed_event.schema.json`
+also gained `primary_category` (previously only on candidates) so the same
+controlled fields are available for fingerprinting at every lifecycle
+stage. `event_start` (reviewed) was not renamed to `event_date` — use the
+explicit accessors above instead of reading the field by name.
 
 ## Migration notes
 
@@ -216,14 +282,15 @@ The existing Pasir Panjang negative-control candidate and reviewed event
 were migrated in place: both now carry the same `canonical_event_id`
 (`CEVT-c7df9e8cc1521246`) and `event_fingerprint`, computed from their
 existing `primary_category`/`geography`/`event_date`/`transport_modes`/
-`segments`. The reviewed event's `merge_status` is `matched_fingerprint`
-(it fingerprint-matches the candidate); the candidate's is `unmatched`
-(nothing preceded it). Both records also gained a real, persisted
-`content_signature` (candidate: hash of `title` + `headline_summary` +
-`raw_claims`; reviewed event: hash of `title` + `verified_facts` +
-`reported_claims`), computed with `compute_content_signature`. No
-historical conclusion, severity, or status in the negative-control sample
-was changed.
+`segments`. Both also carry the same `identity_date_bucket` (`2024-06-14`,
+their shared known event date). The reviewed event's `merge_status` is
+`matched_fingerprint` (it fingerprint-matches the candidate); the
+candidate's is `unmatched` (nothing preceded it). Both records also gained
+a real, persisted `content_signature` (candidate: hash of `title` +
+`headline_summary` + `raw_claims`; reviewed event: hash of `title` +
+`verified_facts` + `reported_claims`), computed with
+`compute_content_signature`. No historical conclusion, severity, or status
+in the negative-control sample was changed.
 
 `data/source_status/latest.json` was regenerated with
 `evaluate_registry_health` against the unchanged, all-disabled

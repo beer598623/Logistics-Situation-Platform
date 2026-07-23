@@ -42,7 +42,8 @@
       "last_seen_at": "2026-07-22T00:00:00Z",
       "last_changed_at": "2026-07-22T00:00:00Z",
       "supersedes": [],
-      "content_signature": "2f646ca66bad0bb5b84ceeb86a5e80f1b2a0b4ddca17259c02cb52418055d964"
+      "content_signature": "2f646ca66bad0bb5b84ceeb86a5e80f1b2a0b4ddca17259c02cb52418055d964",
+      "identity_date_bucket": "2024-06-14"
     }
   ]
 }

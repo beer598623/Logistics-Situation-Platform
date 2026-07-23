@@ -6,6 +6,10 @@ from datetime import UTC, datetime
 from collectors.event_identity import (
     compute_content_signature,
     compute_event_fingerprint,
+    event_date_from_candidate,
+    event_date_from_reviewed_event,
+    known_event_from_candidate,
+    known_event_from_reviewed_event,
     resolve_event_identity,
 )
 
@@ -164,6 +168,72 @@ def test_known_event_missing_event_date_key_is_conservatively_ineligible() -> No
     assert later.merge_status == "unmatched"
 
 
+def test_identity_survives_event_date_and_publication_date_both_changing() -> None:
+    """Round-2 regression: the event-date-promotion fallback must not depend
+    on this observation retaining the original publication date.
+
+    First observation: ``event_date=None``, ``publication_date=D1``. Later
+    observation: ``event_date`` now a real date, and ``publication_date`` has
+    also drifted to D2 (e.g. a source revision or a reviewed record with its
+    own publication context). ``canonical_event_id`` must stay stable because
+    matching now happens through the known record's own frozen
+    ``identity_date_bucket`` (D1), never through this observation's
+    ``publication_date``.
+    """
+    first = _resolve(event_date=None, publication_date="2024-06-01")
+    known = [_as_known(first, event_date=None)]
+
+    later = _resolve(
+        event_date="2024-06-20",
+        publication_date="2024-07-15",  # D1 ("2024-06-01") -> D2, deliberately different
+        known_events=known,
+    )
+    assert later.canonical_event_id == first.canonical_event_id
+    assert later.merge_status == "matched_fingerprint"
+    assert later.identity_date_bucket == "2024-06-20"
+
+
+def test_event_date_accessors_map_candidate_and_reviewed_fields_explicitly() -> None:
+    """Regression for review finding #3: the candidate/reviewed field-name
+    mapping (``event_date`` vs ``event_start``) must be explicit and tested,
+    not just documented in prose."""
+    candidate = {"event_date": "2024-06-14", "other_field": "x"}
+    reviewed = {"event_start": "2024-06-14", "other_field": "x"}
+    assert event_date_from_candidate(candidate) == "2024-06-14"
+    assert event_date_from_reviewed_event(reviewed) == "2024-06-14"
+
+    assert event_date_from_candidate({"event_date": None}) is None
+    assert event_date_from_reviewed_event({"event_start": None}) is None
+
+
+def test_known_event_builders_map_event_date_field_explicitly() -> None:
+    first = _resolve(event_date=None)
+    candidate_record = first.to_dict() | {
+        "source_id": None,
+        "external_event_id": None,
+        "event_date": None,
+    }
+    known_from_candidate = known_event_from_candidate(candidate_record)
+    assert known_from_candidate["event_date"] is None
+    assert known_from_candidate["identity_date_bucket"] == first.identity_date_bucket
+    assert known_from_candidate["canonical_event_id"] == first.canonical_event_id
+
+    reviewed_record = first.to_dict() | {
+        "source_id": None,
+        "external_event_id": None,
+        "event_start": None,
+    }
+    known_from_reviewed = known_event_from_reviewed_event(reviewed_record)
+    assert known_from_reviewed["event_date"] is None
+    assert known_from_reviewed["identity_date_bucket"] == first.identity_date_bucket
+
+    # A promotion lookup must work identically regardless of which builder
+    # produced the known_events entry, since both map to the same shape.
+    later = _resolve(event_date="2024-06-20", known_events=[known_from_reviewed])
+    assert later.canonical_event_id == first.canonical_event_id
+    assert later.merge_status == "matched_fingerprint"
+
+
 def test_content_signature_is_stable_across_a_json_round_trip_when_unchanged() -> None:
     """Regression for review finding #3.
 
@@ -223,6 +293,7 @@ def _as_known(
         "event_date": event_date,
         "event_fingerprint": identity.event_fingerprint,
         "canonical_event_id": identity.canonical_event_id,
+        "identity_date_bucket": identity.identity_date_bucket,
         "first_seen_at": identity.first_seen_at,
         "last_changed_at": identity.last_changed_at,
         "content_signature": (

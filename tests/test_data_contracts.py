@@ -6,7 +6,12 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
-from collectors.event_identity import compute_content_signature
+from collectors.event_identity import (
+    compute_content_signature,
+    event_date_from_reviewed_event,
+    known_event_from_candidate,
+    resolve_event_identity,
+)
 from collectors.http_client import ResilientHttpClient
 from collectors.models import CollectionRun
 from collectors.registry import load_registry, validate_registry
@@ -77,6 +82,42 @@ def test_candidate_and_reviewed_event_share_canonical_identity() -> None:
     }
     assert candidate["supersedes"] == []
     assert event["supersedes"] == []
+    assert candidate["identity_date_bucket"] == event["identity_date_bucket"]
+
+
+def test_reviewed_event_promotion_from_candidate_resolves_via_explicit_mapping() -> None:
+    """Regression for review finding #3: the candidate ``event_date`` /
+    reviewed ``event_start`` mapping must be exercised end-to-end through
+    ``resolve_event_identity``, not just asserted equal as literal values.
+
+    This replays what a real candidate -> reviewed promotion would do:
+    build a ``known_events`` entry from the stored candidate via
+    ``known_event_from_candidate`` (which maps its own ``event_date``), then
+    resolve the reviewed event's identity using its ``event_start`` mapped
+    through ``event_date_from_reviewed_event``. The result must land on the
+    same canonical event the fixtures already share.
+    """
+    candidates = json.loads((ROOT / "data" / "candidates" / "latest.json").read_text())
+    reviewed = json.loads((ROOT / "data" / "reviewed" / "current_events.json").read_text())
+    candidate = candidates["candidates"][0]
+    event = reviewed["events"][0]
+
+    known = [known_event_from_candidate(candidate)]
+    resolved = resolve_event_identity(
+        source_id=event.get("source_id"),
+        external_event_id=event.get("external_event_id"),
+        primary_category=event["primary_category"],
+        geography=event["geography"],
+        event_date=event_date_from_reviewed_event(event),
+        publication_date=candidate["publication_date"],
+        transport_modes=event["modes"],
+        segments=event["segments"],
+        content_signature=event["content_signature"],
+        known_events=known,
+    )
+    assert resolved.canonical_event_id == event["canonical_event_id"]
+    assert resolved.canonical_event_id == candidate["canonical_event_id"]
+    assert resolved.merge_status == "matched_fingerprint"
 
 
 def test_source_status_capabilities_are_purpose_aware() -> None:

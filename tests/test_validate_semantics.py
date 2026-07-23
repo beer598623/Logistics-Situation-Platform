@@ -44,7 +44,69 @@ def test_sufficient_capability_with_degraded_required_source_is_rejected() -> No
     )
     problems = source_status_checks(status)
     assert any("degraded required supporting source" in problem for problem in problems)
-    assert any("required source gap cannot be sufficient" in problem for problem in problems)
+    assert any("must force overall_status to insufficient" in problem for problem in problems)
+
+
+def test_overall_sufficient_with_required_gap_is_rejected() -> None:
+    """Round-2 regression: a degraded required source must force
+    ``overall_status == "insufficient"``, so ``sufficient`` is rejected."""
+    status = _status(
+        overall="sufficient",
+        sources=[
+            {
+                "source_id": "B",
+                "status": "no_data",
+                "required_for_publication": True,
+                "item_count": None,
+            }
+        ],
+        capabilities=[
+            {
+                "capability": "cap",
+                "status": "insufficient",
+                "supporting_sources": ["B"],
+                "gap_reason": "x",
+            }
+        ],
+    )
+    problems = source_status_checks(status)
+    assert any(
+        "must force overall_status to insufficient" in problem and "'sufficient'" in problem
+        for problem in problems
+    )
+
+
+def test_overall_limited_with_required_gap_is_rejected() -> None:
+    """Round-2 regression for review finding #1: a hand-edited or stale
+    snapshot with a degraded required source and ``overall_status: limited``
+    must also be rejected, not just ``sufficient`` — ``_overall_status`` can
+    only ever produce ``insufficient`` when a required source has a gap, so
+    ``limited`` in that situation cannot have come from the canonical
+    evaluator and must fail validation too."""
+    status = _status(
+        overall="limited",
+        sources=[
+            {
+                "source_id": "B",
+                "status": "very_stale",
+                "required_for_publication": True,
+                "item_count": 1,
+            }
+        ],
+        capabilities=[
+            {
+                "capability": "cap",
+                "status": "insufficient",
+                "supporting_sources": ["B"],
+                "gap_reason": "x",
+            }
+        ],
+    )
+    problems = source_status_checks(status)
+    assert any(
+        "must force overall_status to insufficient" in problem and "'limited'" in problem
+        for problem in problems
+    )
 
 
 def test_degraded_required_source_must_make_capability_insufficient() -> None:

@@ -26,7 +26,8 @@
     "last_seen_at",
     "last_changed_at",
     "supersedes",
-    "content_signature"
+    "content_signature",
+    "identity_date_bucket"
   ],
   "properties": {
     "candidate_id": {
@@ -174,6 +175,10 @@
     "content_signature": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity_date_bucket": {
+      "type": "string",
+      "format": "date"
     }
   }
 }
