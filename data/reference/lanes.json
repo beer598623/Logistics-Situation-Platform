@@ -1,0 +1,265 @@
+{
+  "version": "0.8",
+  "generated_at": "2026-07-24T00:00:00Z",
+  "selection_note": "Eleven Ocean Lane groups selected under WO-010 Gate E. Selection methodology, criteria and the evidence limitation are documented in docs/ocean_lane_selection.md. No quantitative Thailand trade ranking was retrieved under WO-010 because no source could be live-validated in the execution environment (see docs/source_qualification_report.md); every lane therefore records data_period_used as null and states that limitation explicitly. Lanes are mode-tagged, not Ocean-hardcoded: adding an Air or Road lane requires a new record, not a schema change.",
+  "lanes": [
+    {
+      "lane_id": "LANE-OCEAN-TH-EASIA-CN",
+      "name": "Thailand ↔ Mainland China and Hong Kong",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "Mainland China and Hong Kong SAR", "geography_ids": ["GEO-CTY-CN", "GEO-RGN-EASIA"]},
+      "direction": "bidirectional",
+      "resolution": "country",
+      "country_ids": ["TH", "CN", "HK"],
+      "node_ids": ["NODE-THLCH", "NODE-THBKK", "NODE-CNSHA", "NODE-CNSZX", "NODE-HKHKG"],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {"criterion": "strategic_trade_relevance", "statement": "Mainland China is Thailand's largest single-country ocean trade counterpart by both import and export container flow, making it the highest-priority lane group for a Thailand-centred Ocean module.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "operational_distinctiveness", "statement": "Predominantly served by direct intra-Asia services without transiting Malacca westbound, so its operational risk profile differs materially from westbound lanes.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "data_availability", "statement": "TH_CUSTOMS partner-country trade series and IMF PortWatch port-call series would both cover this lane once qualified; neither is enabled.", "evidence_class": "insufficient_evidence", "source_reference": "docs/source_qualification_report.md"}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010; the trade-value criterion is recorded as analytical inference, not as a measured ranking.",
+        "Resolution is country-level: the platform holds no Thailand port-pair statistics, so this lane must not be displayed as a port-pair lane."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-JPKR",
+      "name": "Thailand ↔ Japan and Korea",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "Japan and Republic of Korea", "geography_ids": ["GEO-CTY-JP", "GEO-CTY-KR"]},
+      "direction": "bidirectional",
+      "resolution": "country",
+      "country_ids": ["TH", "JP", "KR"],
+      "node_ids": ["NODE-THLCH", "NODE-JPYOK", "NODE-KRPUS"],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {"criterion": "strategic_trade_relevance", "statement": "Japan and Korea anchor Thailand's manufacturing supply chains, particularly automotive and electronics components, giving this lane distinct continuity relevance.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "operational_distinctiveness", "statement": "Japan and Korea are commonly served on shared North East Asia service strings, so they behave as one operational group rather than two independent lanes.", "evidence_class": "analytical_inference", "source_reference": null}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Grouping Japan and Korea reflects service-string structure; it will understate a disruption affecting only one of the two countries."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-ASEAN-SG",
+      "name": "Thailand ↔ ASEAN and Singapore transshipment",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "ASEAN partners and Straits transshipment hubs", "geography_ids": ["GEO-RGN-SEASIA", "GEO-CTY-SG", "GEO-CTY-MY"]},
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "country_ids": ["TH", "SG", "MY", "VN", "ID", "PH", "KH", "MM"],
+      "node_ids": ["NODE-THLCH", "NODE-THBKK", "NODE-THSGZ", "NODE-SGSIN", "NODE-MYPKG", "NODE-MYTPP"],
+      "chokepoint_ids": ["CHK-MALACCA", "CHK-SINGAPORE"],
+      "selection_evidence": [
+        {"criterion": "operational_distinctiveness", "statement": "This lane carries both direct intra-ASEAN cargo and the transshipment leg of most Thailand long-haul services, so disruption here propagates into several other lanes.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "chokepoint_exposure", "statement": "Directly exposed to the Strait of Malacca and the Singapore Strait, the two chokepoints nearest to Thailand.", "evidence_class": "verified_fact", "source_reference": "data/reference/dimensions.json#chokepoints"},
+        {"criterion": "source_backed_analysis_support", "statement": "MPA Singapore publishes port marine notices, giving this lane an official operational-notice channel that most other lanes lack.", "evidence_class": "official_publication", "source_reference": "config/sources.yaml#MPA_SG_NOTICE"}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "Resolution is regional: transshipment volumes attributable to Thailand cargo are not separable from any public source the platform has qualified.",
+        "A Singapore port notice is evidence of the notice, not automatically of an effect on Thailand cargo."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-SASIA",
+      "name": "Thailand ↔ South Asia",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "India, Bangladesh, Sri Lanka and Pakistan", "geography_ids": ["GEO-RGN-SASIA"]},
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "country_ids": ["TH", "IN", "BD", "LK", "PK"],
+      "node_ids": ["NODE-THLCH", "NODE-INNSA"],
+      "chokepoint_ids": ["CHK-MALACCA"],
+      "selection_evidence": [
+        {"criterion": "strategic_trade_relevance", "statement": "India is Thailand's principal South Asian ocean trade partner and a growing destination market.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "geographic_coverage", "statement": "Included so that the lane set covers the Bay of Bengal and Indian Ocean approaches, not only East Asia and the long-haul West.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "chokepoint_exposure", "statement": "Westbound routings transit the Strait of Malacca.", "evidence_class": "verified_fact", "source_reference": "data/reference/dimensions.json#chokepoints"}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Grouping four countries at regional resolution will mask country-specific disruption."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-MEGULF",
+      "name": "Thailand ↔ Middle East and Gulf",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "Gulf states and Middle East gateways", "geography_ids": ["GEO-RGN-MEGULF"]},
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "country_ids": ["TH", "AE", "SA", "QA", "OM", "KW"],
+      "node_ids": ["NODE-THLCH", "NODE-THMAT", "NODE-AEJEA"],
+      "chokepoint_ids": ["CHK-MALACCA", "CHK-HORMUZ"],
+      "selection_evidence": [
+        {"criterion": "strategic_trade_relevance", "statement": "Carries both Thailand general-cargo exports and inbound energy and petrochemical feedstock relevant to Map Ta Phut.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "chokepoint_exposure", "statement": "Exposed to both the Strait of Malacca and the Strait of Hormuz, giving it a distinct security-driven risk profile.", "evidence_class": "verified_fact", "source_reference": "data/reference/dimensions.json#chokepoints"}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Container and energy flows behave differently but are grouped in one lane at this resolution."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-NEUR",
+      "name": "Thailand ↔ Northern Europe",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "North European gateway ports", "geography_ids": ["GEO-RGN-NEUR"]},
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "country_ids": ["TH", "NL", "DE", "BE", "GB", "FR", "PL"],
+      "node_ids": ["NODE-THLCH", "NODE-SGSIN", "NODE-NLRTM", "NODE-DEHAM", "NODE-BEANR"],
+      "chokepoint_ids": ["CHK-MALACCA", "CHK-BABELMANDEB", "CHK-SUEZ"],
+      "selection_evidence": [
+        {"criterion": "chokepoint_exposure", "statement": "The highest chokepoint-exposure lane in the set: normal routing transits Malacca, Bab el-Mandeb and Suez in sequence, so a single chokepoint event can lengthen the whole lane.", "evidence_class": "verified_fact", "source_reference": "data/reference/dimensions.json#chokepoints"},
+        {"criterion": "strategic_trade_relevance", "statement": "The European Union is a major Thailand export destination bloc, with North European gateways handling the majority of the container flow.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "source_backed_analysis_support", "statement": "The Suez Canal Authority publishes circulars, giving this lane a registered official notice channel for its principal chokepoint.", "evidence_class": "official_publication", "source_reference": "config/sources.yaml#SCA_CIRCULAR"}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Most Thailand North Europe cargo is transshipped rather than carried on direct services, so lane performance depends on the ASEAN/Singapore lane as well."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-MED",
+      "name": "Thailand ↔ Mediterranean",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "Mediterranean gateway and transshipment ports", "geography_ids": ["GEO-RGN-MED"]},
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "country_ids": ["TH", "IT", "ES", "GR", "TR", "EG"],
+      "node_ids": ["NODE-THLCH", "NODE-SGSIN", "NODE-ITGOA", "NODE-ESALG"],
+      "chokepoint_ids": ["CHK-MALACCA", "CHK-BABELMANDEB", "CHK-SUEZ"],
+      "selection_evidence": [
+        {"criterion": "operational_distinctiveness", "statement": "Kept separate from Northern Europe because Mediterranean calls are the first discharge ports after Suez: a Suez event changes Mediterranean and North European lanes by different amounts and at different times.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "chokepoint_exposure", "statement": "Transits Malacca, Bab el-Mandeb and Suez.", "evidence_class": "verified_fact", "source_reference": "data/reference/dimensions.json#chokepoints"}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Mediterranean volumes are smaller than North European volumes, so indicator movements on this lane are noisier."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-USWC",
+      "name": "Thailand ↔ United States West Coast",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "United States and Canada Pacific coast gateways", "geography_ids": ["GEO-RGN-NAMWC"]},
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "country_ids": ["TH", "US", "CA"],
+      "node_ids": ["NODE-THLCH", "NODE-SGSIN", "NODE-USLAX", "NODE-USLGB"],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {"criterion": "strategic_trade_relevance", "statement": "The United States is a principal Thailand export destination, and the West Coast is the shorter and more commonly used transpacific gateway.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "operational_distinctiveness", "statement": "Transpacific routings transit no registered chokepoint, so this lane isolates carrier-capacity and destination-port effects from chokepoint effects.", "evidence_class": "analytical_inference", "source_reference": null}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Most Thailand transpacific cargo is transshipped, so lane conditions depend partly on the ASEAN/Singapore lane."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-USEC",
+      "name": "Thailand ↔ United States East and Gulf Coast",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "United States Atlantic and Gulf coast gateways", "geography_ids": ["GEO-RGN-NAMEC"]},
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "country_ids": ["TH", "US"],
+      "node_ids": ["NODE-THLCH", "NODE-SGSIN", "NODE-USNYC", "NODE-USHOU", "NODE-USBAL"],
+      "chokepoint_ids": ["CHK-PANAMA", "CHK-MALACCA", "CHK-SUEZ"],
+      "selection_evidence": [
+        {"criterion": "operational_distinctiveness", "statement": "Kept separate from the West Coast because it can be routed either eastbound via Panama or westbound via Suez, so it is the only lane in the set with two competing chokepoint exposures and a genuine routing choice.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "chokepoint_exposure", "statement": "Exposed to the Panama Canal on the eastbound routing and to Malacca and Suez on the westbound alternative.", "evidence_class": "verified_fact", "source_reference": "data/reference/dimensions.json#chokepoints"},
+        {"criterion": "source_backed_analysis_support", "statement": "The Panama Canal Authority publishes advisories to shipping, giving this lane a registered official notice channel.", "evidence_class": "official_publication", "source_reference": "config/sources.yaml#ACP_ADVISORY"}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Which routing a given service actually uses is carrier-specific and is not published in any source the platform has qualified; chokepoint exposure is therefore potential, not confirmed, for any specific shipment."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-OCEANIA",
+      "name": "Thailand ↔ Australia and New Zealand",
+      "mode": "sea",
+      "origin_scope": {"label": "Thailand seaports", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "Australia and New Zealand", "geography_ids": ["GEO-RGN-OCEANIA"]},
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "country_ids": ["TH", "AU", "NZ"],
+      "node_ids": ["NODE-THLCH", "NODE-AUSYD", "NODE-NZAKL"],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {"criterion": "geographic_coverage", "statement": "Included so the lane set covers the southbound direction; without it the Ocean module would have no lane south of the equator.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "operational_distinctiveness", "statement": "Served largely on direct services with no chokepoint transit, providing a comparison baseline against chokepoint-exposed lanes.", "evidence_class": "analytical_inference", "source_reference": null}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Smallest lane in the set by expected volume; indicator movements will be correspondingly noisier."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-DOMESTIC",
+      "name": "Thailand domestic port and inland connection (Laem Chabang ↔ Bangkok hinterland)",
+      "mode": "sea",
+      "origin_scope": {"label": "Laem Chabang and Bangkok Port", "geography_ids": ["GEO-CTY-TH"]},
+      "destination_scope": {"label": "Thailand inland hinterland", "geography_ids": ["GEO-CTY-TH"]},
+      "direction": "domestic",
+      "resolution": "corridor",
+      "country_ids": ["TH"],
+      "node_ids": ["NODE-THLCH", "NODE-THBKK", "NODE-THMAT", "NODE-THSGZ"],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {"criterion": "operational_distinctiveness", "statement": "Every international lane terminates at a Thailand port, so domestic port condition is a shared dependency of all of them and is assessed separately rather than duplicated into each lane.", "evidence_class": "analytical_inference", "source_reference": null},
+        {"criterion": "data_availability", "statement": "Thailand port-authority notices and Thailand port throughput series, once qualified, apply to this lane directly rather than through a partner country.", "evidence_class": "insufficient_evidence", "source_reference": "docs/source_qualification_report.md"}
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "The Ocean module covers only the seaport leg. Inland road and rail drayage is a Land-module concern and is explicitly not assessed by WO-010.",
+        "This lane is mode-tagged 'sea' because only its seaport leg is in scope; the inland leg will require a separate road or rail lane record when the Land module is built."
+      ],
+      "review_date": "2026-07-24",
+      "status": "provisional"
+    }
+  ]
+}

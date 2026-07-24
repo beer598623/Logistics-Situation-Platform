@@ -28,6 +28,7 @@
         "terms_reviewed_at", "fallback_sources", "known_limitations", "enabled",
         "required_for_publication"
       ],
+      "description": "'qualification' and 'enablement' are optional at the schema level and mandatory in practice: scripts/validate.py requires both on every source WO-010 introduced and on every enabled source, and reports any source lacking them as an explicit qualification gap. They are deliberately not JSON-Schema-required so that the pre-existing TMD_CAP and GDACS contracts, which WO-010 is prohibited from modifying, remain valid unchanged under their existing governance records.",
       "properties": {
         "id": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
         "name": {"type": "string", "minLength": 1},
@@ -114,7 +115,107 @@
         "fallback_sources": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "known_limitations": {"type": "array", "items": {"type": "string"}},
         "enabled": {"type": "boolean"},
-        "required_for_publication": {"type": "boolean"}
+        "required_for_publication": {"type": "boolean"},
+        "qualification": {"$ref": "#/$defs/qualification"},
+        "enablement": {"$ref": "#/$defs/enablement"}
+      }
+    },
+    "qualification": {
+      "type": "object",
+      "description": "Free-only source qualification record (WO-010 Gate C). Every field must be recorded before a source may be considered for enablement. 'unknown' is an honest, permitted value and is never treated as permission -- technical accessibility never implies licensing or redistribution permission.",
+      "additionalProperties": false,
+      "required": [
+        "access_cost",
+        "registration_requirement",
+        "paywall_status",
+        "reuse_status",
+        "redistribution_status",
+        "publication_cadence",
+        "observed_freshness",
+        "data_period",
+        "geography",
+        "logistics_role",
+        "rate_limit",
+        "prototype_eligibility",
+        "reviewed_at"
+      ],
+      "properties": {
+        "access_cost": {"enum": ["free", "free_with_registration", "paid", "unknown"]},
+        "registration_requirement": {"enum": ["none", "account", "api_key", "unknown"]},
+        "paywall_status": {"enum": ["none", "partial", "full", "unknown"]},
+        "reuse_status": {
+          "enum": ["open_licence", "permitted_with_attribution", "conditional", "restricted", "unknown"],
+          "description": "Whether reuse of the data is permitted, as actually reviewed against the publisher's stated terms."
+        },
+        "reuse_licence_name": {"type": ["string", "null"]},
+        "redistribution_status": {
+          "enum": ["permitted", "derived_only", "link_only", "prohibited", "unknown"],
+          "description": "Whether republishing the data, or only derived values or a link, is permitted."
+        },
+        "publication_cadence": {"type": "string", "minLength": 1},
+        "observed_freshness": {
+          "type": ["string", "null"],
+          "description": "Freshness as independently observed, not as claimed. Null when no observation has been made -- which blocks enablement."
+        },
+        "data_period": {"type": ["string", "null"]},
+        "geography": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "logistics_role": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "thailand_trade_flow",
+              "thailand_port_or_maritime_activity",
+              "domestic_fuel_or_energy_cost",
+              "fx_context",
+              "global_supply_chain_baseline",
+              "freight_market_benchmark_or_proxy",
+              "official_operational_notice",
+              "news_discovery",
+              "external_driver_context"
+            ]
+          }
+        },
+        "rate_limit": {"type": ["string", "null"]},
+        "response_size_limit_bytes": {"type": ["integer", "null"], "minimum": 1},
+        "prototype_eligibility": {
+          "enum": ["eligible", "eligible_pending_validation", "ineligible", "unknown"],
+          "description": "Whether the source currently qualifies for the free-only public Prototype."
+        },
+        "reviewed_at": {"type": "string", "format": "date"}
+      }
+    },
+    "enablement": {
+      "type": "object",
+      "description": "Enablement state machine. A source may only be enabled when every gate below is satisfied; unresolved gates are recorded verbatim as blockers so a reviewer sees exactly what is missing.",
+      "additionalProperties": false,
+      "required": [
+        "fixture_test_exists",
+        "live_validation_status",
+        "parser_fails_closed",
+        "response_bounded",
+        "schedule_justified",
+        "public_repository_safe",
+        "blockers"
+      ],
+      "properties": {
+        "fixture_test_exists": {"type": "boolean"},
+        "fixture_test_reference": {"type": ["string", "null"]},
+        "live_validation_status": {
+          "enum": ["not_required", "completed", "not_performed", "failed"],
+          "description": "'not_performed' means no controlled live validation has been run. It is never upgraded by inference from a successful fixture test."
+        },
+        "live_validation_reference": {"type": ["string", "null"]},
+        "parser_fails_closed": {"type": "boolean"},
+        "response_bounded": {"type": "boolean"},
+        "schedule_justified": {"type": "boolean"},
+        "collection_schedule": {"type": ["string", "null"]},
+        "public_repository_safe": {"type": "boolean"},
+        "blockers": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Exact unresolved issues preventing enablement. Must be empty when enabled is true."
+        }
       }
     }
   }

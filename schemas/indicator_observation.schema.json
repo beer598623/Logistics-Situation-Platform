@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "indicator_observation.schema.json",
+  "title": "Indicator Observation (fact_indicator_observation)",
+  "description": "A Layer 1 baseline indicator observation: FX, global supply-chain pressure, commodity/energy baselines, and any other numeric series that is not specifically a trade flow, a port/transport measure, or a logistics cost. Mode-neutral.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["indicator_id", "indicator_name", "provenance", "measurement", "placement"],
+  "properties": {
+    "indicator_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Stable series identifier, e.g. 'gscpi_index', 'usd_thb_reference_rate'."
+    },
+    "indicator_name": {"type": "string", "minLength": 1},
+    "indicator_family": {
+      "enum": ["fx", "global_baseline", "energy", "commodity", "macro", "connectivity", "other"]
+    },
+    "baseline_definition": {
+      "type": ["string", "null"],
+      "description": "Explicit definition of the baseline any deviation is measured against. Null means no baseline is defined and no deviation may be published for this series."
+    },
+    "provenance": {"$ref": "observation_common.schema.json#/$defs/provenance"},
+    "measurement": {"$ref": "observation_common.schema.json#/$defs/measurement"},
+    "placement": {"$ref": "observation_common.schema.json#/$defs/placement"}
+  }
+}
