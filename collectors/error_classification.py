@@ -19,8 +19,18 @@ from __future__ import annotations
 
 from .adapters.cap import CapSecurityError, MalformedCapAlertError
 from .adapters.rss_discovery import NotAnRssEnvelopeError, RssParseError, RssSecurityError
+from .adapters.tmd_candidate import CandidateEnvelopeMismatchError
 from .adapters.xml_envelope import EnvelopeParseError, EnvelopeSecurityError
-from .http_client import DiscoveryRedirectError, ResponseTooLargeError, UnexpectedContentTypeError
+from .http_client import (
+    DiscoveryRedirectError,
+    DnsResolutionError,
+    NonGlobalAddressError,
+    PinnedConnectionError,
+    PinnedRedirectError,
+    PinnedTlsError,
+    ResponseTooLargeError,
+    UnexpectedContentTypeError,
+)
 
 #: A real oversized HTTP response (ResponseTooLargeError, enforced by
 #: ResilientHttpClient itself, before any XML parsing is even attempted)
@@ -30,18 +40,29 @@ from .http_client import DiscoveryRedirectError, ResponseTooLargeError, Unexpect
 #: RssSecurityError) -- all four share the "security" category rather than
 #: falling through to "unexpected", keeping one stable vocabulary across
 #: the HTTP and XML layers (review round 2, finding 3).
+#:
+#: WO-006 Scope F adds the candidate-only pinned transport's own DNS/IP/TLS/
+#: connection/redirect rejections to this same category -- each of these is
+#: a transport-level SSRF/spoofing-relevant rejection, not a content parse
+#: failure or ordinary input-validation failure.
 _SECURITY_ERRORS = (
     CapSecurityError,
     EnvelopeSecurityError,
     RssSecurityError,
     ResponseTooLargeError,
     DiscoveryRedirectError,
+    DnsResolutionError,
+    NonGlobalAddressError,
+    PinnedRedirectError,
+    PinnedTlsError,
+    PinnedConnectionError,
 )
 _PARSE_ERRORS = (
     MalformedCapAlertError,
     NotAnRssEnvelopeError,
     EnvelopeParseError,
     RssParseError,
+    CandidateEnvelopeMismatchError,
 )
 
 

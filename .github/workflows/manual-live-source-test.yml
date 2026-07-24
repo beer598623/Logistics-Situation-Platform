@@ -44,13 +44,26 @@ on:
         type: string
         default: "primary"
       tmd_operation:
-        description: "TMD CAP only: 'direct_cap' (current strict CAP behavior) or 'rss_discovery' (classify and inspect one RSS envelope only, no fetch of items/enclosures)"
+        description: "TMD CAP only: 'direct_cap' (current strict CAP behavior), 'rss_discovery' (classify and inspect one RSS envelope only, no fetch of items/enclosures), or 'candidate_cap_validation' (WO-006: validate exactly one human-selected candidate CAP file via the DNS-pinned candidate transport)"
         required: false
         type: choice
         default: "direct_cap"
         options:
           - direct_cap
           - rss_discovery
+          - candidate_cap_validation
+      candidate_filename:
+        description: "candidate_cap_validation only: a bare filename matching CAPTMD<14 digits>_<digits>.xml, as observed in a reviewed WO-005 discovery artifact -- never a URL, path, or host"
+        required: false
+        type: string
+      candidate_evidence_run_id:
+        description: "candidate_cap_validation only: the WO-005 discovery workflow run ID the candidate filename was observed in (provenance only)"
+        required: false
+        type: string
+      candidate_item_index:
+        description: "candidate_cap_validation only: the discovery item index (0-49) the candidate filename was observed at"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -83,6 +96,9 @@ jobs:
           ALERT_LEVELS: ${{ inputs.alert_levels }}
           LANGUAGE: ${{ inputs.language }}
           TMD_OPERATION: ${{ inputs.tmd_operation }}
+          CANDIDATE_FILENAME: ${{ inputs.candidate_filename }}
+          CANDIDATE_EVIDENCE_RUN_ID: ${{ inputs.candidate_evidence_run_id }}
+          CANDIDATE_ITEM_INDEX: ${{ inputs.candidate_item_index }}
         run: |
           python scripts/manual_live_source_test.py \
             --source "$SOURCE" \
@@ -92,7 +108,10 @@ jobs:
             --event-types "$EVENT_TYPES" \
             --alert-levels "$ALERT_LEVELS" \
             --language "$LANGUAGE" \
-            --tmd-operation "$TMD_OPERATION"
+            --tmd-operation "$TMD_OPERATION" \
+            --candidate-filename "$CANDIDATE_FILENAME" \
+            --candidate-evidence-run-id "$CANDIDATE_EVIDENCE_RUN_ID" \
+            --candidate-item-index "$CANDIDATE_ITEM_INDEX"
 
       # Scope F (WO-004): this check must still run even when the script
       # step above failed (an expected adapter/parser failure, e.g. a

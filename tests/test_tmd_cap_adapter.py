@@ -7,10 +7,16 @@ import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
 from collectors.adapters.cap import parse_cap_alert
-from collectors.adapters.tmd_cap import TmdCapAdapter, normalize_tmd_alert, resolve_endpoint
+from collectors.adapters.tmd_cap import (
+    CANDIDATE_MAX_RESPONSE_BYTES,
+    TmdCapAdapter,
+    normalize_tmd_alert,
+    resolve_endpoint,
+)
 from collectors.adapters.xml_envelope import RSS
+from collectors.http_client import DnsResolutionError
 from collectors.registry import load_registry, source_by_id
-from tests.conftest import FakeHttpClient
+from tests.conftest import FakeHttpClient, fake_resolve_pinned
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "cap"
@@ -727,3 +733,434 @@ def test_discover_rss_malformed_credential_bearing_guid_never_leaks_at_adapter_l
     serialized = json.dumps(outcome.to_dict())
     assert canary_user not in serialized
     assert canary_pass not in serialized
+
+
+# --- WO-006 Scope A-D/G: validate_candidate() ---------------------------------
+
+
+def _candidate_adapter(tmd_contract: dict, fake_http: FakeHttpClient, **kwargs) -> TmdCapAdapter:
+    resolve_pinned = kwargs.pop("resolve_pinned", None) or fake_resolve_pinned()
+    return TmdCapAdapter(tmd_contract, http=fake_http, resolve_pinned=resolve_pinned, **kwargs)
+
+
+def test_validate_candidate_accepts_an_exact_cap_1_2_alert(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="30028391246",
+        evidence_item_index=0,
+    )
+
+    assert outcome.errors == []
+    assert outcome.http_status == 200
+    assert outcome.envelope_classification["envelope_kind"] == "cap_alert"
+    assert outcome.connected_ip_matches_selected is True
+    assert outcome.cap_info_count == 2
+    assert outcome.cap_languages == ["en-US", "th-TH"]
+    assert outcome.cap_reference_count == 0
+    assert outcome.cap_area_count == 2
+    assert outcome.cap_status == "Actual"
+    assert outcome.cap_msg_type == "Alert"
+    assert outcome.cap_scope == "Public"
+    assert fake_http.pinned_call_count == 1
+    assert fake_http.call_count == 1
+
+
+def test_validate_candidate_never_retains_the_raw_identifier(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+
+    assert outcome.cap_identifier_length == len("synthetic-tmd-cap-0001")
+    assert len(outcome.cap_identifier_sha256) == 64
+    serialized = json.dumps(outcome.to_dict())
+    assert "synthetic-tmd-cap-0001" not in serialized
+
+
+def test_validate_candidate_never_retains_free_text_cap_content(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+
+    serialized = json.dumps(outcome.to_dict())
+    for canary in (
+        "Synthetic severe thunderstorm warning",
+        "Synthetic hazard description",
+        "Synthetic instruction text",
+        "https://example.test/synthetic-warning-0001",
+        "synthetic-contact@example.test",
+        "Synthetic Test Province",
+        "15.0,100.0",
+        "TH-10",
+    ):
+        assert canary not in serialized
+
+
+def test_validate_candidate_never_creates_a_staging_record(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert not hasattr(outcome, "records")
+    assert "records" not in outcome.to_dict()
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "expected_category"),
+    [
+        ("dtd_entity_attack.xml", "security"),
+        ("missing_identifier.xml", "parse"),
+    ],
+)
+def test_validate_candidate_strict_cap_failures_are_categorized(
+    tmd_contract: dict, fixture_name: str, expected_category: str
+) -> None:
+    body = _read(fixture_name)
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors
+    assert outcome.error_category == expected_category
+
+
+def test_validate_candidate_rejects_an_rss_envelope(tmd_contract: dict) -> None:
+    body = _read_rss("same_host_link.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "text/xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "CandidateEnvelopeMismatchError"
+    assert outcome.error_category == "parse"
+    assert outcome.envelope_classification["envelope_kind"] == RSS
+
+
+def test_validate_candidate_unexpected_content_type_is_rejected(tmd_contract: dict) -> None:
+    body = b"<html>not xml</html>"
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "text/html"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_category == "content_type"
+
+
+def test_validate_candidate_missing_content_type_is_rejected(tmd_contract: dict) -> None:
+    """ChatGPT review round 1, finding 3: unlike collect()/discover_rss(),
+    a missing Content-Type header must fail candidate validation outright
+    -- never merely a warning -- and before any XML parsing."""
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "UnexpectedContentTypeError"
+    assert outcome.error_category == "content_type"
+    assert outcome.envelope_classification is None
+
+
+def test_validate_candidate_unexpected_content_type_message_is_bounded(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 1, finding 7: the raw Content-Type header
+    value must be bounded before it ever reaches an exception message,
+    not only relying on the final report sanitizer."""
+    overlong_type = "text/x-" + ("a" * 500)
+    fake_http = FakeHttpClient(body=b"not-xml", headers={"content-type": overlong_type})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_category == "content_type"
+    assert overlong_type not in outcome.errors[0]
+    assert len(outcome.errors[0]) < len(overlong_type)
+
+
+def test_validate_candidate_bounds_an_allowlisted_content_type_with_a_long_parameter(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 2, finding 1: validate_content_type() accepts
+    an allowlisted *base* media type verbatim, including an arbitrarily
+    long parameter section (e.g. "application/xml; x=<canary>"). That
+    full value must still be bounded before it is stored on the outcome,
+    independent of the final report sanitizer."""
+    canary = "CONTENT_TYPE_PARAM_CANARY_" + ("y" * 500)
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": f"application/xml; x={canary}"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.content_type == "application/xml"
+    serialized = json.dumps(outcome.to_dict())
+    assert canary not in serialized
+
+
+def test_validate_candidate_never_retains_a_short_canary_token_from_a_content_type_parameter(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 3, finding 2: bounding alone (round 2's fix)
+    was not sufficient -- a short canary placed at the very start of an
+    allowlisted type's parameter section would still have survived
+    within the first 64 characters of the bounded raw value. Only the
+    normalized base media type is retained now, so even a short token
+    must never appear."""
+    canary_token = "SHORT_CANARY_TOKEN"  # noqa: S105
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(
+        body=body, headers={"content-type": f"application/xml; x={canary_token}; y=1"}
+    )
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.content_type == "application/xml"
+    serialized = json.dumps(outcome.to_dict())
+    assert canary_token not in serialized
+
+
+def test_validate_candidate_rejected_content_type_diagnostic_omits_parameter_canary(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 3, finding 2: the rejection diagnostic for a
+    present-but-disallowed Content-Type must also never embed a raw
+    parameter section -- only the normalized, rejected base type."""
+    canary_token = "REJECTED_TYPE_CANARY_TOKEN"  # noqa: S105
+    body = b"<html>not xml</html>"
+    fake_http = FakeHttpClient(body=body, headers={"content-type": f"text/html; x={canary_token}"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_category == "content_type"
+    assert canary_token not in json.dumps(outcome.to_dict())
+    assert "text/html" in outcome.errors[0]
+
+
+def test_validate_candidate_never_leaks_parser_warnings_with_identifier_or_geometry(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 1, finding 4: parse_cap_alert()'s own warning
+    strings embed the raw CAP <identifier> and bounded-but-real invalid
+    timestamp/polygon/circle source values -- none of that may reach the
+    outcome, only a warning count."""
+    body = _read("invalid_geometry_and_timestamps.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.cap_parser_warning_count is not None
+    assert outcome.cap_parser_warning_count > 0
+    serialized = json.dumps(outcome.to_dict())
+    for canary in (
+        "synthetic-tmd-cap-invalid-0003",
+        "not-a-real-timestamp",
+        "999.0,999.0",
+        "15.0,100.0",
+    ):
+        assert canary not in serialized
+
+
+def test_validate_candidate_bounds_etag_and_last_modified_at_extraction(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 1, finding 7: ETag/Last-Modified are bounded
+    when extracted onto the outcome, independent of the final report
+    sanitizer."""
+    body = _read("valid_bilingual_alert.xml")
+    overlong_etag = '"' + ("e" * 500) + '"'
+    fake_http = FakeHttpClient(
+        body=body,
+        headers={"content-type": "application/cap+xml", "etag": overlong_etag},
+    )
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.etag is not None
+    assert len(outcome.etag) < len(overlong_etag)
+
+
+def test_validate_candidate_construction_never_resolves_the_contract_endpoint(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 1, finding 6: candidate validation must never
+    depend on config/sources.yaml's endpoint/alternate_endpoints -- proven
+    here with a contract whose endpoint is deliberately poisoned/missing,
+    which would raise if resolve_endpoint() were ever called."""
+    poisoned_contract = dict(tmd_contract)
+    poisoned_contract["endpoint"] = None
+    poisoned_contract.pop("alternate_endpoints", None)
+
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    # Construction itself must not raise despite the poisoned endpoint.
+    adapter = _candidate_adapter(poisoned_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.request_url == "https://www.tmd.go.th/uploads/CAP/en/CAPTMD20260723155032_2.xml"
+
+    with pytest.raises(ValueError):
+        _ = adapter.endpoint
+
+
+def test_validate_candidate_oversized_response_fails_before_parsing(tmd_contract: dict) -> None:
+    body = b"x" * (CANDIDATE_MAX_RESPONSE_BYTES + 1)
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_category == "security"
+    assert outcome.envelope_classification is None
+
+
+def test_validate_candidate_304_fails_closed(tmd_contract: dict) -> None:
+    fake_http = FakeHttpClient(body=b"", status=304, headers={"etag": '"abc"'})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "UnexpectedNotModifiedError"
+    assert outcome.http_status == 304
+
+
+def test_validate_candidate_reference_error_never_reaches_the_network(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="../etc/passwd",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.error_category == "validation"
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+
+
+def test_validate_candidate_dns_rejection_never_reaches_the_transport(tmd_contract: dict) -> None:
+    def _raise_dns(hostname, port):
+        raise DnsResolutionError("simulated failure")
+
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http, resolve_pinned=_raise_dns)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "DnsResolutionError"
+    assert outcome.error_category == "security"
+    assert fake_http.pinned_call_count == 0
+
+
+def test_validate_candidate_connected_ip_mismatch_fails_closed(tmd_contract: dict) -> None:
+    """ChatGPT review round 1, finding 2: a peer mismatch is now enforced
+    by the transport itself, before any request is sent -- the fake
+    mirrors that by raising PinnedConnectionError from inside
+    get_pinned_candidate, so validate_candidate never reaches the line
+    that would otherwise set connected_ip_matches_selected; it stays
+    None, not False, reflecting that no partial state was ever recorded."""
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    fake_http.connected_ip_override = "10.0.0.99"
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert isinstance(outcome.error_code, str)
+    assert outcome.error_code == "PinnedConnectionError"
+    assert outcome.error_category == "security"
+    assert outcome.connected_ip_matches_selected is None
+    assert outcome.http_status is None
+
+
+def test_validate_candidate_derives_the_thai_url_and_ignores_the_contract_endpoint(
+    tmd_contract: dict,
+) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http, language="thai_language_cap")
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.request_url == "https://www.tmd.go.th/uploads/CAP/CAPTMD20260723155032_2.xml"

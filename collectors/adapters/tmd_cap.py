@@ -17,8 +17,9 @@ distinction is enforced by never emitting anything but a hazard/context
 
 from __future__ import annotations
 
+import hashlib
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -26,15 +27,50 @@ from urllib.parse import urlparse
 
 from ..base import SourceAdapter
 from ..error_classification import classify_error
-from ..http_client import validate_content_type
+from ..http_client import (
+    PinnedResolution,
+    UnexpectedContentTypeError,
+    resolve_pinned_address,
+    validate_content_type,
+)
 from ..models import CollectionResult, CollectionRun, RunStatus, SourceHealth, SourceStatus
 from ..staging import build_staging_record
 from ..url_redaction import redact_url_userinfo
 from .cap import CapSecurityError, MalformedCapAlertError, parse_cap_alert
 from .rss_discovery import discover_rss_candidates
-from .xml_envelope import RSS, classify_envelope
+from .tmd_candidate import (
+    CandidateEnvelopeMismatchError,
+    CandidateUnexpectedStatusError,
+    build_candidate_reference,
+    derive_candidate_request,
+)
+from .xml_envelope import CAP_ALERT, RSS, classify_envelope
 
 ADAPTER_VERSION = "tmd_cap_v1"
+
+#: WO-006 Scope B: a dedicated, hardcoded response-size bound for candidate
+#: validation, deliberately independent of the source contract's
+#: ``http.max_response_bytes`` (which governs the whole RSS/direct-CAP
+#: feed, not a single candidate alert file). A single CAP <alert> document
+#: is expected to be small; this cap is enforced by the pinned transport
+#: itself before the body is ever handed to the XML parser.
+CANDIDATE_MAX_RESPONSE_BYTES = 2_000_000
+
+#: Small enumerated CAP fields (status/msgType/scope/sent) and provenance
+#: strings (language/evidence run ID) are bounded independently of the
+#: overall response-size cap above, mirroring the same "bound untrusted
+#: values at the point they are extracted, not only at the final report
+#: boundary" pattern already used in cap.py/xml_envelope.py/rss_discovery.py.
+_MAX_CANDIDATE_FIELD_LENGTH = 64
+
+
+def _bounded_field(
+    value: str | None, *, max_length: int = _MAX_CANDIDATE_FIELD_LENGTH
+) -> str | None:
+    if value is None or len(value) <= max_length:
+        return value
+    omitted = len(value) - max_length
+    return value[:max_length] + f"...(+{omitted} chars omitted)"
 
 
 class UnexpectedNotModifiedError(RuntimeError):
@@ -273,6 +309,97 @@ class RssDiscoveryOutcome:
         }
 
 
+@dataclass(slots=True)
+class CandidateValidationOutcome:
+    """Result of one WO-006 controlled single-candidate CAP validation.
+
+    Deliberately distinct from ``CollectionResult``, ``RssDiscoveryOutcome``,
+    and every schema under ``schemas/`` -- candidate validation never
+    collects records and never creates a staging record, so this is not
+    shaped like any of them. Every field here is either a bounded
+    structural/provenance value or explicitly minimized (the CAP
+    ``<identifier>`` is retained as length + SHA-256 only, never the raw
+    value); raw XML and all free-text CAP content (headline, description,
+    instruction, note, audience, web, contact, area description, geometry)
+    are never present on this dataclass at all -- there is no field for
+    them to occupy.
+    """
+
+    operation: str
+    mode: str
+    language: str | None
+    evidence_run_id: str | None
+    evidence_item_index: int | None
+    workflow_sha: str | None
+    request_url: str | None
+    selected_ip: str | None
+    address_family: str | None
+    connected_ip_matches_selected: bool | None
+    http_status: int | None
+    content_type: str | None
+    etag: str | None
+    last_modified: str | None
+    content_length: int | None
+    content_sha256: str | None
+    envelope_classification: dict[str, Any] | None
+    cap_identifier_length: int | None
+    cap_identifier_sha256: str | None
+    cap_sent: str | None
+    cap_status: str | None
+    cap_msg_type: str | None
+    cap_scope: str | None
+    cap_info_count: int | None
+    cap_languages: list[str]
+    cap_reference_count: int | None
+    cap_area_count: int | None
+    #: Count only, never the parser's own warning text -- see
+    #: ``validate_candidate``'s comment at the call site (ChatGPT review
+    #: round 1, finding 4): ``parse_cap_alert``'s warnings embed the raw
+    #: CAP identifier and bounded-but-real invalid timestamp/geometry
+    #: source values, which this result model must never retain.
+    cap_parser_warning_count: int | None
+    warnings: list[str]
+    errors: list[str]
+    error_code: str | None = None
+    error_category: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "operation": self.operation,
+            "mode": self.mode,
+            "language": self.language,
+            "evidence_run_id": self.evidence_run_id,
+            "evidence_item_index": self.evidence_item_index,
+            "workflow_sha": self.workflow_sha,
+            "request_url": self.request_url,
+            "selected_ip": self.selected_ip,
+            "address_family": self.address_family,
+            "connected_ip_matches_selected": self.connected_ip_matches_selected,
+            "http_status": self.http_status,
+            "content_type": self.content_type,
+            "etag": self.etag,
+            "last_modified": self.last_modified,
+            "content_length": self.content_length,
+            "content_sha256": self.content_sha256,
+            "envelope_classification": self.envelope_classification,
+            "cap_identifier_length": self.cap_identifier_length,
+            "cap_identifier_sha256": self.cap_identifier_sha256,
+            "cap_sent": self.cap_sent,
+            "cap_status": self.cap_status,
+            "cap_msg_type": self.cap_msg_type,
+            "cap_scope": self.cap_scope,
+            "cap_info_count": self.cap_info_count,
+            "cap_languages": self.cap_languages,
+            "cap_reference_count": self.cap_reference_count,
+            "cap_area_count": self.cap_area_count,
+            "cap_parser_warning_count": self.cap_parser_warning_count,
+            "warnings": self.warnings,
+            "errors": self.errors,
+            "error_code": self.error_code,
+            "error_category": self.error_category,
+        }
+
+
 class TmdCapAdapter(SourceAdapter):
     """Adapter for the TMD CAP 1.2 warning feed.
 
@@ -291,10 +418,27 @@ class TmdCapAdapter(SourceAdapter):
         http=None,
         *,
         language: str = "primary",
+        resolve_pinned: Callable[[str, int], PinnedResolution] | None = None,
     ) -> None:
         super().__init__(contract, http)
         self.language = language
-        self.endpoint = resolve_endpoint(contract, language=language)
+        # WO-006 Scope B: injectable so tests can substitute a fully
+        # in-memory resolver (no real DNS lookup) without touching
+        # production networking code, mirroring how ``http`` above is
+        # already injectable. Defaults to the real DNS-pinning resolver.
+        self._resolve_pinned = resolve_pinned or resolve_pinned_address
+
+    @property
+    def endpoint(self) -> str:
+        """Resolved lazily, on access, rather than at construction time
+        (ChatGPT review round 1, finding 6): ``validate_candidate()``
+        never reads this property at all, so constructing an adapter
+        purely for candidate validation never touches
+        ``config/sources.yaml``'s ``endpoint``/``alternate_endpoints``
+        fields -- only ``collect()`` and ``discover_rss()`` do, exactly
+        as before this change, just resolved on each access instead of
+        once at ``__init__`` time."""
+        return resolve_endpoint(self.contract, language=self.language)
 
     def collect(self) -> CollectionResult:
         started_dt = datetime.now(UTC).replace(microsecond=0)
@@ -543,6 +687,245 @@ class TmdCapAdapter(SourceAdapter):
             workflow_sha=os.environ.get("GITHUB_SHA"),
             envelope_classification=envelope_classification,
             discovery=discovery,
+            warnings=warnings,
+            errors=errors,
+            error_code=error_code,
+            error_category=error_category,
+        )
+
+    def validate_candidate(
+        self,
+        *,
+        candidate_filename: str,
+        evidence_run_id: str,
+        evidence_item_index: int,
+    ) -> CandidateValidationOutcome:
+        """WO-006 controlled single-candidate CAP validation (Scopes A-D).
+
+        Always a live operation -- ``scripts/manual_live_source_test.py``
+        only calls this when ``dry_run=false``, exactly like
+        ``collect()``/``discover_rss()`` above. Validates the candidate
+        reference and derives the fetch URL entirely from fixed policy
+        (``collectors/adapters/tmd_candidate.py`` -- never from an
+        arbitrary URL/host/port/path, and never from this contract), then
+        resolves and pins DNS, makes exactly one physical HTTPS GET
+        through ``ResilientHttpClient.get_pinned_candidate``, and -- only
+        if the body classifies as ``cap_alert`` -- runs the unchanged,
+        strict ``parse_cap_alert``. Never creates a staging record or
+        candidate event; the returned outcome retains only bounded
+        structural/provenance fields (never raw XML, never headline/
+        description/instruction/web/contact/area/geocode/geometry text,
+        and the CAP ``<identifier>`` only as length + SHA-256, never the
+        raw value).
+        """
+        warnings: list[str] = []
+        errors: list[str] = []
+        error_code: str | None = None
+        error_category: str | None = None
+
+        request_url: str | None = None
+        selected_ip: str | None = None
+        address_family: str | None = None
+        connected_ip_matches_selected: bool | None = None
+        http_status: int | None = None
+        content_type: str | None = None
+        etag: str | None = None
+        last_modified: str | None = None
+        content_length: int | None = None
+        content_sha256: str | None = None
+        envelope_classification: dict[str, Any] | None = None
+        cap_identifier_length: int | None = None
+        cap_identifier_sha256: str | None = None
+        cap_sent: str | None = None
+        cap_status: str | None = None
+        cap_msg_type: str | None = None
+        cap_scope: str | None = None
+        cap_info_count: int | None = None
+        cap_languages: list[str] = []
+        cap_reference_count: int | None = None
+        cap_area_count: int | None = None
+        cap_parser_warning_count: int | None = None
+
+        bounded_language = _bounded_field(str(self.language))
+        bounded_run_id = (
+            _bounded_field(evidence_run_id) if isinstance(evidence_run_id, str) else None
+        )
+        bounded_item_index = (
+            evidence_item_index
+            if isinstance(evidence_item_index, int) and not isinstance(evidence_item_index, bool)
+            else None
+        )
+
+        try:
+            reference = build_candidate_reference(
+                language=self.language,
+                candidate_filename=candidate_filename,
+                evidence_run_id=evidence_run_id,
+                evidence_item_index=evidence_item_index,
+            )
+            derived = derive_candidate_request(reference)
+            request_url = redact_url_userinfo(derived.url)
+
+            resolution = self._resolve_pinned(derived.hostname, derived.port)
+            selected_ip = resolution.selected_ip
+            address_family = resolution.address_family
+
+            http_contract = self.contract["http"]
+            response, connected_ip = self.http.get_pinned_candidate(
+                hostname=derived.hostname,
+                port=derived.port,
+                path=derived.path,
+                selected_ip=selected_ip,
+                timeout_seconds=int(http_contract["timeout_seconds"]),
+                max_response_bytes=CANDIDATE_MAX_RESPONSE_BYTES,
+            )
+            # get_pinned_candidate() itself now verifies the connected peer
+            # matches selected_ip *before* sending any request byte
+            # (ChatGPT review round 1, finding 2) -- a mismatch raises
+            # PinnedConnectionError from inside that call and this line is
+            # never reached with connected_ip != selected_ip. Recorded here
+            # purely as evidence for the outcome, not as the enforcement
+            # point.
+            connected_ip_matches_selected = connected_ip == selected_ip
+            http_status = response.status
+            content_length = len(response.body)
+            content_sha256 = response.content_sha256
+            etag = _bounded_field(response.headers.get("etag"))
+            last_modified = _bounded_field(response.headers.get("last-modified"))
+
+            if response.status == 304:
+                raise UnexpectedNotModifiedError(
+                    "received HTTP 304 Not Modified, but this request sent no "
+                    "validator and candidate validation has no cached prior "
+                    "body to validate against"
+                )
+            if response.status != 200:
+                raise CandidateUnexpectedStatusError(
+                    f"candidate fetch returned unexpected HTTP status {response.status}; "
+                    "expected 200"
+                )
+
+            # WO-006 Scope C requires a present, allowlisted Content-Type --
+            # unlike collect()/discover_rss(), a missing header is not
+            # merely a warning here (review round 1, finding 3). The raw
+            # header value is bounded before it ever reaches an exception
+            # message (finding 7); validate_content_type()'s own message
+            # embeds the complete raw value, so a present-but-unexpected
+            # type is re-raised with a bounded one instead of propagating
+            # unchanged.
+            raw_content_type = response.headers.get("content-type")
+            try:
+                content_type, _content_type_warning = validate_content_type(
+                    response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
+                )
+            except UnexpectedContentTypeError as exc:
+                # ChatGPT review round 3, finding 2: never embed the raw
+                # parameter section in the rejection diagnostic either --
+                # only the normalized base type the allowlist check itself
+                # rejected on.
+                rejected_base_type = _bounded_field(
+                    (raw_content_type or "").split(";", 1)[0].strip().lower()
+                )
+                raise UnexpectedContentTypeError(
+                    f"unexpected candidate Content-Type base {rejected_base_type!r}; "
+                    "expected an allowlisted CAP/XML type"
+                ) from exc
+            if content_type is None:
+                raise UnexpectedContentTypeError(
+                    "candidate response had no Content-Type header; a narrow "
+                    "XML/CAP allowlisted type is required for candidate validation"
+                )
+            # ChatGPT review round 2, finding 1 / round 3, finding 2: an
+            # *allowlisted* base media type can still carry an arbitrary
+            # parameter section (e.g. "application/xml; x=<canary>") --
+            # validate_content_type() only checks the base type and
+            # returns the header verbatim. Retain only the normalized,
+            # already-allowlisted base type -- never the raw parameter
+            # section, which is untrusted, source-controlled free text
+            # with no structural meaning to candidate validation. Bounding
+            # alone (round 2's fix) was not sufficient: a short canary
+            # placed at the start of the parameter section would still
+            # have survived within the first 64 characters.
+            content_type = content_type.split(";", 1)[0].strip().lower()
+
+            classification = classify_envelope(
+                response.body,
+                max_bytes=CANDIDATE_MAX_RESPONSE_BYTES,
+                content_sha256=content_sha256,
+            )
+            envelope_classification = classification.to_dict()
+            if classification.envelope_kind != CAP_ALERT:
+                raise CandidateEnvelopeMismatchError(
+                    f"candidate envelope classified as {classification.envelope_kind!r}, "
+                    "not 'cap_alert'"
+                )
+
+            # Unchanged, strict CAP 1.2 parser -- exactly the same function
+            # used by collect() above, never a relaxed or candidate-specific
+            # variant.
+            alert, parse_warnings = parse_cap_alert(
+                response.body, max_bytes=CANDIDATE_MAX_RESPONSE_BYTES
+            )
+            # ChatGPT review round 1, finding 4: parse_cap_alert()'s own
+            # warning strings are prefixed with the raw CAP <identifier>
+            # and can embed bounded-but-real invalid timestamp/polygon/
+            # circle/altitude/ceiling source values (cap.py's own
+            # _bounded() only truncates length, it does not remove or hash
+            # the value). Copying them verbatim into this outcome would
+            # contradict the identifier-as-length/hash-only and no-
+            # geometry/timestamp-source-value promises this result model
+            # makes, so only the count is retained -- never the text.
+            cap_parser_warning_count = len(parse_warnings)
+
+            identifier = alert["identifier"]
+            cap_identifier_length = len(identifier)
+            cap_identifier_sha256 = hashlib.sha256(
+                identifier.encode("utf-8", errors="surrogatepass")
+            ).hexdigest()
+            cap_sent = _bounded_field(alert.get("sent"))
+            cap_status = _bounded_field(alert.get("status"))
+            cap_msg_type = _bounded_field(alert.get("msgType"))
+            cap_scope = _bounded_field(alert.get("scope"))
+            infos = alert.get("info", [])
+            cap_info_count = len(infos)
+            cap_languages = sorted(
+                {language for info in infos if (language := _bounded_field(info.get("language")))}
+            )
+            cap_reference_count = len(alert.get("references", []))
+            cap_area_count = sum(len(info.get("area", [])) for info in infos)
+        except Exception as exc:  # noqa: BLE001 -- surfaced as a structured validation error
+            error_code, error_category = classify_error(exc)
+            errors.append(f"{error_code}: {exc}")
+
+        return CandidateValidationOutcome(
+            operation="candidate_cap_validation",
+            mode="live",
+            language=bounded_language,
+            evidence_run_id=bounded_run_id,
+            evidence_item_index=bounded_item_index,
+            workflow_sha=os.environ.get("GITHUB_SHA"),
+            request_url=request_url,
+            selected_ip=selected_ip,
+            address_family=address_family,
+            connected_ip_matches_selected=connected_ip_matches_selected,
+            http_status=http_status,
+            content_type=content_type,
+            etag=etag,
+            last_modified=last_modified,
+            content_length=content_length,
+            content_sha256=content_sha256,
+            envelope_classification=envelope_classification,
+            cap_identifier_length=cap_identifier_length,
+            cap_identifier_sha256=cap_identifier_sha256,
+            cap_sent=cap_sent,
+            cap_status=cap_status,
+            cap_msg_type=cap_msg_type,
+            cap_scope=cap_scope,
+            cap_info_count=cap_info_count,
+            cap_languages=cap_languages,
+            cap_reference_count=cap_reference_count,
+            cap_area_count=cap_area_count,
+            cap_parser_warning_count=cap_parser_warning_count,
             warnings=warnings,
             errors=errors,
             error_code=error_code,
