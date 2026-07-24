@@ -174,9 +174,10 @@ def resolve_pinned_address(hostname: str, port: int) -> PinnedResolution:
     return PinnedResolution(selected_ip=str(ipv6_addresses[0]), address_family="IPv6")
 
 
-#: Response headers are bounded independently of the response body cap --
-#: a candidate response's headers are read into memory before the body
-#: streaming/size check below even begins.
+#: Response *metadata* -- the initial status line and headers, and, for a
+#: chunked response, every subsequent chunk-size/framing line and every
+#: trailer line -- is bounded to this aggregate byte count, independently
+#: of the response body cap. See ``_BoundedHeaderFile`` below.
 _MAX_PINNED_HEADER_BYTES = 65536
 
 
@@ -187,46 +188,64 @@ def _open_pinned_socket(
     ``verify_hostname`` -- and TLS-wrap it with SNI and certificate
     verification pinned to ``verify_hostname``. Factored out so tests can
     substitute an in-memory socket pair without opening a real connection
-    or performing a real TLS handshake."""
+    or performing a real TLS handshake.
+
+    ``raw_sock`` is explicitly closed if anything after a successful
+    ``create_connection()`` raises (context creation or the TLS
+    handshake itself) -- ownership of the raw socket only transfers to
+    the caller once a fully wrapped socket is returned (ChatGPT review
+    round 3, finding 3: the original implementation left the connected
+    raw socket unclosed on either of those failures, since the caller
+    never receives a reference to it to close).
+    """
     raw_sock = socket.create_connection((selected_ip, port), timeout=timeout_seconds)
-    context = ssl.create_default_context()
-    return context.wrap_socket(raw_sock, server_hostname=verify_hostname)
+    try:
+        context = ssl.create_default_context()
+        return context.wrap_socket(raw_sock, server_hostname=verify_hostname)
+    except Exception:
+        raw_sock.close()
+        raise
 
 
 class _BoundedHeaderFile:
-    """Wraps the real per-connection read file so header parsing is
-    bounded to a fixed aggregate byte count *while headers are being
-    read*, not only rejected after ``http.client`` has already buffered
-    a complete, possibly oversized, header block (ChatGPT review round
-    2, finding 4).
+    """Wraps the real per-connection read file so *all* line-oriented
+    HTTP response metadata is bounded to a fixed aggregate byte count
+    while it is being read -- not only rejected after ``http.client``
+    has already buffered a complete, possibly oversized, block (ChatGPT
+    review round 2, finding 4).
 
     ``http.client``'s status-line and header parsing (``_read_status``,
-    ``_read_headers``) exclusively calls ``readline()`` on this file,
-    line by line, until it sees the blank line terminating the header
-    block -- exactly the boundary this wrapper watches for. Once that
-    blank line is seen, this wrapper stops counting and delegates
-    ``read()``/``readinto()`` straight through unbounded: the response
-    *body* is bounded separately and explicitly by
-    ``get_pinned_candidate`` itself (``max_response_bytes``), not by
-    this header-only cap.
+    ``_read_headers``) exclusively calls ``readline()`` on this file.
+    For a chunked response, so does its chunk-size/framing-line parsing
+    (``_read_next_chunk_size``) and its trailer parsing
+    (``_read_and_discard_trailer``) -- both read line-by-line from the
+    *same* file object for the lifetime of the response, well after the
+    initial header block ends. Counting must never stop after the first
+    blank line: doing so bounds only the initial header block and lets a
+    chunked response with a tiny body carry an arbitrarily large
+    aggregate trailer block through completely uncounted (ChatGPT review
+    round 3, finding 1). Actual chunk/body *content* is read exclusively
+    via ``read()``/``readinto()``, never via ``readline()``, so counting
+    every ``readline()`` call for the object's entire lifetime bounds
+    only response metadata (status line, headers, chunk framing,
+    trailers) and never constrains the body itself, which is bounded
+    completely separately and explicitly by ``get_pinned_candidate``'s
+    own ``max_response_bytes`` check.
     """
 
-    def __init__(self, raw, max_header_bytes: int) -> None:
+    def __init__(self, raw, max_metadata_bytes: int) -> None:
         self._raw = raw
-        self._max_header_bytes = max_header_bytes
-        self._header_bytes_read = 0
-        self._headers_done = False
+        self._max_metadata_bytes = max_metadata_bytes
+        self._metadata_bytes_read = 0
 
     def readline(self, limit: int = -1) -> bytes:
         line = self._raw.readline(limit)
-        if not self._headers_done:
-            self._header_bytes_read += len(line)
-            if line in (b"\r\n", b"\n", b""):
-                self._headers_done = True
-            if self._header_bytes_read > self._max_header_bytes:
-                raise ResponseTooLargeError(
-                    f"Response headers exceeded {self._max_header_bytes} bytes"
-                )
+        self._metadata_bytes_read += len(line)
+        if self._metadata_bytes_read > self._max_metadata_bytes:
+            raise ResponseTooLargeError(
+                "Response metadata (status line/headers/chunk framing/trailers) "
+                f"exceeded {self._max_metadata_bytes} bytes"
+            )
         return line
 
     def read(self, *args, **kwargs):

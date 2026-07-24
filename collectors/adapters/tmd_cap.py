@@ -819,8 +819,15 @@ class TmdCapAdapter(SourceAdapter):
                     response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
                 )
             except UnexpectedContentTypeError as exc:
+                # ChatGPT review round 3, finding 2: never embed the raw
+                # parameter section in the rejection diagnostic either --
+                # only the normalized base type the allowlist check itself
+                # rejected on.
+                rejected_base_type = _bounded_field(
+                    (raw_content_type or "").split(";", 1)[0].strip().lower()
+                )
                 raise UnexpectedContentTypeError(
-                    f"unexpected candidate Content-Type {_bounded_field(raw_content_type)!r}; "
+                    f"unexpected candidate Content-Type base {rejected_base_type!r}; "
                     "expected an allowlisted CAP/XML type"
                 ) from exc
             if content_type is None:
@@ -828,13 +835,18 @@ class TmdCapAdapter(SourceAdapter):
                     "candidate response had no Content-Type header; a narrow "
                     "XML/CAP allowlisted type is required for candidate validation"
                 )
-            # ChatGPT review round 2, finding 1: an *allowlisted* base media
-            # type can still carry an arbitrarily long parameter section
-            # (e.g. "application/xml; x=<huge value>") -- validate_content_type()
-            # only checks the base type and returns the header verbatim.
-            # Bound it here, at the point it is accepted onto the outcome,
-            # independent of the final report sanitizer.
-            content_type = _bounded_field(content_type)
+            # ChatGPT review round 2, finding 1 / round 3, finding 2: an
+            # *allowlisted* base media type can still carry an arbitrary
+            # parameter section (e.g. "application/xml; x=<canary>") --
+            # validate_content_type() only checks the base type and
+            # returns the header verbatim. Retain only the normalized,
+            # already-allowlisted base type -- never the raw parameter
+            # section, which is untrusted, source-controlled free text
+            # with no structural meaning to candidate validation. Bounding
+            # alone (round 2's fix) was not sufficient: a short canary
+            # placed at the start of the parameter section would still
+            # have survived within the first 64 characters.
+            content_type = content_type.split(";", 1)[0].strip().lower()
 
             classification = classify_envelope(
                 response.body,

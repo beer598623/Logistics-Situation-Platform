@@ -933,10 +933,57 @@ def test_validate_candidate_bounds_an_allowlisted_content_type_with_a_long_param
         evidence_item_index=0,
     )
     assert outcome.errors == []
-    assert outcome.content_type is not None
-    assert canary not in outcome.content_type
+    assert outcome.content_type == "application/xml"
     serialized = json.dumps(outcome.to_dict())
     assert canary not in serialized
+
+
+def test_validate_candidate_never_retains_a_short_canary_token_from_a_content_type_parameter(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 3, finding 2: bounding alone (round 2's fix)
+    was not sufficient -- a short canary placed at the very start of an
+    allowlisted type's parameter section would still have survived
+    within the first 64 characters of the bounded raw value. Only the
+    normalized base media type is retained now, so even a short token
+    must never appear."""
+    canary_token = "SHORT_CANARY_TOKEN"  # noqa: S105
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(
+        body=body, headers={"content-type": f"application/xml; x={canary_token}; y=1"}
+    )
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.content_type == "application/xml"
+    serialized = json.dumps(outcome.to_dict())
+    assert canary_token not in serialized
+
+
+def test_validate_candidate_rejected_content_type_diagnostic_omits_parameter_canary(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 3, finding 2: the rejection diagnostic for a
+    present-but-disallowed Content-Type must also never embed a raw
+    parameter section -- only the normalized, rejected base type."""
+    canary_token = "REJECTED_TYPE_CANARY_TOKEN"  # noqa: S105
+    body = b"<html>not xml</html>"
+    fake_http = FakeHttpClient(body=body, headers={"content-type": f"text/html; x={canary_token}"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_category == "content_type"
+    assert canary_token not in json.dumps(outcome.to_dict())
+    assert "text/html" in outcome.errors[0]
 
 
 def test_validate_candidate_never_leaks_parser_warnings_with_identifier_or_geometry(

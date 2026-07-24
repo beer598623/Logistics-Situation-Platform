@@ -813,13 +813,16 @@ def test_get_pinned_candidate_rejects_headers_over_the_cap_before_reading_body(
     assert canary_body not in str(excinfo.value).encode()
 
 
-def test_bounded_header_file_stops_counting_once_headers_are_done(
+def test_bounded_header_file_never_bounds_the_body_itself(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Unit test of _BoundedHeaderFile in isolation: a body far larger
-    than the header cap must still be readable once the blank line
-    terminating the header block has been seen -- the cap applies only
-    to the header-parsing phase, never to the body."""
+    than the metadata cap must still be readable once the blank line
+    terminating the header block has been seen -- the cap counts every
+    readline() call for the object's entire lifetime (ChatGPT review
+    round 3, finding 1), but body content is read exclusively via
+    read()/readinto(), which this wrapper never counts against the cap
+    at all."""
     body = b"x" * (http_client._MAX_PINNED_HEADER_BYTES * 2)
     response = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\n" + body
     _install_fake_pinned_socket(monkeypatch, response)
@@ -834,6 +837,109 @@ def test_bounded_header_file_stops_counting_once_headers_are_done(
         max_response_bytes=len(body) + 1,
     )
     assert http_response.body == body
+
+
+# --- ChatGPT review round 3, finding 1: chunked trailers are bounded too --
+
+
+def _chunked_response(body: bytes, trailer_line: bytes) -> bytes:
+    chunk_size_hex = format(len(body), "x").encode()
+    return (
+        b"HTTP/1.1 200 OK\r\n"
+        b"Content-Type: application/cap+xml\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"\r\n" + chunk_size_hex + b"\r\n" + body + b"\r\n"
+        b"0\r\n" + trailer_line + b"\r\n"
+    )
+
+
+def test_get_pinned_candidate_rejects_chunked_trailers_over_the_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A response with a tiny chunked body but an oversized aggregate
+    trailer block must still be rejected -- trailers are read line-by-line
+    from the same file object well after the initial header block ends,
+    so counting must never stop after the first blank line."""
+    trailer_canary = b"TRAILER_CANARY_" + b"z" * 65500
+    response = _chunked_response(b"BODY", b"X-Trailer: " + trailer_canary)
+    _install_fake_pinned_socket(monkeypatch, response)
+
+    client = ResilientHttpClient()
+    with pytest.raises(ResponseTooLargeError) as excinfo:
+        client.get_pinned_candidate(
+            hostname="www.tmd.go.th",
+            port=443,
+            path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+            selected_ip="8.8.8.10",
+            timeout_seconds=5,
+            max_response_bytes=1_000_000,
+        )
+    assert b"TRAILER_CANARY_" not in str(excinfo.value).encode()
+
+
+def test_get_pinned_candidate_accepts_chunked_trailers_just_under_the_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    small_trailer = b"X-Trailer: ok"
+    response = _chunked_response(b"BODY", small_trailer)
+    _install_fake_pinned_socket(monkeypatch, response)
+
+    client = ResilientHttpClient()
+    http_response, _connected_ip = client.get_pinned_candidate(
+        hostname="www.tmd.go.th",
+        port=443,
+        path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+        selected_ip="8.8.8.10",
+        timeout_seconds=5,
+        max_response_bytes=1_000_000,
+    )
+    assert http_response.status == 200
+    assert http_response.body == b"BODY"
+
+
+# --- ChatGPT review round 3, finding 3: _open_pinned_socket cleanup -------
+
+
+class _CloseTrackingRawSocket:
+    def __init__(self) -> None:
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_open_pinned_socket_closes_the_raw_socket_on_context_creation_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_raw_sock = _CloseTrackingRawSocket()
+    monkeypatch.setattr(socket, "create_connection", lambda addr, timeout: fake_raw_sock)
+
+    def _raise_context_error():
+        raise OSError("simulated context creation failure")
+
+    monkeypatch.setattr(http_client.ssl, "create_default_context", _raise_context_error)
+
+    with pytest.raises(OSError):
+        http_client._open_pinned_socket("8.8.8.10", 443, "www.tmd.go.th", timeout_seconds=5)
+    assert fake_raw_sock.closed is True
+
+
+def test_open_pinned_socket_closes_the_raw_socket_on_wrap_socket_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import ssl
+
+    class _FailingContext:
+        def wrap_socket(self, sock, *, server_hostname):  # noqa: ARG002
+            raise ssl.SSLError("simulated handshake failure")
+
+    fake_raw_sock = _CloseTrackingRawSocket()
+    monkeypatch.setattr(socket, "create_connection", lambda addr, timeout: fake_raw_sock)
+    monkeypatch.setattr(http_client.ssl, "create_default_context", lambda: _FailingContext())
+
+    with pytest.raises(ssl.SSLError):
+        http_client._open_pinned_socket("8.8.8.10", 443, "www.tmd.go.th", timeout_seconds=5)
+    assert fake_raw_sock.closed is True
 
 
 def test_open_pinned_socket_verifies_the_hostname_not_the_ip(

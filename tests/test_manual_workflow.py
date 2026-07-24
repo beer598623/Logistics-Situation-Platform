@@ -625,6 +625,41 @@ def test_main_candidate_cap_validation_bounds_an_allowlisted_content_type_parame
     report = json.loads((tmp_path / "report.json").read_text())
     assert exit_code == 0
     assert canary not in json.dumps(report)
+    assert report["candidate_validation"]["content_type"] == "application/xml"
+
+
+def test_main_candidate_cap_validation_never_retains_a_short_content_type_canary_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """ChatGPT review round 3, finding 2, end-to-end: a short canary
+    token at the start of an allowlisted type's parameter section must
+    never survive -- only the normalized base type is retained."""
+    canary_token = "SHORT_CANARY_TOKEN"  # noqa: S105
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": f"application/xml; x={canary_token}"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 0
+    assert canary_token not in json.dumps(report)
 
 
 def test_main_candidate_cap_validation_never_leaks_parser_warning_source_values(

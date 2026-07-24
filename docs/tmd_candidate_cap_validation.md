@@ -174,7 +174,14 @@ activity**, with a specific `CandidateReferenceError` message
    are still performed against `www.tmd.go.th`, never against the raw IP
    literal. The `Host` header sent over that connection is likewise the
    hostname, not the IP (`http.client`'s `skip_host` mechanism, driven by
-   passing an explicit `Host` header). **The transport itself** -- not
+   passing an explicit `Host` header). If context creation or the TLS
+   handshake itself raises after `create_connection()` already
+   succeeded, `_open_pinned_socket()` explicitly closes the connected
+   raw socket before re-raising -- ownership only transfers to the
+   caller once a fully wrapped socket is returned (ChatGPT review round
+   3, finding 3: the original implementation left that raw socket
+   unclosed on either failure, since the caller never received a
+   reference to it to close). **The transport itself** -- not
    just the calling adapter -- reads the peer IP the socket actually
    connected to and compares it (via `ipaddress.ip_address` equality) to
    the DNS-selected IP **before constructing the HTTP request or sending
@@ -210,30 +217,38 @@ activity**, with a specific `CandidateReferenceError` message
    anything and raises `UnexpectedNotModifiedError` -- reusing the exact
    same class and rationale already established for `discover_rss()` in
    WO-004.
-9. **Headers and the streamed body are both bounded** before parsing.
-   Headers are capped at 64 KiB (`_MAX_PINNED_HEADER_BYTES`), enforced
-   *while the header block is being streamed* -- `_HeaderCappedSocket`
-   wraps the connected socket so every read file `http.client` obtains
-   from it (via `makefile("rb")`) is a `_BoundedHeaderFile`, which counts
-   every byte `http.client`'s own status-line/header parsing reads via
-   `readline()` and raises `ResponseTooLargeError` the moment the
-   aggregate exceeds the cap -- *before* the complete (possibly
-   oversized) header block is ever accepted into memory, and before any
-   response body is read (ChatGPT review round 2, finding 4 -- the
-   original implementation summed `response.getheaders()` only *after*
-   `http.client` had already parsed the full block, which both let an
-   oversized-but-still-within-`http.client`'s-own-100-header/64KB-per-line
-   limits block through unbounded and undercounted real wire bytes by
-   ignoring header-name/value separators and line terminators). Once the
-   blank line terminating the header block is seen, the wrapper stops
-   counting and body reads pass straight through -- the body is bounded
+9. **Response metadata and the streamed body are both bounded** before
+   parsing. All line-oriented response *metadata* -- the status line,
+   headers, and, for a chunked response, every subsequent chunk-size/
+   framing line and every trailer line -- is capped at 64 KiB
+   (`_MAX_PINNED_HEADER_BYTES`), enforced *while it is being streamed* --
+   `_HeaderCappedSocket` wraps the connected socket so every read file
+   `http.client` obtains from it (via `makefile("rb")`) is a
+   `_BoundedHeaderFile`, which counts every byte `http.client` reads via
+   `readline()` -- for the *entire lifetime of the response*, not only
+   during initial header parsing -- and raises `ResponseTooLargeError`
+   the moment the aggregate exceeds the cap. This deliberately never
+   stops counting after the first blank line: `http.client` reuses the
+   same file object, via the same `readline()` mechanism, for a chunked
+   response's chunk-size/framing lines and its trailer section after the
+   terminal `0\r\n` chunk (`_read_next_chunk_size`,
+   `_read_and_discard_trailer`) -- counting only the initial block would
+   let a response with a tiny CAP body carry an arbitrarily large
+   aggregate trailer block through completely uncounted (ChatGPT review
+   round 3, finding 1). Actual chunk/body *content* is read exclusively
+   via `read()`/`readinto()`, never via `readline()`, so this
+   metadata-only cap never constrains the body itself, which is bounded
    completely separately and explicitly, at
    `TmdCapAdapter.CANDIDATE_MAX_RESPONSE_BYTES` (2,000,000 bytes -- a
    dedicated, hardcoded bound for one candidate alert file, deliberately
    independent of the TMD source contract's much larger
    `http.max_response_bytes`, which governs the whole feed). Exceeding
    either raises `ResponseTooLargeError` before the body is handed to any
-   XML parser.
+   XML parser. (Round 2, finding 4, first fixed the *timing* of this
+   check -- moving it from after `http.client` had already parsed a
+   complete block to during streaming -- but originally still stopped
+   counting after the initial header block; round 3 extended it to cover
+   the whole response's lifetime.)
 10. **Post-handshake socket/protocol failures are sanitized, not leaked.**
    A TLS read/write failure after the handshake (`ssl.SSLError`) raises
    `PinnedTlsError`; any other connection-level failure while writing the
@@ -271,13 +286,23 @@ response is in memory:
    enters the exception message (finding 7) -- the shared
    `validate_content_type()`'s own message embeds the complete raw
    value, so candidate validation re-raises with a bounded one instead.
-   A *present-and-allowlisted* type is bounded too, at the point it is
-   accepted onto the outcome: `validate_content_type()` only checks the
-   base media type and returns the full header verbatim, so an
-   allowlisted type with an arbitrarily long parameter (e.g.
-   `application/xml; x=<huge value>`) would otherwise reach
-   `CandidateValidationOutcome.content_type` unbounded, relying solely
-   on the final report sanitizer (ChatGPT review round 2, finding 1).
+   A *present-and-allowlisted* type retains **only the normalized base
+   media type** (e.g. `application/xml`) -- never the raw parameter
+   section at all, which is untrusted, source-controlled free text with
+   no structural meaning to candidate validation.
+   `validate_content_type()` only checks the base media type and
+   returns the full header verbatim, so an allowlisted type with an
+   arbitrary parameter (e.g. `application/xml; x=<canary>`) would
+   otherwise reach `CandidateValidationOutcome.content_type` intact.
+   Bounding that value to 64 characters (round 2, finding 1) was not
+   sufficient on its own: a short canary placed at the very start of the
+   parameter section would still have survived within the first 64
+   characters of the bounded raw value. The same normalization is
+   applied to the *rejected*-type diagnostic message too (a
+   present-but-disallowed type, e.g. `text/html; x=<canary>`, is
+   reported by its normalized rejected base type only, e.g.
+   `'text/html'`, never the raw parameter section) (ChatGPT review round
+   2, finding 1; round 3, finding 2).
 3. The response-size cap (Section 4 item 9) was already enforced by the
    transport before this point.
 4. `classify_envelope()` (WO-004, unchanged) runs on the in-memory body.
