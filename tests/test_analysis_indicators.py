@@ -6,6 +6,7 @@ The recurring assertion in this file: when an input is missing, the answer is
 
 from __future__ import annotations
 
+import math
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -238,6 +239,19 @@ def test_rolling_average_uses_the_documented_window():
     derivation = derive_series("probe", month_series([90.0, 100.0, 110.0]), now=NOW)
     assert derivation.rolling_average == pytest.approx(100.0)
     assert derivation.rolling_window_used == ROLLING_WINDOW
+
+
+def test_rolling_average_is_identical_across_python_versions():
+    """Regression: CPython 3.12 switched the builtin sum() to compensated
+    summation for floats, so builtin sum gave a different final digit on 3.11
+    and 3.12 for these inputs. math.fsum is exactly rounded on every version.
+
+    A derived record whose bytes change with the interpreter is not
+    reproducible, and CI caught exactly this. The expected value below is the
+    exactly-rounded one, which both versions now produce.
+    """
+    derivation = derive_series("probe", month_series([79.0, 82.32, 100.78]), now=NOW)
+    assert repr(derivation.rolling_average) == repr(math.fsum([79.0, 82.32, 100.78]) / 3)
 
 
 def test_no_baseline_means_no_deviation_is_published():

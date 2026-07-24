@@ -14,6 +14,7 @@ and knows nothing about Ocean, ports, or Thailand.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime
@@ -302,7 +303,13 @@ def derive_series(
     window = available[-ROLLING_WINDOW:]
     rolling_average: float | None = None
     if len(window) == ROLLING_WINDOW:
-        rolling_average = sum(point.value for point in window) / ROLLING_WINDOW  # type: ignore[misc]
+        # math.fsum, not the builtin sum: CPython 3.12 switched sum() to
+        # compensated summation for floats, so the builtin gives a different
+        # final digit on 3.11 and 3.12 for the same inputs. fsum is exactly
+        # rounded on every version, which keeps a published value identical
+        # across interpreters -- a derived record that changes byte-for-byte
+        # with the runtime is not reproducible.
+        rolling_average = math.fsum(point.value for point in window) / ROLLING_WINDOW  # type: ignore[misc]
     elif window:
         limitations.append(
             f"Rolling average needs {ROLLING_WINDOW} usable observations but only "
