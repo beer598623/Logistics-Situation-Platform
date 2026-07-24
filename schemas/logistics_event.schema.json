@@ -154,7 +154,7 @@
       "description": "Severity of the event itself, kept deliberately separate from every impact_assessments[].severity. These must never be inferred from one another.",
       "enum": ["none", "low", "moderate", "high", "critical", "not_assessed"]
     },
-    "scenarios": {"type": ["object", "null"], "$ref": "scenario_outlook.schema.json"},
+    "scenarios": {"oneOf": [{"type": "null"}, {"$ref": "scenario_outlook.schema.json"}]},
     "preparedness_options": {"type": "array", "items": {"$ref": "preparedness_option.schema.json"}},
     "negative_operational_evidence": {
       "type": "boolean",

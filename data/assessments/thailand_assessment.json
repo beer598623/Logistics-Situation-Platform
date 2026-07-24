@@ -1,0 +1,92 @@
+{
+  "assessment_id": "THA-OCEAN-20260724",
+  "subject": "thailand_ocean",
+  "generated_at": "2026-07-24T00:00:00Z",
+  "data_cutoff_at": "2026-07-24T00:00:00Z",
+  "overall_direction": "deteriorating",
+  "evidence_coverage": "insufficient",
+  "coverage_message": "One or more required capabilities lack sufficient source coverage.",
+  "lanes_requiring_attention": [
+    {
+      "lane_id": "LANE-OCEAN-TH-ASEAN-SG",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-NEUR",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-MED",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-USWC",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-USEC",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-EASIA-CN",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-JPKR",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-SASIA",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-MEGULF",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-OCEANIA",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-DOMESTIC",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating"
+    }
+  ],
+  "active_verified_events": [
+    "EVT-20231030-001",
+    "EVT-20231218-001",
+    "EVT-20240326-001",
+    "EVT-20240520-001"
+  ],
+  "admitted_external_drivers": [
+    "EVT-20220301-001"
+  ],
+  "contextual_external_drivers": [
+    "EVT-20241118-001"
+  ],
+  "discovery_leads": [
+    "EVT-20260715-001"
+  ],
+  "key_changes": [
+    "First publication of the Ocean module under WO-010. There is no previous assessment to compare against, so no change can be reported."
+  ],
+  "major_data_gaps": [
+    "No source in the registry is enabled and none has completed a controlled live validation, so live coverage is insufficient.",
+    "All numeric series are labelled synthetic test fixtures and describe no real published statistic.",
+    "No Thailand-origin freight rate source is qualified, so no Thailand freight average is published anywhere in the platform.",
+    "No transit-time or schedule-reliability source is qualified, so service quality is assessed only through recorded events.",
+    "No operational-condition source is monitored live, so no real-time congestion statement is made anywhere in the platform."
+  ],
+  "methodology_version": "0.8"
+}

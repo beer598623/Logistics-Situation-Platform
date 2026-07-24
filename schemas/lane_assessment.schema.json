@@ -100,7 +100,7 @@
         }
       }
     },
-    "scenarios": {"type": ["object", "null"], "$ref": "scenario_outlook.schema.json"},
+    "scenarios": {"oneOf": [{"type": "null"}, {"$ref": "scenario_outlook.schema.json"}]},
     "data_gaps": {"type": "array", "items": {"type": "string"}},
     "known_limitations": {"type": "array", "items": {"type": "string"}},
     "methodology_version": {"const": "0.8"}
