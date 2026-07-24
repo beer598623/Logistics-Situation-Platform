@@ -418,20 +418,26 @@ class CandidateValidationOutcome:
     exactly which candidate a report describes -- including one rejected
     before any DNS or network activity. Each field holds the actual
     validated value (a plain ``str``/``int``) once
-    ``build_candidate_reference`` has accepted it; before that, or if it
-    never does, each instead holds a safe, non-reversible descriptor from
-    ``redact_candidate_provenance_value`` (``{"provided": True, "length":
-    ..., "sha256": ...}`` for a string, the integer itself for
-    ``evidence_item_index``, or ``None``) -- never the raw rejected text
-    (round 1 review, finding 1), and never silently dropped to ``None``
-    just because it failed to parse as an integer (round 1 review,
-    finding 2). ``workflow_run_id`` (``GITHUB_RUN_ID``) is retained
-    alongside the existing ``workflow_sha`` (``GITHUB_SHA``) when the
-    environment provides a value matching its documented form
-    (``safe_workflow_run_id``/``safe_workflow_sha``); ``None`` means no
-    value was provided, and a static marker means one was provided but
-    was malformed (round 1 review, finding 3) -- neither ever echoes an
-    unvalidated raw environment value.
+    ``build_candidate_reference`` has accepted the complete reference;
+    before that, or if it never does, each instead holds a safe, static
+    descriptor from ``redact_candidate_provenance_value`` --
+    ``{"provided": True, "length": ..., "validation_status": "rejected"}``
+    -- with no exception for an already-parsed ``evidence_item_index``
+    integer, and no value-derived digest of any kind, or ``None`` if no
+    value was supplied at all. Never the raw rejected text (round 1
+    review, finding 1); never silently dropped to ``None`` just because
+    it failed to parse as an integer (round 1 review, finding 2); never a
+    raw out-of-range or overlong integer either (round 2 review, finding
+    1); and never a SHA-256 (or other) digest of the rejected value, since
+    an unsalted digest of low-entropy input (a PIN, an OTP, a short
+    numeric key) is offline brute-forceable and is not itself a safe
+    representation (round 3 review, finding 1). ``workflow_run_id``
+    (``GITHUB_RUN_ID``) is retained alongside the existing ``workflow_sha``
+    (``GITHUB_SHA``) when the environment provides a value matching its
+    documented form (``safe_workflow_run_id``/``safe_workflow_sha``);
+    ``None`` means no value was provided, and a static marker means one
+    was provided but was malformed (round 1 review, finding 3) -- neither
+    ever echoes an unvalidated raw environment value.
     """
 
     operation: str

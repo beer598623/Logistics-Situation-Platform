@@ -545,8 +545,9 @@ def test_run_tmd_candidate_dry_run_invalid_item_index_fails_before_dns_or_networ
 def test_run_tmd_candidate_cap_validation_dry_run_bounds_an_overlong_filename_canary() -> None:
     """Bounded-field/canary non-leak behavior: an overlong, invalid
     candidate_filename must never survive verbatim in the report -- only a
-    safe, non-reversible descriptor (length + SHA-256), never even a
-    truncated prefix of the raw text."""
+    safe, static descriptor (``provided``/``length``/``validation_status``,
+    no value-derived digest), never even a truncated prefix of the raw
+    text."""
     registry = load_registry()
     contract = source_by_id(registry, "TMD_CAP")
     canary = "OVERLONG_DRYRUN_FILENAME_CANARY_" + ("q" * 500)
