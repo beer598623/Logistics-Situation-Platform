@@ -48,6 +48,19 @@ def bundle():
     return assemble_bundle()
 
 
+@pytest.fixture(scope="module")
+def built(bundle, tmp_path_factory):
+    """One clean build, shared by every read-only assertion.
+
+    A full build is the expensive operation in this module, so tests that only
+    read the result share a single one. Tests that genuinely need a *different*
+    input -- duplicates, revisions -- still build their own.
+    """
+    target = tmp_path_factory.mktemp("warehouse") / "shared.duckdb"
+    counts = build_warehouse(bundle, target)
+    return target, counts, export_tables(target)
+
+
 def test_the_schema_covers_every_conceptual_entity():
     created = {
         statement.split("CREATE TABLE ", 1)[1].split(" ", 1)[0]
@@ -57,57 +70,60 @@ def test_the_schema_covers_every_conceptual_entity():
     assert created == EXPECTED_TABLES
 
 
-def test_clean_build_populates_every_table(tmp_path, bundle):
-    counts = build_warehouse(bundle, tmp_path / "clean.duckdb")
+def test_clean_build_populates_every_table(built):
+    _, counts, _ = built
     assert set(counts) == EXPECTED_TABLES
     assert counts["dim_lane"] == 11
     assert counts["fact_impact_assessment"] == counts["fact_event"] * 9
     assert all(count > 0 for count in counts.values())
 
 
-def test_rebuilding_over_an_existing_database_is_idempotent(tmp_path, bundle):
-    target = tmp_path / "idempotent.duckdb"
-    first_counts = build_warehouse(bundle, target)
-    first = fingerprint(export_tables(target))
+def test_rebuilding_over_an_existing_database_is_idempotent(bundle, built):
+    """Rebuilding in place must reproduce the first build exactly.
+
+    This is the clean-rebuild check: it rebuilds over the database the shared
+    fixture already created and compares content fingerprints, so a build that
+    appended, reordered or dropped anything would show up as a mismatch.
+    """
+    target, first_counts, first_tables = built
     second_counts = build_warehouse(bundle, target)
-    second = fingerprint(export_tables(target))
-    assert first_counts == second_counts
-    assert first == second
+    second_tables = export_tables(target)
+    assert second_counts == first_counts
+    assert fingerprint(second_tables) == fingerprint(first_tables)
 
 
-def test_two_independent_clean_builds_agree(tmp_path, bundle):
-    left = fingerprint(export_tables_for(bundle, tmp_path / "a.duckdb"))
-    right = fingerprint(export_tables_for(bundle, tmp_path / "b.duckdb"))
-    assert left == right
+@pytest.fixture(scope="module")
+def duplicated_and_revised(bundle, tmp_path_factory):
+    """One build carrying both a duplicate and a later revision.
 
-
-def export_tables_for(bundle, path):
-    build_warehouse(bundle, path)
-    return export_tables(path)
-
-
-def test_duplicate_observations_collapse_to_one_current_row(tmp_path, bundle):
-    duplicated = dict(bundle)
-    duplicated["cost_observations"] = bundle["cost_observations"] + bundle["cost_observations"]
-    counts = build_warehouse(duplicated, tmp_path / "dupes.duckdb")
-    assert counts["fact_cost_observation"] == len(bundle["cost_observations"])
-
-
-def test_a_revision_supersedes_the_current_row_but_history_is_preserved(tmp_path, bundle):
+    Duplicates and revisions are the same mechanism seen from two angles, so
+    they share a build: the duplicated rows must collapse, and the revised row
+    must supersede the original while its history survives.
+    """
     original = bundle["cost_observations"][0]
     revised = {
         **original,
         "provenance": {**original["provenance"], "revision_number": 3},
         "measurement": {**original["measurement"], "value": 999.0},
     }
-    revised_bundle = dict(bundle)
-    revised_bundle["cost_observations"] = bundle["cost_observations"] + [revised]
+    payload = dict(bundle)
+    payload["cost_observations"] = (
+        bundle["cost_observations"] + bundle["cost_observations"] + [revised]
+    )
+    target = tmp_path_factory.mktemp("warehouse") / "revisions.duckdb"
+    counts = build_warehouse(payload, target)
+    return original, counts, export_tables(target)
 
-    target = tmp_path / "revisions.duckdb"
-    counts = build_warehouse(revised_bundle, target)
+
+def test_duplicate_observations_collapse_to_one_current_row(bundle, duplicated_and_revised):
+    _, counts, _ = duplicated_and_revised
     assert counts["fact_cost_observation"] == len(bundle["cost_observations"])
 
-    tables = export_tables(target)
+
+def test_a_revision_supersedes_the_current_row_but_history_is_preserved(
+    duplicated_and_revised,
+):
+    original, _, tables = duplicated_and_revised
     record_id = original["provenance"]["record_id"]
     current = [row for row in tables["fact_cost_observation"] if row["record_id"] == record_id]
     assert len(current) == 1
@@ -118,10 +134,8 @@ def test_a_revision_supersedes_the_current_row_but_history_is_preserved(tmp_path
     assert {row["revision_number"] for row in history} == {0, 3}
 
 
-def test_missing_observations_land_in_the_warehouse_as_null_not_zero(tmp_path, bundle):
-    target = tmp_path / "missing.duckdb"
-    build_warehouse(bundle, target)
-    tables = export_tables(target)
+def test_missing_observations_land_in_the_warehouse_as_null_not_zero(built):
+    _, _, tables = built
     missing = [
         row for row in tables["fact_indicator_observation"] if row["value_status"] != "available"
     ]
