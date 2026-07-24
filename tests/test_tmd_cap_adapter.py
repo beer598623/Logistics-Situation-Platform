@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -1177,7 +1178,7 @@ def test_validate_candidate_retains_candidate_filename_and_workflow_run_id(
     alongside the existing workflow_sha, when the environment provides
     them (a GitHub Actions run)."""
     monkeypatch.setenv("GITHUB_RUN_ID", "30099112233")
-    monkeypatch.setenv("GITHUB_SHA", "cafed00d")
+    monkeypatch.setenv("GITHUB_SHA", "cafed00d" * 5)
     body = _read("valid_bilingual_alert.xml")
     fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
     adapter = _candidate_adapter(tmd_contract, fake_http)
@@ -1192,7 +1193,7 @@ def test_validate_candidate_retains_candidate_filename_and_workflow_run_id(
     assert outcome.evidence_run_id == "30028391246"
     assert outcome.evidence_item_index == 0
     assert outcome.workflow_run_id == "30099112233"
-    assert outcome.workflow_sha == "cafed00d"
+    assert outcome.workflow_sha == "cafed00d" * 5
     assert outcome.to_dict()["candidate_filename"] == "CAPTMD20260723155032_2.xml"
     assert outcome.to_dict()["workflow_run_id"] == "30099112233"
 
@@ -1215,13 +1216,39 @@ def test_validate_candidate_workflow_run_id_is_none_outside_a_workflow_run(
     assert outcome.workflow_sha is None
 
 
-def test_validate_candidate_retains_the_raw_rejected_filename_before_any_network(
+def test_validate_candidate_workflow_ids_malformed_are_a_marker_not_the_raw_value(
+    tmd_contract: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """WO-007A round 1 review, finding 3: GITHUB_RUN_ID/GITHUB_SHA are
+    validated at origin -- a malformed or overlong canary value must never
+    survive into the outcome, and must be distinguishable from "not
+    provided at all" (None)."""
+    canary = "MALFORMED_ENV_CANARY_" + ("z" * 500)
+    monkeypatch.setenv("GITHUB_RUN_ID", canary)
+    monkeypatch.setenv("GITHUB_SHA", canary)
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.workflow_run_id != canary
+    assert outcome.workflow_sha != canary
+    assert outcome.workflow_run_id is not None
+    assert outcome.workflow_sha is not None
+    assert canary not in json.dumps(outcome.to_dict())
+
+
+def test_validate_candidate_retains_a_safe_descriptor_for_a_rejected_filename(
     tmd_contract: dict,
 ) -> None:
-    """WO-007A Scope 3: an invalid candidate reference still fails before
-    any DNS/network activity (unchanged from WO-006), but the outcome now
-    also retains the raw rejected candidate_filename (bounded), so a Gate
-    reviewer can see exactly which filename was rejected and why."""
+    """WO-007A round 1 review, finding 1: an invalid candidate reference
+    still fails before any DNS/network activity (unchanged from WO-006),
+    and the outcome retains a safe, reviewable descriptor of the rejected
+    candidate_filename -- never the raw rejected text itself."""
     body = _read("valid_bilingual_alert.xml")
     fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
     adapter = _candidate_adapter(tmd_contract, fake_http)
@@ -1232,30 +1259,68 @@ def test_validate_candidate_retains_the_raw_rejected_filename_before_any_network
         evidence_item_index=0,
     )
     assert outcome.error_code == "CandidateReferenceError"
-    assert outcome.candidate_filename == "../etc/passwd"
+    assert outcome.candidate_filename == {
+        "provided": True,
+        "length": len("../etc/passwd"),
+        "sha256": hashlib.sha256(b"../etc/passwd").hexdigest(),
+    }
     assert outcome.request_url is None
     assert fake_http.pinned_call_count == 0
     assert fake_http.call_count == 0
+    serialized = json.dumps(outcome.to_dict())
+    assert "../etc/passwd" not in serialized
+    assert "passwd" not in serialized
 
 
-def test_validate_candidate_bounds_an_overlong_rejected_filename_canary(
+def test_validate_candidate_never_retains_a_short_credential_canary_from_a_rejected_field(
     tmd_contract: dict,
 ) -> None:
-    """Bounded-field/canary non-leak behavior: an overlong, invalid
-    candidate_filename must never survive verbatim on the outcome, even
-    though it is retained (truncated) for provenance."""
-    canary = "OVERLONG_ADAPTER_FILENAME_CANARY_" + ("q" * 500)
+    """WO-007A round 1 review, finding 1: the previous implementation only
+    bounded *overlong* rejected values, silently retaining any short one
+    verbatim -- including a plausible short credential or token."""
+    canary = "SHORT_CREDENTIAL_CANARY_TOKEN"  # noqa: S105
     body = _read("valid_bilingual_alert.xml")
     fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
     adapter = _candidate_adapter(tmd_contract, fake_http)
 
     outcome = adapter.validate_candidate(
         candidate_filename=canary,
-        evidence_run_id="1",
+        evidence_run_id=canary,
         evidence_item_index=0,
     )
     assert outcome.error_code == "CandidateReferenceError"
-    assert outcome.candidate_filename != canary
-    assert outcome.candidate_filename.startswith("OVERLONG_ADAPTER_FILENAME_CANARY_")
-    assert len(outcome.candidate_filename) < len(canary)
+    assert outcome.candidate_filename == {
+        "provided": True,
+        "length": len(canary),
+        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+    }
+    assert outcome.evidence_run_id == {
+        "provided": True,
+        "length": len(canary),
+        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+    }
+    assert canary not in json.dumps(outcome.to_dict())
+
+
+def test_validate_candidate_invalid_item_index_string_is_not_lost(tmd_contract: dict) -> None:
+    """WO-007A round 1 review, finding 2: a non-integer
+    evidence_item_index (e.g. an unconverted workflow_dispatch string)
+    must get the same safe-descriptor treatment as any other rejected
+    field, never be silently dropped to None."""
+    canary = "TOKEN_LOOKING_ITEM_INDEX"
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=canary,  # type: ignore[arg-type]
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.evidence_item_index == {
+        "provided": True,
+        "length": len(canary),
+        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+    }
     assert canary not in json.dumps(outcome.to_dict())

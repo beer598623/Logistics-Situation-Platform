@@ -35,7 +35,13 @@ from collectors.adapters.tmd_candidate import (  # noqa: E402
     build_candidate_reference,
     derive_candidate_request,
 )
-from collectors.adapters.tmd_cap import TmdCapAdapter, resolve_endpoint  # noqa: E402
+from collectors.adapters.tmd_cap import (  # noqa: E402
+    TmdCapAdapter,
+    redact_candidate_provenance_value,
+    resolve_endpoint,
+    safe_workflow_run_id,
+    safe_workflow_sha,
+)
 from collectors.error_classification import classify_error  # noqa: E402
 from collectors.registry import load_registry, source_by_id  # noqa: E402
 
@@ -131,37 +137,6 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-#: WO-007A: mirrors ``collectors/adapters/tmd_cap.py::_MAX_CANDIDATE_FIELD_LENGTH``
-#: -- candidate provenance fields are bounded at this boundary too, since a
-#: dry-run report never reaches that module's own bounding at all.
-_MAX_PROVENANCE_FIELD_LENGTH = 64
-
-
-def _bound_provenance_field(value: Any) -> Any:
-    """Bound one raw candidate-provenance value (an unvalidated Actions
-    workflow_dispatch string input) before it is placed in a
-    ``candidate_reference`` report object.
-
-    An integer item index is returned unchanged (JSON should carry it as a
-    number, and it is already bounded to ``[0, rss_discovery.MAX_ITEMS)`` by
-    ``build_candidate_reference`` whenever validation succeeds). Every other
-    value is bounded the same way as ``tmd_cap.py``'s own
-    ``_bounded_field`` -- this is a second, independent bound at this
-    boundary, not a replacement for that one, since a rejected candidate
-    reference (invalid filename/run ID/index) never reaches
-    ``CandidateValidationOutcome`` at all in dry-run mode.
-    """
-    if value is None:
-        return None
-    if isinstance(value, int) and not isinstance(value, bool):
-        return value
-    text = value if isinstance(value, str) else str(value)
-    if len(text) <= _MAX_PROVENANCE_FIELD_LENGTH:
-        return text
-    omitted = len(text) - _MAX_PROVENANCE_FIELD_LENGTH
-    return text[:_MAX_PROVENANCE_FIELD_LENGTH] + f"...(+{omitted} chars omitted)"
-
-
 def _candidate_reference_report(
     *,
     language: Any,
@@ -170,7 +145,7 @@ def _candidate_reference_report(
     evidence_item_index: Any,
     request_url: str | None,
 ) -> dict[str, Any]:
-    """Bounded, sanitized candidate provenance object retained on both the
+    """Assemble the ``candidate_reference`` object retained on both the
     dry-run and live ``candidate_cap_validation`` reports (WO-007A).
 
     Gate 1 review of WO-006's dry-run artifact found that the sanitized
@@ -180,12 +155,18 @@ def _candidate_reference_report(
     object is built the same way whether the candidate reference was
     accepted or rejected, so a reviewer can see exactly what was requested
     even when validation failed before any DNS or network activity.
-    """
+
+    Every caller must already have passed each of ``language``,
+    ``candidate_filename``, ``evidence_run_id``, and ``evidence_item_index``
+    through ``collectors.adapters.tmd_cap.redact_candidate_provenance_value``
+    (or supplied the actual validated value once accepted) -- this function
+    performs no redaction of its own (WO-007A round 1 review, finding 1: a
+    value must never be echoed here in raw, unvalidated form)."""
     return {
-        "language": _bound_provenance_field(language),
-        "candidate_filename": _bound_provenance_field(candidate_filename),
-        "candidate_evidence_run_id": _bound_provenance_field(evidence_run_id),
-        "candidate_evidence_item_index": _bound_provenance_field(evidence_item_index),
+        "language": language,
+        "candidate_filename": candidate_filename,
+        "candidate_evidence_run_id": evidence_run_id,
+        "candidate_evidence_item_index": evidence_item_index,
         "request_url": request_url,
     }
 
@@ -366,14 +347,23 @@ def run_tmd_candidate_cap_validation(
     """
     report: dict[str, Any] = {
         "operation": "candidate_cap_validation",
-        "language": args.language,
+        # WO-007A round 1 review, finding 1: this top-level echo of the
+        # language selector must never be the raw, unvalidated value
+        # either -- it starts as the same safe descriptor
+        # candidate_reference.language uses, and is replaced with the
+        # actual validated value only once build_candidate_reference()
+        # (dry run) / validate_candidate() (live) accepts it, below.
+        "language": redact_candidate_provenance_value(args.language),
         # WO-007A: retained on both dry-run and live reports whenever the
         # environment provides them (a GitHub Actions run), so a Gate
         # reviewer can trace a report back to the exact workflow run that
         # produced it. Read once, here, from the same environment for both
-        # modes -- neither is itself network or DNS activity.
-        "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
-        "workflow_sha": os.environ.get("GITHUB_SHA"),
+        # modes -- neither is itself network or DNS activity. Validated at
+        # origin (round 1 review, finding 3): None means no value was
+        # provided; a static marker means one was provided but did not
+        # match GITHUB_RUN_ID/GITHUB_SHA's documented form.
+        "workflow_run_id": safe_workflow_run_id(os.environ.get("GITHUB_RUN_ID")),
+        "workflow_sha": safe_workflow_sha(os.environ.get("GITHUB_SHA")),
     }
 
     # A GitHub Actions workflow_dispatch input has no integer type -- this
@@ -392,6 +382,23 @@ def run_tmd_candidate_cap_validation(
 
     if dry_run:
         report["mode"] = "dry_run"
+        # WO-007A round 1 review, findings 1-2: start from a safe,
+        # non-reversible descriptor of each raw caller-supplied value --
+        # never the raw text itself, since build_candidate_reference()
+        # below has not yet had a chance to validate it (or may reject it
+        # outright). This is the exact same helper, and the exact same
+        # "descriptor first, real value only on success" sequencing,
+        # ``TmdCapAdapter.validate_candidate`` uses for the live path, so
+        # a rejected reference produces identical evidence in both modes
+        # -- including a non-numeric item_index string, which now gets a
+        # descriptor here too instead of surviving raw or being lost.
+        report["candidate_reference"] = _candidate_reference_report(
+            language=redact_candidate_provenance_value(args.language),
+            candidate_filename=redact_candidate_provenance_value(args.candidate_filename),
+            evidence_run_id=redact_candidate_provenance_value(args.candidate_evidence_run_id),
+            evidence_item_index=redact_candidate_provenance_value(item_index),
+            request_url=None,
+        )
         try:
             reference = build_candidate_reference(
                 language=args.language,
@@ -401,6 +408,10 @@ def run_tmd_candidate_cap_validation(
             )
             derived = derive_candidate_request(reference)
             report["request_url"] = derived.url
+            # Validation succeeded: every field is now known-safe
+            # (grammar/enum-bound ASCII), so replace the pre-validation
+            # descriptor with the actual validated value.
+            report["language"] = reference.language
             report["candidate_reference"] = _candidate_reference_report(
                 language=reference.language,
                 candidate_filename=reference.candidate_filename,
@@ -417,18 +428,8 @@ def run_tmd_candidate_cap_validation(
             report["error_code"] = error_code
             report["error_category"] = error_category
             report["errors"] = [f"{error_code}: {exc}"]
-            # WO-007A: a rejected/invalid candidate reference is still
-            # retained here (bounded, from the raw input) so a reviewer can
-            # see exactly what was requested and rejected -- this fail-closed
-            # path never reaches build_candidate_reference()'s DNS-free
-            # success path, let alone any DNS or network activity.
-            report["candidate_reference"] = _candidate_reference_report(
-                language=args.language,
-                candidate_filename=args.candidate_filename,
-                evidence_run_id=args.candidate_evidence_run_id,
-                evidence_item_index=item_index,
-                request_url=None,
-            )
+            # candidate_reference already holds the pre-validation
+            # descriptor set above; nothing further to redact here.
         return report
 
     adapter = TmdCapAdapter(contract, language=args.language)
@@ -439,6 +440,10 @@ def run_tmd_candidate_cap_validation(
     )
     report["mode"] = "live"
     report["candidate_validation"] = outcome.to_dict()
+    # outcome.language is already the actual validated value on success,
+    # or the same safe pre-validation descriptor on rejection -- never the
+    # raw, unvalidated language string either way.
+    report["language"] = outcome.language
     report["candidate_reference"] = _candidate_reference_report(
         language=outcome.language,
         candidate_filename=outcome.candidate_filename,

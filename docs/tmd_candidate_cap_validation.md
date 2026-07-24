@@ -25,10 +25,15 @@ events.
 > `CandidateValidationOutcome` (Section 5 below) gained two fields,
 > `candidate_filename` and `workflow_run_id`, alongside the fields already
 > documented here, and both the dry-run and live `candidate_cap_validation`
-> reports gained a `candidate_reference` object. Nothing else in this
-> document changed -- Sections 1-4 and 6-11 remain accurate as written for
-> WO-006 (Implementation v0.2.2); this increment still does not authorize a
-> live candidate fetch.
+> reports gained a `candidate_reference` object. On a *rejected* candidate
+> reference, `language`/`candidate_filename`/`evidence_run_id`/
+> `evidence_item_index` hold a safe, non-reversible descriptor
+> (`{"provided", "length", "sha256"}`, or the plain integer for an
+> in-range-or-not `evidence_item_index`) rather than the raw submitted
+> value -- never raw text once a value is known to have failed, or not yet
+> passed, validation. Nothing else in this document changed -- Sections
+> 1-4 and 6-11 remain accurate as written for WO-006 (Implementation
+> v0.2.2); this increment still does not authorize a live candidate fetch.
 
 ## 1. WO-005 evidence this increment builds on
 
@@ -332,14 +337,24 @@ and never becomes a staging record or candidate event.
 
 `CandidateValidationOutcome` retains **only**:
 
-- `operation`, `mode`, `language` (bounded)
-- `candidate_filename` (bounded; WO-007A -- recorded from the raw
-  caller-supplied value, independent of whether it passed structural
-  validation, so a Gate reviewer can see exactly which filename a report
-  describes, including one rejected before any DNS or network activity)
-- `evidence_run_id` (bounded), `evidence_item_index`
+- `operation`, `mode`, `language` -- the actual validated value once
+  `build_candidate_reference` accepts it, else a safe, non-reversible
+  descriptor (WO-007A; see
+  [`docs/tmd_candidate_evidence_contract.md`](tmd_candidate_evidence_contract.md)
+  Section 2) -- never the raw caller-supplied text once a value is known
+  to have failed, or not yet passed, validation
+- `candidate_filename` (WO-007A, same accepted-value-or-descriptor rule)
+  -- so a Gate reviewer can see exactly which candidate a report
+  describes, including one rejected before any DNS or network activity,
+  without the report ever carrying unvalidated free text
+- `evidence_run_id` (same rule), `evidence_item_index` (same rule, except
+  an already-parsed integer -- in-range or not -- is always retained as a
+  plain integer, since it carries no free text)
 - `workflow_run_id` (WO-007A, `GITHUB_RUN_ID`), `workflow_sha`
-  (`GITHUB_SHA`) -- both `None` outside a GitHub Actions run
+  (`GITHUB_SHA`) -- each `None` if the environment provided no value, a
+  static invalid-form marker if it provided one that did not match
+  GitHub's documented form for either (WO-007A, validated at origin),
+  or the actual value otherwise
 - `request_url` (derived, then redacted defensively even though it can
   never carry user-info by construction), `selected_ip`,
   `address_family`, `connected_ip_matches_selected`

@@ -11,7 +11,7 @@ It changes only the *reporting* boundary of the existing
 retains about the candidate a workflow run was asked to validate. It does
 not change candidate reference grammar, the pinned transport, envelope
 classification, the strict CAP 1.2 parser, the error taxonomy, or the
-manual workflow's wiring; see Section 5 below for the exact unchanged
+manual workflow's wiring; see Section 6 below for the exact unchanged
 list.
 
 **This document and its code do not authorize a live candidate fetch, and
@@ -22,6 +22,10 @@ requires explicit human approval, distinct from and in addition to this
 increment's own code-level review, per
 [`docs/tmd_candidate_cap_validation.md`](tmd_candidate_cap_validation.md)
 Section 10 (unchanged by this increment).
+
+This document reflects the **round 1 review** revision of this increment
+(see Section 1a) -- the shape described below is what actually ships, not
+the first draft a reviewer initially saw.
 
 ## 1. Gate 1 finding and how this increment resolves it
 
@@ -38,10 +42,37 @@ evidence, a given report actually described.
 
 This increment closes that finding, and only that finding: every
 `candidate_cap_validation` report -- dry-run or live, whether the
-candidate reference was accepted or rejected -- now carries a bounded,
-sanitized `candidate_reference` object (Section 2) and, when the
-environment provides them, `workflow_run_id` alongside the existing
-`workflow_sha` (Section 3).
+candidate reference was accepted or rejected -- now carries a
+`candidate_reference` object (Section 2) and, when the environment
+provides them, `workflow_run_id` alongside the existing `workflow_sha`
+(Section 3).
+
+### 1a. Round 1 review revision
+
+The first draft of this increment (PR #14, initial head) retained a
+rejected value's raw text verbatim in `candidate_reference` whenever it
+was 64 characters or shorter, and silently dropped a non-numeric
+`evidence_item_index` string to `null`. ChatGPT review round 1 on that PR
+found both issues:
+
+1. A short credential- or token-shaped string typed into `language`,
+   `candidate_filename`, `candidate_evidence_run_id`, or a non-numeric
+   `candidate_evidence_item_index` input would survive verbatim in a
+   public report artifact if the candidate reference was rejected --
+   contradicting both the "no credentials" guardrail and this document's
+   own "sanitized" claim. The only prior protection (an overlong-value
+   bound) only proved a *long* canary's full text was absent; it did not
+   prove a *short* one was.
+2. The live path additionally *lost* a non-integer `evidence_item_index`
+   input to `null` on rejection, while the dry-run path still echoed it
+   raw -- the two reject paths did not actually share the same evidence
+   contract.
+
+Both are fixed by replacing "retain the raw value, bounded" with "retain
+a safe descriptor of the value until it is known to be safe" -- see
+Section 2 below for the resulting shape. `GITHUB_RUN_ID`/`GITHUB_SHA` were
+also hardened the same review round (Section 3) to be validated at origin
+rather than copied blindly.
 
 ## 2. The `candidate_reference` object
 
@@ -52,58 +83,110 @@ validation:
 
 | Field | Content |
 | --- | --- |
-| `language` | the language selector submitted (`"primary"` or `"thai_language_cap"`) |
+| `language` | the language selector submitted |
 | `candidate_filename` | the candidate filename submitted |
 | `candidate_evidence_run_id` | the WO-005-style discovery workflow run ID submitted |
 | `candidate_evidence_item_index` | the discovery item index submitted |
 | `request_url` | the request URL derived from the four fields above by fixed policy, or `null` if the reference was rejected before a URL could be derived |
 
-Two behaviors depend on whether `build_candidate_reference()` accepted
-the submitted values:
+The top-level `report["language"]` field mirrors
+`candidate_reference.language` exactly (same value, same accepted/rejected
+rule below) -- it is not a second, independently-sourced copy.
 
-- **Accepted:** every field echoes the already-validated
-  `CandidateReference` (`reference.language`,
-  `reference.candidate_filename`, ...), not the raw argument -- what is
-  retained is exactly what was validated and (for `dry_run: false`) what
-  was fetched.
-- **Rejected:** every field echoes the raw, unvalidated caller input
-  instead, and `request_url` is `null`. This is deliberate: the whole
-  point of the Gate 1 finding is that a reviewer needs to see *what was
-  rejected and why*, not only what a successful run validated.
+**What each of the first four fields actually contains depends on whether
+`build_candidate_reference()` accepted the submitted values as a whole**
+(all four fields are validated together, atomically -- a failure on any
+one means none of the other three are known-safe either, so all four get
+the same treatment):
 
-Every field is bounded independently at this boundary to 64 characters
-(`scripts/manual_live_source_test.py::_bound_provenance_field`, mirroring
-`collectors/adapters/tmd_cap.py::_bounded_field`'s existing bound) --
-a second, independent bound in addition to the whole-report
-`_sanitize_report` pass (300 characters) that already runs unconditionally
-over the entire report. This matters specifically for the *rejected*
-case: an overlong or malicious `candidate_filename` input has, by
-definition, not passed `validate_candidate_filename()`'s own length check
-by the time it reaches this object, so nothing upstream has bounded it
-yet.
+- **Accepted:** every field holds the actual validated value from the
+  returned `CandidateReference` (`reference.language`,
+  `reference.candidate_filename`, `reference.evidence_run_id` as a plain
+  string; `reference.evidence_item_index` as a plain integer) -- never the
+  raw argument. What is retained is exactly what was validated and (for
+  `dry_run: false`) what was fetched.
+- **Rejected:** every field holds a safe, non-reversible **descriptor**
+  instead of any raw text --
+  `collectors/adapters/tmd_cap.py::redact_candidate_provenance_value()`:
 
-On the live path, the same values are also retained directly on
-`CandidateValidationOutcome` (`collectors/adapters/tmd_cap.py`) as
-`candidate_filename`, `evidence_run_id`, and `evidence_item_index` --
-`candidate_filename` is new in this increment; the other two already
-existed under WO-006. See
+  ```json
+  {"provided": true, "length": 19, "sha256": "<64 hex chars>"}
+  ```
+
+  or `null` if no value was supplied at all. `request_url` is `null`. This
+  is deliberate and unconditional -- it applies even to a field whose
+  submitted value would itself have been safe (e.g. `language: "primary"`
+  when only `candidate_filename` was actually invalid), because
+  `build_candidate_reference()` validates all four fields as one unit and
+  only returns a validated reference if every one of them passes; there is
+  no partial-success state to draw an accepted value from.
+
+  An already-parsed **integer** `evidence_item_index` (in-range or not --
+  e.g. `9999`, which exceeds the discovery item bound) is the one
+  exception: it is retained as a plain integer even on rejection, since an
+  integer carries no free text and cannot itself be a credential/token
+  leak. Only a *string* `evidence_item_index` (a workflow input that never
+  parsed as an integer at all) gets the same descriptor treatment as
+  `language`/`candidate_filename`/`candidate_evidence_run_id` -- this is
+  exactly the round 1 review, finding 2 fix (Section 1a): that string is
+  no longer dropped to `null`.
+
+  The whole point of the Gate 1 finding was that a reviewer needs to see
+  *what was rejected and why*; the descriptor still serves that purpose --
+  a reviewer can compare `length`/`sha256` across runs, or against a
+  value they independently know, without the report ever carrying
+  attacker- or operator-supplied free text it cannot itself validate.
+
+On the live path, the same rule is applied on
+`CandidateValidationOutcome` (`collectors/adapters/tmd_cap.py`) itself --
+`language`, `candidate_filename`, and `evidence_run_id` are each typed
+`str | dict[str, Any] | None`, and `evidence_item_index` is
+`int | dict[str, Any] | None` -- and the script's `candidate_reference`
+object for live mode is built directly from the outcome's fields, so dry
+and live share one implementation of the accept/reject rule (via
+`redact_candidate_provenance_value`, imported by
+`scripts/manual_live_source_test.py` from
+`collectors/adapters/tmd_cap.py`), not two independently-written copies
+that could drift. `candidate_filename` is new on the outcome in this
+increment; `evidence_run_id`/`evidence_item_index` already existed under
+WO-006 but previously held the raw value unconditionally on rejection
+(the exact issue Section 1a describes). See
 [`docs/tmd_candidate_cap_validation.md`](tmd_candidate_cap_validation.md)
 Section 5 (amended) for the full retained-field list.
 
 ## 3. `workflow_run_id` and `workflow_sha`
 
 Both are retained at the top level of every `candidate_cap_validation`
-report -- `report["workflow_run_id"]`, `report["workflow_sha"]` -- read
-once from the `GITHUB_RUN_ID` / `GITHUB_SHA` environment variables that
-GitHub Actions populates for every workflow run. Outside a GitHub Actions
-run (e.g. running the script or the test suite locally) both are `None`;
-this code never fabricates a placeholder value for either. `workflow_sha`
-already existed on `CollectionRun` (WO-002), `RssDiscoveryOutcome`
-(WO-004), and `CandidateValidationOutcome` (WO-006); `workflow_run_id` is
-new in this increment, added to `CandidateValidationOutcome` and to the
-top-level report for both `dry_run` and `live` modes -- a dry run is
-still a workflow run whose provenance a reviewer may want to trace back to
-its exact Actions run.
+report -- `report["workflow_run_id"]`, `report["workflow_sha"]` -- and on
+`CandidateValidationOutcome` for the live path, read from the
+`GITHUB_RUN_ID` / `GITHUB_SHA` environment variables that GitHub Actions
+populates for every workflow run.
+
+Both are **validated at origin** before being retained anywhere
+(`collectors/adapters/tmd_cap.py::safe_workflow_run_id()` /
+`safe_workflow_sha()`, round 1 review, finding 3) -- this code also runs
+outside a real GitHub Actions job (locally, in tests, or on a
+misconfigured self-hosted runner), so neither environment variable is
+guaranteed to already be well-formed, and neither is copied blindly:
+
+- `GITHUB_RUN_ID` must match GitHub's documented bounded-numeric run ID
+  form (`^[0-9]{1,32}$`).
+- `GITHUB_SHA` must match a 40-character hex commit SHA
+  (`^[0-9a-fA-F]{40}$`).
+- If the environment did not provide a value at all, the field is `None`.
+- If the environment provided a value that does **not** match the
+  expected form, the field is a short, static, human-authored marker
+  string (`"<invalid: GITHUB_RUN_ID did not match the expected form>"` /
+  the `GITHUB_SHA` equivalent) -- never the raw malformed value, and never
+  collapsed to the same `None` a genuinely-absent value would produce, so
+  the two cases stay distinguishable to a reviewer.
+
+`workflow_sha` already existed on `CollectionRun` (WO-002),
+`RssDiscoveryOutcome` (WO-004), and `CandidateValidationOutcome` (WO-006);
+`workflow_run_id` is new in this increment. Both validators are scoped to
+the `candidate_cap_validation` reporting paths this increment touches --
+`collect()`/`discover_rss()`'s own pre-existing, unvalidated
+`workflow_sha` reads are unchanged, out of this increment's scope.
 
 ## 4. Zero DNS / zero network in dry run: unchanged
 
@@ -115,11 +198,12 @@ pure functions with no `socket`/`ssl` import anywhere in
 Section 3). Adding `candidate_reference`, `workflow_run_id`, and
 `workflow_sha` to the report changes nothing about that: every one of
 those values is derived from data already in memory (the validated
-reference, or the raw CLI arguments on rejection) or from the process
+reference, a `hashlib.sha256` digest of the raw CLI arguments on
+rejection, or a regex match against them) or from the process
 environment, never from a network call or a DNS lookup.
 `tests/test_manual_workflow.py::test_run_tmd_candidate_cap_validation_dry_run_derives_url_with_zero_network`
 (WO-006, unmodified) and this increment's own dry-run provenance tests
-(Section 6 below) both continue to hold.
+(Section 7 below) both continue to hold.
 
 ## 5. Fail-closed behavior for invalid provenance: unchanged, now covered live too
 
@@ -133,12 +217,9 @@ Section 3). An invalid or missing `candidate_filename`,
 `resolve_pinned_address()`, or `get_pinned_candidate()` are ever reached.
 WO-006 already had dry-run-mode test coverage of this boundary; this
 increment adds explicit **live-mode** coverage proving a rejected
-candidate reference never reaches the pinned transport there either
-(`tests/test_manual_workflow.py::test_main_candidate_cap_validation_live_invalid_provenance_fails_before_dns_or_network`
-and
-`::test_main_candidate_cap_validation_live_missing_item_index_fails_before_dns_or_network`,
-each with a `resolve_pinned` spy that would raise if DNS resolution were
-ever attempted).
+candidate reference never reaches the pinned transport there either, with
+a `resolve_pinned` spy that would raise if DNS resolution were ever
+attempted.
 
 ## 6. What this increment does **not** change
 
@@ -172,28 +253,35 @@ and `tests/test_manual_workflow.py`.
 
 `tests/test_manual_workflow.py`:
 
-- exact English and Thai `candidate_reference` provenance in dry-run
-  reports (`test_run_tmd_candidate_cap_validation_dry_run_retains_exact_english_provenance`,
-  `..._retains_exact_thai_provenance`)
-- provenance retained on a rejected dry-run reference, with a null
-  `request_url` (`..._retains_provenance_on_rejection`)
-- a missing evidence run ID and an out-of-bound item index each fail
-  before DNS/network in dry-run mode
+- exact English and Thai `candidate_reference` provenance in dry-run and
+  live reports on acceptance (`..._retains_exact_english_provenance`,
+  `..._retains_exact_thai_provenance`, and the live-mode equivalents)
+- a rejected dry-run/live reference retains a safe descriptor -- never
+  raw text -- for every field, with a null `request_url`
+  (`..._retains_provenance_on_rejection`,
+  `..._live_invalid_provenance_fails_before_dns_or_network`)
+- a missing evidence run ID and an out-of-bound (but still integer) item
+  index each fail before DNS/network in dry-run mode, the latter
+  retaining the raw integer since it carries no free text
   (`test_run_tmd_candidate_dry_run_missing_run_id_fails_before_dns_or_network`,
   `test_run_tmd_candidate_dry_run_invalid_item_index_fails_before_dns_or_network`)
-- an overlong, invalid `candidate_filename` canary is bounded, never
-  retained verbatim, in the dry-run report
-  (`..._dry_run_bounds_an_overlong_filename_canary`)
-- `workflow_run_id`/`workflow_sha` are retained when present and `None`
-  outside CI, in dry-run mode (`..._retains_workflow_run_id_and_sha`,
-  `..._workflow_ids_are_none_outside_ci`)
-- the live report's `candidate_reference` matches the dry-run shape
-  exactly, for both English and Thai
-  (`test_main_candidate_cap_validation_live_report_retains_matching_candidate_reference`,
-  `..._retains_exact_thai_provenance`)
-- `workflow_run_id` is retained end-to-end in a live report, on both the
-  top-level report and `candidate_validation`
-  (`..._live_report_retains_workflow_run_id`)
+- a non-numeric `evidence_item_index` string is represented as a
+  descriptor, never lost to `null`, in both dry-run and live modes
+  (`..._dry_run_invalid_item_index_string_is_not_lost`,
+  `..._live_invalid_item_index_string_is_not_lost`)
+- an overlong, invalid `candidate_filename` canary never survives even as
+  a truncated prefix (`..._dry_run_bounds_an_overlong_filename_canary`)
+- a **short** credential/token-shaped canary in `language`,
+  `candidate_filename`, or `candidate_evidence_run_id` never survives
+  either -- the round 1 review, finding 1 regression test
+  (`..._dry_run_short_credential_canary_in_every_field`)
+- `workflow_run_id`/`workflow_sha` are retained when present and valid,
+  `None` outside CI, and replaced with a static marker (never the raw
+  value) when malformed, in both dry-run and live modes
+  (`..._retains_workflow_run_id_and_sha`,
+  `..._workflow_ids_are_none_outside_ci`,
+  `..._workflow_ids_malformed_are_a_marker`,
+  `..._live_report_retains_workflow_run_id`)
 - an invalid candidate reference and a missing item index each fail
   before DNS/network in **live** mode, proven with a `resolve_pinned` spy
   that raises if ever called
@@ -208,21 +296,25 @@ and `tests/test_manual_workflow.py`.
 
 - `validate_candidate()` retains `candidate_filename` alongside
   `evidence_run_id`/`evidence_item_index`, and `workflow_run_id`
-  alongside `workflow_sha`, when the environment provides them
+  alongside `workflow_sha`, when the environment provides valid values
   (`test_validate_candidate_retains_candidate_filename_and_workflow_run_id`)
-- both are `None` outside a workflow run
-  (`test_validate_candidate_workflow_run_id_is_none_outside_a_workflow_run`)
-- a rejected candidate filename is still retained (bounded) on the
-  outcome, and the pinned transport is never reached
-  (`test_validate_candidate_retains_the_raw_rejected_filename_before_any_network`)
-- an overlong rejected filename canary is bounded, never retained
-  verbatim, on the outcome
-  (`test_validate_candidate_bounds_an_overlong_rejected_filename_canary`)
+- both are `None` outside a workflow run, and a marker (never the raw
+  value) when malformed
+  (`test_validate_candidate_workflow_run_id_is_none_outside_a_workflow_run`,
+  `..._workflow_ids_malformed_are_a_marker_not_the_raw_value`)
+- a rejected candidate filename is retained only as a safe descriptor,
+  and the pinned transport is never reached
+  (`test_validate_candidate_retains_a_safe_descriptor_for_a_rejected_filename`)
+- a *short* credential-shaped canary in a rejected `candidate_filename` or
+  `evidence_run_id` never survives verbatim
+  (`test_validate_candidate_never_retains_a_short_credential_canary_from_a_rejected_field`)
+- a non-integer `evidence_item_index` is represented as a descriptor,
+  never lost to `None` (`test_validate_candidate_invalid_item_index_string_is_not_lost`)
 
 The full existing suite -- including every GDACS, direct-CAP,
 RSS-discovery, and WO-006 candidate-validation regression test -- remains
-green and unmodified; this increment only adds tests and the two small,
-additive code changes described above.
+green and unmodified; this increment only adds tests and the additive
+code changes described above.
 
 ## 8. WO-007 Gate review requirements for this increment
 
@@ -234,16 +326,24 @@ it should confirm, in writing and before any further action:
   carries `candidate_reference.candidate_filename`,
   `candidate_reference.candidate_evidence_run_id`, and
   `candidate_reference.candidate_evidence_item_index` matching the exact
-  values a reviewer submitted, resolving the Gate 1 CONDITIONAL finding
+  values a reviewer submitted (on acceptance), resolving the Gate 1
+  CONDITIONAL finding
 - `candidate_reference.request_url` on a successful dry run matches the
   URL `derive_candidate_request()` would produce from fixed policy plus
   those three fields, independently re-derivable by the reviewer
-- `workflow_run_id`/`workflow_sha`, when present, identify the exact
-  Actions run and commit that produced the artifact under review
+- a rejected candidate reference's `candidate_reference` object never
+  carries raw, unvalidated text -- only the `{"provided", "length",
+  "sha256"}` descriptor shape (or a plain integer for
+  `candidate_evidence_item_index`, or `null`)
+- `workflow_run_id`/`workflow_sha`, when present and valid, identify the
+  exact Actions run and commit that produced the artifact under review;
+  a static invalid-form marker (rather than the value itself) means the
+  environment provided something that did not match GitHub's own
+  documented form for either
 - none of `docs/tmd_candidate_cap_validation.md` Sections 10-11's
   pre-existing criteria for a live run have been altered or weakened by
   this increment -- they have not; this increment changes only the
   reporting boundary described above
 - this increment's own PR is reviewed and approved by a human (and, per
-  standing project practice, by ChatGPT review) before merge; this
-  document alone does not constitute that approval
+  standing project practice, by ChatGPT) before merge; this document
+  alone does not constitute that approval

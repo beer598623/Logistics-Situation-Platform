@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -71,6 +72,77 @@ def _bounded_field(
         return value
     omitted = len(value) - max_length
     return value[:max_length] + f"...(+{omitted} chars omitted)"
+
+
+def redact_candidate_provenance_value(value: Any) -> dict[str, Any] | int | None:
+    """A safe, non-reversible descriptor for one candidate-provenance
+    value that has not (yet, or ever) passed structural validation
+    (WO-007A round 1 review, finding 1).
+
+    A value's raw text must never be echoed once it is known to have
+    failed -- or has not yet passed -- ``build_candidate_reference``'s
+    validation: a short credential- or token-shaped string typed into an
+    operator-supplied field (``language``, ``candidate_filename``,
+    ``evidence_run_id``, or a non-numeric ``evidence_item_index`` input)
+    would otherwise survive verbatim in a public report artifact, since
+    nothing upstream has bounded or sanitized it yet at that point.
+    Retains only whether a value was supplied, its length, and a SHA-256
+    digest -- enough for a reviewer to compare two runs' rejected inputs
+    without ever reconstructing the original text.
+
+    An already-parsed integer (``evidence_item_index``, whether in-range
+    or not) carries no free text and is returned unchanged -- WO-007A
+    round 1 review, finding 2: a non-integer ``evidence_item_index``
+    string must get the exact same descriptor treatment as any other
+    unvalidated string, never be silently dropped to ``None``, so the
+    dry-run and live reject paths retain the same evidence contract.
+    """
+    if value is None:
+        return None
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    text = value if isinstance(value, str) else str(value)
+    return {
+        "provided": True,
+        "length": len(text),
+        "sha256": hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest(),
+    }
+
+
+#: GitHub Actions' documented form for these two values: a bounded decimal
+#: run ID and a 40-character hex commit SHA. Read from the environment
+#: ("when safely available"), but validated at origin rather than trusted
+#: blindly (WO-007A round 1 review, finding 3) -- this code also runs
+#: outside a real GitHub Actions job (locally, in tests, or on a
+#: misconfigured self-hosted runner), so neither is guaranteed to already
+#: be well-formed.
+_WORKFLOW_RUN_ID_RE = re.compile(r"^[0-9]{1,32}$")
+_WORKFLOW_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+_INVALID_WORKFLOW_RUN_ID_MARKER = "<invalid: GITHUB_RUN_ID did not match the expected form>"
+_INVALID_WORKFLOW_SHA_MARKER = "<invalid: GITHUB_SHA did not match the expected form>"
+
+
+def safe_workflow_run_id(raw: str | None) -> str | None:
+    """Validate ``GITHUB_RUN_ID``'s documented bounded-numeric shape
+    before it is retained anywhere in an outcome or report. ``None`` means
+    the environment did not provide a value at all; the static marker
+    means one was provided but did not match the expected form -- the two
+    are kept distinguishable rather than collapsed to the same ``None``."""
+    if raw is None:
+        return None
+    if _WORKFLOW_RUN_ID_RE.fullmatch(raw):
+        return raw
+    return _INVALID_WORKFLOW_RUN_ID_MARKER
+
+
+def safe_workflow_sha(raw: str | None) -> str | None:
+    """Same as ``safe_workflow_run_id`` for ``GITHUB_SHA``'s documented
+    40-character hex commit SHA form."""
+    if raw is None:
+        return None
+    if _WORKFLOW_SHA_RE.fullmatch(raw):
+        return raw
+    return _INVALID_WORKFLOW_SHA_MARKER
 
 
 class UnexpectedNotModifiedError(RuntimeError):
@@ -324,23 +396,33 @@ class CandidateValidationOutcome:
     are never present on this dataclass at all -- there is no field for
     them to occupy.
 
-    WO-007A: ``candidate_filename``, ``evidence_run_id``, and
-    ``evidence_item_index`` are recorded from the raw caller-supplied
-    value (bounded, independent of whether ``build_candidate_reference``
-    accepted it) so a Gate reviewer can see exactly which candidate a
-    report describes -- including one rejected before any DNS or network
-    activity. ``workflow_run_id`` (``GITHUB_RUN_ID``) is retained
+    WO-007A: ``language``, ``candidate_filename``, ``evidence_run_id``,
+    and ``evidence_item_index`` are recorded so a Gate reviewer can see
+    exactly which candidate a report describes -- including one rejected
+    before any DNS or network activity. Each field holds the actual
+    validated value (a plain ``str``/``int``) once
+    ``build_candidate_reference`` has accepted it; before that, or if it
+    never does, each instead holds a safe, non-reversible descriptor from
+    ``redact_candidate_provenance_value`` (``{"provided": True, "length":
+    ..., "sha256": ...}`` for a string, the integer itself for
+    ``evidence_item_index``, or ``None``) -- never the raw rejected text
+    (round 1 review, finding 1), and never silently dropped to ``None``
+    just because it failed to parse as an integer (round 1 review,
+    finding 2). ``workflow_run_id`` (``GITHUB_RUN_ID``) is retained
     alongside the existing ``workflow_sha`` (``GITHUB_SHA``) when the
-    environment provides it; both are ``None`` outside a GitHub Actions
-    run rather than a placeholder value.
+    environment provides a value matching its documented form
+    (``safe_workflow_run_id``/``safe_workflow_sha``); ``None`` means no
+    value was provided, and a static marker means one was provided but
+    was malformed (round 1 review, finding 3) -- neither ever echoes an
+    unvalidated raw environment value.
     """
 
     operation: str
     mode: str
-    language: str | None
-    candidate_filename: str | None
-    evidence_run_id: str | None
-    evidence_item_index: int | None
+    language: str | dict[str, Any] | None
+    candidate_filename: str | dict[str, Any] | None
+    evidence_run_id: str | dict[str, Any] | None
+    evidence_item_index: int | dict[str, Any] | None
     workflow_run_id: str | None
     workflow_sha: str | None
     request_url: str | None
@@ -760,23 +842,24 @@ class TmdCapAdapter(SourceAdapter):
         cap_area_count: int | None = None
         cap_parser_warning_count: int | None = None
 
-        bounded_language = _bounded_field(str(self.language))
-        # WO-007A: recorded from the raw caller-supplied value, before
-        # build_candidate_reference() below has had a chance to validate
-        # it, so a report can show exactly what candidate_filename was
-        # requested (or rejected) for independent Gate review -- mirrors
-        # bounded_run_id/bounded_item_index below, which are already
-        # computed the same way, before the try block.
-        bounded_candidate_filename = (
-            _bounded_field(candidate_filename) if isinstance(candidate_filename, str) else None
+        # WO-007A round 1 review, findings 1-2: every provenance field
+        # starts as a safe, non-reversible descriptor of the raw
+        # caller-supplied value -- never the raw text itself, since
+        # build_candidate_reference() below has not yet had a chance to
+        # validate it (or may reject it outright). Only on successful
+        # validation, below, are these replaced with the actual validated
+        # values -- which are then known-safe (grammar/enum-bound ASCII).
+        bounded_language: str | dict[str, Any] | None = redact_candidate_provenance_value(
+            self.language
         )
-        bounded_run_id = (
-            _bounded_field(evidence_run_id) if isinstance(evidence_run_id, str) else None
+        bounded_candidate_filename: str | dict[str, Any] | None = redact_candidate_provenance_value(
+            candidate_filename
         )
-        bounded_item_index = (
+        bounded_run_id: str | dict[str, Any] | None = redact_candidate_provenance_value(
+            evidence_run_id
+        )
+        bounded_item_index: int | dict[str, Any] | None = redact_candidate_provenance_value(
             evidence_item_index
-            if isinstance(evidence_item_index, int) and not isinstance(evidence_item_index, bool)
-            else None
         )
 
         try:
@@ -786,6 +869,13 @@ class TmdCapAdapter(SourceAdapter):
                 evidence_run_id=evidence_run_id,
                 evidence_item_index=evidence_item_index,
             )
+            # Validation succeeded: every field is now known to be a safe,
+            # grammar/enum-bound value, so replace the pre-validation
+            # descriptor with the actual validated text/integer.
+            bounded_language = reference.language
+            bounded_candidate_filename = reference.candidate_filename
+            bounded_run_id = reference.evidence_run_id
+            bounded_item_index = reference.evidence_item_index
             derived = derive_candidate_request(reference)
             request_url = redact_url_userinfo(derived.url)
 
@@ -927,8 +1017,8 @@ class TmdCapAdapter(SourceAdapter):
             candidate_filename=bounded_candidate_filename,
             evidence_run_id=bounded_run_id,
             evidence_item_index=bounded_item_index,
-            workflow_run_id=os.environ.get("GITHUB_RUN_ID"),
-            workflow_sha=os.environ.get("GITHUB_SHA"),
+            workflow_run_id=safe_workflow_run_id(os.environ.get("GITHUB_RUN_ID")),
+            workflow_sha=safe_workflow_sha(os.environ.get("GITHUB_SHA")),
             request_url=request_url,
             selected_ip=selected_ip,
             address_family=address_family,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -442,9 +443,14 @@ def test_run_tmd_candidate_cap_validation_dry_run_retains_exact_thai_provenance(
 
 
 def test_run_tmd_candidate_cap_validation_dry_run_retains_provenance_on_rejection() -> None:
-    """A rejected candidate reference still retains the exact (bounded)
-    values a reviewer submitted, with a null request_url, rather than
-    omitting candidate_reference entirely on failure."""
+    """A rejected candidate reference still retains a safe, reviewable
+    descriptor of the values a reviewer submitted (never the raw text --
+    WO-007A round 1 review, finding 1), with a null request_url, rather
+    than omitting candidate_reference entirely on failure. Even the
+    already-valid-shaped fields (language, evidence_run_id) become
+    descriptors here too, since build_candidate_reference() validates all
+    four fields atomically and only returns a validated reference if every
+    one of them passes."""
     registry = load_registry()
     contract = source_by_id(registry, "TMD_CAP")
 
@@ -457,13 +463,27 @@ def test_run_tmd_candidate_cap_validation_dry_run_retains_provenance_on_rejectio
 
     report = run_tmd_cap(Args(), contract, dry_run=True)
     assert report["error_code"] == "CandidateReferenceError"
-    assert report["candidate_reference"] == {
-        "language": "primary",
-        "candidate_filename": "../etc/passwd",
-        "candidate_evidence_run_id": "30028391246",
-        "candidate_evidence_item_index": 0,
-        "request_url": None,
+    reference = report["candidate_reference"]
+    assert reference["request_url"] is None
+    assert reference["language"] == {
+        "provided": True,
+        "length": len("primary"),
+        "sha256": hashlib.sha256(b"primary").hexdigest(),
     }
+    assert reference["candidate_filename"] == {
+        "provided": True,
+        "length": len("../etc/passwd"),
+        "sha256": hashlib.sha256(b"../etc/passwd").hexdigest(),
+    }
+    assert reference["candidate_evidence_run_id"] == {
+        "provided": True,
+        "length": len("30028391246"),
+        "sha256": hashlib.sha256(b"30028391246").hexdigest(),
+    }
+    assert reference["candidate_evidence_item_index"] == 0
+    report_text = json.dumps(report)
+    assert "../etc/passwd" not in report_text
+    assert "passwd" not in report_text
 
 
 def test_run_tmd_candidate_dry_run_missing_run_id_fails_before_dns_or_network() -> None:
@@ -480,7 +500,11 @@ def test_run_tmd_candidate_dry_run_missing_run_id_fails_before_dns_or_network() 
     report = run_tmd_cap(Args(), contract, dry_run=True)
     assert report["error_code"] == "CandidateReferenceError"
     assert report["error_category"] == "validation"
-    assert report["candidate_reference"]["candidate_evidence_run_id"] == ""
+    assert report["candidate_reference"]["candidate_evidence_run_id"] == {
+        "provided": True,
+        "length": 0,
+        "sha256": hashlib.sha256(b"").hexdigest(),
+    }
     assert report["candidate_reference"]["request_url"] is None
     assert "request_url" not in report
 
@@ -505,8 +529,9 @@ def test_run_tmd_candidate_dry_run_invalid_item_index_fails_before_dns_or_networ
 
 def test_run_tmd_candidate_cap_validation_dry_run_bounds_an_overlong_filename_canary() -> None:
     """Bounded-field/canary non-leak behavior: an overlong, invalid
-    candidate_filename must never survive verbatim in the report, only a
-    truncated, bounded value."""
+    candidate_filename must never survive verbatim in the report -- only a
+    safe, non-reversible descriptor (length + SHA-256), never even a
+    truncated prefix of the raw text."""
     registry = load_registry()
     contract = source_by_id(registry, "TMD_CAP")
     canary = "OVERLONG_DRYRUN_FILENAME_CANARY_" + ("q" * 500)
@@ -521,9 +546,68 @@ def test_run_tmd_candidate_cap_validation_dry_run_bounds_an_overlong_filename_ca
     report = run_tmd_cap(Args(), contract, dry_run=True)
     assert report["error_code"] == "CandidateReferenceError"
     reference = report["candidate_reference"]
-    assert reference["candidate_filename"] != canary
-    assert reference["candidate_filename"].startswith("OVERLONG_DRYRUN_FILENAME_CANARY_")
-    assert len(reference["candidate_filename"]) < len(canary)
+    assert reference["candidate_filename"] == {
+        "provided": True,
+        "length": len(canary),
+        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+    }
+    assert "OVERLONG_DRYRUN_FILENAME_CANARY_" not in json.dumps(report)
+    assert canary not in json.dumps(report)
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_short_credential_canary_in_every_field() -> None:
+    """WO-007A round 1 review, finding 1: a *short* (<=64 char)
+    credential/token-shaped canary in language, candidate_filename, or
+    candidate_evidence_run_id must never survive verbatim -- the previous
+    implementation only bounded overlong values, silently retaining any
+    short one, including a plausible secret."""
+    canary = "SHORT_CREDENTIAL_CANARY_TOKEN"  # noqa: S105
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = canary
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = canary
+        candidate_evidence_run_id = canary
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    reference = report["candidate_reference"]
+    for field in ("language", "candidate_filename", "candidate_evidence_run_id"):
+        assert reference[field] == {
+            "provided": True,
+            "length": len(canary),
+            "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        }
+    assert canary not in json.dumps(report)
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_invalid_item_index_string_is_not_lost() -> None:
+    """WO-007A round 1 review, finding 2: a non-numeric, non-empty
+    evidence_item_index string (never converted to int) must still be
+    represented -- not dropped to null -- exactly like any other rejected
+    provenance field."""
+    canary = "TOKEN_LOOKING_ITEM_INDEX"
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "1"
+        candidate_item_index = canary
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    reference = report["candidate_reference"]
+    assert reference["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len(canary),
+        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+    }
     assert canary not in json.dumps(report)
 
 
@@ -531,7 +615,7 @@ def test_run_tmd_candidate_cap_validation_dry_run_retains_workflow_run_id_and_sh
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("GITHUB_RUN_ID", "30099887766")
-    monkeypatch.setenv("GITHUB_SHA", "feedface")
+    monkeypatch.setenv("GITHUB_SHA", "feedface" * 5)
     registry = load_registry()
     contract = source_by_id(registry, "TMD_CAP")
 
@@ -544,7 +628,35 @@ def test_run_tmd_candidate_cap_validation_dry_run_retains_workflow_run_id_and_sh
 
     report = run_tmd_cap(Args(), contract, dry_run=True)
     assert report["workflow_run_id"] == "30099887766"
-    assert report["workflow_sha"] == "feedface"
+    assert report["workflow_sha"] == "feedface" * 5
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_workflow_ids_malformed_are_a_marker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """WO-007A round 1 review, finding 3: GITHUB_RUN_ID/GITHUB_SHA are
+    validated at origin, not copied blindly -- a malformed or overlong
+    canary value must never survive into the report, and must be
+    distinguishable from "not provided at all" (None)."""
+    canary = "MALFORMED_ENV_CANARY_" + ("z" * 500)
+    monkeypatch.setenv("GITHUB_RUN_ID", canary)
+    monkeypatch.setenv("GITHUB_SHA", canary)
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "30028391246"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["workflow_run_id"] != canary
+    assert report["workflow_sha"] != canary
+    assert report["workflow_run_id"] is not None
+    assert report["workflow_sha"] is not None
+    assert canary not in json.dumps(report)
 
 
 def test_run_tmd_candidate_cap_validation_dry_run_workflow_ids_are_none_outside_ci(
@@ -1200,7 +1312,7 @@ def test_main_candidate_cap_validation_live_report_retains_workflow_run_id(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     monkeypatch.setenv("GITHUB_RUN_ID", "30055443322")
-    monkeypatch.setenv("GITHUB_SHA", "1234abcd")
+    monkeypatch.setenv("GITHUB_SHA", "1234abcd" * 5)
     body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
     _install_fake_tmd_adapter(
         monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
@@ -1225,9 +1337,9 @@ def test_main_candidate_cap_validation_live_report_retains_workflow_run_id(
     )
     report = json.loads((tmp_path / "report.json").read_text())
     assert report["workflow_run_id"] == "30055443322"
-    assert report["workflow_sha"] == "1234abcd"
+    assert report["workflow_sha"] == "1234abcd" * 5
     assert report["candidate_validation"]["workflow_run_id"] == "30055443322"
-    assert report["candidate_validation"]["workflow_sha"] == "1234abcd"
+    assert report["candidate_validation"]["workflow_sha"] == "1234abcd" * 5
 
 
 def test_main_candidate_cap_validation_live_invalid_provenance_fails_before_dns_or_network(
@@ -1236,8 +1348,9 @@ def test_main_candidate_cap_validation_live_invalid_provenance_fails_before_dns_
     """WO-007A requirement 3, live mode: an invalid candidate reference
     must fail closed before any DNS resolution or physical HTTP request --
     not only in dry-run mode, which never touches the network at all --
-    while still producing a structured sanitized report that retains the
-    exact rejected provenance."""
+    while still producing a structured sanitized report that retains a
+    safe, reviewable descriptor of the rejected provenance (never the raw
+    rejected text -- round 1 review, finding 1)."""
     dns_calls: list[tuple[str, int]] = []
 
     def _spy_resolve_pinned(hostname: str, port: int):
@@ -1277,13 +1390,22 @@ def test_main_candidate_cap_validation_live_invalid_provenance_fails_before_dns_
     assert dns_calls == []
     assert fake_http.pinned_call_count == 0
     assert fake_http.call_count == 0
-    assert report["candidate_reference"] == {
-        "language": "primary",
-        "candidate_filename": "../etc/passwd",
-        "candidate_evidence_run_id": "1",
-        "candidate_evidence_item_index": 0,
-        "request_url": None,
+    reference = report["candidate_reference"]
+    assert reference["request_url"] is None
+    assert reference["candidate_filename"] == {
+        "provided": True,
+        "length": len("../etc/passwd"),
+        "sha256": hashlib.sha256(b"../etc/passwd").hexdigest(),
     }
+    assert reference["candidate_evidence_run_id"] == {
+        "provided": True,
+        "length": len("1"),
+        "sha256": hashlib.sha256(b"1").hexdigest(),
+    }
+    assert reference["candidate_evidence_item_index"] == 0
+    report_text = json.dumps(report)
+    assert "../etc/passwd" not in report_text
+    assert "passwd" not in report_text
 
 
 def test_main_candidate_cap_validation_live_missing_item_index_fails_before_dns_or_network(
@@ -1327,6 +1449,60 @@ def test_main_candidate_cap_validation_live_missing_item_index_fails_before_dns_
     assert fake_http.pinned_call_count == 0
     assert fake_http.call_count == 0
     assert report["candidate_reference"]["request_url"] is None
+
+
+def test_main_candidate_cap_validation_live_invalid_item_index_string_is_not_lost(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """WO-007A round 1 review, finding 2, live mode end-to-end: a
+    non-empty, non-numeric evidence_item_index string must be represented
+    as a safe descriptor, not silently dropped to null, and must never
+    survive as raw text either."""
+    canary = "TOKEN_LOOKING_LIVE_ITEM_INDEX"
+    dns_calls: list[tuple[str, int]] = []
+
+    def _spy_resolve_pinned(hostname: str, port: int):
+        dns_calls.append((hostname, port))
+        raise AssertionError("DNS must never be resolved for an invalid item index")
+
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": "application/cap+xml"},
+        resolve_pinned=_spy_resolve_pinned,
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            canary,
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    assert report["candidate_validation"]["error_code"] == "CandidateReferenceError"
+    assert dns_calls == []
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+    reference = report["candidate_reference"]
+    assert reference["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len(canary),
+        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+    }
+    assert canary not in json.dumps(report)
 
 
 def test_main_candidate_cap_validation_report_never_contains_raw_xml_or_content_type_params(
