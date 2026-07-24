@@ -2,6 +2,25 @@
 
 Public research dashboard for global and Thailand logistics conditions, operational impacts, preparedness options, and innovation signals.
 
+## Approved product direction (WO-009A)
+
+The approved product direction is the **Thailand-Centric Multimodal Logistics Intelligence &
+Outlook Dashboard**: Thailand-centric, multimodal (Sea, Air, Road, Rail, Border), Logistics-first,
+externally informed, evidence-linked, scenario-based, and free-only. Ocean Logistics is the first
+implementation module, not the permanent limit of the product. This supersedes the prior broad
+hazard-oriented implementation priority as the platform's implementation priority; it does not
+delete or invalidate prior technical evidence (WO-002 through WO-008).
+
+See:
+
+- [`docs/thailand_multimodal_logistics_intelligence_scope.md`](docs/thailand_multimodal_logistics_intelligence_scope.md) — approved product principles, Public Core/Private Overlay boundary, data-layer architecture, lane model, AI role and Human Review boundary, and Dashboard information architecture.
+- [`docs/thailand_multimodal_logistics_mvp_roadmap.md`](docs/thailand_multimodal_logistics_mvp_roadmap.md) — implementation phases (Phase 0–7) and MVP acceptance criteria.
+- [`docs/source_priority_framework.md`](docs/source_priority_framework.md) — source-priority matrix and free-only qualification framework.
+
+WO-009A is architecture, governance, and documentation only. No source ingestion, live
+collection, AI automation, or Dashboard screens were implemented by it, and no Phase 1 work is
+authorized until this scope reset is independently reviewed and accepted.
+
 ## Project principles
 
 - Public sources only.
