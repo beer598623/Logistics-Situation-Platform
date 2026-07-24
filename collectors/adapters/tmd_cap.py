@@ -75,9 +75,9 @@ def _bounded_field(
 
 
 def redact_candidate_provenance_value(value: Any) -> dict[str, Any] | None:
-    """A safe, non-reversible descriptor for one candidate-provenance
-    value that has not (yet, or ever) passed structural validation
-    (WO-007A round 1 review, finding 1).
+    """A safe, static descriptor for one candidate-provenance value that
+    has not (yet, or ever) passed structural validation (WO-007A round 1
+    review, finding 1).
 
     A value's raw text must never be echoed once it is known to have
     failed -- or has not yet passed -- ``build_candidate_reference``'s
@@ -85,10 +85,20 @@ def redact_candidate_provenance_value(value: Any) -> dict[str, Any] | None:
     operator-supplied field (``language``, ``candidate_filename``,
     ``evidence_run_id``, or ``evidence_item_index``) would otherwise
     survive verbatim in a public report artifact, since nothing upstream
-    has bounded or sanitized it yet at that point. Retains only whether a
-    value was supplied, its length, and a SHA-256 digest -- enough for a
-    reviewer to compare two runs' rejected inputs without ever
-    reconstructing the original text.
+    has bounded or sanitized it yet at that point.
+
+    This descriptor carries only whether a value was supplied and its
+    length -- deliberately **not** a hash of the value (WO-007A round 3
+    review, finding 1): an unsalted, unkeyed digest of low-entropy input
+    (a 4-8 digit PIN or OTP, a short numeric API key) is not
+    non-reversible in practice -- SHA-256 is fast, and the search space
+    for a short PIN/OTP is small enough for an offline dictionary or
+    brute-force pass against a public ``report.json`` to recover it. This
+    module never introduces a repository secret or persistent HMAC key
+    to make such a digest safe (that would add secret-management
+    complexity not required to close Gate 1's evidence-completeness
+    finding); the only safe answer is not to retain a value-derived
+    digest at all.
 
     Every non-``None`` value -- including an already-parsed
     ``evidence_item_index`` integer, in-range or not -- gets this same
@@ -112,7 +122,7 @@ def redact_candidate_provenance_value(value: Any) -> dict[str, Any] | None:
     return {
         "provided": True,
         "length": len(text),
-        "sha256": hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest(),
+        "validation_status": "rejected",
     }
 
 

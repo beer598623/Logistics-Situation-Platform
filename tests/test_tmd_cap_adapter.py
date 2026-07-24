@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -1262,7 +1261,7 @@ def test_validate_candidate_retains_a_safe_descriptor_for_a_rejected_filename(
     assert outcome.candidate_filename == {
         "provided": True,
         "length": len("../etc/passwd"),
-        "sha256": hashlib.sha256(b"../etc/passwd").hexdigest(),
+        "validation_status": "rejected",
     }
     assert outcome.request_url is None
     assert fake_http.pinned_call_count == 0
@@ -1292,12 +1291,12 @@ def test_validate_candidate_never_retains_a_short_credential_canary_from_a_rejec
     assert outcome.candidate_filename == {
         "provided": True,
         "length": len(canary),
-        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert outcome.evidence_run_id == {
         "provided": True,
         "length": len(canary),
-        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert canary not in json.dumps(outcome.to_dict())
 
@@ -1321,7 +1320,7 @@ def test_validate_candidate_invalid_item_index_string_is_not_lost(tmd_contract: 
     assert outcome.evidence_item_index == {
         "provided": True,
         "length": len(canary),
-        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert canary not in json.dumps(outcome.to_dict())
 
@@ -1345,7 +1344,7 @@ def test_validate_candidate_rejected_numeric_item_index_is_not_raw(tmd_contract:
     assert outcome.evidence_item_index == {
         "provided": True,
         "length": len("9999"),
-        "sha256": hashlib.sha256(b"9999").hexdigest(),
+        "validation_status": "rejected",
     }
     assert "9999" not in json.dumps(outcome.to_dict())
     assert fake_http.pinned_call_count == 0
@@ -1370,7 +1369,36 @@ def test_validate_candidate_long_numeric_item_index_canary_is_not_raw(tmd_contra
     assert outcome.evidence_item_index == {
         "provided": True,
         "length": len(str(canary_index)),
-        "sha256": hashlib.sha256(str(canary_index).encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert str(canary_index) not in json.dumps(outcome.to_dict())
+    assert fake_http.pinned_call_count == 0
+
+
+def test_validate_candidate_low_entropy_pin_leaves_no_digest(tmd_contract: dict) -> None:
+    """WO-007A round 3 review, finding 1: an unsalted, unkeyed digest of
+    low-entropy operator input (a PIN/OTP-shaped rejected value) is
+    offline brute-forceable and must never be retained on the outcome --
+    the descriptor carries only 'provided'/'length'/'validation_status'."""
+    pin_index = 482913  # out-of-range, six-digit PIN/OTP-shaped canary
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=pin_index,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.evidence_item_index == {
+        "provided": True,
+        "length": len(str(pin_index)),
+        "validation_status": "rejected",
+    }
+    # Scoped to the descriptor's own keys -- the outcome legitimately has
+    # unrelated fields named content_sha256/cap_identifier_sha256, so a
+    # whole-outcome "sha256" substring search would false-positive on those.
+    assert set(outcome.evidence_item_index) == {"provided", "length", "validation_status"}
+    assert str(pin_index) not in json.dumps(outcome.to_dict())
     assert fake_http.pinned_call_count == 0

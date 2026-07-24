@@ -23,9 +23,9 @@ increment's own code-level review, per
 [`docs/tmd_candidate_cap_validation.md`](tmd_candidate_cap_validation.md)
 Section 10 (unchanged by this increment).
 
-This document reflects the **round 2 review** revision of this increment
-(see Sections 1a and 1b) -- the shape described below is what actually
-ships, not an earlier draft a reviewer initially saw.
+This document reflects the **round 3 review** revision of this increment
+(see Sections 1a, 1b, and 1c) -- the shape described below is what
+actually ships, not an earlier draft a reviewer initially saw.
 
 ## 1. Gate 1 finding and how this increment resolves it
 
@@ -98,6 +98,38 @@ the complete four-field reference -- exactly the same rule already
 applied to the string fields, with no special case left for
 `evidence_item_index`.
 
+### 1c. Round 3 review revision
+
+The round 1/2 descriptor shape was
+`{"provided": true, "length": N, "sha256": "<64 hex chars>"}`. ChatGPT
+review round 3 on PR #14 found that the digest itself was a
+credential-disclosure risk: SHA-256 is fast and unsalted, and this
+module's own stated threat model includes low-entropy rejected input
+(a 4-8 digit PIN or OTP, a short numeric API key). For an input domain
+that small, an unsalted digest plus the exact input length is not
+"non-reversible" in any practical sense -- anyone with the public
+`report.json` can enumerate every plausible PIN/OTP/short-token value
+offline, hash each one, and compare against the retained digest to
+recover the rejected value with a trivial amount of compute. The round
+1/2 tests only proved the *raw* token was absent from the serialized
+report; they never attempted to show the digest itself couldn't be
+inverted, so this gap survived two review rounds.
+
+Fixed by dropping the digest from the descriptor entirely:
+`redact_candidate_provenance_value()` now returns
+`{"provided": true, "length": N, "validation_status": "rejected"}` --
+whether a value was supplied and its length, with no value-derived
+field at all. This module deliberately does **not** introduce a
+repository secret or persistent HMAC key to make a keyed digest safe
+instead -- cross-run correlation of two runs' rejected secret-like
+input is not required to close Gate 1's evidence-completeness finding,
+and doing so would add secret-management complexity and a new
+key-rotation/leakage surface for no requirement this increment actually
+has. `length` is still exact (not bucketed) -- WO-007A's own scope is
+reporting, not further data-minimization design, and an exact length
+alone does not materially aid a brute-force search the way a digest
+would.
+
 ## 2. The `candidate_reference` object
 
 Present at `report["candidate_reference"]` on every
@@ -129,12 +161,12 @@ the same treatment):
   string; `reference.evidence_item_index` as a plain integer) -- never the
   raw argument. What is retained is exactly what was validated and (for
   `dry_run: false`) what was fetched.
-- **Rejected:** every field holds a safe, non-reversible **descriptor**
-  instead of any raw text --
+- **Rejected:** every field holds a safe, static **descriptor** instead
+  of any raw text or value-derived digest --
   `collectors/adapters/tmd_cap.py::redact_candidate_provenance_value()`:
 
   ```json
-  {"provided": true, "length": 19, "sha256": "<64 hex chars>"}
+  {"provided": true, "length": 19, "validation_status": "rejected"}
   ```
 
   or `null` if no value was supplied at all. `request_url` is `null`. This
@@ -155,9 +187,11 @@ the same treatment):
 
   The whole point of the Gate 1 finding was that a reviewer needs to see
   *what was rejected and why*; the descriptor still serves that purpose --
-  a reviewer can compare `length`/`sha256` across runs, or against a
-  value they independently know, without the report ever carrying
-  attacker- or operator-supplied free text it cannot itself validate.
+  a reviewer can compare `length` across runs, or against a value they
+  independently know, without the report ever carrying attacker- or
+  operator-supplied free text (or a digest that could recover it for a
+  low-entropy value -- round 3 review, finding 1, Section 1c) it cannot
+  itself validate.
 
 On the live path, the same rule is applied on
 `CandidateValidationOutcome` (`collectors/adapters/tmd_cap.py`) itself --
@@ -220,9 +254,9 @@ pure functions with no `socket`/`ssl` import anywhere in
 Section 3). Adding `candidate_reference`, `workflow_run_id`, and
 `workflow_sha` to the report changes nothing about that: every one of
 those values is derived from data already in memory (the validated
-reference, a `hashlib.sha256` digest of the raw CLI arguments on
-rejection, or a regex match against them) or from the process
-environment, never from a network call or a DNS lookup.
+reference, a length count of the raw CLI arguments on rejection, or a
+regex match against them) or from the process environment, never from a
+network call or a DNS lookup.
 `tests/test_manual_workflow.py::test_run_tmd_candidate_cap_validation_dry_run_derives_url_with_zero_network`
 (WO-006, unmodified) and this increment's own dry-run provenance tests
 (Section 7 below) both continue to hold.
@@ -320,6 +354,11 @@ and `tests/test_manual_workflow.py`.
   XML, no Content-Type parameter canary, no credential-shaped text, in
   the final live `report.json`
   (`..._report_never_contains_raw_xml_or_content_type_params`)
+- a low-entropy, PIN/OTP-shaped rejected value (a six-digit numeric
+  canary) leaves neither the raw value nor a deterministic digest of it
+  anywhere in the report -- the round 3 review, finding 1 regression
+  tests (`..._dry_run_low_entropy_pin_leaves_no_digest`,
+  `..._live_low_entropy_pin_leaves_no_digest`)
 
 `tests/test_tmd_cap_adapter.py`:
 
@@ -344,6 +383,10 @@ and `tests/test_manual_workflow.py`.
   the round 2 review, finding 1 regression tests
   (`test_validate_candidate_rejected_numeric_item_index_is_not_raw`,
   `test_validate_candidate_long_numeric_item_index_canary_is_not_raw`)
+- a low-entropy, PIN/OTP-shaped rejected `evidence_item_index` leaves
+  neither the raw value nor a deterministic digest of it on the outcome
+  -- the round 3 review, finding 1 regression test
+  (`test_validate_candidate_low_entropy_pin_leaves_no_digest`)
 
 The full existing suite -- including every GDACS, direct-CAP,
 RSS-discovery, and WO-006 candidate-validation regression test -- remains
@@ -366,11 +409,12 @@ it should confirm, in writing and before any further action:
   URL `derive_candidate_request()` would produce from fixed policy plus
   those three fields, independently re-derivable by the reviewer
 - a rejected candidate reference's `candidate_reference` object never
-  carries raw, unvalidated text or a raw unvalidated number -- every
-  field, including `candidate_evidence_item_index`, is either the
-  `{"provided", "length", "sha256"}` descriptor shape or `null`; a plain
-  integer appears there only once `build_candidate_reference()` has
-  accepted the complete reference
+  carries raw, unvalidated text, a raw unvalidated number, or a
+  value-derived digest of either -- every field, including
+  `candidate_evidence_item_index`, is either the `{"provided", "length",
+  "validation_status"}` descriptor shape or `null`; a plain integer
+  appears there only once `build_candidate_reference()` has accepted the
+  complete reference (round 3 review, finding 1, Section 1c)
 - `workflow_run_id`/`workflow_sha`, when present and valid, identify the
   exact Actions run and commit that produced the artifact under review;
   a static invalid-form marker (rather than the value itself) means the

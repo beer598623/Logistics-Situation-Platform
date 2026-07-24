@@ -470,22 +470,22 @@ def test_run_tmd_candidate_cap_validation_dry_run_retains_provenance_on_rejectio
     assert reference["language"] == {
         "provided": True,
         "length": len("primary"),
-        "sha256": hashlib.sha256(b"primary").hexdigest(),
+        "validation_status": "rejected",
     }
     assert reference["candidate_filename"] == {
         "provided": True,
         "length": len("../etc/passwd"),
-        "sha256": hashlib.sha256(b"../etc/passwd").hexdigest(),
+        "validation_status": "rejected",
     }
     assert reference["candidate_evidence_run_id"] == {
         "provided": True,
         "length": len("30028391246"),
-        "sha256": hashlib.sha256(b"30028391246").hexdigest(),
+        "validation_status": "rejected",
     }
     assert reference["candidate_evidence_item_index"] == {
         "provided": True,
         "length": len("0"),
-        "sha256": hashlib.sha256(b"0").hexdigest(),
+        "validation_status": "rejected",
     }
     report_text = json.dumps(report)
     assert "../etc/passwd" not in report_text
@@ -509,7 +509,7 @@ def test_run_tmd_candidate_dry_run_missing_run_id_fails_before_dns_or_network() 
     assert report["candidate_reference"]["candidate_evidence_run_id"] == {
         "provided": True,
         "length": 0,
-        "sha256": hashlib.sha256(b"").hexdigest(),
+        "validation_status": "rejected",
     }
     assert report["candidate_reference"]["request_url"] is None
     assert "request_url" not in report
@@ -536,7 +536,7 @@ def test_run_tmd_candidate_dry_run_invalid_item_index_fails_before_dns_or_networ
     assert report["candidate_reference"]["candidate_evidence_item_index"] == {
         "provided": True,
         "length": len("9999"),
-        "sha256": hashlib.sha256(b"9999").hexdigest(),
+        "validation_status": "rejected",
     }
     assert report["candidate_reference"]["request_url"] is None
     assert "9999" not in json.dumps(report)
@@ -564,7 +564,7 @@ def test_run_tmd_candidate_cap_validation_dry_run_bounds_an_overlong_filename_ca
     assert reference["candidate_filename"] == {
         "provided": True,
         "length": len(canary),
-        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert "OVERLONG_DRYRUN_FILENAME_CANARY_" not in json.dumps(report)
     assert canary not in json.dumps(report)
@@ -594,9 +594,42 @@ def test_run_tmd_candidate_cap_validation_dry_run_short_credential_canary_in_eve
         assert reference[field] == {
             "provided": True,
             "length": len(canary),
-            "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+            "validation_status": "rejected",
         }
     assert canary not in json.dumps(report)
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_low_entropy_pin_leaves_no_digest() -> None:
+    """WO-007A round 3 review, finding 1: a deterministic, unsalted digest
+    of low-entropy operator input (a PIN/OTP-shaped value) is offline
+    brute-forceable and must never be retained either -- not just the raw
+    value. The descriptor carries only 'provided'/'length'/
+    'validation_status', with no hash of the rejected value anywhere.
+    A bare 6-digit PIN does not match the CAPTMD<...>.xml grammar, so it
+    is rejected as a candidate_filename."""
+    pin = "482913"  # six-digit PIN/OTP-shaped canary
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = pin
+        candidate_evidence_run_id = "1"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    reference = report["candidate_reference"]
+    assert reference["candidate_filename"] == {
+        "provided": True,
+        "length": len(pin),
+        "validation_status": "rejected",
+    }
+    assert "sha256" not in json.dumps(reference)
+    report_text = json.dumps(report)
+    assert pin not in report_text
+    assert hashlib.sha256(pin.encode()).hexdigest() not in report_text
 
 
 def test_run_tmd_candidate_cap_validation_dry_run_invalid_item_index_string_is_not_lost() -> None:
@@ -621,7 +654,7 @@ def test_run_tmd_candidate_cap_validation_dry_run_invalid_item_index_string_is_n
     assert reference["candidate_evidence_item_index"] == {
         "provided": True,
         "length": len(canary),
-        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert canary not in json.dumps(report)
 
@@ -651,7 +684,7 @@ def test_run_tmd_candidate_cap_validation_dry_run_long_numeric_item_index_canary
     assert reference["candidate_evidence_item_index"] == {
         "provided": True,
         "length": len(canary),
-        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert reference["request_url"] is None
     assert canary not in json.dumps(report)
@@ -1441,17 +1474,17 @@ def test_main_candidate_cap_validation_live_invalid_provenance_fails_before_dns_
     assert reference["candidate_filename"] == {
         "provided": True,
         "length": len("../etc/passwd"),
-        "sha256": hashlib.sha256(b"../etc/passwd").hexdigest(),
+        "validation_status": "rejected",
     }
     assert reference["candidate_evidence_run_id"] == {
         "provided": True,
         "length": len("1"),
-        "sha256": hashlib.sha256(b"1").hexdigest(),
+        "validation_status": "rejected",
     }
     assert reference["candidate_evidence_item_index"] == {
         "provided": True,
         "length": len("0"),
-        "sha256": hashlib.sha256(b"0").hexdigest(),
+        "validation_status": "rejected",
     }
     report_text = json.dumps(report)
     assert "../etc/passwd" not in report_text
@@ -1550,7 +1583,7 @@ def test_main_candidate_cap_validation_live_invalid_item_index_string_is_not_los
     assert reference["candidate_evidence_item_index"] == {
         "provided": True,
         "length": len(canary),
-        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert canary not in json.dumps(report)
 
@@ -1603,13 +1636,13 @@ def test_main_candidate_cap_validation_live_out_of_range_item_index_is_not_raw(
     assert reference["candidate_evidence_item_index"] == {
         "provided": True,
         "length": len("9999"),
-        "sha256": hashlib.sha256(b"9999").hexdigest(),
+        "validation_status": "rejected",
     }
     assert "9999" not in json.dumps(report)
     assert report["candidate_validation"]["evidence_item_index"] == {
         "provided": True,
         "length": len("9999"),
-        "sha256": hashlib.sha256(b"9999").hexdigest(),
+        "validation_status": "rejected",
     }
 
 
@@ -1661,9 +1694,74 @@ def test_main_candidate_cap_validation_live_long_numeric_item_index_canary_is_no
     assert reference["candidate_evidence_item_index"] == {
         "provided": True,
         "length": len(canary),
-        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+        "validation_status": "rejected",
     }
     assert canary not in json.dumps(report)
+
+
+def test_main_candidate_cap_validation_live_low_entropy_pin_leaves_no_digest(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """WO-007A round 3 review, finding 1, live mode end-to-end: a
+    PIN/OTP-shaped numeric canary (out of range as an item index) must
+    never leave a deterministic digest of itself in the report either --
+    only the 'provided'/'length'/'validation_status' descriptor."""
+    pin = "482913"
+    dns_calls: list[tuple[str, int]] = []
+
+    def _spy_resolve_pinned(hostname: str, port: int):
+        dns_calls.append((hostname, port))
+        raise AssertionError("DNS must never be resolved for an out-of-range PIN-shaped index")
+
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": "application/cap+xml"},
+        resolve_pinned=_spy_resolve_pinned,
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            pin,
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    assert report["candidate_validation"]["error_code"] == "CandidateReferenceError"
+    assert dns_calls == []
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+    reference = report["candidate_reference"]
+    assert reference["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len(pin),
+        "validation_status": "rejected",
+    }
+    # Scoped to the descriptor's own keys -- candidate_validation
+    # legitimately has unrelated fields named content_sha256/
+    # cap_identifier_sha256, so a whole-report "sha256" substring search
+    # would false-positive on those.
+    assert set(reference["candidate_evidence_item_index"]) == {
+        "provided",
+        "length",
+        "validation_status",
+    }
+    report_text = json.dumps(report)
+    assert pin not in report_text
+    assert hashlib.sha256(pin.encode()).hexdigest() not in report_text
 
 
 def test_main_candidate_cap_validation_report_never_contains_raw_xml_or_content_type_params(

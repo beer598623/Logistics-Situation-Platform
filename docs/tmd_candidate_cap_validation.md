@@ -27,11 +27,13 @@ events.
 > documented here, and both the dry-run and live `candidate_cap_validation`
 > reports gained a `candidate_reference` object. On a *rejected* candidate
 > reference, `language`/`candidate_filename`/`evidence_run_id`/
-> `evidence_item_index` hold a safe, non-reversible descriptor
-> (`{"provided", "length", "sha256"}`) rather than the raw submitted
-> value -- with no exception for an already-parsed integer
-> `evidence_item_index`, since purely-numeric text is not inherently safer
-> than alphanumeric text. Nothing else in this document changed -- Sections
+> `evidence_item_index` hold a safe, static descriptor (`{"provided",
+> "length", "validation_status"}`) rather than the raw submitted value --
+> with no exception for an already-parsed integer `evidence_item_index`,
+> since purely-numeric text is not inherently safer than alphanumeric
+> text, and no value-derived digest either, since an unsalted digest of
+> low-entropy input (a PIN/OTP) is offline brute-forceable. Nothing else
+> in this document changed -- Sections
 > 1-4 and 6-11 remain accurate as written for WO-006 (Implementation
 > v0.2.2); this increment still does not authorize a live candidate fetch.
 
