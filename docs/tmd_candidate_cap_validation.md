@@ -20,6 +20,16 @@ publication, dashboard publication, any licensing conclusion, any
 logistics-impact conclusion, or parsing RSS/CAP warning prose into
 events.
 
+> **Amended by WO-007A** (Issue #13 Gate 1 follow-up; see
+> [`docs/tmd_candidate_evidence_contract.md`](tmd_candidate_evidence_contract.md)):
+> `CandidateValidationOutcome` (Section 5 below) gained two fields,
+> `candidate_filename` and `workflow_run_id`, alongside the fields already
+> documented here, and both the dry-run and live `candidate_cap_validation`
+> reports gained a `candidate_reference` object. Nothing else in this
+> document changed -- Sections 1-4 and 6-11 remain accurate as written for
+> WO-006 (Implementation v0.2.2); this increment still does not authorize a
+> live candidate fetch.
+
 ## 1. WO-005 evidence this increment builds on
 
 WO-005 (Issue #10, closed) used the already-merged WO-004 discovery path
@@ -323,7 +333,13 @@ and never becomes a staging record or candidate event.
 `CandidateValidationOutcome` retains **only**:
 
 - `operation`, `mode`, `language` (bounded)
-- `evidence_run_id` (bounded), `evidence_item_index`, `workflow_sha`
+- `candidate_filename` (bounded; WO-007A -- recorded from the raw
+  caller-supplied value, independent of whether it passed structural
+  validation, so a Gate reviewer can see exactly which filename a report
+  describes, including one rejected before any DNS or network activity)
+- `evidence_run_id` (bounded), `evidence_item_index`
+- `workflow_run_id` (WO-007A, `GITHUB_RUN_ID`), `workflow_sha`
+  (`GITHUB_SHA`) -- both `None` outside a GitHub Actions run
 - `request_url` (derived, then redacted defensively even though it can
   never carry user-info by construction), `selected_ip`,
   `address_family`, `connected_ip_matches_selected`

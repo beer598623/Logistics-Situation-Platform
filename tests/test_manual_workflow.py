@@ -384,6 +384,189 @@ def test_run_tmd_candidate_cap_validation_dry_run_rejects_a_blank_item_index() -
     assert report["error_category"] == "validation"
 
 
+# --- WO-007A: bounded candidate_reference evidence contract (dry run) ------
+#
+# Gate 1 review of the WO-006 dry-run artifact (Issue #13) returned a
+# CONDITIONAL disposition because the sanitized report did not retain the
+# exact candidate provenance fields (filename, evidence run ID, evidence
+# item index) needed for independent review -- only the derived
+# request_url was present, and only on success. These tests assert the
+# fix: a bounded, sanitized candidate_reference object is present on every
+# candidate_cap_validation report, dry or live, success or rejection.
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_retains_exact_english_provenance() -> None:
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "30028391246"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert "errors" not in report
+    reference = report["candidate_reference"]
+    assert reference == {
+        "language": "primary",
+        "candidate_filename": "CAPTMD20260723155032_2.xml",
+        "candidate_evidence_run_id": "30028391246",
+        "candidate_evidence_item_index": 0,
+        "request_url": "https://www.tmd.go.th/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+    }
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_retains_exact_thai_provenance() -> None:
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "thai_language_cap"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "30028626385"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert "errors" not in report
+    reference = report["candidate_reference"]
+    assert reference == {
+        "language": "thai_language_cap",
+        "candidate_filename": "CAPTMD20260723155032_2.xml",
+        "candidate_evidence_run_id": "30028626385",
+        "candidate_evidence_item_index": 0,
+        "request_url": "https://www.tmd.go.th/uploads/CAP/CAPTMD20260723155032_2.xml",
+    }
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_retains_provenance_on_rejection() -> None:
+    """A rejected candidate reference still retains the exact (bounded)
+    values a reviewer submitted, with a null request_url, rather than
+    omitting candidate_reference entirely on failure."""
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "../etc/passwd"
+        candidate_evidence_run_id = "30028391246"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    assert report["candidate_reference"] == {
+        "language": "primary",
+        "candidate_filename": "../etc/passwd",
+        "candidate_evidence_run_id": "30028391246",
+        "candidate_evidence_item_index": 0,
+        "request_url": None,
+    }
+
+
+def test_run_tmd_candidate_dry_run_missing_run_id_fails_before_dns_or_network() -> None:
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = ""
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    assert report["error_category"] == "validation"
+    assert report["candidate_reference"]["candidate_evidence_run_id"] == ""
+    assert report["candidate_reference"]["request_url"] is None
+    assert "request_url" not in report
+
+
+def test_run_tmd_candidate_dry_run_invalid_item_index_fails_before_dns_or_network() -> None:
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "30028391246"
+        candidate_item_index = "9999"  # exceeds rss_discovery.MAX_ITEMS (50)
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    assert report["error_category"] == "validation"
+    assert report["candidate_reference"]["candidate_evidence_item_index"] == 9999
+    assert report["candidate_reference"]["request_url"] is None
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_bounds_an_overlong_filename_canary() -> None:
+    """Bounded-field/canary non-leak behavior: an overlong, invalid
+    candidate_filename must never survive verbatim in the report, only a
+    truncated, bounded value."""
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+    canary = "OVERLONG_DRYRUN_FILENAME_CANARY_" + ("q" * 500)
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = canary
+        candidate_evidence_run_id = "1"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    reference = report["candidate_reference"]
+    assert reference["candidate_filename"] != canary
+    assert reference["candidate_filename"].startswith("OVERLONG_DRYRUN_FILENAME_CANARY_")
+    assert len(reference["candidate_filename"]) < len(canary)
+    assert canary not in json.dumps(report)
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_retains_workflow_run_id_and_sha(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_RUN_ID", "30099887766")
+    monkeypatch.setenv("GITHUB_SHA", "feedface")
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "30028391246"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["workflow_run_id"] == "30099887766"
+    assert report["workflow_sha"] == "feedface"
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_workflow_ids_are_none_outside_ci(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "30028391246"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["workflow_run_id"] is None
+    assert report["workflow_sha"] is None
+
+
 # --- WO-006 Scope E/G: candidate_cap_validation live mode (fakes only) ------
 
 
@@ -930,6 +1113,262 @@ def test_main_candidate_cap_validation_leaves_source_state_unchanged(
     assert report["contract_state"]["enabled"] is False
     assert report["contract_state"]["machine_readable_status"] == "unverified"
     assert report["contract_state"]["licence_status"] == "pending_review"
+
+
+# --- WO-007A: bounded candidate_reference evidence contract (live) ---------
+
+
+def test_main_candidate_cap_validation_live_report_retains_matching_candidate_reference(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """The live report's candidate_reference must match what was actually
+    validated (echoing candidate_validation's own provenance fields), not
+    just the raw CLI input -- proving dry-run and live reports carry the
+    same evidence contract shape."""
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "30028391246",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 0
+    assert report["candidate_reference"] == {
+        "language": "primary",
+        "candidate_filename": "CAPTMD20260723155032_2.xml",
+        "candidate_evidence_run_id": "30028391246",
+        "candidate_evidence_item_index": 0,
+        "request_url": "https://www.tmd.go.th/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+    }
+
+
+def test_main_candidate_cap_validation_live_report_retains_exact_thai_provenance(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--language",
+            "thai_language_cap",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "30028626385",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 0
+    assert report["candidate_reference"] == {
+        "language": "thai_language_cap",
+        "candidate_filename": "CAPTMD20260723155032_2.xml",
+        "candidate_evidence_run_id": "30028626385",
+        "candidate_evidence_item_index": 0,
+        "request_url": "https://www.tmd.go.th/uploads/CAP/CAPTMD20260723155032_2.xml",
+    }
+
+
+def test_main_candidate_cap_validation_live_report_retains_workflow_run_id(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setenv("GITHUB_RUN_ID", "30055443322")
+    monkeypatch.setenv("GITHUB_SHA", "1234abcd")
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["workflow_run_id"] == "30055443322"
+    assert report["workflow_sha"] == "1234abcd"
+    assert report["candidate_validation"]["workflow_run_id"] == "30055443322"
+    assert report["candidate_validation"]["workflow_sha"] == "1234abcd"
+
+
+def test_main_candidate_cap_validation_live_invalid_provenance_fails_before_dns_or_network(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """WO-007A requirement 3, live mode: an invalid candidate reference
+    must fail closed before any DNS resolution or physical HTTP request --
+    not only in dry-run mode, which never touches the network at all --
+    while still producing a structured sanitized report that retains the
+    exact rejected provenance."""
+    dns_calls: list[tuple[str, int]] = []
+
+    def _spy_resolve_pinned(hostname: str, port: int):
+        dns_calls.append((hostname, port))
+        raise AssertionError("DNS must never be resolved for an invalid candidate reference")
+
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": "application/cap+xml"},
+        resolve_pinned=_spy_resolve_pinned,
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "../etc/passwd",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    validation = report["candidate_validation"]
+    assert validation["error_code"] == "CandidateReferenceError"
+    assert validation["error_category"] == "validation"
+    assert dns_calls == []
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+    assert report["candidate_reference"] == {
+        "language": "primary",
+        "candidate_filename": "../etc/passwd",
+        "candidate_evidence_run_id": "1",
+        "candidate_evidence_item_index": 0,
+        "request_url": None,
+    }
+
+
+def test_main_candidate_cap_validation_live_missing_item_index_fails_before_dns_or_network(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    dns_calls: list[tuple[str, int]] = []
+
+    def _spy_resolve_pinned(hostname: str, port: int):
+        dns_calls.append((hostname, port))
+        raise AssertionError("DNS must never be resolved for a missing item index")
+
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": "application/cap+xml"},
+        resolve_pinned=_spy_resolve_pinned,
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    assert report["candidate_validation"]["error_code"] == "CandidateReferenceError"
+    assert dns_calls == []
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+    assert report["candidate_reference"]["request_url"] is None
+
+
+def test_main_candidate_cap_validation_report_never_contains_raw_xml_or_content_type_params(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """WO-007A Scope 6: the evidence-contract additions must not reopen any
+    of the leaks WO-006 already closed -- no raw XML body, no Content-Type
+    parameter section, no credentials, in the final report.json."""
+    canary_ct_param = "CT_PARAM_CANARY_TOKEN"  # noqa: S105
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": f"application/cap+xml; x={canary_ct_param}"},
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report_text = (tmp_path / "report.json").read_text()
+    assert exit_code == 0
+    assert canary_ct_param not in report_text
+    assert "<?xml" not in report_text
+    assert "<alert" not in report_text
+    assert "Authorization" not in report_text
+    assert "BEGIN CERTIFICATE" not in report_text
+    report = json.loads(report_text)
+    assert report["candidate_validation"]["content_type"] == "application/cap+xml"
 
 
 # --- _classify_error_category: stable vocabulary for sanitized diagnostics --

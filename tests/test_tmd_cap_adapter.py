@@ -1164,3 +1164,98 @@ def test_validate_candidate_derives_the_thai_url_and_ignores_the_contract_endpoi
         evidence_item_index=0,
     )
     assert outcome.request_url == "https://www.tmd.go.th/uploads/CAP/CAPTMD20260723155032_2.xml"
+
+
+# --- WO-007A: evidence contract -- candidate_filename/workflow_run_id -------
+
+
+def test_validate_candidate_retains_candidate_filename_and_workflow_run_id(
+    tmd_contract: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """WO-007A Scope 1/2: a live outcome retains candidate_filename
+    alongside evidence_run_id/evidence_item_index, and workflow_run_id
+    alongside the existing workflow_sha, when the environment provides
+    them (a GitHub Actions run)."""
+    monkeypatch.setenv("GITHUB_RUN_ID", "30099112233")
+    monkeypatch.setenv("GITHUB_SHA", "cafed00d")
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="30028391246",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.candidate_filename == "CAPTMD20260723155032_2.xml"
+    assert outcome.evidence_run_id == "30028391246"
+    assert outcome.evidence_item_index == 0
+    assert outcome.workflow_run_id == "30099112233"
+    assert outcome.workflow_sha == "cafed00d"
+    assert outcome.to_dict()["candidate_filename"] == "CAPTMD20260723155032_2.xml"
+    assert outcome.to_dict()["workflow_run_id"] == "30099112233"
+
+
+def test_validate_candidate_workflow_run_id_is_none_outside_a_workflow_run(
+    tmd_contract: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.workflow_run_id is None
+    assert outcome.workflow_sha is None
+
+
+def test_validate_candidate_retains_the_raw_rejected_filename_before_any_network(
+    tmd_contract: dict,
+) -> None:
+    """WO-007A Scope 3: an invalid candidate reference still fails before
+    any DNS/network activity (unchanged from WO-006), but the outcome now
+    also retains the raw rejected candidate_filename (bounded), so a Gate
+    reviewer can see exactly which filename was rejected and why."""
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="../etc/passwd",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.candidate_filename == "../etc/passwd"
+    assert outcome.request_url is None
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+
+
+def test_validate_candidate_bounds_an_overlong_rejected_filename_canary(
+    tmd_contract: dict,
+) -> None:
+    """Bounded-field/canary non-leak behavior: an overlong, invalid
+    candidate_filename must never survive verbatim on the outcome, even
+    though it is retained (truncated) for provenance."""
+    canary = "OVERLONG_ADAPTER_FILENAME_CANARY_" + ("q" * 500)
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename=canary,
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.candidate_filename != canary
+    assert outcome.candidate_filename.startswith("OVERLONG_ADAPTER_FILENAME_CANARY_")
+    assert len(outcome.candidate_filename) < len(canary)
+    assert canary not in json.dumps(outcome.to_dict())

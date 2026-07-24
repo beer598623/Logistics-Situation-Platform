@@ -323,13 +323,25 @@ class CandidateValidationOutcome:
     instruction, note, audience, web, contact, area description, geometry)
     are never present on this dataclass at all -- there is no field for
     them to occupy.
+
+    WO-007A: ``candidate_filename``, ``evidence_run_id``, and
+    ``evidence_item_index`` are recorded from the raw caller-supplied
+    value (bounded, independent of whether ``build_candidate_reference``
+    accepted it) so a Gate reviewer can see exactly which candidate a
+    report describes -- including one rejected before any DNS or network
+    activity. ``workflow_run_id`` (``GITHUB_RUN_ID``) is retained
+    alongside the existing ``workflow_sha`` (``GITHUB_SHA``) when the
+    environment provides it; both are ``None`` outside a GitHub Actions
+    run rather than a placeholder value.
     """
 
     operation: str
     mode: str
     language: str | None
+    candidate_filename: str | None
     evidence_run_id: str | None
     evidence_item_index: int | None
+    workflow_run_id: str | None
     workflow_sha: str | None
     request_url: str | None
     selected_ip: str | None
@@ -368,8 +380,10 @@ class CandidateValidationOutcome:
             "operation": self.operation,
             "mode": self.mode,
             "language": self.language,
+            "candidate_filename": self.candidate_filename,
             "evidence_run_id": self.evidence_run_id,
             "evidence_item_index": self.evidence_item_index,
+            "workflow_run_id": self.workflow_run_id,
             "workflow_sha": self.workflow_sha,
             "request_url": self.request_url,
             "selected_ip": self.selected_ip,
@@ -747,6 +761,15 @@ class TmdCapAdapter(SourceAdapter):
         cap_parser_warning_count: int | None = None
 
         bounded_language = _bounded_field(str(self.language))
+        # WO-007A: recorded from the raw caller-supplied value, before
+        # build_candidate_reference() below has had a chance to validate
+        # it, so a report can show exactly what candidate_filename was
+        # requested (or rejected) for independent Gate review -- mirrors
+        # bounded_run_id/bounded_item_index below, which are already
+        # computed the same way, before the try block.
+        bounded_candidate_filename = (
+            _bounded_field(candidate_filename) if isinstance(candidate_filename, str) else None
+        )
         bounded_run_id = (
             _bounded_field(evidence_run_id) if isinstance(evidence_run_id, str) else None
         )
@@ -901,8 +924,10 @@ class TmdCapAdapter(SourceAdapter):
             operation="candidate_cap_validation",
             mode="live",
             language=bounded_language,
+            candidate_filename=bounded_candidate_filename,
             evidence_run_id=bounded_run_id,
             evidence_item_index=bounded_item_index,
+            workflow_run_id=os.environ.get("GITHUB_RUN_ID"),
             workflow_sha=os.environ.get("GITHUB_SHA"),
             request_url=request_url,
             selected_ip=selected_ip,
