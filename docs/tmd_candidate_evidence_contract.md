@@ -23,9 +23,9 @@ increment's own code-level review, per
 [`docs/tmd_candidate_cap_validation.md`](tmd_candidate_cap_validation.md)
 Section 10 (unchanged by this increment).
 
-This document reflects the **round 1 review** revision of this increment
-(see Section 1a) -- the shape described below is what actually ships, not
-the first draft a reviewer initially saw.
+This document reflects the **round 2 review** revision of this increment
+(see Sections 1a and 1b) -- the shape described below is what actually
+ships, not an earlier draft a reviewer initially saw.
 
 ## 1. Gate 1 finding and how this increment resolves it
 
@@ -74,6 +74,30 @@ Section 2 below for the resulting shape. `GITHUB_RUN_ID`/`GITHUB_SHA` were
 also hardened the same review round (Section 3) to be validated at origin
 rather than copied blindly.
 
+### 1b. Round 2 review revision
+
+The round 1 fix still carved out one exception: an already-parsed
+`evidence_item_index` **integer** (in-range or not) was retained as a
+plain integer even when the candidate reference as a whole was rejected,
+on the reasoning that an integer carries no free text. ChatGPT review
+round 2 on PR #14 found this inconsistent with the stated policy itself
+("every field holds the actual value after acceptance, or a descriptor
+before/on rejection") -- an out-of-range or overlong numeric
+`evidence_item_index` (e.g. `9999`, or a 20-digit token that parses as a
+huge integer) is still unvalidated, operator-supplied input at the point
+it is retained, and purely-numeric free text (a PIN, an OTP, a numeric
+API key) is not inherently safer than alphanumeric text. The whole
+premise of "not yet validated" is that `redact_candidate_provenance_value`
+cannot itself tell a safe number from an unsafe one.
+
+Fixed by removing the integer exception entirely:
+`redact_candidate_provenance_value()` now descriptor-ifies every
+non-`None` value, int or not, the same way. The only place a real integer
+is ever retained is *after* `build_candidate_reference()` has accepted
+the complete four-field reference -- exactly the same rule already
+applied to the string fields, with no special case left for
+`evidence_item_index`.
+
 ## 2. The `candidate_reference` object
 
 Present at `report["candidate_reference"]` on every
@@ -121,15 +145,13 @@ the same treatment):
   only returns a validated reference if every one of them passes; there is
   no partial-success state to draw an accepted value from.
 
-  An already-parsed **integer** `evidence_item_index` (in-range or not --
-  e.g. `9999`, which exceeds the discovery item bound) is the one
-  exception: it is retained as a plain integer even on rejection, since an
-  integer carries no free text and cannot itself be a credential/token
-  leak. Only a *string* `evidence_item_index` (a workflow input that never
-  parsed as an integer at all) gets the same descriptor treatment as
-  `language`/`candidate_filename`/`candidate_evidence_run_id` -- this is
-  exactly the round 1 review, finding 2 fix (Section 1a): that string is
-  no longer dropped to `null`.
+  `evidence_item_index` gets this exact same descriptor treatment as the
+  three string fields, with **no exception for an already-parsed
+  integer** -- an out-of-range numeric value (e.g. `9999`) or an
+  overlong numeric canary is descriptor-ified exactly like a non-numeric
+  string is (round 2 review, finding 1, Section 1b); a non-numeric
+  string was already never dropped to `null` (round 1 review, finding 2,
+  Section 1a).
 
   The whole point of the Gate 1 finding was that a reviewer needs to see
   *what was rejected and why*; the descriptor still serves that purpose --
@@ -260,15 +282,22 @@ and `tests/test_manual_workflow.py`.
   raw text -- for every field, with a null `request_url`
   (`..._retains_provenance_on_rejection`,
   `..._live_invalid_provenance_fails_before_dns_or_network`)
-- a missing evidence run ID and an out-of-bound (but still integer) item
-  index each fail before DNS/network in dry-run mode, the latter
-  retaining the raw integer since it carries no free text
+- a missing evidence run ID and an out-of-bound numeric item index each
+  fail before DNS/network in dry-run mode, the latter now retaining a
+  descriptor rather than the raw integer (round 2 review, finding 1)
   (`test_run_tmd_candidate_dry_run_missing_run_id_fails_before_dns_or_network`,
   `test_run_tmd_candidate_dry_run_invalid_item_index_fails_before_dns_or_network`)
 - a non-numeric `evidence_item_index` string is represented as a
   descriptor, never lost to `null`, in both dry-run and live modes
   (`..._dry_run_invalid_item_index_string_is_not_lost`,
   `..._live_invalid_item_index_string_is_not_lost`)
+- an out-of-range numeric item index, and a long purely-numeric item-index
+  canary, never survive raw either, in both dry-run and live modes --
+  the round 2 review, finding 1 regression tests
+  (`..._dry_run_invalid_item_index_fails_before_dns_or_network`,
+  `..._dry_run_long_numeric_item_index_canary_is_not_raw`,
+  `..._live_out_of_range_item_index_is_not_raw`,
+  `..._live_long_numeric_item_index_canary_is_not_raw`)
 - an overlong, invalid `candidate_filename` canary never survives even as
   a truncated prefix (`..._dry_run_bounds_an_overlong_filename_canary`)
 - a **short** credential/token-shaped canary in `language`,
@@ -310,6 +339,11 @@ and `tests/test_manual_workflow.py`.
   (`test_validate_candidate_never_retains_a_short_credential_canary_from_a_rejected_field`)
 - a non-integer `evidence_item_index` is represented as a descriptor,
   never lost to `None` (`test_validate_candidate_invalid_item_index_string_is_not_lost`)
+- an out-of-range numeric `evidence_item_index`, and a long purely-numeric
+  canary, are represented as a descriptor too -- never the raw integer --
+  the round 2 review, finding 1 regression tests
+  (`test_validate_candidate_rejected_numeric_item_index_is_not_raw`,
+  `test_validate_candidate_long_numeric_item_index_canary_is_not_raw`)
 
 The full existing suite -- including every GDACS, direct-CAP,
 RSS-discovery, and WO-006 candidate-validation regression test -- remains
@@ -332,9 +366,11 @@ it should confirm, in writing and before any further action:
   URL `derive_candidate_request()` would produce from fixed policy plus
   those three fields, independently re-derivable by the reviewer
 - a rejected candidate reference's `candidate_reference` object never
-  carries raw, unvalidated text -- only the `{"provided", "length",
-  "sha256"}` descriptor shape (or a plain integer for
-  `candidate_evidence_item_index`, or `null`)
+  carries raw, unvalidated text or a raw unvalidated number -- every
+  field, including `candidate_evidence_item_index`, is either the
+  `{"provided", "length", "sha256"}` descriptor shape or `null`; a plain
+  integer appears there only once `build_candidate_reference()` has
+  accepted the complete reference
 - `workflow_run_id`/`workflow_sha`, when present and valid, identify the
   exact Actions run and commit that produced the artifact under review;
   a static invalid-form marker (rather than the value itself) means the

@@ -1324,3 +1324,53 @@ def test_validate_candidate_invalid_item_index_string_is_not_lost(tmd_contract: 
         "sha256": hashlib.sha256(canary.encode()).hexdigest(),
     }
     assert canary not in json.dumps(outcome.to_dict())
+
+
+def test_validate_candidate_rejected_numeric_item_index_is_not_raw(tmd_contract: dict) -> None:
+    """WO-007A round 2 review, finding 1: an out-of-range but still
+    numeric evidence_item_index is unvalidated operator input like any
+    other -- it must get the same safe descriptor, not survive as the raw
+    (out-of-policy) integer, since purely-numeric text is not inherently
+    safer than alphanumeric text."""
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=9999,  # exceeds rss_discovery.MAX_ITEMS (50)
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.evidence_item_index == {
+        "provided": True,
+        "length": len("9999"),
+        "sha256": hashlib.sha256(b"9999").hexdigest(),
+    }
+    assert "9999" not in json.dumps(outcome.to_dict())
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+
+
+def test_validate_candidate_long_numeric_item_index_canary_is_not_raw(tmd_contract: dict) -> None:
+    """WO-007A round 2 review, finding 1: a long, purely-numeric
+    evidence_item_index canary must also never survive raw on the
+    outcome."""
+    canary_index = 13579246801357924680
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=canary_index,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.evidence_item_index == {
+        "provided": True,
+        "length": len(str(canary_index)),
+        "sha256": hashlib.sha256(str(canary_index).encode()).hexdigest(),
+    }
+    assert str(canary_index) not in json.dumps(outcome.to_dict())
+    assert fake_http.pinned_call_count == 0

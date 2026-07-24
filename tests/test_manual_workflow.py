@@ -446,11 +446,13 @@ def test_run_tmd_candidate_cap_validation_dry_run_retains_provenance_on_rejectio
     """A rejected candidate reference still retains a safe, reviewable
     descriptor of the values a reviewer submitted (never the raw text --
     WO-007A round 1 review, finding 1), with a null request_url, rather
-    than omitting candidate_reference entirely on failure. Even the
-    already-valid-shaped fields (language, evidence_run_id) become
-    descriptors here too, since build_candidate_reference() validates all
-    four fields atomically and only returns a validated reference if every
-    one of them passes."""
+    than omitting candidate_reference entirely on failure. Every field --
+    including the already-valid-shaped ones (language, evidence_run_id)
+    and the already-parsed, in-range item index -- becomes a descriptor
+    here too, since build_candidate_reference() validates all four fields
+    atomically and only returns a validated reference if every one of them
+    passes, and a numeric value is not inherently safer than an
+    alphanumeric one (WO-007A round 2 review, finding 1)."""
     registry = load_registry()
     contract = source_by_id(registry, "TMD_CAP")
 
@@ -480,7 +482,11 @@ def test_run_tmd_candidate_cap_validation_dry_run_retains_provenance_on_rejectio
         "length": len("30028391246"),
         "sha256": hashlib.sha256(b"30028391246").hexdigest(),
     }
-    assert reference["candidate_evidence_item_index"] == 0
+    assert reference["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len("0"),
+        "sha256": hashlib.sha256(b"0").hexdigest(),
+    }
     report_text = json.dumps(report)
     assert "../etc/passwd" not in report_text
     assert "passwd" not in report_text
@@ -510,6 +516,10 @@ def test_run_tmd_candidate_dry_run_missing_run_id_fails_before_dns_or_network() 
 
 
 def test_run_tmd_candidate_dry_run_invalid_item_index_fails_before_dns_or_network() -> None:
+    """WO-007A round 2 review, finding 1: an out-of-range but still
+    numeric item index is operator-supplied, unvalidated input like any
+    other -- it must get the same safe descriptor as a non-numeric one,
+    never survive as the raw (if out-of-policy) integer."""
     registry = load_registry()
     contract = source_by_id(registry, "TMD_CAP")
 
@@ -523,8 +533,13 @@ def test_run_tmd_candidate_dry_run_invalid_item_index_fails_before_dns_or_networ
     report = run_tmd_cap(Args(), contract, dry_run=True)
     assert report["error_code"] == "CandidateReferenceError"
     assert report["error_category"] == "validation"
-    assert report["candidate_reference"]["candidate_evidence_item_index"] == 9999
+    assert report["candidate_reference"]["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len("9999"),
+        "sha256": hashlib.sha256(b"9999").hexdigest(),
+    }
     assert report["candidate_reference"]["request_url"] is None
+    assert "9999" not in json.dumps(report)
 
 
 def test_run_tmd_candidate_cap_validation_dry_run_bounds_an_overlong_filename_canary() -> None:
@@ -608,6 +623,37 @@ def test_run_tmd_candidate_cap_validation_dry_run_invalid_item_index_string_is_n
         "length": len(canary),
         "sha256": hashlib.sha256(canary.encode()).hexdigest(),
     }
+    assert canary not in json.dumps(report)
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_long_numeric_item_index_canary_is_not_raw() -> (
+    None
+):
+    """WO-007A round 2 review, finding 1: a long, purely-numeric
+    evidence_item_index (parses as a huge int, then rejected as
+    out-of-range) must still get the safe descriptor -- numeric-only text
+    is not inherently safer than alphanumeric text, and this is exactly
+    the previous implementation's int-passthrough gap."""
+    canary = "13579246801357924680"  # parses as int; wildly exceeds MAX_ITEMS
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "1"
+        candidate_item_index = canary
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    reference = report["candidate_reference"]
+    assert reference["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len(canary),
+        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+    }
+    assert reference["request_url"] is None
     assert canary not in json.dumps(report)
 
 
@@ -1402,7 +1448,11 @@ def test_main_candidate_cap_validation_live_invalid_provenance_fails_before_dns_
         "length": len("1"),
         "sha256": hashlib.sha256(b"1").hexdigest(),
     }
-    assert reference["candidate_evidence_item_index"] == 0
+    assert reference["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len("0"),
+        "sha256": hashlib.sha256(b"0").hexdigest(),
+    }
     report_text = json.dumps(report)
     assert "../etc/passwd" not in report_text
     assert "passwd" not in report_text
@@ -1459,6 +1509,117 @@ def test_main_candidate_cap_validation_live_invalid_item_index_string_is_not_los
     as a safe descriptor, not silently dropped to null, and must never
     survive as raw text either."""
     canary = "TOKEN_LOOKING_LIVE_ITEM_INDEX"
+    dns_calls: list[tuple[str, int]] = []
+
+    def _spy_resolve_pinned(hostname: str, port: int):
+        dns_calls.append((hostname, port))
+        raise AssertionError("DNS must never be resolved for an invalid item index")
+
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": "application/cap+xml"},
+        resolve_pinned=_spy_resolve_pinned,
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            canary,
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    assert report["candidate_validation"]["error_code"] == "CandidateReferenceError"
+    assert dns_calls == []
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+    reference = report["candidate_reference"]
+    assert reference["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len(canary),
+        "sha256": hashlib.sha256(canary.encode()).hexdigest(),
+    }
+    assert canary not in json.dumps(report)
+
+
+def test_main_candidate_cap_validation_live_out_of_range_item_index_is_not_raw(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """WO-007A round 2 review, finding 1, live mode: an out-of-range but
+    still numeric item index must get the same safe descriptor as any
+    other rejected field -- not survive as the raw integer -- and must
+    still fail before any DNS or network activity."""
+    dns_calls: list[tuple[str, int]] = []
+
+    def _spy_resolve_pinned(hostname: str, port: int):
+        dns_calls.append((hostname, port))
+        raise AssertionError("DNS must never be resolved for an out-of-range item index")
+
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": "application/cap+xml"},
+        resolve_pinned=_spy_resolve_pinned,
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "9999",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    assert report["candidate_validation"]["error_code"] == "CandidateReferenceError"
+    assert dns_calls == []
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+    reference = report["candidate_reference"]
+    assert reference["candidate_evidence_item_index"] == {
+        "provided": True,
+        "length": len("9999"),
+        "sha256": hashlib.sha256(b"9999").hexdigest(),
+    }
+    assert "9999" not in json.dumps(report)
+    assert report["candidate_validation"]["evidence_item_index"] == {
+        "provided": True,
+        "length": len("9999"),
+        "sha256": hashlib.sha256(b"9999").hexdigest(),
+    }
+
+
+def test_main_candidate_cap_validation_live_long_numeric_item_index_canary_is_not_raw(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """WO-007A round 2 review, finding 1, live mode: a long, purely-numeric
+    canary in evidence_item_index must never survive raw either -- proves
+    the fix isn't merely bounded to the small out-of-range case above."""
+    canary = "13579246801357924680"
     dns_calls: list[tuple[str, int]] = []
 
     def _spy_resolve_pinned(hostname: str, port: int):

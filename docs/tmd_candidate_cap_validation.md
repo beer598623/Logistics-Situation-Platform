@@ -28,10 +28,10 @@ events.
 > reports gained a `candidate_reference` object. On a *rejected* candidate
 > reference, `language`/`candidate_filename`/`evidence_run_id`/
 > `evidence_item_index` hold a safe, non-reversible descriptor
-> (`{"provided", "length", "sha256"}`, or the plain integer for an
-> in-range-or-not `evidence_item_index`) rather than the raw submitted
-> value -- never raw text once a value is known to have failed, or not yet
-> passed, validation. Nothing else in this document changed -- Sections
+> (`{"provided", "length", "sha256"}`) rather than the raw submitted
+> value -- with no exception for an already-parsed integer
+> `evidence_item_index`, since purely-numeric text is not inherently safer
+> than alphanumeric text. Nothing else in this document changed -- Sections
 > 1-4 and 6-11 remain accurate as written for WO-006 (Implementation
 > v0.2.2); this increment still does not authorize a live candidate fetch.
 
@@ -347,9 +347,10 @@ and never becomes a staging record or candidate event.
   -- so a Gate reviewer can see exactly which candidate a report
   describes, including one rejected before any DNS or network activity,
   without the report ever carrying unvalidated free text
-- `evidence_run_id` (same rule), `evidence_item_index` (same rule, except
-  an already-parsed integer -- in-range or not -- is always retained as a
-  plain integer, since it carries no free text)
+- `evidence_run_id` (same rule), `evidence_item_index` (same rule with no
+  exception for an already-parsed integer -- an out-of-range or overlong
+  numeric value is descriptor-ified exactly like a non-numeric one;
+  WO-007A round 2 review, finding 1)
 - `workflow_run_id` (WO-007A, `GITHUB_RUN_ID`), `workflow_sha`
   (`GITHUB_SHA`) -- each `None` if the environment provided no value, a
   static invalid-form marker if it provided one that did not match

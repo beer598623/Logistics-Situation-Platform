@@ -74,7 +74,7 @@ def _bounded_field(
     return value[:max_length] + f"...(+{omitted} chars omitted)"
 
 
-def redact_candidate_provenance_value(value: Any) -> dict[str, Any] | int | None:
+def redact_candidate_provenance_value(value: Any) -> dict[str, Any] | None:
     """A safe, non-reversible descriptor for one candidate-provenance
     value that has not (yet, or ever) passed structural validation
     (WO-007A round 1 review, finding 1).
@@ -83,24 +83,31 @@ def redact_candidate_provenance_value(value: Any) -> dict[str, Any] | int | None
     failed -- or has not yet passed -- ``build_candidate_reference``'s
     validation: a short credential- or token-shaped string typed into an
     operator-supplied field (``language``, ``candidate_filename``,
-    ``evidence_run_id``, or a non-numeric ``evidence_item_index`` input)
-    would otherwise survive verbatim in a public report artifact, since
-    nothing upstream has bounded or sanitized it yet at that point.
-    Retains only whether a value was supplied, its length, and a SHA-256
-    digest -- enough for a reviewer to compare two runs' rejected inputs
-    without ever reconstructing the original text.
+    ``evidence_run_id``, or ``evidence_item_index``) would otherwise
+    survive verbatim in a public report artifact, since nothing upstream
+    has bounded or sanitized it yet at that point. Retains only whether a
+    value was supplied, its length, and a SHA-256 digest -- enough for a
+    reviewer to compare two runs' rejected inputs without ever
+    reconstructing the original text.
 
-    An already-parsed integer (``evidence_item_index``, whether in-range
-    or not) carries no free text and is returned unchanged -- WO-007A
-    round 1 review, finding 2: a non-integer ``evidence_item_index``
-    string must get the exact same descriptor treatment as any other
-    unvalidated string, never be silently dropped to ``None``, so the
-    dry-run and live reject paths retain the same evidence contract.
+    Every non-``None`` value -- including an already-parsed
+    ``evidence_item_index`` integer, in-range or not -- gets this same
+    descriptor treatment; there is no int-shaped exception (WO-007A round
+    2 review, finding 1: an out-of-range or overlong numeric
+    ``evidence_item_index`` is still operator-supplied, unvalidated input,
+    and purely-numeric free text (a PIN, an OTP, a numeric API key) is not
+    inherently safer than alphanumeric text -- the whole point of "not yet
+    validated" is that this function cannot itself tell the difference.
+    Only a caller who has confirmed ``build_candidate_reference`` accepted
+    the *complete* reference may use the real, validated integer instead
+    of calling this function at all -- see ``validate_candidate``'s and
+    ``run_tmd_candidate_cap_validation``'s post-success overwrite, and
+    WO-007A round 1 review, finding 2, for why a non-numeric
+    ``evidence_item_index`` string must never be silently dropped to
+    ``None`` either.
     """
     if value is None:
         return None
-    if isinstance(value, int) and not isinstance(value, bool):
-        return value
     text = value if isinstance(value, str) else str(value)
     return {
         "provided": True,
