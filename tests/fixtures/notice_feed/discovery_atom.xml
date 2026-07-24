@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Synthetic discovery feed</title>
+  <updated>2026-07-15T00:00:00Z</updated>
+  <entry>
+    <title>Report of a possible labour dispute at a Southeast Asian container terminal</title>
+    <id>urn:synthetic:lead:0001</id>
+    <link href="https://example-news.invalid/story/0001"/>
+    <published>2026-07-15T06:00:00Z</published>
+    <summary>Unconfirmed report. No operating authority has published a corresponding notice.</summary>
+  </entry>
+</feed>

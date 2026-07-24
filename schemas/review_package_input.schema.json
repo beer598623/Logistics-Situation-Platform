@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review_package_input.schema.json",
+  "title": "ChatGPT Review Package — Input",
+  "description": "The bounded package a human exports to ChatGPT. No AI API is called by this repository; the package is generated, handed to a human, and the returned assessment is imported and validated separately. The package must never contain secrets, private company information, unbounded article text, or raw licensed content that cannot be shared.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "package_id",
+    "methodology_version",
+    "generated_at",
+    "data_cutoff_at",
+    "source_health_summary",
+    "key_indicators",
+    "lane_status",
+    "active_operational_events",
+    "external_drivers",
+    "evidence_records",
+    "conflicting_evidence",
+    "previous_assessments",
+    "data_gaps",
+    "output_instructions",
+    "exclusions_applied"
+  ],
+  "properties": {
+    "package_id": {"type": "string", "pattern": "^PKG-[0-9]{8}-[0-9]{3,}$"},
+    "methodology_version": {"const": "0.8"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "data_cutoff_at": {"type": "string", "format": "date-time"},
+    "source_health_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_status", "coverage_message", "sources", "capabilities"],
+      "properties": {
+        "overall_status": {"enum": ["sufficient", "limited", "insufficient"]},
+        "coverage_message": {"type": "string"},
+        "sources": {"type": "array", "items": {"type": "object"}},
+        "capabilities": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "key_indicators": {"type": "array", "items": {"type": "object"}},
+    "lane_status": {"type": "array", "items": {"type": "object"}},
+    "active_operational_events": {"type": "array", "items": {"type": "object"}},
+    "external_drivers": {"type": "array", "items": {"type": "object"}},
+    "evidence_records": {
+      "type": "array",
+      "items": {"type": "object"},
+      "description": "Bounded evidence items. Each carries an evidence_id the returned assessment must reference; an assessment referencing an unknown evidence_id is rejected on import."
+    },
+    "conflicting_evidence": {"type": "array", "items": {"type": "object"}},
+    "previous_assessments": {"type": "array", "items": {"type": "object"}},
+    "data_gaps": {"type": "array", "items": {"type": "string"}},
+    "output_instructions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_sections", "prohibited_outputs", "output_schema_path"],
+      "properties": {
+        "required_sections": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "prohibited_outputs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "output_schema_path": {"type": "string"}
+      }
+    },
+    "exclusions_applied": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "description": "What was deliberately withheld from the package (secrets, private company information, unbounded article text, restricted raw content). Recorded so a reviewer can see the boundary was applied."
+    },
+    "package_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+  }
+}

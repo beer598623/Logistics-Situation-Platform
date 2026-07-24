@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review_package_output.schema.json",
+  "title": "ChatGPT Review Package — Output",
+  "description": "The structured assessment a human imports back after running the input package through ChatGPT. Schema validity is necessary but not sufficient: scripts/import_review.py additionally applies the rejection rules in WO-010 Gate I (unknown evidence, missing transmission mechanisms, missing-as-zero, proxy presented as quotation, unsupported real-time congestion claims, unsupported causation, company-specific mandatory instructions) and blocks autonomous publication of High or Critical conclusions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "package_id",
+    "methodology_version",
+    "produced_at",
+    "model_reference",
+    "current_situation",
+    "key_changes",
+    "lane_assessments",
+    "verified_facts",
+    "reported_claims",
+    "analytical_inference",
+    "conflicting_evidence",
+    "transmission_chains",
+    "observed_impacts",
+    "potential_impacts",
+    "scenarios",
+    "evidence_references",
+    "data_gaps",
+    "conditional_preparedness_options",
+    "highest_severity_claimed"
+  ],
+  "properties": {
+    "package_id": {"type": "string", "pattern": "^PKG-[0-9]{8}-[0-9]{3,}$"},
+    "methodology_version": {"const": "0.8"},
+    "produced_at": {"type": "string", "format": "date-time"},
+    "model_reference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text record of which assistant produced the output, entered by the human reviewer. Provenance only -- the repository never calls an AI API."
+    },
+    "current_situation": {"type": "string", "minLength": 1},
+    "key_changes": {"type": "array", "items": {"type": "string"}},
+    "lane_assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lane_id", "direction", "summary", "evidence_ids", "confidence", "data_gaps"],
+        "properties": {
+          "lane_id": {"type": "string", "pattern": "^LANE-[A-Z0-9-]+$"},
+          "direction": {"enum": ["improving", "stable", "deteriorating", "mixed", "insufficient_evidence"]},
+          "summary": {"type": "string", "minLength": 1},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"enum": ["low", "medium", "high"]},
+          "data_gaps": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "verified_facts": {"type": "array", "items": {"$ref": "#/$defs/statement"}},
+    "reported_claims": {"type": "array", "items": {"$ref": "#/$defs/statement"}},
+    "analytical_inference": {"type": "array", "items": {"$ref": "#/$defs/statement"}},
+    "conflicting_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description", "evidence_ids", "resolution_status"],
+        "properties": {
+          "description": {"type": "string", "minLength": 1},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+          "resolution_status": {"enum": ["unresolved", "resolved_by_primary_source", "superseded", "confidence_reduced"]}
+        }
+      }
+    },
+    "transmission_chains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subject", "external_driver", "operational_change", "logistics_mechanism", "observable_indicator", "outcome", "evidence_ids"],
+        "properties": {
+          "subject": {"type": "string", "minLength": 1},
+          "external_driver": {"type": ["string", "null"]},
+          "operational_change": {"type": ["string", "null"]},
+          "logistics_mechanism": {"type": ["string", "null"]},
+          "observable_indicator": {"type": ["string", "null"]},
+          "outcome": {"type": ["string", "null"]},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "observed_impacts": {"type": "array", "items": {"$ref": "#/$defs/impactClaim"}},
+    "potential_impacts": {"type": "array", "items": {"$ref": "#/$defs/impactClaim"}},
+    "scenarios": {"type": "array", "items": {"$ref": "scenario_outlook.schema.json"}, "minItems": 1},
+    "evidence_references": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Every evidence_id the assessment relies on. Import fails if any is not present in the corresponding input package."
+    },
+    "data_gaps": {"type": "array", "items": {"type": "string"}},
+    "conditional_preparedness_options": {"type": "array", "items": {"$ref": "preparedness_option.schema.json"}},
+    "highest_severity_claimed": {
+      "enum": ["none", "low", "moderate", "high", "critical"],
+      "description": "The maximum severity anywhere in this output. 'high' or 'critical' forces human_review_required and blocks autonomous publication."
+    }
+  },
+  "$defs": {
+    "statement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement", "evidence_ids"],
+      "properties": {
+        "statement": {"type": "string", "minLength": 1, "maxLength": 800},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "impactClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area", "status", "severity", "description", "transmission_mechanism", "evidence_ids", "evidence_strength", "confidence", "time_horizon", "known_limitations"],
+      "properties": {
+        "area": {
+          "enum": ["warehouse", "logistics", "transport", "import_export", "inventory", "cost", "capacity", "service", "business_continuity"]
+        },
+        "status": {"enum": ["observed", "potential", "no_material", "insufficient_evidence"]},
+        "severity": {"enum": ["none", "low", "moderate", "high", "critical"]},
+        "description": {"type": "string", "minLength": 1},
+        "transmission_mechanism": {"type": "array", "items": {"type": "string"}},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "evidence_strength": {"enum": ["A", "B", "C", "D"]},
+        "confidence": {"enum": ["low", "medium", "high"]},
+        "time_horizon": {"enum": ["0-7_days", "1-4_weeks", "1-3_months", "longer_term", "unknown"]},
+        "lane_ids": {"type": "array", "items": {"type": "string"}},
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

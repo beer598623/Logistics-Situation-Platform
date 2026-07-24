@@ -1,42 +1,169 @@
 <!doctype html>
-<html lang="th">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Logistics Situation Platform</title>
+  <title>Thailand Ocean Logistics Intelligence — Logistics Situation Platform</title>
+  <meta name="description" content="Thailand-centred Ocean Logistics intelligence: lanes, chokepoints, trade and cost pressure, evidence-linked events, scenario outlooks and source coverage.">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
-<header>
-  <div><span class="eyebrow">PUBLIC RESEARCH DASHBOARD</span><h1>Logistics Situation Platform</h1><p class="subtitle">Global & Thailand logistics conditions, impacts, preparedness, and innovation</p></div>
-  <div id="freshness" class="freshness">กำลังโหลด…</div>
-</header>
-<nav aria-label="Dashboard sections">
-  <a href="#overview">Overview</a><a href="#events">Daily Intelligence</a><a href="#impact">Impact</a><a href="#system-status">System Status</a><a href="#methodology">Methodology</a>
-</nav>
-<main>
-<section id="overview">
-  <h2>Situation Overview</h2>
-  <div class="cards">
-    <article class="metric"><span>Active events</span><strong id="active-count">—</strong></article>
-    <article class="metric"><span>Thailand relevant</span><strong id="thai-count">—</strong></article>
-    <article class="metric"><span>No material impact</span><strong id="noimpact-count">—</strong></article>
-    <article class="metric"><span>Methodology</span><strong>v0.7</strong></article>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <p class="eyebrow">Public research dashboard · organization-neutral</p>
+    <h1>Thailand Ocean Logistics Intelligence</h1>
+    <p class="subtitle">Thailand-centred multimodal logistics intelligence and outlook. Ocean is the first operational module.</p>
+    <dl class="build-meta">
+      <div><dt>Data cutoff</dt><dd id="meta-cutoff">loading…</dd></div>
+      <div><dt>Methodology</dt><dd id="meta-methodology">—</dd></div>
+      <div><dt>Live coverage</dt><dd id="meta-coverage">—</dd></div>
+      <div><dt>Paid sources</dt><dd id="meta-paid">—</dd></div>
+    </dl>
   </div>
-  <p class="notice">Prototype data only. Facts, inference, impacts, and preparedness options are separated. Missing data is not treated as zero.</p>
-</section>
-<section id="events"><h2>Reviewed Events</h2><div id="event-list" class="event-list"></div></section>
-<section id="impact"><h2>Impact Matrix</h2><div class="table-wrap"><table><thead><tr><th>Event</th><th>Warehouse</th><th>Logistics</th><th>Transport</th><th>Import–Export</th><th>Inventory</th><th>Cost</th><th>Capacity</th><th>Service</th><th>Continuity</th></tr></thead><tbody id="impact-body"></tbody></table></div></section>
-<section id="system-status">
-  <h2>System Status</h2>
-  <div id="coverage-banner" class="notice">Loading source coverage…</div>
-  <h3>Capability coverage</h3>
-  <div class="cards" id="capability-cards"></div>
-  <h3>Source freshness</h3>
-  <div class="table-wrap"><table><thead><tr><th>Source</th><th>Status</th><th>Last checked</th><th>Last success</th><th>Items</th><th>Required for publication</th><th>Note</th></tr></thead><tbody id="source-status-body"></tbody></table></div>
-</section>
-<section id="methodology"><h2>Sources & Methodology</h2><p>This dashboard uses public sources only and applies Methodology v0.7. Every material factual claim must retain a source, publication date, evidence classification, and limitation.</p><p><a href="https://github.com/beer598623/Logistics-Situation-Platform">Open methodology and revision history on GitHub</a></p></section>
+</header>
+
+<div class="wrap" role="region" aria-label="Coverage warning">
+  <p class="banner banner-critical" id="coverage-banner">Loading coverage status…</p>
+</div>
+
+<nav class="section-nav wrap" aria-label="Dashboard sections">
+  <a href="#situation">1. Thailand Situation</a>
+  <a href="#ocean">2. Ocean Logistics</a>
+  <a href="#trade">3. Trade and Flow</a>
+  <a href="#cost">4. Cost and Freight</a>
+  <a href="#events">5. Events and Drivers</a>
+  <a href="#outlook">6. AI Outlook</a>
+  <a href="#sources">7. Sources and Methodology</a>
+</nav>
+
+<main id="main" class="wrap">
+
+  <section id="situation" aria-labelledby="situation-h">
+    <h2 id="situation-h">1. Thailand Logistics Situation</h2>
+    <p class="section-intro">What the platform can currently say about Thailand ocean logistics, and how much of it is actually supported by evidence.</p>
+    <div class="cards" id="situation-cards"></div>
+    <h3>Lanes requiring attention</h3>
+    <div class="table-wrap"><table id="attention-table">
+      <caption>Lanes at an attention level above routine. Attention level is derived from domain directions and open events; it is not a risk score.</caption>
+      <thead><tr><th scope="col">Lane</th><th scope="col">Attention</th><th scope="col">Direction</th><th scope="col">Resolution</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>Cost pressure at a glance</h3>
+    <div class="table-wrap"><table id="situation-cost-table">
+      <caption>Latest reading per cost-context series, with its own freshness. A stale reading is labelled stale; it is never presented as current.</caption>
+      <thead><tr><th scope="col">Series</th><th scope="col">Latest value</th><th scope="col">Period</th><th scope="col">Month over month</th><th scope="col">Freshness</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>Key changes</h3>
+    <ul id="situation-changes" class="prose-list"></ul>
+    <h3>Major data gaps</h3>
+    <ul id="situation-gaps" class="prose-list gap-list"></ul>
+  </section>
+
+  <section id="ocean" aria-labelledby="ocean-h">
+    <h2 id="ocean-h">2. Ocean Logistics</h2>
+    <p class="section-intro">Thailand port and maritime indicators, the lane set, chokepoint exposure, official notices, and the capacity and service evidence that exists.</p>
+    <p class="banner banner-warning" id="port-note"></p>
+    <h3>Thailand port and maritime indicators</h3>
+    <div id="port-series"></div>
+    <h3>Ocean lanes</h3>
+    <p class="section-intro">Each lane states the analytical resolution it actually supports. A regional lane is never displayed as a port-pair lane.</p>
+    <div id="lane-cards" class="lane-grid"></div>
+    <h3>Chokepoints</h3>
+    <div class="table-wrap"><table id="chokepoint-table">
+      <caption>Registered chokepoints, the lanes exposed to each, and whether an official notice is recorded.</caption>
+      <thead><tr><th scope="col">Chokepoint</th><th scope="col">Type</th><th scope="col">Modes</th><th scope="col">Operating authority</th><th scope="col">Exposed lanes</th><th scope="col">Notice status</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>Official operational notices</h3>
+    <div id="notices"></div>
+    <h3>Capacity and service evidence</h3>
+    <div class="table-wrap"><table id="capacity-table">
+      <caption>Capacity and service impacts actually recorded against an event, with the evidence strength and confidence behind each.</caption>
+      <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section id="trade" aria-labelledby="trade-h">
+    <h2 id="trade-h">3. Trade and Flow</h2>
+    <p class="section-intro">Thailand import and export value by lane group, with period comparisons and revision status.</p>
+    <p class="banner banner-note" id="trade-note"></p>
+    <div id="trade-lanes"></div>
+  </section>
+
+  <section id="cost" aria-labelledby="cost-h">
+    <h2 id="cost-h">4. Cost and Freight Pressure</h2>
+    <p class="section-intro">Fuel, FX and freight benchmarks. Each series states what kind of number it is.</p>
+    <p class="banner banner-warning" id="cost-limits-banner"></p>
+    <div id="cost-series"></div>
+    <h3>FX context</h3>
+    <div id="fx-series"></div>
+    <h3>Benchmark limitations</h3>
+    <ul id="cost-limitations" class="prose-list gap-list"></ul>
+    <h3>Surcharges and fees</h3>
+    <p id="surcharge-note" class="prose"></p>
+  </section>
+
+  <section id="events" aria-labelledby="events-h">
+    <h2 id="events-h">5. Events and External Drivers</h2>
+    <p class="section-intro">Direct operational events, external drivers and discovery leads are kept separate. An external driver stays contextual until a transmission mechanism is stated.</p>
+    <p class="banner banner-note" id="events-note"></p>
+    <h3>Direct operational events</h3>
+    <div id="events-operational"></div>
+    <h3>External drivers with a stated transmission mechanism</h3>
+    <div id="events-admitted"></div>
+    <h3>Contextual external drivers <span class="pill pill-muted">no transmission mechanism established</span></h3>
+    <div id="events-contextual"></div>
+    <h3>Discovery leads <span class="pill pill-muted">unconfirmed, cannot support a conclusion</span></h3>
+    <div id="events-leads"></div>
+  </section>
+
+  <section id="outlook" aria-labelledby="outlook-h">
+    <h2 id="outlook-h">6. AI Outlook and Preparedness</h2>
+    <p class="section-intro">Human-approved AI assessments only.</p>
+    <p class="banner banner-critical" id="ai-status"></p>
+    <p class="prose" id="ai-boundary"></p>
+    <div id="approved-assessments"></div>
+    <h3>Deterministic lane outlooks</h3>
+    <p class="section-intro" id="deterministic-note"></p>
+    <div id="outlooks"></div>
+  </section>
+
+  <section id="sources" aria-labelledby="sources-h">
+    <h2 id="sources-h">7. Sources and Methodology</h2>
+    <p class="section-intro">Every source in the registry, its licence and reuse position, its freshness, its limitations, and exactly what is blocking enablement.</p>
+    <div class="cards" id="sources-cards"></div>
+    <h3>Capability coverage</h3>
+    <div class="table-wrap"><table id="capability-table">
+      <caption>Whether each analytical capability has a working source behind it.</caption>
+      <thead><tr><th scope="col">Capability</th><th scope="col">Status</th><th scope="col">Supporting sources</th><th scope="col">Gap reason</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>Source registry</h3>
+    <div id="source-list"></div>
+    <h3>Historical validation summary</h3>
+    <div class="table-wrap"><table id="validation-table">
+      <caption>Behaviours measured across the historical validation cases by scripts/run_historical_validation.py.</caption>
+      <thead><tr><th scope="col">Measure</th><th scope="col">Result</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>Methodology documents</h3>
+    <ul id="methodology-docs" class="prose-list"></ul>
+  </section>
+
 </main>
-<footer>Organization-neutral public research · Not company-specific advice</footer>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Organization-neutral public research. Not advice for any specific organization. This platform holds no shipment, booking, quotation or capacity data.</p>
+    <p>Missing data is never treated as zero. Correlation is not causation. A news lead is not confirmation. An official notice is evidence of the notice, not of impact across every lane or organization.</p>
+    <p><a href="https://github.com/beer598623/Logistics-Situation-Platform">Methodology, source contracts and revision history on GitHub</a></p>
+  </div>
+</footer>
+
 <script src="assets/app.js"></script>
-</body></html>
+</body>
+</html>

@@ -2,6 +2,7 @@
 # Regenerate from pyproject.toml after dependency review.
 attrs==26.1.0
 defusedxml==0.7.1
+duckdb==1.4.1
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 PyYAML==6.0.3

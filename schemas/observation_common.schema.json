@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "observation_common.schema.json",
+  "title": "Shared Observation Provenance Contract",
+  "description": "Provenance, period and missing-value semantics shared by every fact_* observation family (indicator, trade, port/transport, cost). This file defines no standalone record; it is referenced by the four observation schemas so that one change to provenance rules applies to all of them. Mode-neutral by construction: nothing here assumes Ocean, so Air, Road, Rail and Border modules reuse it unchanged.",
+  "$defs": {
+    "evidenceClass": {
+      "description": "Evidence classification per docs/thailand_multimodal_logistics_intelligence_scope.md Section 3.5, extended with the two fixture classes required by WO-010 Section 8 so that non-live data can never be mistaken for a live published observation.",
+      "enum": [
+        "verified_fact",
+        "official_publication",
+        "official_notice",
+        "official_forecast",
+        "reported_claim",
+        "analytical_inference",
+        "scenario",
+        "discovery_lead",
+        "conflicting_evidence",
+        "insufficient_evidence",
+        "synthetic_test_fixture",
+        "historical_validation_fixture"
+      ]
+    },
+    "valueStatus": {
+      "description": "Explicit missing-value status. Missing data must remain null or explicitly unavailable and must never be converted to zero: only 'available' permits a non-null value, and every other status forces value to be null.",
+      "enum": [
+        "available",
+        "missing",
+        "not_published",
+        "suppressed",
+        "retrieval_failed",
+        "not_collected"
+      ]
+    },
+    "periodType": {
+      "enum": ["day", "week", "month", "quarter", "year", "point_in_time", "range"]
+    },
+    "transportMode": {
+      "description": "Mode reference. 'multimodal' and 'not_applicable' exist so shared entities never force an Ocean-only reading.",
+      "enum": [
+        "sea",
+        "air",
+        "road",
+        "rail",
+        "border",
+        "inland_waterway",
+        "multimodal",
+        "not_applicable"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Required provenance block. Every published material fact must be traceable to a source, a data period, a publication time and a retrieval time.",
+      "additionalProperties": false,
+      "required": [
+        "record_id",
+        "source_id",
+        "source_record_id",
+        "period_start",
+        "period_end",
+        "period_type",
+        "published_at",
+        "retrieved_at",
+        "revised_at",
+        "revision_number",
+        "content_sha256",
+        "parser_version",
+        "source_revision",
+        "evidence_class",
+        "known_limitations"
+      ],
+      "properties": {
+        "record_id": {
+          "type": "string",
+          "pattern": "^OBS-[A-Z0-9_]+-[a-z0-9_]+-[0-9A-Za-z_:.-]+$",
+          "description": "Stable record ID. Deterministic for a given source, series and period so that re-collection updates rather than duplicates."
+        },
+        "source_id": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+        "source_record_id": {
+          "type": ["string", "null"],
+          "description": "The source's own identifier for this record where one exists. Null when the source publishes no per-record identifier -- null is an honest absence, not an empty string."
+        },
+        "period_start": {"type": ["string", "null"], "format": "date"},
+        "period_end": {"type": ["string", "null"], "format": "date"},
+        "period_type": {"$ref": "#/$defs/periodType"},
+        "published_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the source published this value. Null when the source states no publication time."
+        },
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "revised_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the source last revised this value, when the source exposes revision information."
+        },
+        "revision_number": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic counter incremented when a later collection changes the value for the same record_id. Revisions are preserved as separate history rows, never silently overwritten."
+        },
+        "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "parser_version": {"type": "string", "pattern": "^[a-z0-9_]+_v[0-9]+$"},
+        "source_revision": {"type": ["string", "null"]},
+        "evidence_class": {"$ref": "#/$defs/evidenceClass"},
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "description": "Value, unit and missing-value semantics. Enforced by scripts/validate.py: value is non-null if and only if value_status is 'available'.",
+      "additionalProperties": false,
+      "required": ["value", "value_status", "unit", "currency"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "value_status": {"$ref": "#/$defs/valueStatus"},
+        "unit": {
+          "type": ["string", "null"],
+          "description": "Unit of measure, e.g. 'THB_million', 'USD', 'teu', 'index_points', 'port_calls', 'THB_per_litre'. Null only when value_status is not 'available'."
+        },
+        "currency": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Z]{3}$",
+          "description": "ISO 4217 currency for monetary values; null for non-monetary series."
+        }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "description": "Where the observation applies. Every field is nullable because a valid observation may be country-level with no node, or node-level with no lane.",
+      "additionalProperties": false,
+      "required": ["geography_id", "country_id", "transport_mode", "lane_id", "node_id"],
+      "properties": {
+        "geography_id": {"type": ["string", "null"]},
+        "country_id": {"type": ["string", "null"], "pattern": "^[A-Z]{2}$"},
+        "transport_mode": {"$ref": "#/$defs/transportMode"},
+        "lane_id": {"type": ["string", "null"], "pattern": "^LANE-[A-Z0-9-]+$"},
+        "node_id": {"type": ["string", "null"], "pattern": "^NODE-[A-Z0-9-]+$"}
+      }
+    }
+  }
+}

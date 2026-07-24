@@ -33,9 +33,9 @@ jobs:
         shell: bash
         run: |
           set +e
-          ruff check collectors scripts tests --output-format=concise > ruff-check.txt 2>&1
+          ruff check analysis collectors scripts tests --output-format=concise > ruff-check.txt 2>&1
           check_status=$?
-          ruff format --diff collectors scripts tests > ruff-format.txt 2>&1
+          ruff format --diff analysis collectors scripts tests > ruff-format.txt 2>&1
           format_status=$?
           echo "check_status=$check_status" >> "$GITHUB_OUTPUT"
           echo "format_status=$format_status" >> "$GITHUB_OUTPUT"
@@ -62,7 +62,24 @@ jobs:
         run: python scripts/validate.py
       - name: Dry-run source contracts
         run: python scripts/collect.py --dry-run
+      # Every generated artefact must still match the inputs it claims to be
+      # derived from. --check regenerates in memory and writes nothing.
+      - name: Verify generated data is reproducible
+        run: |
+          python scripts/ingest_fixtures.py --check
+          python scripts/build_events_from_cases.py --check
+          python scripts/build_analysis.py --check
+      - name: Replay historical validation cases
+        run: python scripts/run_historical_validation.py
+      - name: Build derived analytical warehouse
+        run: python scripts/build_warehouse.py
       - name: Build dashboard
         run: python scripts/build_dashboard.py
+      # The build must not have altered any committed artefact. If it did, the
+      # committed data was stale and the diff is the evidence.
+      - name: Confirm the build produced no uncommitted change
+        run: |
+          git status --porcelain data dashboard/public
+          test -z "$(git status --porcelain data dashboard/public)"
       - name: Run tests
         run: pytest

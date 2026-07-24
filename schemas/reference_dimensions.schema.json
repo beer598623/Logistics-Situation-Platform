@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reference_dimensions.schema.json",
+  "title": "Common Reference Dimensions",
+  "description": "dim_geography, dim_country, dim_transport_mode, dim_logistics_node and dim_chokepoint. These are the shared, mode-neutral dimensions of the common foundation: no definition here may encode an Ocean-only assumption, because the Air, Road, Rail and Border modules reuse these same records.",
+  "$defs": {
+    "geography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geography_id", "name", "level", "parent_geography_id", "thailand_relationship"],
+      "properties": {
+        "geography_id": {"type": "string", "pattern": "^GEO-[A-Z0-9-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "level": {"enum": ["global", "region", "subregion", "country", "administrative_area", "waterway"]},
+        "parent_geography_id": {"type": ["string", "null"], "pattern": "^GEO-[A-Z0-9-]+$"},
+        "country_ids": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{2}$"}, "uniqueItems": true},
+        "thailand_relationship": {
+          "description": "How this geography relates to Thailand logistics. 'none_established' is a real, publishable answer and must not be upgraded by inference.",
+          "enum": ["is_thailand", "direct_trade_partner", "transit_or_chokepoint", "indirect_context", "none_established"]
+        },
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "country": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["country_id", "name", "region_geography_id", "thailand_relationship"],
+      "properties": {
+        "country_id": {"type": "string", "pattern": "^[A-Z]{2}$"},
+        "name": {"type": "string", "minLength": 1},
+        "iso3": {"type": ["string", "null"], "pattern": "^[A-Z]{3}$"},
+        "region_geography_id": {"type": "string", "pattern": "^GEO-[A-Z0-9-]+$"},
+        "thailand_relationship": {
+          "enum": ["is_thailand", "direct_trade_partner", "transit_or_chokepoint", "indirect_context", "none_established"]
+        },
+        "thailand_relevance_basis": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Why this country is treated as Thailand-relevant. An empty list with a relationship other than 'none_established' is a contract violation."
+        },
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "transportMode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode_id", "name", "module_status"],
+      "properties": {
+        "mode_id": {"$ref": "observation_common.schema.json#/$defs/transportMode"},
+        "name": {"type": "string", "minLength": 1},
+        "module_status": {
+          "description": "Whether the platform currently implements an operational module for this mode. 'planned' modes must still be representable by every shared entity -- that is the extensibility guarantee.",
+          "enum": ["implemented", "planned", "not_applicable"]
+        },
+        "notes": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "logisticsNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "name", "node_type", "country_id", "geography_id", "modes", "thailand_relationship"],
+      "properties": {
+        "node_id": {"type": "string", "pattern": "^NODE-[A-Z0-9-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "node_type": {
+          "enum": ["seaport", "container_terminal", "airport", "border_crossing", "inland_terminal", "rail_terminal", "warehouse_hub"]
+        },
+        "country_id": {"type": "string", "pattern": "^[A-Z]{2}$"},
+        "geography_id": {"type": "string", "pattern": "^GEO-[A-Z0-9-]+$"},
+        "unlocode": {"type": ["string", "null"], "pattern": "^[A-Z]{2}[A-Z0-9]{3}$"},
+        "modes": {
+          "type": "array",
+          "items": {"$ref": "observation_common.schema.json#/$defs/transportMode"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "thailand_relationship": {
+          "enum": ["is_thailand", "direct_trade_partner", "transit_or_chokepoint", "indirect_context", "none_established"]
+        },
+        "role_notes": {"type": "array", "items": {"type": "string"}},
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "chokepoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chokepoint_id", "name", "chokepoint_type", "geography_id", "modes", "thailand_relationship"],
+      "properties": {
+        "chokepoint_id": {"type": "string", "pattern": "^CHK-[A-Z0-9-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "chokepoint_type": {"enum": ["strait", "canal", "gulf_approach", "border_corridor", "airspace", "rail_gauge_break"]},
+        "geography_id": {"type": "string", "pattern": "^GEO-[A-Z0-9-]+$"},
+        "modes": {
+          "type": "array",
+          "items": {"$ref": "observation_common.schema.json#/$defs/transportMode"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "operating_authority": {"type": ["string", "null"]},
+        "authority_notice_source_ids": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+          "uniqueItems": true,
+          "description": "Source IDs of the official notice channels for this chokepoint, if any are registered."
+        },
+        "thailand_relationship": {
+          "enum": ["is_thailand", "direct_trade_partner", "transit_or_chokepoint", "indirect_context", "none_established"]
+        },
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "generated_at", "geographies", "countries", "transport_modes", "logistics_nodes", "chokepoints"],
+  "properties": {
+    "version": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "review_date": {"type": ["string", "null"], "format": "date"},
+    "geographies": {"type": "array", "items": {"$ref": "#/$defs/geography"}, "minItems": 1},
+    "countries": {"type": "array", "items": {"$ref": "#/$defs/country"}, "minItems": 1},
+    "transport_modes": {"type": "array", "items": {"$ref": "#/$defs/transportMode"}, "minItems": 1},
+    "logistics_nodes": {"type": "array", "items": {"$ref": "#/$defs/logisticsNode"}, "minItems": 1},
+    "chokepoints": {"type": "array", "items": {"$ref": "#/$defs/chokepoint"}, "minItems": 1}
+  }
+}

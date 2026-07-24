@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "event_evidence.schema.json",
+  "title": "Event Evidence (fact_event_evidence)",
+  "description": "One evidence item supporting, contradicting or contextualising a fact_event. Distinct from schemas/evidence.schema.json, which remains the frozen WO-002-era contract for reviewed_event records: this contract adds the source-class discovery/confirmation distinction and the excerpt-length bound required by WO-010 Gate D and G, and is used by the Ocean event model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_id",
+    "event_id",
+    "source_id",
+    "source_name",
+    "source_class",
+    "source_url",
+    "source_record_id",
+    "claim",
+    "claim_type",
+    "evidence_role",
+    "relation",
+    "strength",
+    "scope_supported",
+    "event_date",
+    "publication_date",
+    "retrieved_at",
+    "content_sha256",
+    "parser_version",
+    "licence_status",
+    "known_limitations"
+  ],
+  "properties": {
+    "evidence_id": {"type": "string", "pattern": "^EVD-[A-Za-z0-9-]+$"},
+    "event_id": {"type": "string", "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"},
+    "source_id": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+    "source_name": {"type": "string", "minLength": 1},
+    "source_class": {
+      "enum": ["official", "official_research", "international", "operator", "regulator", "industry", "news", "vendor"]
+    },
+    "source_url": {"type": ["string", "null"], "format": "uri"},
+    "source_record_id": {"type": ["string", "null"]},
+    "claim": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "A bounded statement of what this source says. Bounded deliberately: the platform records the claim and links to the source, and never republishes a full copyrighted article."
+    },
+    "claim_type": {
+      "enum": ["verified_fact", "official_notice", "official_forecast", "reported_claim", "analytical_inference", "discovery_lead"]
+    },
+    "evidence_role": {
+      "description": "Whether this item may carry a material conclusion. A discovery source may detect a lead but may never be the sole evidence for a material impact conclusion; 'discovery_only' marks items that are structurally barred from doing so.",
+      "enum": ["confirming", "contextual", "discovery_only"]
+    },
+    "relation": {"enum": ["supports", "contradicts", "contextual", "supersedes"]},
+    "strength": {"enum": ["A", "B", "C", "D"]},
+    "scope_supported": {"enum": ["asset", "facility", "node", "route", "lane", "country", "region", "global"]},
+    "event_date": {"type": ["string", "null"], "format": "date"},
+    "publication_date": {"type": ["string", "null"], "format": "date"},
+    "retrieved_at": {"type": "string", "format": "date-time"},
+    "revised_at": {"type": ["string", "null"], "format": "date-time"},
+    "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "parser_version": {"type": "string", "pattern": "^[a-z0-9_]+_v[0-9]+$"},
+    "source_revision": {"type": ["string", "null"]},
+    "licence_status": {"enum": ["reviewed", "pending_review", "restricted", "unknown"]},
+    "redistribution_status": {"enum": ["permitted", "derived_only", "link_only", "prohibited", "unknown"]},
+    "raw_snapshot_path": {
+      "type": ["string", "null"],
+      "description": "Always null in the public repository. Raw responses, caches and restricted content must not enter the public repository."
+    },
+    "known_limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

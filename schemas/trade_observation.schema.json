@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trade_observation.schema.json",
+  "title": "Trade Observation (fact_trade_observation)",
+  "description": "A trade-flow observation: import or export value or volume for a reporter/partner pair over a data period. Mode-neutral -- placement.transport_mode carries the mode when the source reports one, and 'not_applicable' when the source reports all-mode totals.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "series_id",
+    "flow_direction",
+    "reporter_country_id",
+    "partner_scope",
+    "measure",
+    "provenance",
+    "measurement",
+    "placement"
+  ],
+  "properties": {
+    "series_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "flow_direction": {"enum": ["import", "export", "balance", "total"]},
+    "reporter_country_id": {"type": "string", "pattern": "^[A-Z]{2}$"},
+    "partner_country_id": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Z]{2}$",
+      "description": "Partner country when the source reports at country level; null when the observation is a regional aggregate or a world total."
+    },
+    "partner_scope": {
+      "enum": ["world", "region", "country", "lane_group"],
+      "description": "The actual resolution of the partner dimension. The Dashboard must state this rather than implying country resolution the source did not provide."
+    },
+    "partner_label": {"type": ["string", "null"]},
+    "commodity_scope": {
+      "type": ["string", "null"],
+      "description": "Commodity coverage, e.g. 'all_commodities'. Null when the source does not state one."
+    },
+    "measure": {"enum": ["value", "gross_weight", "teu", "shipment_count"]},
+    "provenance": {"$ref": "observation_common.schema.json#/$defs/provenance"},
+    "measurement": {"$ref": "observation_common.schema.json#/$defs/measurement"},
+    "placement": {"$ref": "observation_common.schema.json#/$defs/placement"}
+  }
+}

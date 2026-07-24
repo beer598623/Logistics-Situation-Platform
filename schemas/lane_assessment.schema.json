@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lane_assessment.schema.json",
+  "title": "Lane Assessment (fact_lane_assessment)",
+  "description": "The Layer 4 current-situation assessment for one Lane. Assessment directions are the five permitted values only -- there is deliberately no single opaque composite 'logistics score'. Every direction carries the indicator readings, evidence and limitations it was derived from.",
+  "$defs": {
+    "direction": {
+      "enum": ["improving", "stable", "deteriorating", "mixed", "insufficient_evidence"]
+    },
+    "domainAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "direction", "basis", "indicator_ids", "evidence_ids", "data_period", "freshness", "known_limitations"],
+      "properties": {
+        "domain": {
+          "enum": [
+            "thailand_trade_flow",
+            "port_maritime_activity",
+            "freight_benchmark_direction",
+            "fuel_pressure",
+            "fx_pressure",
+            "operational_event_status",
+            "capacity_evidence",
+            "transit_time_or_service_evidence",
+            "source_freshness_and_coverage"
+          ]
+        },
+        "direction": {"$ref": "#/$defs/direction"},
+        "basis": {"type": "string", "minLength": 1},
+        "threshold_rule_id": {
+          "type": ["string", "null"],
+          "description": "The documented, deterministic threshold rule that produced this direction. Null only when direction is 'insufficient_evidence'."
+        },
+        "indicator_ids": {"type": "array", "items": {"type": "string"}},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "data_period": {"type": ["string", "null"]},
+        "freshness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "as_of", "age_days"],
+          "properties": {
+            "status": {"enum": ["fresh", "stale", "very_stale", "no_data", "disabled", "error"]},
+            "as_of": {"type": ["string", "null"], "format": "date-time"},
+            "age_days": {"type": ["number", "null"]}
+          }
+        },
+        "revision_status": {"enum": ["original", "revised", "unknown"]},
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assessment_id",
+    "lane_id",
+    "generated_at",
+    "data_cutoff_at",
+    "overall_direction",
+    "attention_level",
+    "domain_assessments",
+    "active_event_ids",
+    "external_driver_event_ids",
+    "data_gaps",
+    "known_limitations",
+    "methodology_version"
+  ],
+  "properties": {
+    "assessment_id": {"type": "string", "pattern": "^LAS-[A-Za-z0-9-]+$"},
+    "lane_id": {"type": "string", "pattern": "^LANE-[A-Z0-9-]+$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "data_cutoff_at": {"type": ["string", "null"], "format": "date-time"},
+    "overall_direction": {
+      "$ref": "#/$defs/direction",
+      "description": "A transparent roll-up of the domain directions using a documented, deterministic rule -- not a weighted composite score."
+    },
+    "attention_level": {
+      "description": "Whether this Lane warrants attention. Derived deterministically from domain directions and active events; 'insufficient_evidence' is a first-class answer.",
+      "enum": ["routine", "watch", "elevated", "insufficient_evidence"]
+    },
+    "domain_assessments": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/domainAssessment"},
+      "minItems": 9,
+      "maxItems": 9,
+      "uniqueItems": true
+    },
+    "active_event_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "external_driver_event_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "chokepoint_exposure": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["chokepoint_id", "status", "basis"],
+        "properties": {
+          "chokepoint_id": {"type": "string", "pattern": "^CHK-[A-Z0-9-]+$"},
+          "status": {"enum": ["no_notice", "official_notice_active", "restriction_reported", "insufficient_evidence"]},
+          "basis": {"type": "string"}
+        }
+      }
+    },
+    "scenarios": {"oneOf": [{"type": "null"}, {"$ref": "scenario_outlook.schema.json"}]},
+    "data_gaps": {"type": "array", "items": {"type": "string"}},
+    "known_limitations": {"type": "array", "items": {"type": "string"}},
+    "methodology_version": {"const": "0.8"}
+  }
+}

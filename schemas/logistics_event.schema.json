@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "logistics_event.schema.json",
+  "title": "Logistics Event (fact_event)",
+  "description": "One Layer 2 operational event, Layer 3 external driver, or Layer 4 discovery lead. The three classes are separated at the contract level: an external driver cannot be presented as a logistics impact unless its transmission chain is complete, and a discovery lead can never be the sole evidence for a material impact conclusion. Mode-neutral -- 'modes' carries the affected transport modes, so the same contract serves Air and Land events later.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "canonical_event_id",
+    "title",
+    "event_class",
+    "event_type",
+    "lifecycle_status",
+    "event_date",
+    "publication_date",
+    "retrieval_date",
+    "geography_ids",
+    "country_ids",
+    "modes",
+    "lane_relevance",
+    "thailand_relevance",
+    "thailand_relevance_basis",
+    "evidence_ids",
+    "conflicting_evidence",
+    "transmission_chain",
+    "impact_assessments",
+    "known_limitations",
+    "last_reviewed_at",
+    "closure_basis",
+    "publication_status",
+    "human_review",
+    "clustering",
+    "methodology_version"
+  ],
+  "properties": {
+    "event_id": {"type": "string", "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"},
+    "canonical_event_id": {"type": "string", "pattern": "^CEVT-[0-9a-f]{16}$"},
+    "title": {"type": "string", "minLength": 1, "maxLength": 300},
+    "event_class": {
+      "description": "Layer separation per scope document Sections 3.4 and 6. 'direct_operational_event' is a Logistics operational event; 'external_driver' is contextual until a transmission mechanism is stated; 'discovery_lead' is an unconfirmed lead.",
+      "enum": ["direct_operational_event", "external_driver", "discovery_lead"]
+    },
+    "event_type": {
+      "enum": [
+        "port_or_terminal_closure",
+        "port_restriction",
+        "canal_restriction",
+        "carrier_rerouting",
+        "service_suspension",
+        "capacity_withdrawal",
+        "strike",
+        "customs_or_system_outage",
+        "surcharge_or_fee_change",
+        "sanction_or_regulation",
+        "congestion_reported",
+        "war_or_security",
+        "economic_change",
+        "energy_shock",
+        "trade_policy",
+        "political_decision",
+        "weather_or_natural_hazard",
+        "unclassified_lead"
+      ]
+    },
+    "lifecycle_status": {
+      "description": "Evidence lifecycle per WO-010 Gate G. 'insufficient_evidence' and 'closed' are legitimate terminal answers, not failures.",
+      "enum": [
+        "discovery_lead",
+        "reported_event",
+        "verified_event",
+        "operational_impact_observed",
+        "potential_impact",
+        "monitoring",
+        "insufficient_evidence",
+        "closed"
+      ]
+    },
+    "event_date": {"type": ["string", "null"], "format": "date"},
+    "event_end_date": {"type": ["string", "null"], "format": "date"},
+    "publication_date": {"type": ["string", "null"], "format": "date"},
+    "retrieval_date": {"type": "string", "format": "date-time"},
+    "geography_ids": {"type": "array", "items": {"type": "string", "pattern": "^GEO-[A-Z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
+    "country_ids": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{2}$"}, "uniqueItems": true},
+    "node_ids": {"type": "array", "items": {"type": "string", "pattern": "^NODE-[A-Z0-9-]+$"}, "uniqueItems": true},
+    "chokepoint_ids": {"type": "array", "items": {"type": "string", "pattern": "^CHK-[A-Z0-9-]+$"}, "uniqueItems": true},
+    "modes": {
+      "type": "array",
+      "items": {"$ref": "observation_common.schema.json#/$defs/transportMode"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "operator_or_entity": {"type": ["string", "null"]},
+    "lane_relevance": {
+      "type": "array",
+      "description": "Per-lane relevance. An empty list is valid and means no lane relevance has been established -- which is different from, and must not be displayed as, no relevance existing.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lane_id", "relevance", "basis", "evidence_ids"],
+        "properties": {
+          "lane_id": {"type": "string", "pattern": "^LANE-[A-Z0-9-]+$"},
+          "relevance": {"enum": ["none_established", "low", "medium", "high"]},
+          "basis": {"type": "string", "minLength": 1},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "thailand_relevance": {"enum": ["none_established", "low", "medium", "high"]},
+    "thailand_relevance_basis": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Why the event is (or is not) Thailand-relevant. Required to be non-empty whenever thailand_relevance is not 'none_established'."
+    },
+    "evidence_ids": {"type": "array", "items": {"type": "string", "pattern": "^EVD-[A-Za-z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
+    "conflicting_evidence": {
+      "type": "array",
+      "description": "Explicitly preserved conflicts. Where sources disagree both positions are kept; the platform does not silently select a preferred answer.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description", "evidence_ids", "resolution_status"],
+        "properties": {
+          "description": {"type": "string", "minLength": 1},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+          "resolution_status": {"enum": ["unresolved", "resolved_by_primary_source", "superseded", "confidence_reduced"]}
+        }
+      }
+    },
+    "transmission_chain": {
+      "type": "object",
+      "description": "External driver -> operational change -> Logistics mechanism -> observable indicator -> observed impact / potential impact / scenario. Every link is nullable, and completeness is computed from which links are present; a chain with a missing link makes the item contextual or an unresolved hypothesis, never a conclusion.",
+      "additionalProperties": false,
+      "required": ["external_driver", "operational_change", "logistics_mechanism", "observable_indicator", "outcome", "completeness"],
+      "properties": {
+        "external_driver": {"type": ["string", "null"]},
+        "operational_change": {"type": ["string", "null"]},
+        "logistics_mechanism": {"type": ["string", "null"]},
+        "observable_indicator": {"type": ["string", "null"]},
+        "outcome": {"type": ["string", "null"]},
+        "completeness": {"enum": ["complete", "incomplete", "not_applicable"]},
+        "missing_links": {"type": "array", "items": {"type": "string"}},
+        "supporting_indicator_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "impact_assessments": {
+      "type": "array",
+      "items": {"$ref": "impact_assessment.schema.json"},
+      "minItems": 9,
+      "maxItems": 9,
+      "description": "The nine impact areas, each assessed independently. Event severity, logistics impact severity, evidence strength and confidence are separate fields and none may be inferred from another."
+    },
+    "event_severity": {
+      "description": "Severity of the event itself, kept deliberately separate from every impact_assessments[].severity. These must never be inferred from one another.",
+      "enum": ["none", "low", "moderate", "high", "critical", "not_assessed"]
+    },
+    "scenarios": {"oneOf": [{"type": "null"}, {"$ref": "scenario_outlook.schema.json"}]},
+    "preparedness_options": {"type": "array", "items": {"$ref": "preparedness_option.schema.json"}},
+    "negative_operational_evidence": {
+      "type": "boolean",
+      "description": "True only when an actual assessment found negative operational evidence. Required to be true before any impact area may use status 'no_material'."
+    },
+    "known_limitations": {"type": "array", "items": {"type": "string"}},
+    "last_reviewed_at": {"type": "string", "format": "date-time"},
+    "closure_basis": {
+      "type": ["string", "null"],
+      "description": "Why the event was closed. Required to be non-null when lifecycle_status is 'closed'."
+    },
+    "publication_status": {
+      "enum": ["Main dashboard", "Watchlist", "No material impact detected", "Assessment deferred", "Hold", "Rejected", "Closed archive"]
+    },
+    "human_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "status", "reviewer_record", "reviewed_at"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "status": {"enum": ["not_required", "pending", "approved", "rejected"]},
+        "reviewer_record": {"type": ["string", "null"]},
+        "reviewed_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "clustering": {
+      "type": "object",
+      "description": "Deterministic minimum clustering inputs (WO-010 Gate G). Unrelated events must not merge merely because they concern the same country or conflict.",
+      "additionalProperties": false,
+      "required": ["cluster_id", "cluster_key", "canonical_source_url", "title_normalized", "merge_status"],
+      "properties": {
+        "cluster_id": {"type": ["string", "null"], "pattern": "^CLU-[0-9a-f]{16}$"},
+        "cluster_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "canonical_source_url": {"type": ["string", "null"]},
+        "title_normalized": {"type": "string"},
+        "merge_status": {"enum": ["unmatched", "matched_source_record", "matched_cluster_key", "merge_suggested", "merged_approved", "split_required"]},
+        "merged_event_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "methodology_version": {"const": "0.8"},
+    "first_seen_at": {"type": ["string", "null"], "format": "date-time"},
+    "last_seen_at": {"type": ["string", "null"], "format": "date-time"},
+    "supersedes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  }
+}

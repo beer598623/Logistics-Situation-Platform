@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-22T00:00:00Z",
+  "generated_at": "2026-07-24T00:00:00Z",
   "overall_status": "insufficient",
-  "coverage_message": "Live collectors are disabled during contract and provenance hardening.",
+  "coverage_message": "One or more required capabilities lack sufficient source coverage.",
   "sources": [
     {
       "source_id": "GDACS",
@@ -52,16 +52,151 @@
       "item_count": null,
       "required_for_publication": false,
       "max_stale_minutes": 10080
+    },
+    {
+      "source_id": "BOT_FX",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 10080
+    },
+    {
+      "source_id": "WB_COMMODITY",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 89280
+    },
+    {
+      "source_id": "IMF_PORTWATCH",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 20160
+    },
+    {
+      "source_id": "UNCTAD_MARITIME",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 262080
+    },
+    {
+      "source_id": "PAT_NOTICE",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 20160
+    },
+    {
+      "source_id": "ACP_ADVISORY",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 20160
+    },
+    {
+      "source_id": "SCA_CIRCULAR",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 20160
+    },
+    {
+      "source_id": "MPA_SG_NOTICE",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 20160
+    },
+    {
+      "source_id": "MANUAL_NOTICE_INTAKE",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 43200
+    },
+    {
+      "source_id": "NEWS_DISCOVERY",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 10080
     }
   ],
   "capabilities": [
     {
+      "capability": "chokepoint_activity_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "IMF_PORTWATCH"
+      ],
+      "gap_reason": "No enabled source currently backs chokepoint_activity_indicator."
+    },
+    {
+      "capability": "chokepoint_notice",
+      "status": "insufficient",
+      "supporting_sources": [
+        "ACP_ADVISORY",
+        "SCA_CIRCULAR",
+        "MPA_SG_NOTICE"
+      ],
+      "gap_reason": "No enabled source currently backs chokepoint_notice."
+    },
+    {
+      "capability": "connectivity_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "UNCTAD_MARITIME"
+      ],
+      "gap_reason": "No enabled source currently backs connectivity_indicator."
+    },
+    {
       "capability": "cost_context",
       "status": "insufficient",
       "supporting_sources": [
-        "EPPO_FUEL"
+        "EPPO_FUEL",
+        "BOT_FX"
       ],
       "gap_reason": "No enabled source currently backs cost_context."
+    },
+    {
+      "capability": "energy_cost_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "WB_COMMODITY"
+      ],
+      "gap_reason": "No enabled source currently backs energy_cost_context."
     },
     {
       "capability": "event_context",
@@ -72,10 +207,27 @@
       "gap_reason": "No enabled source currently backs event_context."
     },
     {
+      "capability": "external_driver_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "NEWS_DISCOVERY"
+      ],
+      "gap_reason": "No enabled source currently backs external_driver_context."
+    },
+    {
+      "capability": "fx_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "BOT_FX"
+      ],
+      "gap_reason": "No enabled source currently backs fx_context."
+    },
+    {
       "capability": "global_baseline_indicator",
       "status": "insufficient",
       "supporting_sources": [
-        "GSCPI"
+        "GSCPI",
+        "WB_COMMODITY"
       ],
       "gap_reason": "No enabled source currently backs global_baseline_indicator."
     },
@@ -89,12 +241,49 @@
       "gap_reason": "No enabled source currently backs hazard_detection."
     },
     {
+      "capability": "news_discovery",
+      "status": "insufficient",
+      "supporting_sources": [
+        "NEWS_DISCOVERY"
+      ],
+      "gap_reason": "No enabled source currently backs news_discovery."
+    },
+    {
+      "capability": "official_operational_notice",
+      "status": "insufficient",
+      "supporting_sources": [
+        "PAT_NOTICE",
+        "ACP_ADVISORY",
+        "SCA_CIRCULAR",
+        "MPA_SG_NOTICE",
+        "MANUAL_NOTICE_INTAKE"
+      ],
+      "gap_reason": "No enabled source currently backs official_operational_notice."
+    },
+    {
+      "capability": "port_activity_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "IMF_PORTWATCH",
+        "UNCTAD_MARITIME"
+      ],
+      "gap_reason": "No enabled source currently backs port_activity_indicator."
+    },
+    {
       "capability": "thailand_fuel_indicator",
       "status": "insufficient",
       "supporting_sources": [
         "EPPO_FUEL"
       ],
       "gap_reason": "No enabled source currently backs thailand_fuel_indicator."
+    },
+    {
+      "capability": "thailand_port_operations",
+      "status": "insufficient",
+      "supporting_sources": [
+        "PAT_NOTICE"
+      ],
+      "gap_reason": "No enabled source currently backs thailand_port_operations."
     },
     {
       "capability": "thailand_trade_indicator",
