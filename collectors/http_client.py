@@ -193,6 +193,76 @@ def _open_pinned_socket(
     return context.wrap_socket(raw_sock, server_hostname=verify_hostname)
 
 
+class _BoundedHeaderFile:
+    """Wraps the real per-connection read file so header parsing is
+    bounded to a fixed aggregate byte count *while headers are being
+    read*, not only rejected after ``http.client`` has already buffered
+    a complete, possibly oversized, header block (ChatGPT review round
+    2, finding 4).
+
+    ``http.client``'s status-line and header parsing (``_read_status``,
+    ``_read_headers``) exclusively calls ``readline()`` on this file,
+    line by line, until it sees the blank line terminating the header
+    block -- exactly the boundary this wrapper watches for. Once that
+    blank line is seen, this wrapper stops counting and delegates
+    ``read()``/``readinto()`` straight through unbounded: the response
+    *body* is bounded separately and explicitly by
+    ``get_pinned_candidate`` itself (``max_response_bytes``), not by
+    this header-only cap.
+    """
+
+    def __init__(self, raw, max_header_bytes: int) -> None:
+        self._raw = raw
+        self._max_header_bytes = max_header_bytes
+        self._header_bytes_read = 0
+        self._headers_done = False
+
+    def readline(self, limit: int = -1) -> bytes:
+        line = self._raw.readline(limit)
+        if not self._headers_done:
+            self._header_bytes_read += len(line)
+            if line in (b"\r\n", b"\n", b""):
+                self._headers_done = True
+            if self._header_bytes_read > self._max_header_bytes:
+                raise ResponseTooLargeError(
+                    f"Response headers exceeded {self._max_header_bytes} bytes"
+                )
+        return line
+
+    def read(self, *args, **kwargs):
+        return self._raw.read(*args, **kwargs)
+
+    def readinto(self, *args, **kwargs):
+        return self._raw.readinto(*args, **kwargs)
+
+    def close(self) -> None:
+        self._raw.close()
+
+    def __getattr__(self, name):
+        return getattr(self._raw, name)
+
+
+class _HeaderCappedSocket:
+    """Wraps a connected pinned-candidate socket so every read file
+    ``http.client`` obtains from it (via ``makefile("rb")``) is a
+    ``_BoundedHeaderFile``. Every other operation (``sendall``,
+    ``settimeout``, ``close``, ``getpeername``, ...) passes straight
+    through to the real socket via ``__getattr__``."""
+
+    def __init__(self, sock, max_header_bytes: int) -> None:
+        self._sock = sock
+        self._max_header_bytes = max_header_bytes
+
+    def makefile(self, mode: str = "r", *args, **kwargs):
+        raw = self._sock.makefile(mode, *args, **kwargs)
+        if "r" in mode:
+            return _BoundedHeaderFile(raw, self._max_header_bytes)
+        return raw
+
+    def __getattr__(self, name):
+        return getattr(self._sock, name)
+
+
 def validate_content_type(
     headers: Mapping[str, str], allowed_media_types: Sequence[str]
 ) -> tuple[str | None, str | None]:
@@ -400,30 +470,43 @@ class ResilientHttpClient:
         except OSError as exc:
             raise PinnedConnectionError("connection to pinned candidate address failed") from exc
 
-        # ChatGPT review round 1, finding 2: verify the socket actually
-        # connected to the DNS-validated selected IP *before* any request
-        # byte is sent, not after the response has already been read. A
-        # mismatch here closes the socket and fails closed without ever
-        # disclosing the request to whatever peer the connection reached.
-        connected_ip = sock.getpeername()[0]
+        # ChatGPT review round 1, finding 2 / round 2, finding 2: verify
+        # the socket actually connected to the DNS-validated selected IP
+        # *before* any request byte is sent, not after the response has
+        # already been read. This whole boundary -- reading the peer
+        # address, canonicalizing it, and comparing -- is itself wrapped
+        # so a failure at any point (an OSError from getpeername() itself,
+        # an unparseable peer address, or an outright mismatch) always
+        # closes the socket via the same `finally`, never leaking it, and
+        # is always reported as a sanitized PinnedConnectionError rather
+        # than escaping unclassified.
+        verified = False
         try:
-            connected_matches_selected = ipaddress.ip_address(connected_ip) == ipaddress.ip_address(
-                selected_ip
-            )
+            connected_ip = sock.getpeername()[0]
+            if ipaddress.ip_address(connected_ip) != ipaddress.ip_address(selected_ip):
+                raise PinnedConnectionError(
+                    "connected IP did not match the DNS-validated selected IP; "
+                    "refusing to send the candidate request"
+                )
+            verified = True
+        except OSError as exc:
+            raise PinnedConnectionError(
+                "failed to read the pinned candidate socket's peer address"
+            ) from exc
         except ValueError as exc:
-            sock.close()
             raise PinnedConnectionError(
                 "pinned candidate socket reported an unparseable peer address"
             ) from exc
-        if not connected_matches_selected:
-            sock.close()
-            raise PinnedConnectionError(
-                "connected IP did not match the DNS-validated selected IP; "
-                "refusing to send the candidate request"
-            )
+        finally:
+            if not verified:
+                sock.close()
 
         conn = http.client.HTTPConnection(selected_ip, port, timeout=timeout_seconds)
-        conn.sock = sock
+        # ChatGPT review round 2, finding 4: bound the *aggregate* header
+        # block at the point it is read, not only after http.client has
+        # already parsed a complete (possibly oversized) block into
+        # memory. See _HeaderCappedSocket/_BoundedHeaderFile above.
+        conn.sock = _HeaderCappedSocket(sock, _MAX_PINNED_HEADER_BYTES)
         try:
             request_headers = {
                 "Host": hostname,
@@ -433,12 +516,6 @@ class ResilientHttpClient:
             }
             conn.request("GET", path, headers=request_headers)
             response = conn.getresponse()
-
-            header_bytes = sum(len(name) + len(value) for name, value in response.getheaders())
-            if header_bytes > _MAX_PINNED_HEADER_BYTES:
-                raise ResponseTooLargeError(
-                    f"Response headers from {hostname} exceeded {_MAX_PINNED_HEADER_BYTES} bytes"
-                )
 
             # 304 is technically in the 3xx range but is not a redirect --
             # it carries no Location to follow and is a conditional-request

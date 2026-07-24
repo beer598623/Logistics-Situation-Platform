@@ -593,6 +593,40 @@ def test_main_candidate_cap_validation_missing_content_type_fails_before_parsing
     assert validation["envelope_classification"] is None
 
 
+def test_main_candidate_cap_validation_bounds_an_allowlisted_content_type_parameter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """ChatGPT review round 2, finding 1, end-to-end: an allowlisted
+    Content-Type with an overlong/canary parameter must not survive
+    unbounded in the outcome or the final report.json."""
+    canary = "CONTENT_TYPE_PARAM_CANARY_" + ("y" * 500)
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": f"application/xml; x={canary}"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 0
+    assert canary not in json.dumps(report)
+
+
 def test_main_candidate_cap_validation_never_leaks_parser_warning_source_values(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:

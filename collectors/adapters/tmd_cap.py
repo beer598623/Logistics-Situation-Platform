@@ -828,6 +828,13 @@ class TmdCapAdapter(SourceAdapter):
                     "candidate response had no Content-Type header; a narrow "
                     "XML/CAP allowlisted type is required for candidate validation"
                 )
+            # ChatGPT review round 2, finding 1: an *allowlisted* base media
+            # type can still carry an arbitrarily long parameter section
+            # (e.g. "application/xml; x=<huge value>") -- validate_content_type()
+            # only checks the base type and returns the header verbatim.
+            # Bound it here, at the point it is accepted onto the outcome,
+            # independent of the final report sanitizer.
+            content_type = _bounded_field(content_type)
 
             classification = classify_envelope(
                 response.body,

@@ -475,6 +475,58 @@ def test_get_pinned_candidate_fails_closed_before_sending_on_peer_mismatch(
     assert fake_socket.closed is True
 
 
+def test_get_pinned_candidate_wraps_a_getpeername_failure_and_closes_the_socket(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ChatGPT review round 2, finding 2: sock.getpeername() executes
+    after TLS wrapping but before the try/finally that owns conn.close().
+    A failure there must still be classified as PinnedConnectionError
+    (not escape as an unclassified OSError) and must still close the
+    socket -- proven with a fake socket whose getpeername() itself
+    raises."""
+
+    class _GetpeernameRaisesSocket:
+        def __init__(self) -> None:
+            self.closed = False
+            self.sent = b""
+
+        def sendall(self, data: bytes) -> None:
+            self.sent += data
+
+        def makefile(self, mode: str = "r", *args, **kwargs):  # noqa: ARG002
+            return io.BytesIO()
+
+        def settimeout(self, timeout: float | None) -> None:  # noqa: ARG002
+            pass
+
+        def close(self) -> None:
+            self.closed = True
+
+        def getpeername(self):
+            raise OSError("simulated getpeername failure")
+
+    fake_socket = _GetpeernameRaisesSocket()
+    monkeypatch.setattr(
+        http_client,
+        "_open_pinned_socket",
+        lambda selected_ip, port, verify_hostname, *, timeout_seconds: fake_socket,
+    )
+
+    client = ResilientHttpClient()
+    with pytest.raises(PinnedConnectionError) as excinfo:
+        client.get_pinned_candidate(
+            hostname="www.tmd.go.th",
+            port=443,
+            path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+            selected_ip="8.8.8.10",
+            timeout_seconds=5,
+            max_response_bytes=1_000_000,
+        )
+    assert "simulated getpeername failure" not in str(excinfo.value)
+    assert fake_socket.sent == b""
+    assert fake_socket.closed is True
+
+
 def test_get_pinned_candidate_wraps_a_connection_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise_connection_error(selected_ip, port, verify_hostname, *, timeout_seconds):
         raise OSError("simulated connection refused")
@@ -511,6 +563,277 @@ def test_get_pinned_candidate_wraps_a_tls_failure(monkeypatch: pytest.MonkeyPatc
             timeout_seconds=5,
             max_response_bytes=1_000_000,
         )
+
+
+# --- ChatGPT review round 2, finding 3: post-handshake failure paths -------
+
+
+class _FaultySocket:
+    """A fake, fully in-memory socket whose read/write side can be made
+    to fail at a specific point (request write, header parsing, or body
+    read) for exercising ``get_pinned_candidate``'s post-handshake error
+    taxonomy -- zero real sockets involved."""
+
+    def __init__(
+        self,
+        *,
+        send_exc: Exception | None = None,
+        makefile_result=None,
+        peer_ip: str = "8.8.8.10",
+    ) -> None:
+        self._send_exc = send_exc
+        self._makefile_result = makefile_result
+        self._peer_ip = peer_ip
+        self.sent = b""
+        self.closed = False
+
+    def sendall(self, data: bytes) -> None:
+        if self._send_exc is not None:
+            raise self._send_exc
+        self.sent += data
+
+    def makefile(self, mode: str = "r", *args, **kwargs):  # noqa: ARG002
+        if "r" in mode and self._makefile_result is not None:
+            return self._makefile_result
+        return io.BytesIO()
+
+    def settimeout(self, timeout: float | None) -> None:  # noqa: ARG002
+        pass
+
+    def close(self) -> None:
+        self.closed = True
+
+    def getpeername(self) -> tuple[str, int]:
+        return (self._peer_ip, 443)
+
+
+class _RaisingFile:
+    """Serves ``header_bytes`` via ``readline()`` (so status-line/header
+    parsing can succeed normally up to some point) and raises ``exc``
+    once ``fail_on_read`` says to -- either from the next ``readline()``
+    call (simulating a header-parsing failure) or from ``read()``
+    (simulating a body-read failure)."""
+
+    def __init__(self, header_bytes: bytes, exc: Exception, *, fail_on_readline: bool) -> None:
+        self._reader = io.BytesIO(header_bytes)
+        self._exc = exc
+        self._fail_on_readline = fail_on_readline
+
+    def readline(self, limit: int = -1) -> bytes:
+        if self._fail_on_readline:
+            raise self._exc
+        return self._reader.readline(limit)
+
+    def read(self, *args, **kwargs) -> bytes:
+        if not self._fail_on_readline:
+            raise self._exc
+        return self._reader.read(*args, **kwargs)
+
+    def flush(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+def test_get_pinned_candidate_wraps_a_request_write_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_socket = _FaultySocket(send_exc=OSError("simulated write failure"))
+    monkeypatch.setattr(
+        http_client,
+        "_open_pinned_socket",
+        lambda selected_ip, port, verify_hostname, *, timeout_seconds: fake_socket,
+    )
+
+    client = ResilientHttpClient()
+    with pytest.raises(PinnedConnectionError) as excinfo:
+        client.get_pinned_candidate(
+            hostname="www.tmd.go.th",
+            port=443,
+            path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+            selected_ip="8.8.8.10",
+            timeout_seconds=5,
+            max_response_bytes=1_000_000,
+        )
+    assert "simulated write failure" not in str(excinfo.value)
+    assert fake_socket.closed is True
+
+
+def test_get_pinned_candidate_wraps_a_response_header_read_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    faulty_file = _RaisingFile(b"", OSError("simulated reset"), fail_on_readline=True)
+    fake_socket = _FaultySocket(makefile_result=faulty_file)
+    monkeypatch.setattr(
+        http_client,
+        "_open_pinned_socket",
+        lambda selected_ip, port, verify_hostname, *, timeout_seconds: fake_socket,
+    )
+
+    client = ResilientHttpClient()
+    with pytest.raises(PinnedConnectionError) as excinfo:
+        client.get_pinned_candidate(
+            hostname="www.tmd.go.th",
+            port=443,
+            path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+            selected_ip="8.8.8.10",
+            timeout_seconds=5,
+            max_response_bytes=1_000_000,
+        )
+    assert "simulated reset" not in str(excinfo.value)
+    assert fake_socket.closed is True
+
+
+def test_get_pinned_candidate_wraps_a_response_body_read_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    header_bytes = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\n"
+    faulty_file = _RaisingFile(
+        header_bytes, OSError("simulated body reset"), fail_on_readline=False
+    )
+    fake_socket = _FaultySocket(makefile_result=faulty_file)
+    monkeypatch.setattr(
+        http_client,
+        "_open_pinned_socket",
+        lambda selected_ip, port, verify_hostname, *, timeout_seconds: fake_socket,
+    )
+
+    client = ResilientHttpClient()
+    with pytest.raises(PinnedConnectionError) as excinfo:
+        client.get_pinned_candidate(
+            hostname="www.tmd.go.th",
+            port=443,
+            path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+            selected_ip="8.8.8.10",
+            timeout_seconds=5,
+            max_response_bytes=1_000_000,
+        )
+    assert "simulated body reset" not in str(excinfo.value)
+    assert fake_socket.closed is True
+
+
+def test_get_pinned_candidate_wraps_a_post_handshake_tls_read_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import ssl
+
+    header_bytes = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\n"
+    faulty_file = _RaisingFile(
+        header_bytes, ssl.SSLError("simulated TLS read failure"), fail_on_readline=False
+    )
+    fake_socket = _FaultySocket(makefile_result=faulty_file)
+    monkeypatch.setattr(
+        http_client,
+        "_open_pinned_socket",
+        lambda selected_ip, port, verify_hostname, *, timeout_seconds: fake_socket,
+    )
+
+    client = ResilientHttpClient()
+    with pytest.raises(PinnedTlsError) as excinfo:
+        client.get_pinned_candidate(
+            hostname="www.tmd.go.th",
+            port=443,
+            path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+            selected_ip="8.8.8.10",
+            timeout_seconds=5,
+            max_response_bytes=1_000_000,
+        )
+    assert "simulated TLS read failure" not in str(excinfo.value)
+    assert fake_socket.closed is True
+
+
+# --- ChatGPT review round 2, finding 4: aggregate header cap enforced ------
+# --- while headers are being streamed, not only after the fact ------------
+
+
+def test_get_pinned_candidate_accepts_headers_just_under_the_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Few, large header values rather than many small ones -- http.client
+    # itself refuses more than 100 headers per response regardless of
+    # this transport's own byte cap, so the line count here must stay
+    # well under that unrelated built-in limit.
+    filler_value = "x" * 900
+    header_lines = []
+    total = 0
+    i = 0
+    prefix = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n"
+    total += len(prefix)
+    while total < http_client._MAX_PINNED_HEADER_BYTES - 2000:
+        line = f"X-Filler-{i}: {filler_value}\r\n".encode()
+        header_lines.append(line)
+        total += len(line)
+        i += 1
+    response = prefix + b"".join(header_lines) + b"\r\nBODY"
+    _install_fake_pinned_socket(monkeypatch, response)
+
+    client = ResilientHttpClient()
+    http_response, _connected_ip = client.get_pinned_candidate(
+        hostname="www.tmd.go.th",
+        port=443,
+        path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+        selected_ip="8.8.8.10",
+        timeout_seconds=5,
+        max_response_bytes=1_000_000,
+    )
+    assert http_response.status == 200
+    assert http_response.body == b"BODY"
+
+
+def test_get_pinned_candidate_rejects_headers_over_the_cap_before_reading_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    canary_body = b"CANARY_BODY_MUST_NEVER_BE_READ"
+    filler_value = "x" * 1000
+    header_lines = []
+    total = 0
+    i = 0
+    prefix = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n"
+    total += len(prefix)
+    while total <= http_client._MAX_PINNED_HEADER_BYTES:
+        line = f"X-Filler-{i}: {filler_value}\r\n".encode()
+        header_lines.append(line)
+        total += len(line)
+        i += 1
+    response = prefix + b"".join(header_lines) + b"\r\n" + canary_body
+    _install_fake_pinned_socket(monkeypatch, response)
+
+    client = ResilientHttpClient()
+    with pytest.raises(ResponseTooLargeError) as excinfo:
+        client.get_pinned_candidate(
+            hostname="www.tmd.go.th",
+            port=443,
+            path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+            selected_ip="8.8.8.10",
+            timeout_seconds=5,
+            max_response_bytes=1_000_000,
+        )
+    # The oversized header block is rejected before the body is ever read.
+    assert canary_body not in str(excinfo.value).encode()
+
+
+def test_bounded_header_file_stops_counting_once_headers_are_done(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unit test of _BoundedHeaderFile in isolation: a body far larger
+    than the header cap must still be readable once the blank line
+    terminating the header block has been seen -- the cap applies only
+    to the header-parsing phase, never to the body."""
+    body = b"x" * (http_client._MAX_PINNED_HEADER_BYTES * 2)
+    response = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\n" + body
+    _install_fake_pinned_socket(monkeypatch, response)
+
+    client = ResilientHttpClient()
+    http_response, _connected_ip = client.get_pinned_candidate(
+        hostname="www.tmd.go.th",
+        port=443,
+        path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+        selected_ip="8.8.8.10",
+        timeout_seconds=5,
+        max_response_bytes=len(body) + 1,
+    )
+    assert http_response.body == body
 
 
 def test_open_pinned_socket_verifies_the_hostname_not_the_ip(

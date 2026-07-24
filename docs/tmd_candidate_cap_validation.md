@@ -183,7 +183,16 @@ activity**, with a specific `CandidateReferenceError` message
    is never sent the candidate request in the first place (ChatGPT
    review round 1, finding 2 -- the original implementation performed
    this check only after the full request/response cycle had already
-   completed).
+   completed). This whole boundary -- reading `getpeername()`,
+   canonicalizing both addresses via `ipaddress.ip_address`, and
+   comparing -- is itself wrapped in a `try/finally` that closes the
+   socket on *any* failure path (an `OSError` from `getpeername()`
+   itself, an unparseable peer address, or an outright mismatch), and
+   every one of those failure paths raises the same sanitized
+   `PinnedConnectionError` rather than an unclassified exception
+   (ChatGPT review round 2, finding 2 -- the original fix for round 1
+   finding 2 still left `getpeername()` itself unguarded and could leak
+   the socket on that specific failure).
 5. **No environment proxy.** This path never touches `urllib.request`
    (the only thing in `collectors/http_client.py` that consults
    `HTTP_PROXY`/`HTTPS_PROXY`); it is a raw socket plus `http.client`.
@@ -201,8 +210,24 @@ activity**, with a specific `CandidateReferenceError` message
    anything and raises `UnexpectedNotModifiedError` -- reusing the exact
    same class and rationale already established for `discover_rss()` in
    WO-004.
-9. **Headers and the streamed body are both bounded** before parsing:
-   response headers are capped at 64 KiB, and the body is capped at
+9. **Headers and the streamed body are both bounded** before parsing.
+   Headers are capped at 64 KiB (`_MAX_PINNED_HEADER_BYTES`), enforced
+   *while the header block is being streamed* -- `_HeaderCappedSocket`
+   wraps the connected socket so every read file `http.client` obtains
+   from it (via `makefile("rb")`) is a `_BoundedHeaderFile`, which counts
+   every byte `http.client`'s own status-line/header parsing reads via
+   `readline()` and raises `ResponseTooLargeError` the moment the
+   aggregate exceeds the cap -- *before* the complete (possibly
+   oversized) header block is ever accepted into memory, and before any
+   response body is read (ChatGPT review round 2, finding 4 -- the
+   original implementation summed `response.getheaders()` only *after*
+   `http.client` had already parsed the full block, which both let an
+   oversized-but-still-within-`http.client`'s-own-100-header/64KB-per-line
+   limits block through unbounded and undercounted real wire bytes by
+   ignoring header-name/value separators and line terminators). Once the
+   blank line terminating the header block is seen, the wrapper stops
+   counting and body reads pass straight through -- the body is bounded
+   completely separately and explicitly, at
    `TmdCapAdapter.CANDIDATE_MAX_RESPONSE_BYTES` (2,000,000 bytes -- a
    dedicated, hardcoded bound for one candidate alert file, deliberately
    independent of the TMD source contract's much larger
@@ -246,6 +271,13 @@ response is in memory:
    enters the exception message (finding 7) -- the shared
    `validate_content_type()`'s own message embeds the complete raw
    value, so candidate validation re-raises with a bounded one instead.
+   A *present-and-allowlisted* type is bounded too, at the point it is
+   accepted onto the outcome: `validate_content_type()` only checks the
+   base media type and returns the full header verbatim, so an
+   allowlisted type with an arbitrarily long parameter (e.g.
+   `application/xml; x=<huge value>`) would otherwise reach
+   `CandidateValidationOutcome.content_type` unbounded, relying solely
+   on the final report sanitizer (ChatGPT review round 2, finding 1).
 3. The response-size cap (Section 4 item 9) was already enforced by the
    transport before this point.
 4. `classify_envelope()` (WO-004, unchanged) runs on the in-memory body.

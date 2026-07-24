@@ -914,6 +914,31 @@ def test_validate_candidate_unexpected_content_type_message_is_bounded(
     assert len(outcome.errors[0]) < len(overlong_type)
 
 
+def test_validate_candidate_bounds_an_allowlisted_content_type_with_a_long_parameter(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 2, finding 1: validate_content_type() accepts
+    an allowlisted *base* media type verbatim, including an arbitrarily
+    long parameter section (e.g. "application/xml; x=<canary>"). That
+    full value must still be bounded before it is stored on the outcome,
+    independent of the final report sanitizer."""
+    canary = "CONTENT_TYPE_PARAM_CANARY_" + ("y" * 500)
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": f"application/xml; x={canary}"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.content_type is not None
+    assert canary not in outcome.content_type
+    serialized = json.dumps(outcome.to_dict())
+    assert canary not in serialized
+
+
 def test_validate_candidate_never_leaks_parser_warnings_with_identifier_or_geometry(
     tmd_contract: dict,
 ) -> None:
