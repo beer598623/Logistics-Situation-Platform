@@ -1164,3 +1164,241 @@ def test_validate_candidate_derives_the_thai_url_and_ignores_the_contract_endpoi
         evidence_item_index=0,
     )
     assert outcome.request_url == "https://www.tmd.go.th/uploads/CAP/CAPTMD20260723155032_2.xml"
+
+
+# --- WO-007A: evidence contract -- candidate_filename/workflow_run_id -------
+
+
+def test_validate_candidate_retains_candidate_filename_and_workflow_run_id(
+    tmd_contract: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """WO-007A Scope 1/2: a live outcome retains candidate_filename
+    alongside evidence_run_id/evidence_item_index, and workflow_run_id
+    alongside the existing workflow_sha, when the environment provides
+    them (a GitHub Actions run)."""
+    monkeypatch.setenv("GITHUB_RUN_ID", "30099112233")
+    monkeypatch.setenv("GITHUB_SHA", "cafed00d" * 5)
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="30028391246",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.candidate_filename == "CAPTMD20260723155032_2.xml"
+    assert outcome.evidence_run_id == "30028391246"
+    assert outcome.evidence_item_index == 0
+    assert outcome.workflow_run_id == "30099112233"
+    assert outcome.workflow_sha == "cafed00d" * 5
+    assert outcome.to_dict()["candidate_filename"] == "CAPTMD20260723155032_2.xml"
+    assert outcome.to_dict()["workflow_run_id"] == "30099112233"
+
+
+def test_validate_candidate_workflow_run_id_is_none_outside_a_workflow_run(
+    tmd_contract: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.workflow_run_id is None
+    assert outcome.workflow_sha is None
+
+
+def test_validate_candidate_workflow_ids_malformed_are_a_marker_not_the_raw_value(
+    tmd_contract: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """WO-007A round 1 review, finding 3: GITHUB_RUN_ID/GITHUB_SHA are
+    validated at origin -- a malformed or overlong canary value must never
+    survive into the outcome, and must be distinguishable from "not
+    provided at all" (None)."""
+    canary = "MALFORMED_ENV_CANARY_" + ("z" * 500)
+    monkeypatch.setenv("GITHUB_RUN_ID", canary)
+    monkeypatch.setenv("GITHUB_SHA", canary)
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.workflow_run_id != canary
+    assert outcome.workflow_sha != canary
+    assert outcome.workflow_run_id is not None
+    assert outcome.workflow_sha is not None
+    assert canary not in json.dumps(outcome.to_dict())
+
+
+def test_validate_candidate_retains_a_safe_descriptor_for_a_rejected_filename(
+    tmd_contract: dict,
+) -> None:
+    """WO-007A round 1 review, finding 1: an invalid candidate reference
+    still fails before any DNS/network activity (unchanged from WO-006),
+    and the outcome retains a safe, reviewable descriptor of the rejected
+    candidate_filename -- never the raw rejected text itself."""
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="../etc/passwd",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.candidate_filename == {
+        "provided": True,
+        "length": len("../etc/passwd"),
+        "validation_status": "rejected",
+    }
+    assert outcome.request_url is None
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+    serialized = json.dumps(outcome.to_dict())
+    assert "../etc/passwd" not in serialized
+    assert "passwd" not in serialized
+
+
+def test_validate_candidate_never_retains_a_short_credential_canary_from_a_rejected_field(
+    tmd_contract: dict,
+) -> None:
+    """WO-007A round 1 review, finding 1: the previous implementation only
+    bounded *overlong* rejected values, silently retaining any short one
+    verbatim -- including a plausible short credential or token."""
+    canary = "SHORT_CREDENTIAL_CANARY_TOKEN"  # noqa: S105
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename=canary,
+        evidence_run_id=canary,
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.candidate_filename == {
+        "provided": True,
+        "length": len(canary),
+        "validation_status": "rejected",
+    }
+    assert outcome.evidence_run_id == {
+        "provided": True,
+        "length": len(canary),
+        "validation_status": "rejected",
+    }
+    assert canary not in json.dumps(outcome.to_dict())
+
+
+def test_validate_candidate_invalid_item_index_string_is_not_lost(tmd_contract: dict) -> None:
+    """WO-007A round 1 review, finding 2: a non-integer
+    evidence_item_index (e.g. an unconverted workflow_dispatch string)
+    must get the same safe-descriptor treatment as any other rejected
+    field, never be silently dropped to None."""
+    canary = "TOKEN_LOOKING_ITEM_INDEX"
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=canary,  # type: ignore[arg-type]
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.evidence_item_index == {
+        "provided": True,
+        "length": len(canary),
+        "validation_status": "rejected",
+    }
+    assert canary not in json.dumps(outcome.to_dict())
+
+
+def test_validate_candidate_rejected_numeric_item_index_is_not_raw(tmd_contract: dict) -> None:
+    """WO-007A round 2 review, finding 1: an out-of-range but still
+    numeric evidence_item_index is unvalidated operator input like any
+    other -- it must get the same safe descriptor, not survive as the raw
+    (out-of-policy) integer, since purely-numeric text is not inherently
+    safer than alphanumeric text."""
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=9999,  # exceeds rss_discovery.MAX_ITEMS (50)
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.evidence_item_index == {
+        "provided": True,
+        "length": len("9999"),
+        "validation_status": "rejected",
+    }
+    assert "9999" not in json.dumps(outcome.to_dict())
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+
+
+def test_validate_candidate_long_numeric_item_index_canary_is_not_raw(tmd_contract: dict) -> None:
+    """WO-007A round 2 review, finding 1: a long, purely-numeric
+    evidence_item_index canary must also never survive raw on the
+    outcome."""
+    canary_index = 13579246801357924680
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=canary_index,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.evidence_item_index == {
+        "provided": True,
+        "length": len(str(canary_index)),
+        "validation_status": "rejected",
+    }
+    assert str(canary_index) not in json.dumps(outcome.to_dict())
+    assert fake_http.pinned_call_count == 0
+
+
+def test_validate_candidate_low_entropy_pin_leaves_no_digest(tmd_contract: dict) -> None:
+    """WO-007A round 3 review, finding 1: an unsalted, unkeyed digest of
+    low-entropy operator input (a PIN/OTP-shaped rejected value) is
+    offline brute-forceable and must never be retained on the outcome --
+    the descriptor carries only 'provided'/'length'/'validation_status'."""
+    pin_index = 482913  # out-of-range, six-digit PIN/OTP-shaped canary
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=pin_index,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.evidence_item_index == {
+        "provided": True,
+        "length": len(str(pin_index)),
+        "validation_status": "rejected",
+    }
+    # Scoped to the descriptor's own keys -- the outcome legitimately has
+    # unrelated fields named content_sha256/cap_identifier_sha256, so a
+    # whole-outcome "sha256" substring search would false-positive on those.
+    assert set(outcome.evidence_item_index) == {"provided", "length", "validation_status"}
+    assert str(pin_index) not in json.dumps(outcome.to_dict())
+    assert fake_http.pinned_call_count == 0

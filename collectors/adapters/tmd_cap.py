@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -71,6 +72,94 @@ def _bounded_field(
         return value
     omitted = len(value) - max_length
     return value[:max_length] + f"...(+{omitted} chars omitted)"
+
+
+def redact_candidate_provenance_value(value: Any) -> dict[str, Any] | None:
+    """A safe, static descriptor for one candidate-provenance value that
+    has not (yet, or ever) passed structural validation (WO-007A round 1
+    review, finding 1).
+
+    A value's raw text must never be echoed once it is known to have
+    failed -- or has not yet passed -- ``build_candidate_reference``'s
+    validation: a short credential- or token-shaped string typed into an
+    operator-supplied field (``language``, ``candidate_filename``,
+    ``evidence_run_id``, or ``evidence_item_index``) would otherwise
+    survive verbatim in a public report artifact, since nothing upstream
+    has bounded or sanitized it yet at that point.
+
+    This descriptor carries only whether a value was supplied and its
+    length -- deliberately **not** a hash of the value (WO-007A round 3
+    review, finding 1): an unsalted, unkeyed digest of low-entropy input
+    (a 4-8 digit PIN or OTP, a short numeric API key) is not
+    non-reversible in practice -- SHA-256 is fast, and the search space
+    for a short PIN/OTP is small enough for an offline dictionary or
+    brute-force pass against a public ``report.json`` to recover it. This
+    module never introduces a repository secret or persistent HMAC key
+    to make such a digest safe (that would add secret-management
+    complexity not required to close Gate 1's evidence-completeness
+    finding); the only safe answer is not to retain a value-derived
+    digest at all.
+
+    Every non-``None`` value -- including an already-parsed
+    ``evidence_item_index`` integer, in-range or not -- gets this same
+    descriptor treatment; there is no int-shaped exception (WO-007A round
+    2 review, finding 1: an out-of-range or overlong numeric
+    ``evidence_item_index`` is still operator-supplied, unvalidated input,
+    and purely-numeric free text (a PIN, an OTP, a numeric API key) is not
+    inherently safer than alphanumeric text -- the whole point of "not yet
+    validated" is that this function cannot itself tell the difference.
+    Only a caller who has confirmed ``build_candidate_reference`` accepted
+    the *complete* reference may use the real, validated integer instead
+    of calling this function at all -- see ``validate_candidate``'s and
+    ``run_tmd_candidate_cap_validation``'s post-success overwrite, and
+    WO-007A round 1 review, finding 2, for why a non-numeric
+    ``evidence_item_index`` string must never be silently dropped to
+    ``None`` either.
+    """
+    if value is None:
+        return None
+    text = value if isinstance(value, str) else str(value)
+    return {
+        "provided": True,
+        "length": len(text),
+        "validation_status": "rejected",
+    }
+
+
+#: GitHub Actions' documented form for these two values: a bounded decimal
+#: run ID and a 40-character hex commit SHA. Read from the environment
+#: ("when safely available"), but validated at origin rather than trusted
+#: blindly (WO-007A round 1 review, finding 3) -- this code also runs
+#: outside a real GitHub Actions job (locally, in tests, or on a
+#: misconfigured self-hosted runner), so neither is guaranteed to already
+#: be well-formed.
+_WORKFLOW_RUN_ID_RE = re.compile(r"^[0-9]{1,32}$")
+_WORKFLOW_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+_INVALID_WORKFLOW_RUN_ID_MARKER = "<invalid: GITHUB_RUN_ID did not match the expected form>"
+_INVALID_WORKFLOW_SHA_MARKER = "<invalid: GITHUB_SHA did not match the expected form>"
+
+
+def safe_workflow_run_id(raw: str | None) -> str | None:
+    """Validate ``GITHUB_RUN_ID``'s documented bounded-numeric shape
+    before it is retained anywhere in an outcome or report. ``None`` means
+    the environment did not provide a value at all; the static marker
+    means one was provided but did not match the expected form -- the two
+    are kept distinguishable rather than collapsed to the same ``None``."""
+    if raw is None:
+        return None
+    if _WORKFLOW_RUN_ID_RE.fullmatch(raw):
+        return raw
+    return _INVALID_WORKFLOW_RUN_ID_MARKER
+
+
+def safe_workflow_sha(raw: str | None) -> str | None:
+    """Same as ``safe_workflow_run_id`` for ``GITHUB_SHA``'s documented
+    40-character hex commit SHA form."""
+    if raw is None:
+        return None
+    if _WORKFLOW_SHA_RE.fullmatch(raw):
+        return raw
+    return _INVALID_WORKFLOW_SHA_MARKER
 
 
 class UnexpectedNotModifiedError(RuntimeError):
@@ -323,13 +412,41 @@ class CandidateValidationOutcome:
     instruction, note, audience, web, contact, area description, geometry)
     are never present on this dataclass at all -- there is no field for
     them to occupy.
+
+    WO-007A: ``language``, ``candidate_filename``, ``evidence_run_id``,
+    and ``evidence_item_index`` are recorded so a Gate reviewer can see
+    exactly which candidate a report describes -- including one rejected
+    before any DNS or network activity. Each field holds the actual
+    validated value (a plain ``str``/``int``) once
+    ``build_candidate_reference`` has accepted the complete reference;
+    before that, or if it never does, each instead holds a safe, static
+    descriptor from ``redact_candidate_provenance_value`` --
+    ``{"provided": True, "length": ..., "validation_status": "rejected"}``
+    -- with no exception for an already-parsed ``evidence_item_index``
+    integer, and no value-derived digest of any kind, or ``None`` if no
+    value was supplied at all. Never the raw rejected text (round 1
+    review, finding 1); never silently dropped to ``None`` just because
+    it failed to parse as an integer (round 1 review, finding 2); never a
+    raw out-of-range or overlong integer either (round 2 review, finding
+    1); and never a SHA-256 (or other) digest of the rejected value, since
+    an unsalted digest of low-entropy input (a PIN, an OTP, a short
+    numeric key) is offline brute-forceable and is not itself a safe
+    representation (round 3 review, finding 1). ``workflow_run_id``
+    (``GITHUB_RUN_ID``) is retained alongside the existing ``workflow_sha``
+    (``GITHUB_SHA``) when the environment provides a value matching its
+    documented form (``safe_workflow_run_id``/``safe_workflow_sha``);
+    ``None`` means no value was provided, and a static marker means one
+    was provided but was malformed (round 1 review, finding 3) -- neither
+    ever echoes an unvalidated raw environment value.
     """
 
     operation: str
     mode: str
-    language: str | None
-    evidence_run_id: str | None
-    evidence_item_index: int | None
+    language: str | dict[str, Any] | None
+    candidate_filename: str | dict[str, Any] | None
+    evidence_run_id: str | dict[str, Any] | None
+    evidence_item_index: int | dict[str, Any] | None
+    workflow_run_id: str | None
     workflow_sha: str | None
     request_url: str | None
     selected_ip: str | None
@@ -368,8 +485,10 @@ class CandidateValidationOutcome:
             "operation": self.operation,
             "mode": self.mode,
             "language": self.language,
+            "candidate_filename": self.candidate_filename,
             "evidence_run_id": self.evidence_run_id,
             "evidence_item_index": self.evidence_item_index,
+            "workflow_run_id": self.workflow_run_id,
             "workflow_sha": self.workflow_sha,
             "request_url": self.request_url,
             "selected_ip": self.selected_ip,
@@ -746,14 +865,24 @@ class TmdCapAdapter(SourceAdapter):
         cap_area_count: int | None = None
         cap_parser_warning_count: int | None = None
 
-        bounded_language = _bounded_field(str(self.language))
-        bounded_run_id = (
-            _bounded_field(evidence_run_id) if isinstance(evidence_run_id, str) else None
+        # WO-007A round 1 review, findings 1-2: every provenance field
+        # starts as a safe, non-reversible descriptor of the raw
+        # caller-supplied value -- never the raw text itself, since
+        # build_candidate_reference() below has not yet had a chance to
+        # validate it (or may reject it outright). Only on successful
+        # validation, below, are these replaced with the actual validated
+        # values -- which are then known-safe (grammar/enum-bound ASCII).
+        bounded_language: str | dict[str, Any] | None = redact_candidate_provenance_value(
+            self.language
         )
-        bounded_item_index = (
+        bounded_candidate_filename: str | dict[str, Any] | None = redact_candidate_provenance_value(
+            candidate_filename
+        )
+        bounded_run_id: str | dict[str, Any] | None = redact_candidate_provenance_value(
+            evidence_run_id
+        )
+        bounded_item_index: int | dict[str, Any] | None = redact_candidate_provenance_value(
             evidence_item_index
-            if isinstance(evidence_item_index, int) and not isinstance(evidence_item_index, bool)
-            else None
         )
 
         try:
@@ -763,6 +892,13 @@ class TmdCapAdapter(SourceAdapter):
                 evidence_run_id=evidence_run_id,
                 evidence_item_index=evidence_item_index,
             )
+            # Validation succeeded: every field is now known to be a safe,
+            # grammar/enum-bound value, so replace the pre-validation
+            # descriptor with the actual validated text/integer.
+            bounded_language = reference.language
+            bounded_candidate_filename = reference.candidate_filename
+            bounded_run_id = reference.evidence_run_id
+            bounded_item_index = reference.evidence_item_index
             derived = derive_candidate_request(reference)
             request_url = redact_url_userinfo(derived.url)
 
@@ -901,9 +1037,11 @@ class TmdCapAdapter(SourceAdapter):
             operation="candidate_cap_validation",
             mode="live",
             language=bounded_language,
+            candidate_filename=bounded_candidate_filename,
             evidence_run_id=bounded_run_id,
             evidence_item_index=bounded_item_index,
-            workflow_sha=os.environ.get("GITHUB_SHA"),
+            workflow_run_id=safe_workflow_run_id(os.environ.get("GITHUB_RUN_ID")),
+            workflow_sha=safe_workflow_sha(os.environ.get("GITHUB_SHA")),
             request_url=request_url,
             selected_ip=selected_ip,
             address_family=address_family,

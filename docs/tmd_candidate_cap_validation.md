@@ -20,6 +20,23 @@ publication, dashboard publication, any licensing conclusion, any
 logistics-impact conclusion, or parsing RSS/CAP warning prose into
 events.
 
+> **Amended by WO-007A** (Issue #13 Gate 1 follow-up; see
+> [`docs/tmd_candidate_evidence_contract.md`](tmd_candidate_evidence_contract.md)):
+> `CandidateValidationOutcome` (Section 5 below) gained two fields,
+> `candidate_filename` and `workflow_run_id`, alongside the fields already
+> documented here, and both the dry-run and live `candidate_cap_validation`
+> reports gained a `candidate_reference` object. On a *rejected* candidate
+> reference, `language`/`candidate_filename`/`evidence_run_id`/
+> `evidence_item_index` hold a safe, static descriptor (`{"provided",
+> "length", "validation_status"}`) rather than the raw submitted value --
+> with no exception for an already-parsed integer `evidence_item_index`,
+> since purely-numeric text is not inherently safer than alphanumeric
+> text, and no value-derived digest either, since an unsalted digest of
+> low-entropy input (a PIN/OTP) is offline brute-forceable. Nothing else
+> in this document changed -- Sections
+> 1-4 and 6-11 remain accurate as written for WO-006 (Implementation
+> v0.2.2); this increment still does not authorize a live candidate fetch.
+
 ## 1. WO-005 evidence this increment builds on
 
 WO-005 (Issue #10, closed) used the already-merged WO-004 discovery path
@@ -322,8 +339,25 @@ and never becomes a staging record or candidate event.
 
 `CandidateValidationOutcome` retains **only**:
 
-- `operation`, `mode`, `language` (bounded)
-- `evidence_run_id` (bounded), `evidence_item_index`, `workflow_sha`
+- `operation`, `mode`, `language` -- the actual validated value once
+  `build_candidate_reference` accepts it, else a safe, non-reversible
+  descriptor (WO-007A; see
+  [`docs/tmd_candidate_evidence_contract.md`](tmd_candidate_evidence_contract.md)
+  Section 2) -- never the raw caller-supplied text once a value is known
+  to have failed, or not yet passed, validation
+- `candidate_filename` (WO-007A, same accepted-value-or-descriptor rule)
+  -- so a Gate reviewer can see exactly which candidate a report
+  describes, including one rejected before any DNS or network activity,
+  without the report ever carrying unvalidated free text
+- `evidence_run_id` (same rule), `evidence_item_index` (same rule with no
+  exception for an already-parsed integer -- an out-of-range or overlong
+  numeric value is descriptor-ified exactly like a non-numeric one;
+  WO-007A round 2 review, finding 1)
+- `workflow_run_id` (WO-007A, `GITHUB_RUN_ID`), `workflow_sha`
+  (`GITHUB_SHA`) -- each `None` if the environment provided no value, a
+  static invalid-form marker if it provided one that did not match
+  GitHub's documented form for either (WO-007A, validated at origin),
+  or the actual value otherwise
 - `request_url` (derived, then redacted defensively even though it can
   never carry user-info by construction), `selected_ip`,
   `address_family`, `connected_ip_matches_selected`
