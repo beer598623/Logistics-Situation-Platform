@@ -30,6 +30,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from collectors.adapters.gdacs import GdacsAdapter, build_search_request  # noqa: E402
+from collectors.adapters.tmd_candidate import (  # noqa: E402
+    build_candidate_reference,
+    derive_candidate_request,
+)
 from collectors.adapters.tmd_cap import TmdCapAdapter, resolve_endpoint  # noqa: E402
 from collectors.error_classification import classify_error  # noqa: E402
 from collectors.registry import load_registry, source_by_id  # noqa: E402
@@ -94,10 +98,34 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--tmd-operation",
         default="direct_cap",
-        choices=["direct_cap", "rss_discovery"],
-        help="TMD CAP only: 'direct_cap' (default; current strict CAP behavior) or "
+        choices=["direct_cap", "rss_discovery", "candidate_cap_validation"],
+        help="TMD CAP only: 'direct_cap' (default; current strict CAP behavior), "
         "'rss_discovery' (classify and inspect one RSS envelope only -- never fetches "
-        "any discovered item link or enclosure).",
+        "any discovered item link or enclosure), or 'candidate_cap_validation' "
+        "(WO-006: validate exactly one human-selected candidate CAP file through the "
+        "DNS-pinned candidate transport -- never fetches an arbitrary URL).",
+    )
+    parser.add_argument(
+        "--candidate-filename",
+        default=None,
+        help="candidate_cap_validation only: a bare filename matching "
+        "CAPTMD<14 digits>_<digits>.xml -- never a URL, path, or host.",
+    )
+    parser.add_argument(
+        "--candidate-evidence-run-id",
+        default=None,
+        help="candidate_cap_validation only: the WO-005 discovery workflow run ID the "
+        "candidate filename was observed in. Provenance only -- not itself an "
+        "authorization to fetch.",
+    )
+    parser.add_argument(
+        "--candidate-item-index",
+        default=None,
+        help="candidate_cap_validation only: the discovery item index (bounded to "
+        "rss_discovery.MAX_ITEMS) the candidate filename was observed at. Deliberately "
+        "not `type=int` -- an empty or non-numeric workflow input string is passed "
+        "through to build_candidate_reference() for a clean, structured "
+        "CandidateReferenceError rather than an uncaught argparse crash.",
     )
     return parser.parse_args(argv)
 
@@ -262,10 +290,83 @@ def run_gdacs(args: argparse.Namespace, contract: dict[str, Any], dry_run: bool)
     return report
 
 
+def run_tmd_candidate_cap_validation(
+    args: argparse.Namespace, contract: dict[str, Any], dry_run: bool
+) -> dict[str, Any]:
+    """WO-006: validate exactly one human-selected candidate CAP file.
+
+    Kept as a separate function from ``run_tmd_cap`` (not a branch inside
+    it after endpoint resolution) because this operation never resolves a
+    contract endpoint at all -- the fetch target is derived entirely from
+    fixed policy (``collectors/adapters/tmd_candidate.py``), never from
+    ``config/sources.yaml``. Dry run validates the candidate reference and
+    derives the request URL with zero DNS or network activity; live mode
+    is implemented here but must never be invoked under WO-006 (Issue #11
+    authorizes implementation only, not a live candidate fetch).
+    """
+    report: dict[str, Any] = {
+        "operation": "candidate_cap_validation",
+        "language": args.language,
+    }
+
+    # A GitHub Actions workflow_dispatch input has no integer type -- this
+    # is always a string, possibly empty. Converting it here (rather than
+    # via argparse's `type=int`) means an empty or non-numeric value still
+    # reaches build_candidate_reference() for a clean, structured
+    # CandidateReferenceError instead of crashing before any report can be
+    # written.
+    raw_item_index = args.candidate_item_index
+    try:
+        item_index: Any = (
+            int(raw_item_index) if raw_item_index not in (None, "") else raw_item_index
+        )
+    except (TypeError, ValueError):
+        item_index = raw_item_index
+
+    if dry_run:
+        report["mode"] = "dry_run"
+        try:
+            reference = build_candidate_reference(
+                language=args.language,
+                candidate_filename=args.candidate_filename,
+                evidence_run_id=args.candidate_evidence_run_id,
+                evidence_item_index=item_index,
+            )
+            derived = derive_candidate_request(reference)
+            report["request_url"] = derived.url
+            report["note"] = (
+                "Candidate reference validated and request URL derived from fixed "
+                "policy only; zero DNS resolution and zero network calls were made."
+            )
+        except Exception as exc:  # noqa: BLE001 -- surfaced as a structured dry-run error
+            error_code, error_category = classify_error(exc)
+            report["error_code"] = error_code
+            report["error_category"] = error_category
+            report["errors"] = [f"{error_code}: {exc}"]
+        return report
+
+    adapter = TmdCapAdapter(contract, language=args.language)
+    outcome = adapter.validate_candidate(
+        candidate_filename=args.candidate_filename,
+        evidence_run_id=args.candidate_evidence_run_id,
+        evidence_item_index=item_index,
+    )
+    report["mode"] = "live"
+    report["candidate_validation"] = outcome.to_dict()
+    report["warnings"] = outcome.warnings
+    report["errors"] = outcome.errors
+    report["error_code"] = outcome.error_code
+    report["error_category"] = outcome.error_category
+    return report
+
+
 def run_tmd_cap(
     args: argparse.Namespace, contract: dict[str, Any], dry_run: bool
 ) -> dict[str, Any]:
     operation = args.tmd_operation
+    if operation == "candidate_cap_validation":
+        return run_tmd_candidate_cap_validation(args, contract, dry_run)
+
     endpoint = resolve_endpoint(contract, language=args.language)
     report: dict[str, Any] = {
         "operation": operation,

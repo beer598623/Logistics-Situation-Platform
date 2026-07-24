@@ -18,9 +18,21 @@ from collectors.adapters.rss_discovery import (  # noqa: E402
     RssParseError,
     RssSecurityError,
 )
+from collectors.adapters.tmd_candidate import (  # noqa: E402
+    CandidateEnvelopeMismatchError,
+    CandidateReferenceError,
+    CandidateUnexpectedStatusError,
+)
 from collectors.adapters.tmd_cap import TmdCapAdapter as RealTmdCapAdapter  # noqa: E402
 from collectors.adapters.xml_envelope import EnvelopeParseError, EnvelopeSecurityError  # noqa: E402
-from collectors.http_client import UnexpectedContentTypeError  # noqa: E402
+from collectors.http_client import (  # noqa: E402
+    DnsResolutionError,
+    NonGlobalAddressError,
+    PinnedConnectionError,
+    PinnedRedirectError,
+    PinnedTlsError,
+    UnexpectedContentTypeError,  # noqa: E402
+)
 from collectors.registry import load_registry, source_by_id  # noqa: E402
 from scripts import manual_live_source_test  # noqa: E402
 from scripts.manual_live_source_test import (  # noqa: E402
@@ -34,7 +46,7 @@ from scripts.manual_live_source_test import (  # noqa: E402
     run_gdacs,
     run_tmd_cap,
 )
-from tests.conftest import FakeHttpClient  # noqa: E402
+from tests.conftest import FakeHttpClient, fake_resolve_pinned  # noqa: E402
 
 CAP_FIXTURES = ROOT / "tests" / "fixtures" / "cap"
 RSS_FIXTURES = ROOT / "tests" / "fixtures" / "rss"
@@ -52,19 +64,30 @@ def _install_fake_tmd_adapter(
     headers: dict[str, str] | None = None,
     status: int = 200,
     response_url: str | None = None,
+    resolve_pinned=None,
+    raise_on_get_pinned_candidate: Exception | None = None,
+    connected_ip_override: str | None = None,
 ) -> FakeHttpClient:
     """Make ``run_tmd_cap``'s live-mode adapter construction (inside
     ``scripts.manual_live_source_test``) return a real ``TmdCapAdapter``
     wired to a ``FakeHttpClient`` instead of the real network client, so
     ``main()`` can be exercised end-to-end (full report construction,
     sanitization, forbidden-path check, exit code) with zero network
-    access."""
+    access. WO-006: also wires an injectable ``resolve_pinned`` (defaults
+    to a fake DNS-pinning resolver -- never the real one -- so
+    ``candidate_cap_validation`` live mode never performs real DNS
+    resolution in a test either)."""
     fake_http = FakeHttpClient(
         body=body, status=status, headers=headers or {}, response_url=response_url
     )
+    fake_http.raise_on_get_pinned_candidate = raise_on_get_pinned_candidate
+    fake_http.connected_ip_override = connected_ip_override
+    resolver = resolve_pinned or fake_resolve_pinned()
 
-    def _factory(contract, http=None, *, language="primary"):
-        return RealTmdCapAdapter(contract, http=fake_http, language=language)
+    def _factory(contract, http=None, *, language="primary", resolve_pinned=None):
+        return RealTmdCapAdapter(
+            contract, http=fake_http, language=language, resolve_pinned=resolver
+        )
 
     monkeypatch.setattr(manual_live_source_test, "TmdCapAdapter", _factory)
     return fake_http
@@ -99,7 +122,31 @@ def test_manual_workflow_has_a_bounded_tmd_operation_input(workflow: dict) -> No
     inputs = triggers["workflow_dispatch"]["inputs"]
     assert "tmd_operation" in inputs
     assert inputs["tmd_operation"]["default"] == "direct_cap"
-    assert inputs["tmd_operation"]["options"] == ["direct_cap", "rss_discovery"]
+    assert inputs["tmd_operation"]["options"] == [
+        "direct_cap",
+        "rss_discovery",
+        "candidate_cap_validation",
+    ]
+
+
+# --- WO-006 Scope E: candidate_cap_validation workflow inputs ---------------
+
+
+def test_manual_workflow_has_candidate_validation_inputs(workflow: dict) -> None:
+    triggers = workflow.get("on", workflow.get(True))
+    inputs = triggers["workflow_dispatch"]["inputs"]
+    assert {"candidate_filename", "candidate_evidence_run_id", "candidate_item_index"} <= set(
+        inputs
+    )
+    for name in ("candidate_filename", "candidate_evidence_run_id", "candidate_item_index"):
+        assert inputs[name]["required"] is False
+
+
+def test_manual_workflow_still_has_no_schedule_after_candidate_validation_addition(
+    workflow: dict,
+) -> None:
+    triggers = workflow.get("on", workflow.get(True))
+    assert set(triggers) == {"workflow_dispatch"}
 
 
 def test_manual_workflow_permissions_are_read_only(workflow: dict) -> None:
@@ -278,6 +325,464 @@ def test_run_tmd_cap_rss_discovery_dry_run_never_touches_network() -> None:
     assert "envelope_classification" not in report
 
 
+# --- WO-006 Scope E/G: candidate_cap_validation dry run (zero DNS/network) --
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_derives_url_with_zero_network() -> None:
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "30028391246"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["mode"] == "dry_run"
+    assert report["operation"] == "candidate_cap_validation"
+    assert (
+        report["request_url"] == "https://www.tmd.go.th/uploads/CAP/en/CAPTMD20260723155032_2.xml"
+    )
+    assert "candidate_validation" not in report
+    assert "errors" not in report
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_rejects_a_bad_filename() -> None:
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "../etc/passwd"
+        candidate_evidence_run_id = "1"
+        candidate_item_index = "0"
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["mode"] == "dry_run"
+    assert report["error_code"] == "CandidateReferenceError"
+    assert report["error_category"] == "validation"
+    assert "request_url" not in report
+
+
+def test_run_tmd_candidate_cap_validation_dry_run_rejects_a_blank_item_index() -> None:
+    # Simulates an unset GitHub Actions workflow_dispatch string input.
+    registry = load_registry()
+    contract = source_by_id(registry, "TMD_CAP")
+
+    class Args:
+        language = "primary"
+        tmd_operation = "candidate_cap_validation"
+        candidate_filename = "CAPTMD20260723155032_2.xml"
+        candidate_evidence_run_id = "30028391246"
+        candidate_item_index = ""
+
+    report = run_tmd_cap(Args(), contract, dry_run=True)
+    assert report["error_code"] == "CandidateReferenceError"
+    assert report["error_category"] == "validation"
+
+
+# --- WO-006 Scope E/G: candidate_cap_validation live mode (fakes only) ------
+
+
+def test_main_candidate_cap_validation_succeeds_and_minimizes_the_result(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "30028391246",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 0
+    validation = report["candidate_validation"]
+    assert validation["http_status"] == 200
+    assert validation["envelope_classification"]["envelope_kind"] == "cap_alert"
+    assert validation["connected_ip_matches_selected"] is True
+    assert validation["cap_identifier_length"] == len("synthetic-tmd-cap-0001")
+    assert "cap_identifier" not in validation
+    report_text = json.dumps(report)
+    # The raw CAP identifier and every piece of free-text CAP content must
+    # never appear anywhere in the final sanitized report.
+    for canary in (
+        "synthetic-tmd-cap-0001",
+        "Synthetic severe thunderstorm warning",
+        "Synthetic hazard description",
+        "Synthetic instruction text",
+        "https://example.test/synthetic-warning-0001",
+        "synthetic-contact@example.test",
+        "Synthetic Test Province",
+        "15.0,100.0",
+    ):
+        assert canary not in report_text
+
+
+def test_main_candidate_cap_validation_rejects_a_non_cap_envelope(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (RSS_FIXTURES / "same_host_link.xml").read_bytes()
+    _install_fake_tmd_adapter(monkeypatch, body=body, headers={"content-type": "text/xml"})
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    validation = report["candidate_validation"]
+    assert validation["error_code"] == "CandidateEnvelopeMismatchError"
+    assert validation["error_category"] == "parse"
+
+
+def test_main_candidate_cap_validation_rejects_dtd_xxe(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (CAP_FIXTURES / "dtd_entity_attack.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    validation = report["candidate_validation"]
+    assert validation["error_category"] == "security"
+    assert "/etc/passwd" not in json.dumps(report)
+
+
+def test_main_candidate_cap_validation_rejects_missing_identifier(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (CAP_FIXTURES / "missing_identifier.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    validation = report["candidate_validation"]
+    assert validation["error_code"] == "MalformedCapAlertError"
+    assert validation["error_category"] == "parse"
+    assert validation["cap_identifier_length"] is None
+
+
+def test_main_candidate_cap_validation_unexpected_content_type(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = b"<html><body>not xml</body></html>"
+    _install_fake_tmd_adapter(monkeypatch, body=body, headers={"content-type": "text/html"})
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    assert report["candidate_validation"]["error_category"] == "content_type"
+
+
+def test_main_candidate_cap_validation_response_too_large(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from collectors.adapters.tmd_cap import CANDIDATE_MAX_RESPONSE_BYTES
+
+    body = b"x" * (CANDIDATE_MAX_RESPONSE_BYTES + 1)
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    assert report["candidate_validation"]["error_category"] == "security"
+
+
+def test_main_candidate_cap_validation_304_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    _install_fake_tmd_adapter(monkeypatch, body=b"", status=304, headers={"etag": '"same"'})
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    validation = report["candidate_validation"]
+    assert validation["error_code"] == "UnexpectedNotModifiedError"
+    assert validation["http_status"] == 304
+
+
+def test_main_candidate_cap_validation_never_fetches_more_than_one_url(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    assert fake_http.pinned_call_count == 1
+    assert fake_http.call_count == 1
+
+
+def test_main_candidate_cap_validation_dns_failure_never_reaches_transport(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    def _raise_dns(hostname, port):
+        raise DnsResolutionError("simulated resolver failure")
+
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    fake_http = _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": "application/cap+xml"},
+        resolve_pinned=_raise_dns,
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    assert report["candidate_validation"]["error_code"] == "DnsResolutionError"
+    assert report["candidate_validation"]["error_category"] == "security"
+    assert fake_http.pinned_call_count == 0
+
+
+def test_main_candidate_cap_validation_connected_ip_mismatch_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch,
+        body=body,
+        headers={"content-type": "application/cap+xml"},
+        connected_ip_override="10.0.0.99",
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    validation = report["candidate_validation"]
+    assert validation["error_code"] == "PinnedConnectionError"
+    assert validation["connected_ip_matches_selected"] is False
+
+
+def test_main_candidate_cap_validation_never_creates_a_staging_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert "staging_sample" not in report
+    assert "collection_run" not in report
+
+
+def test_main_candidate_cap_validation_leaves_source_state_unchanged(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["contract_state"]["enabled"] is False
+    assert report["contract_state"]["machine_readable_status"] == "unverified"
+    assert report["contract_state"]["licence_status"] == "pending_review"
+
+
 # --- _classify_error_category: stable vocabulary for sanitized diagnostics --
 
 
@@ -295,6 +800,14 @@ def test_run_tmd_cap_rss_discovery_dry_run_never_touches_network() -> None:
         (UnexpectedContentTypeError("boom"), "content_type"),
         (ValueError("boom"), "validation"),
         (RuntimeError("boom"), "unexpected"),
+        (CandidateReferenceError("boom"), "validation"),
+        (CandidateEnvelopeMismatchError("boom"), "parse"),
+        (CandidateUnexpectedStatusError("boom"), "unexpected"),
+        (DnsResolutionError("boom"), "security"),
+        (NonGlobalAddressError("boom"), "security"),
+        (PinnedRedirectError("boom"), "security"),
+        (PinnedTlsError("boom"), "security"),
+        (PinnedConnectionError("boom"), "security"),
     ],
 )
 def test_classify_error_category_maps_known_exception_types(exc, expected_category) -> None:

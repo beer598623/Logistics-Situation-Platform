@@ -7,10 +7,16 @@ import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
 from collectors.adapters.cap import parse_cap_alert
-from collectors.adapters.tmd_cap import TmdCapAdapter, normalize_tmd_alert, resolve_endpoint
+from collectors.adapters.tmd_cap import (
+    CANDIDATE_MAX_RESPONSE_BYTES,
+    TmdCapAdapter,
+    normalize_tmd_alert,
+    resolve_endpoint,
+)
 from collectors.adapters.xml_envelope import RSS
+from collectors.http_client import DnsResolutionError
 from collectors.registry import load_registry, source_by_id
-from tests.conftest import FakeHttpClient
+from tests.conftest import FakeHttpClient, fake_resolve_pinned
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "cap"
@@ -727,3 +733,236 @@ def test_discover_rss_malformed_credential_bearing_guid_never_leaks_at_adapter_l
     serialized = json.dumps(outcome.to_dict())
     assert canary_user not in serialized
     assert canary_pass not in serialized
+
+
+# --- WO-006 Scope A-D/G: validate_candidate() ---------------------------------
+
+
+def _candidate_adapter(tmd_contract: dict, fake_http: FakeHttpClient, **kwargs) -> TmdCapAdapter:
+    resolve_pinned = kwargs.pop("resolve_pinned", None) or fake_resolve_pinned()
+    return TmdCapAdapter(tmd_contract, http=fake_http, resolve_pinned=resolve_pinned, **kwargs)
+
+
+def test_validate_candidate_accepts_an_exact_cap_1_2_alert(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="30028391246",
+        evidence_item_index=0,
+    )
+
+    assert outcome.errors == []
+    assert outcome.http_status == 200
+    assert outcome.envelope_classification["envelope_kind"] == "cap_alert"
+    assert outcome.connected_ip_matches_selected is True
+    assert outcome.cap_info_count == 2
+    assert outcome.cap_languages == ["en-US", "th-TH"]
+    assert outcome.cap_reference_count == 0
+    assert outcome.cap_area_count == 2
+    assert outcome.cap_status == "Actual"
+    assert outcome.cap_msg_type == "Alert"
+    assert outcome.cap_scope == "Public"
+    assert fake_http.pinned_call_count == 1
+    assert fake_http.call_count == 1
+
+
+def test_validate_candidate_never_retains_the_raw_identifier(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+
+    assert outcome.cap_identifier_length == len("synthetic-tmd-cap-0001")
+    assert len(outcome.cap_identifier_sha256) == 64
+    serialized = json.dumps(outcome.to_dict())
+    assert "synthetic-tmd-cap-0001" not in serialized
+
+
+def test_validate_candidate_never_retains_free_text_cap_content(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+
+    serialized = json.dumps(outcome.to_dict())
+    for canary in (
+        "Synthetic severe thunderstorm warning",
+        "Synthetic hazard description",
+        "Synthetic instruction text",
+        "https://example.test/synthetic-warning-0001",
+        "synthetic-contact@example.test",
+        "Synthetic Test Province",
+        "15.0,100.0",
+        "TH-10",
+    ):
+        assert canary not in serialized
+
+
+def test_validate_candidate_never_creates_a_staging_record(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert not hasattr(outcome, "records")
+    assert "records" not in outcome.to_dict()
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "expected_category"),
+    [
+        ("dtd_entity_attack.xml", "security"),
+        ("missing_identifier.xml", "parse"),
+    ],
+)
+def test_validate_candidate_strict_cap_failures_are_categorized(
+    tmd_contract: dict, fixture_name: str, expected_category: str
+) -> None:
+    body = _read(fixture_name)
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors
+    assert outcome.error_category == expected_category
+
+
+def test_validate_candidate_rejects_an_rss_envelope(tmd_contract: dict) -> None:
+    body = _read_rss("same_host_link.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "text/xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "CandidateEnvelopeMismatchError"
+    assert outcome.error_category == "parse"
+    assert outcome.envelope_classification["envelope_kind"] == RSS
+
+
+def test_validate_candidate_unexpected_content_type_is_rejected(tmd_contract: dict) -> None:
+    body = b"<html>not xml</html>"
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "text/html"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_category == "content_type"
+
+
+def test_validate_candidate_oversized_response_fails_before_parsing(tmd_contract: dict) -> None:
+    body = b"x" * (CANDIDATE_MAX_RESPONSE_BYTES + 1)
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_category == "security"
+    assert outcome.envelope_classification is None
+
+
+def test_validate_candidate_304_fails_closed(tmd_contract: dict) -> None:
+    fake_http = FakeHttpClient(body=b"", status=304, headers={"etag": '"abc"'})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "UnexpectedNotModifiedError"
+    assert outcome.http_status == 304
+
+
+def test_validate_candidate_reference_error_never_reaches_the_network(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="../etc/passwd",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "CandidateReferenceError"
+    assert outcome.error_category == "validation"
+    assert fake_http.pinned_call_count == 0
+    assert fake_http.call_count == 0
+
+
+def test_validate_candidate_dns_rejection_never_reaches_the_transport(tmd_contract: dict) -> None:
+    def _raise_dns(hostname, port):
+        raise DnsResolutionError("simulated failure")
+
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http, resolve_pinned=_raise_dns)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "DnsResolutionError"
+    assert outcome.error_category == "security"
+    assert fake_http.pinned_call_count == 0
+
+
+def test_validate_candidate_connected_ip_mismatch_fails_closed(tmd_contract: dict) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    fake_http.connected_ip_override = "10.0.0.99"
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert isinstance(outcome.error_code, str)
+    assert outcome.error_code == "PinnedConnectionError"
+    assert outcome.connected_ip_matches_selected is False
+
+
+def test_validate_candidate_derives_the_thai_url_and_ignores_the_contract_endpoint(
+    tmd_contract: dict,
+) -> None:
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http, language="thai_language_cap")
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.request_url == "https://www.tmd.go.th/uploads/CAP/CAPTMD20260723155032_2.xml"

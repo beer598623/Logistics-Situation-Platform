@@ -7,7 +7,11 @@ source terms, endpoint behavior, and fixtures have been reviewed.
 from __future__ import annotations
 
 import hashlib
+import http.client
+import ipaddress
 import random
+import socket
+import ssl
 import time
 import urllib.request
 from collections.abc import Mapping, Sequence
@@ -67,6 +71,126 @@ def _build_no_redirect_opener() -> urllib.request.OpenerDirector:
     ``_NoRedirectHandler``) without touching production networking code or
     opening a real socket."""
     return urllib.request.build_opener(_NoRedirectHandler)
+
+
+#: WO-006 Scope B: a candidate-only pinned-DNS transport, kept fully
+#: separate from ``get()`` and ``get_no_redirect()`` above -- neither of
+#: those methods exposes a DNS-resolution step at all (both delegate host
+#: resolution entirely to urllib/urlopen internals), so this is new,
+#: additional restriction, never a relaxation of either existing path.
+class DnsResolutionError(RuntimeError):
+    """Raised when DNS resolution for a pinned candidate hostname fails
+    outright, or succeeds but returns no usable address at all."""
+
+
+class NonGlobalAddressError(RuntimeError):
+    """Raised when DNS resolution for a pinned candidate hostname returns
+    at least one address that is not globally routable (private,
+    loopback, link-local, multicast, reserved, unspecified, or otherwise
+    non-global per :mod:`ipaddress`). The entire resolution is rejected --
+    fail closed -- even if other addresses in the same answer are global;
+    a partially non-global answer is itself treated as untrustworthy."""
+
+
+class PinnedRedirectError(RuntimeError):
+    """Raised when a DNS-pinned candidate fetch receives an HTTP 3xx
+    response. This transport never constructs or sends a second request
+    to a ``Location`` target -- the single physical request has already
+    completed by the time this is raised, mirroring (but kept separate
+    from) ``DiscoveryRedirectError`` above."""
+
+
+class PinnedTlsError(RuntimeError):
+    """Raised when the TLS handshake or hostname verification fails while
+    connecting to a DNS-pinned candidate address. The message never
+    includes certificate contents, only the sanitized exception class."""
+
+
+class PinnedConnectionError(RuntimeError):
+    """Raised when the direct socket connection to a DNS-pinned, already
+    address-validated candidate IP fails for a reason other than TLS, or
+    when the HTTP exchange over that connection fails at the protocol
+    level."""
+
+
+def _is_globally_routable(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Explicit, fail-closed address check for WO-006 Scope B step 2.
+
+    Private, loopback, link-local, multicast, reserved, and unspecified
+    addresses are all rejected by name, matching the issue's own
+    enumeration; ``is_global`` is checked in addition (not instead) to
+    catch any other special-purpose, non-global range not covered by the
+    explicit checks above.
+    """
+    if ip.is_private or ip.is_loopback or ip.is_link_local:
+        return False
+    if ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+        return False
+    return bool(ip.is_global)
+
+
+@dataclass(slots=True, frozen=True)
+class PinnedResolution:
+    selected_ip: str
+    address_family: str  # "IPv4" or "IPv6"
+
+
+def resolve_pinned_address(hostname: str, port: int) -> PinnedResolution:
+    """Resolve ``hostname`` and deterministically select exactly one
+    globally routable address (WO-006 Scope B steps 1-3).
+
+    Fails closed -- raises rather than silently filtering -- if
+    resolution is empty, or if *any* returned address is not globally
+    routable, even when other addresses in the same answer are global.
+    Selection among the addresses that survive is deterministic: sorted
+    IPv4 first; IPv6 is only considered if no IPv4 address was returned.
+    """
+    try:
+        addrinfo = socket.getaddrinfo(hostname, port, proto=socket.IPPROTO_TCP)
+    except OSError as exc:
+        raise DnsResolutionError(f"DNS resolution failed for {hostname}") from exc
+
+    addresses: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
+    for _family, _socktype, _proto, _canonname, sockaddr in addrinfo:
+        try:
+            addresses.append(ipaddress.ip_address(sockaddr[0]))
+        except ValueError:
+            continue
+
+    if not addresses:
+        raise DnsResolutionError(f"DNS resolution for {hostname} returned no usable address")
+
+    if any(not _is_globally_routable(ip) for ip in addresses):
+        raise NonGlobalAddressError(
+            f"DNS resolution for {hostname} returned a non-globally-routable address; "
+            "the entire resolution is rejected"
+        )
+
+    ipv4_addresses = sorted((ip for ip in addresses if ip.version == 4), key=int)
+    if ipv4_addresses:
+        return PinnedResolution(selected_ip=str(ipv4_addresses[0]), address_family="IPv4")
+
+    ipv6_addresses = sorted((ip for ip in addresses if ip.version == 6), key=int)
+    return PinnedResolution(selected_ip=str(ipv6_addresses[0]), address_family="IPv6")
+
+
+#: Response headers are bounded independently of the response body cap --
+#: a candidate response's headers are read into memory before the body
+#: streaming/size check below even begins.
+_MAX_PINNED_HEADER_BYTES = 65536
+
+
+def _open_pinned_socket(
+    selected_ip: str, port: int, verify_hostname: str, *, timeout_seconds: float
+) -> ssl.SSLSocket:
+    """Open a raw TCP connection to ``selected_ip`` -- never re-resolving
+    ``verify_hostname`` -- and TLS-wrap it with SNI and certificate
+    verification pinned to ``verify_hostname``. Factored out so tests can
+    substitute an in-memory socket pair without opening a real connection
+    or performing a real TLS handshake."""
+    raw_sock = socket.create_connection((selected_ip, port), timeout=timeout_seconds)
+    context = ssl.create_default_context()
+    return context.wrap_socket(raw_sock, server_hostname=verify_hostname)
 
 
 def validate_content_type(
@@ -237,3 +361,94 @@ class ResilientHttpClient:
                     content_sha256=self.sha256(b""),
                 )
             raise
+
+    def get_pinned_candidate(
+        self,
+        *,
+        hostname: str,
+        port: int,
+        path: str,
+        selected_ip: str,
+        timeout_seconds: int,
+        max_response_bytes: int,
+    ) -> tuple[HttpResponse, str]:
+        """Candidate-only pinned transport (WO-006 Scope B).
+
+        Makes exactly one physical HTTPS GET to ``selected_ip`` -- never
+        performing a second DNS lookup of ``hostname`` -- while preserving
+        TLS certificate verification and SNI for ``hostname`` and sending
+        ``Host: hostname``. No retry loop, no redirect follow (a 3xx
+        response raises ``PinnedRedirectError`` before any second request
+        could be constructed), no environment proxy (this never goes
+        through ``urllib``, which is the only thing in this module that
+        consults ``HTTP_PROXY``/``HTTPS_PROXY``), no cookies, no
+        authentication, no request body. Returns the response together
+        with the IP address the socket actually connected to, so a caller
+        can confirm it equals ``selected_ip``.
+
+        Kept entirely separate from ``get()`` and ``get_no_redirect()``
+        above: this method shares no connection-building code with either,
+        so GDACS, direct-CAP, and RSS-discovery transport behavior is
+        unaffected by this addition.
+        """
+        try:
+            sock = _open_pinned_socket(selected_ip, port, hostname, timeout_seconds=timeout_seconds)
+        except ssl.SSLError as exc:
+            raise PinnedTlsError(
+                f"TLS handshake or hostname verification failed for {hostname}"
+            ) from exc
+        except OSError as exc:
+            raise PinnedConnectionError("connection to pinned candidate address failed") from exc
+
+        connected_ip = sock.getpeername()[0]
+        conn = http.client.HTTPConnection(selected_ip, port, timeout=timeout_seconds)
+        conn.sock = sock
+        try:
+            request_headers = {
+                "Host": hostname,
+                "User-Agent": self.user_agent,
+                "Accept": "*/*",
+                "Connection": "close",
+            }
+            conn.request("GET", path, headers=request_headers)
+            response = conn.getresponse()
+
+            header_bytes = sum(len(name) + len(value) for name, value in response.getheaders())
+            if header_bytes > _MAX_PINNED_HEADER_BYTES:
+                raise ResponseTooLargeError(
+                    f"Response headers from {hostname} exceeded {_MAX_PINNED_HEADER_BYTES} bytes"
+                )
+
+            # 304 is technically in the 3xx range but is not a redirect --
+            # it carries no Location to follow and is a conditional-request
+            # response, not a "go elsewhere" instruction. It is passed
+            # through unmodified here, exactly like get()/get_no_redirect()
+            # above; treating an *uncacheable* 304 as a structured failure
+            # (no validator was ever sent) is the candidate-validation
+            # adapter's responsibility, not this transport's.
+            if response.status != 304 and 300 <= response.status < 400:
+                raise PinnedRedirectError(
+                    f"refused HTTP {response.status} redirect for pinned candidate fetch; "
+                    "this transport never requests a Location target"
+                )
+
+            body = response.read(max_response_bytes + 1)
+            if len(body) > max_response_bytes:
+                raise ResponseTooLargeError(
+                    f"Response from {hostname} exceeded {max_response_bytes} bytes"
+                )
+            normalized_headers = {key.lower(): value for key, value in response.getheaders()}
+            http_response = HttpResponse(
+                url=f"https://{hostname}{path}",
+                status=response.status,
+                headers=normalized_headers,
+                body=body,
+                content_sha256=self.sha256(body),
+            )
+            return http_response, connected_ip
+        except http.client.HTTPException as exc:
+            raise PinnedConnectionError(
+                f"HTTP protocol error fetching pinned candidate from {hostname}"
+            ) from exc
+        finally:
+            conn.close()

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from collectors.http_client import HttpResponse, ResilientHttpClient, ResponseTooLargeError
+from collectors.http_client import (
+    HttpResponse,
+    PinnedResolution,
+    ResilientHttpClient,
+    ResponseTooLargeError,
+)
 
 
 @dataclass
@@ -25,6 +30,19 @@ class FakeHttpClient:
     last_attempts: int | None = field(default=None, init=False)
     no_redirect_call_count: int = field(default=0, init=False)
     raise_on_get_no_redirect: Exception | None = None
+    #: WO-006 Scope B/G: fake for the DNS-pinned candidate transport.
+    #: ``pinned_call_count`` and ``last_pinned_selected_ip`` let a test
+    #: assert exactly one physical candidate fetch occurred and which IP
+    #: it was given. ``raise_on_get_pinned_candidate`` simulates a
+    #: transport-level failure (DNS/TLS/connection/redirect) without
+    #: exercising real sockets -- see ``tests/test_http_client.py`` for
+    #: the transport-level tests that do exercise the real pinning code.
+    #: ``connected_ip_override`` lets a test simulate the pinned/connected
+    #: IP mismatch defensive check in ``TmdCapAdapter.validate_candidate``.
+    pinned_call_count: int = field(default=0, init=False)
+    last_pinned_selected_ip: str | None = field(default=None, init=False)
+    raise_on_get_pinned_candidate: Exception | None = None
+    connected_ip_override: str | None = None
 
     def get(
         self,
@@ -78,3 +96,47 @@ class FakeHttpClient:
             body=self.body,
             content_sha256=ResilientHttpClient.sha256(self.body),
         )
+
+    def get_pinned_candidate(
+        self,
+        *,
+        hostname: str,
+        port: int,
+        path: str,
+        selected_ip: str,
+        timeout_seconds: int,
+        max_response_bytes: int,
+    ) -> tuple[HttpResponse, str]:
+        """Mirrors ``ResilientHttpClient.get_pinned_candidate`` -- no DNS
+        lookup or socket is ever touched. Returns ``connected_ip_override``
+        if set (to simulate the connected-IP-mismatch defensive check),
+        else echoes ``selected_ip`` back, matching what the real transport
+        guarantees by construction."""
+        self.call_count += 1
+        self.pinned_call_count += 1
+        self.last_pinned_selected_ip = selected_ip
+        if self.raise_on_get_pinned_candidate is not None:
+            raise self.raise_on_get_pinned_candidate
+        if len(self.body) > max_response_bytes:
+            raise ResponseTooLargeError("fake response exceeds max_response_bytes")
+        response = HttpResponse(
+            url=self.response_url or f"https://{hostname}{path}",
+            status=self.status,
+            headers=dict(self.headers),
+            body=self.body,
+            content_sha256=ResilientHttpClient.sha256(self.body),
+        )
+        return response, self.connected_ip_override or selected_ip
+
+
+def fake_resolve_pinned(selected_ip: str = "203.0.113.10", address_family: str = "IPv4"):
+    """Build an injectable, network-free stand-in for
+    ``collectors.http_client.resolve_pinned_address`` -- returns a fixed,
+    RFC 5737 documentation-range address rather than doing any real DNS
+    resolution. Pass the returned callable as
+    ``TmdCapAdapter(..., resolve_pinned=...)``."""
+
+    def _resolve(hostname: str, port: int) -> PinnedResolution:  # noqa: ARG001
+        return PinnedResolution(selected_ip=selected_ip, address_family=address_family)
+
+    return _resolve
