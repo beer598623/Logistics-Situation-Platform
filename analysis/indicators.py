@@ -250,16 +250,17 @@ def derive_series(
     limitations: list[str] = []
 
     current = available[-1] if available else None
-    current_value = current.value if current else None
+    # ``is_available`` already guarantees a non-null value on every entry in
+    # ``available``; binding it once keeps the arithmetic below free of
+    # repeated narrowing.
+    current_value: float | None = current.value if current else None
 
     previous_change: float | None = None
     previous_change_pct: float | None = None
     if current is not None and len(available) >= 2:
-        previous = available[-2]
-        assert previous.value is not None  # guaranteed by is_available
-        assert current.value is not None
-        previous_change = current.value - previous.value
-        previous_change_pct = _pct_change(current.value, previous.value)
+        previous_value = float(available[-2].value)  # type: ignore[arg-type]
+        previous_change = float(current_value) - previous_value  # type: ignore[arg-type]
+        previous_change_pct = _pct_change(float(current_value), previous_value)  # type: ignore[arg-type]
         if previous_change_pct is None:
             limitations.append(
                 "Previous-period percentage change is undefined because the earlier "
@@ -276,8 +277,7 @@ def derive_series(
     if current is not None and current.period_type == "month":
         prior_month = _find_offset_point(available, current, months=1)
         if prior_month is not None and prior_month.value:
-            assert current.value is not None
-            mom_pct = _pct_change(current.value, prior_month.value)
+            mom_pct = _pct_change(float(current_value), prior_month.value)  # type: ignore[arg-type]
         elif prior_month is None:
             limitations.append(
                 "Month-over-month change is unavailable because the immediately "
@@ -285,8 +285,7 @@ def derive_series(
             )
         prior_year = _find_offset_point(available, current, months=12)
         if prior_year is not None and prior_year.value:
-            assert current.value is not None
-            yoy_pct = _pct_change(current.value, prior_year.value)
+            yoy_pct = _pct_change(float(current_value), prior_year.value)  # type: ignore[arg-type]
         elif prior_year is None:
             limitations.append(
                 "Year-over-year change is unavailable because the same period one "
@@ -318,8 +317,7 @@ def derive_series(
                 "is published."
             )
     elif current is not None and baseline_value is not None:
-        assert current.value is not None
-        deviation = current.value - baseline_value
+        deviation = float(current_value) - baseline_value  # type: ignore[arg-type]
 
     revision_status = "unknown"
     if current is not None:

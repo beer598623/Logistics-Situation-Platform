@@ -175,11 +175,14 @@ def main() -> int:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
 
-    print(f"Review package written to {target.relative_to(ROOT) if target.is_relative_to(ROOT) else target}")
+    shown = target.relative_to(ROOT) if target.is_relative_to(ROOT) else target
+    print(f"Review package written to {shown}")
     print(f"  package_sha256 : {package['package_sha256']}")
     print(f"  data cutoff    : {package['data_cutoff_at']}")
-    print(f"  events         : {len(package['active_operational_events'])} operational, "
-          f"{len(package['external_drivers'])} drivers/leads")
+    print(
+        f"  events         : {len(package['active_operational_events'])} operational, "
+        f"{len(package['external_drivers'])} drivers/leads"
+    )
     print(f"  evidence items : {len(package['evidence_records'])}")
     print(f"  lanes          : {len(package['lane_status'])}")
     print()
@@ -188,8 +191,11 @@ def main() -> int:
     print("     contains, asking for a reply matching schemas/review_package_output.schema.json.")
     print("  2. Save the structured reply to data/review/inbound/<package-id>.json.")
     print("  3. Run: python scripts/import_review.py --package-id " + args.package_id)
-    print("  4. Run: python scripts/review_decision.py --package-id " + args.package_id +
-          " --decision approve --reviewer '<name or record>'")
+    print(
+        "  4. Run: python scripts/review_decision.py --package-id "
+        + args.package_id
+        + " --decision approve --reviewer '<name or record>'"
+    )
     return 0
 
 

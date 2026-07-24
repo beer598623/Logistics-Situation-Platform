@@ -132,9 +132,7 @@ def _entry_fields(element: Any) -> tuple[str, str, str | None, str | None, str |
     if element.tag == f"{_ATOM_NS}entry":
         title = (element.findtext(f"{_ATOM_NS}title") or "").strip()
         summary = (
-            element.findtext(f"{_ATOM_NS}summary")
-            or element.findtext(f"{_ATOM_NS}content")
-            or ""
+            element.findtext(f"{_ATOM_NS}summary") or element.findtext(f"{_ATOM_NS}content") or ""
         ).strip()
         link_element = element.find(f"{_ATOM_NS}link")
         link = link_element.get("href") if link_element is not None else None

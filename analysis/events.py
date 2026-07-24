@@ -314,7 +314,9 @@ def validate_event(
     if unknown:
         problems.append(f"{event_id}: references unknown evidence IDs {sorted(unknown)}")
 
-    evidence_items = [evidence_by_id[eid] for eid in event.get("evidence_ids", []) if eid in known_ids]
+    evidence_items = [
+        evidence_by_id[eid] for eid in event.get("evidence_ids", []) if eid in known_ids
+    ]
 
     declared_completeness = event.get("transmission_chain", {}).get("completeness")
     computed, missing = evaluate_transmission_chain(
@@ -347,9 +349,7 @@ def validate_event(
 
     for impact in event.get("impact_assessments", []):
         area = impact.get("area")
-        if impact.get("status") == "no_material" and not event.get(
-            "negative_operational_evidence"
-        ):
+        if impact.get("status") == "no_material" and not event.get("negative_operational_evidence"):
             problems.append(
                 f"{event_id}/{area}: status 'no_material' requires negative operational "
                 "evidence from an actual assessment; it must not be used where impact was "
@@ -401,9 +401,7 @@ def validate_event(
     if event.get("thailand_relevance") != "none_established" and not event.get(
         "thailand_relevance_basis"
     ):
-        problems.append(
-            f"{event_id}: Thailand relevance is asserted without a recorded basis"
-        )
+        problems.append(f"{event_id}: Thailand relevance is asserted without a recorded basis")
 
     admitted, reason = external_driver_admission(event)
     if not admitted and material_areas:

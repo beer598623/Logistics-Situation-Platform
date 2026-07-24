@@ -132,7 +132,9 @@ def main() -> int:
         }
     )
 
-    print(f"[{args.decision.upper()}] {args.package_id} recorded by {args.reviewer} at {timestamp}.")
+    print(
+        f"[{args.decision.upper()}] {args.package_id} recorded by {args.reviewer} at {timestamp}."
+    )
     if archived:
         print(f"Previous approved assessment archived to {archived}.")
     if args.decision == "approve":

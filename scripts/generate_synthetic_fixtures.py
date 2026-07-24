@@ -138,9 +138,24 @@ def generate_port() -> None:
             [
                 period,
                 f"{period}-25T00:00:00Z",
-                _cell("laem_chabang_teu", index, _wave(index, base=760_000, trend=0.0035, amplitude=48_000, phase=1), 0),
-                _cell("bangkok_port_teu", index, _wave(index, base=118_000, trend=0.0012, amplitude=9_000, phase=4), 0),
-                _cell("thailand_port_calls", index, _wave(index, base=1_450, trend=0.0018, amplitude=95, phase=2), 0),
+                _cell(
+                    "laem_chabang_teu",
+                    index,
+                    _wave(index, base=760_000, trend=0.0035, amplitude=48_000, phase=1),
+                    0,
+                ),
+                _cell(
+                    "bangkok_port_teu",
+                    index,
+                    _wave(index, base=118_000, trend=0.0012, amplitude=9_000, phase=4),
+                    0,
+                ),
+                _cell(
+                    "thailand_port_calls",
+                    index,
+                    _wave(index, base=1_450, trend=0.0018, amplitude=95, phase=2),
+                    0,
+                ),
             ]
         )
     _write(FIXTURE_DIR / "thailand_port_activity_monthly.csv", header, rows)
@@ -160,8 +175,18 @@ def generate_cost() -> None:
             [
                 period,
                 f"{period}-20T00:00:00Z",
-                _cell("thailand_diesel_retail", index, _wave(index, base=31.5, trend=0.0022, amplitude=1.35, phase=5), 2),
-                _cell("brent_crude", index, _wave(index, base=79.0, trend=0.0015, amplitude=6.4, phase=0), 2),
+                _cell(
+                    "thailand_diesel_retail",
+                    index,
+                    _wave(index, base=31.5, trend=0.0022, amplitude=1.35, phase=5),
+                    2,
+                ),
+                _cell(
+                    "brent_crude",
+                    index,
+                    _wave(index, base=79.0, trend=0.0015, amplitude=6.4, phase=0),
+                    2,
+                ),
                 _cell(
                     "container_freight_benchmark",
                     index,
@@ -181,9 +206,24 @@ def generate_indicators() -> None:
             [
                 period,
                 f"{period}-15T00:00:00Z",
-                _cell("usd_thb_rate", index, _wave(index, base=34.6, trend=0.0009, amplitude=0.85, phase=3), 3),
-                _cell("gscpi_index", index, _wave(index, base=0.16, trend=0.010, amplitude=0.42, phase=6), 3),
-                _cell("thailand_lsci", index, _wave(index, base=42.5, trend=0.0011, amplitude=1.1, phase=2), 2),
+                _cell(
+                    "usd_thb_rate",
+                    index,
+                    _wave(index, base=34.6, trend=0.0009, amplitude=0.85, phase=3),
+                    3,
+                ),
+                _cell(
+                    "gscpi_index",
+                    index,
+                    _wave(index, base=0.16, trend=0.010, amplitude=0.42, phase=6),
+                    3,
+                ),
+                _cell(
+                    "thailand_lsci",
+                    index,
+                    _wave(index, base=42.5, trend=0.0011, amplitude=1.1, phase=2),
+                    2,
+                ),
             ]
         )
     _write(FIXTURE_DIR / "baseline_indicators_monthly.csv", header, rows)

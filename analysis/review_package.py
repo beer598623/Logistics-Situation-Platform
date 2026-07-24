@@ -124,7 +124,11 @@ def _text_fields(output: Mapping[str, Any]) -> list[tuple[str, str, list[str]]]:
     for group in ("verified_facts", "reported_claims", "analytical_inference"):
         for index, item in enumerate(output.get(group, [])):
             collected.append(
-                (f"{group}[{index}]", str(item.get("statement", "")), list(item.get("evidence_ids", [])))
+                (
+                    f"{group}[{index}]",
+                    str(item.get("statement", "")),
+                    list(item.get("evidence_ids", [])),
+                )
             )
     for group in ("observed_impacts", "potential_impacts"):
         for index, item in enumerate(output.get(group, [])):
@@ -251,15 +255,13 @@ def validate_output(
             f"package {package.get('package_id')!r}"
         )
 
-    known_evidence = {
-        str(item.get("evidence_id")) for item in package.get("evidence_records", [])
-    }
+    known_evidence = {str(item.get("evidence_id")) for item in package.get("evidence_records", [])}
     referenced = set(output.get("evidence_references", []))
     unknown = referenced - known_evidence
     if unknown:
         problems.append(f"references unknown evidence IDs {sorted(unknown)}")
 
-    for location, text, evidence_ids in _text_fields(output):
+    for location, _text, evidence_ids in _text_fields(output):
         unknown_local = set(evidence_ids) - known_evidence
         if unknown_local:
             problems.append(f"{location}: references unknown evidence IDs {sorted(unknown_local)}")
@@ -304,8 +306,7 @@ def validate_output(
             for phrase in _CAUSAL_PHRASES:
                 if phrase in lowered:
                     problems.append(
-                        f"{location}: asserts causation ({phrase!r}) with no evidence "
-                        "reference"
+                        f"{location}: asserts causation ({phrase!r}) with no evidence reference"
                     )
 
     for group in ("observed_impacts", "potential_impacts"):

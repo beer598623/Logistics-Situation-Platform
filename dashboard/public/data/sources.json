@@ -1,0 +1,906 @@
+{
+  "generated_at": "2026-07-24T00:00:00Z",
+  "policy": "free_public_sources_only",
+  "registry_version": "0.3",
+  "last_reviewed_at": "2026-07-24",
+  "overall_status": "insufficient",
+  "coverage_message": "One or more required capabilities lack sufficient source coverage.",
+  "capabilities": [
+    {
+      "capability": "chokepoint_activity_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "IMF_PORTWATCH"
+      ],
+      "gap_reason": "No enabled source currently backs chokepoint_activity_indicator."
+    },
+    {
+      "capability": "chokepoint_notice",
+      "status": "insufficient",
+      "supporting_sources": [
+        "ACP_ADVISORY",
+        "SCA_CIRCULAR",
+        "MPA_SG_NOTICE"
+      ],
+      "gap_reason": "No enabled source currently backs chokepoint_notice."
+    },
+    {
+      "capability": "connectivity_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "UNCTAD_MARITIME"
+      ],
+      "gap_reason": "No enabled source currently backs connectivity_indicator."
+    },
+    {
+      "capability": "cost_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "EPPO_FUEL",
+        "BOT_FX"
+      ],
+      "gap_reason": "No enabled source currently backs cost_context."
+    },
+    {
+      "capability": "energy_cost_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "WB_COMMODITY"
+      ],
+      "gap_reason": "No enabled source currently backs energy_cost_context."
+    },
+    {
+      "capability": "event_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "GDACS"
+      ],
+      "gap_reason": "No enabled source currently backs event_context."
+    },
+    {
+      "capability": "external_driver_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "NEWS_DISCOVERY"
+      ],
+      "gap_reason": "No enabled source currently backs external_driver_context."
+    },
+    {
+      "capability": "fx_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "BOT_FX"
+      ],
+      "gap_reason": "No enabled source currently backs fx_context."
+    },
+    {
+      "capability": "global_baseline_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "GSCPI",
+        "WB_COMMODITY"
+      ],
+      "gap_reason": "No enabled source currently backs global_baseline_indicator."
+    },
+    {
+      "capability": "hazard_detection",
+      "status": "insufficient",
+      "supporting_sources": [
+        "GDACS",
+        "TMD_CAP"
+      ],
+      "gap_reason": "No enabled source currently backs hazard_detection."
+    },
+    {
+      "capability": "news_discovery",
+      "status": "insufficient",
+      "supporting_sources": [
+        "NEWS_DISCOVERY"
+      ],
+      "gap_reason": "No enabled source currently backs news_discovery."
+    },
+    {
+      "capability": "official_operational_notice",
+      "status": "insufficient",
+      "supporting_sources": [
+        "PAT_NOTICE",
+        "ACP_ADVISORY",
+        "SCA_CIRCULAR",
+        "MPA_SG_NOTICE",
+        "MANUAL_NOTICE_INTAKE"
+      ],
+      "gap_reason": "No enabled source currently backs official_operational_notice."
+    },
+    {
+      "capability": "port_activity_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "IMF_PORTWATCH",
+        "UNCTAD_MARITIME"
+      ],
+      "gap_reason": "No enabled source currently backs port_activity_indicator."
+    },
+    {
+      "capability": "thailand_fuel_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "EPPO_FUEL"
+      ],
+      "gap_reason": "No enabled source currently backs thailand_fuel_indicator."
+    },
+    {
+      "capability": "thailand_port_operations",
+      "status": "insufficient",
+      "supporting_sources": [
+        "PAT_NOTICE"
+      ],
+      "gap_reason": "No enabled source currently backs thailand_port_operations."
+    },
+    {
+      "capability": "thailand_trade_indicator",
+      "status": "insufficient",
+      "supporting_sources": [
+        "TH_CUSTOMS"
+      ],
+      "gap_reason": "No enabled source currently backs thailand_trade_indicator."
+    },
+    {
+      "capability": "thailand_weather_alerts",
+      "status": "insufficient",
+      "supporting_sources": [
+        "TMD_CAP"
+      ],
+      "gap_reason": "No enabled source currently backs thailand_weather_alerts."
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "GDACS",
+      "name": "Global Disaster Alert and Coordination System",
+      "owner": "European Commission Joint Research Centre and United Nations",
+      "source_class": "international",
+      "landing_url": "https://www.gdacs.org/",
+      "endpoint": "https://www.gdacs.org/gdacsapi/api/Events/geteventlist/SEARCH",
+      "access_method": "api",
+      "format": "geojson",
+      "machine_readable_status": "verified",
+      "licence_status": "reviewed",
+      "terms_url": "https://www.gdacs.org/documents/2025/GDACS_Terms_of_use_Mar_25.pdf",
+      "publication_cadence": null,
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": null,
+      "reuse_status": null,
+      "redistribution_status": null,
+      "logistics_role": [],
+      "prototype_eligibility": null,
+      "live_validation_status": null,
+      "blockers": [],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "Hazard alerts do not by themselves establish operational logistics disruption.",
+        "Publication timing and alert levels vary by hazard type.",
+        "No official fixed polling cadence or public rate-limit quota was found; expected_cadence_minutes is unknown, not a proven six-minute cadence.",
+        "Because expected_cadence_minutes is unknown, source-health evaluation currently derives its fresh/stale boundary from half of max_stale_minutes; this derived boundary is an implementation default, not an official GDACS cadence, and any future production-enablement change must define this explicitly rather than treating the derived value as fact.",
+        "Responses are limited to 100 records per page; callers must page with pagenumber (and optionally pagesize) to retrieve a full result set.",
+        "GDACS alert levels and impact estimates are model outputs and must remain a source signal (source_alert_level), never platform logistics severity.",
+        "Automatic notifications may contain uncertainty or error, do not replace national authorities, and have no guaranteed completeness or timeliness."
+      ],
+      "health": {
+        "source_id": "GDACS",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 180
+      }
+    },
+    {
+      "source_id": "TMD_CAP",
+      "name": "Thai Meteorological Department warnings and CAP services",
+      "owner": "Thai Meteorological Department",
+      "source_class": "official",
+      "landing_url": "https://www.tmd.go.th/en/",
+      "endpoint": "https://www.tmd.go.th/en/api/xml/CAP",
+      "access_method": "cap",
+      "format": "xml",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": "https://www.tmd.go.th/content/copyright",
+      "publication_cadence": null,
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": null,
+      "reuse_status": null,
+      "redistribution_status": null,
+      "logistics_role": [],
+      "prototype_eligibility": null,
+      "live_validation_status": null,
+      "blockers": [],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "Machine-readable endpoint and update cadence must pass an integration test before enablement.",
+        "A warning indicates hazard potential, not confirmed transport or facility disruption.",
+        "TMD's copyright notice permits non-commercial public republication with source attribution, but its separate website policy states that deep-linking to internal pages requires written permission; these statements are not fully aligned, so licence_status remains pending_review and the conflict is not assumed resolved.",
+        "The controlled manual workflow has validated content type and parseability of the live English and Thai endpoints (see the WO-003 evidence below): both currently serve a well-formed RSS envelope, not a direct CAP 1.2 alert. machine_readable_status therefore remains unverified specifically for direct CAP 1.2 compatibility at these URLs -- not because validation is pending, but because the validated result does not establish it -- and stays unverified until either the served content changes or a separate reviewed decision treats the RSS envelope itself as the machine-readable contract.",
+        "WO-003 controlled live-test evidence (2026-07-23, both the English and Thai URLs): HTTP 200, Content-Type text/xml, no redirect, no ETag or Last-Modified, XML root local name rss -- the strict CAP 1.2 parser correctly rejected both with 'expected {urn:oasis:names:tc:emergency:cap:1.2}alert, received rss' and zero staging records were emitted.",
+        "This conflicts with two official descriptions that remain unresolved by inference: the WMO Register of Alerting Authorities still lists both TMD URLs as CAP Feed URLs (https://alertingauthority.wmo.int/authorities.php?recId=164), and TMD's own RSS service page presents \"CAP Warning\" under \"RSS format open data\" (https://www.tmd.go.th/en/service/rss).",
+        "One observation date does not establish cadence or permanence; endpoint behavior may change, and this contract does not assume the RSS envelope is a permanent replacement for a direct CAP 1.2 alert at these URLs.",
+        "A controlled, discovery-only RSS-envelope path exists (collectors/adapters/rss_discovery.py, manual workflow tmd_operation=rss_discovery) to classify and inspect the envelope without weakening the strict CAP parser; it retains only bounded structural metadata, never fetches a discovered item link or enclosure, and never produces a staging record.",
+        "WO-005 (2026-07-23) used the RSS discovery path above, run under human-triggered gates, to observe candidate CAP filenames referenced by both the English and Thai RSS feeds; run IDs, artifact IDs, and response hashes are recorded in docs/tmd_candidate_cap_validation.md. This is discovery-only evidence -- candidate reachability, CAP-1.2-ness, cross-language semantic equivalence, and publication suitability were not established by WO-005.",
+        "WO-006 (Implementation v0.2.2) added a controlled, manually triggered, single-candidate CAP validation path (collectors/adapters/tmd_candidate.py, TmdCapAdapter.validate_candidate, manual workflow tmd_operation=candidate_cap_validation) that accepts only a bounded candidate reference -- never an arbitrary URL -- derives the fetch target from fixed host/port/path-prefix/filename-grammar policy, resolves and pins DNS with fail-closed non-global-address rejection, makes exactly one physical HTTPS GET, and runs the unchanged strict CAP 1.2 parser. See docs/tmd_candidate_cap_validation.md for the full security boundary, retained/excluded fields, and evidence. WO-006 is implementation only: no live candidate fetch was performed under it, and a separate WO-007 plus human approval is required before any live candidate fetch, source enablement, or publication."
+      ],
+      "health": {
+        "source_id": "TMD_CAP",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 180
+      }
+    },
+    {
+      "source_id": "GSCPI",
+      "name": "New York Fed Global Supply Chain Pressure Index",
+      "owner": "Federal Reserve Bank of New York",
+      "source_class": "official_research",
+      "landing_url": "https://www.newyorkfed.org/research/policy/gscpi",
+      "endpoint": null,
+      "access_method": "download",
+      "format": "csv",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "monthly",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "global_supply_chain_baseline"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No controlled live validation has been performed; the endpoint field is still null and no published download URL has been confirmed by observation.",
+        "Reuse and redistribution terms have not been reviewed against the publisher's stated conditions, so reuse_status and redistribution_status remain unknown."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "Monthly baseline indicator; not suitable for real-time event detection.",
+        "Download endpoint must be verified before enablement.",
+        "WO-010: no controlled live validation could be performed, so the published file location, format and cadence remain unverified. The fixture-first adapter (collectors/adapters/csv_series.py, parser gscpi_v1) parses the documented CSV shape only.",
+        "The index is a global measure. It cannot establish a Thailand-specific or lane-specific conclusion on its own."
+      ],
+      "health": {
+        "source_id": "GSCPI",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 52560
+      }
+    },
+    {
+      "source_id": "TH_CUSTOMS",
+      "name": "Thai Customs import and export statistics",
+      "owner": "Thai Customs Department",
+      "source_class": "official",
+      "landing_url": "https://www.customs.go.th/statistic_report.php?ini_content=statistics_report&lang=en",
+      "endpoint": null,
+      "access_method": "download",
+      "format": "csv",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "monthly with variable lag",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "thailand_trade_flow"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No controlled live validation has been performed; no stable machine-readable download URL has been confirmed by observation, and the endpoint field remains null.",
+        "Reuse and redistribution terms have not been reviewed, so reuse_status and redistribution_status remain unknown.",
+        "The statistics portal is an interactive report builder; whether it exposes a stable CSV export without session state is unresolved."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "The website can revise published statistics.",
+        "Export workflow and stable download URL require integration testing.",
+        "WO-010: no controlled live validation could be performed. The trade series used by the Ocean MVP are therefore synthetic test fixtures, labelled synthetic_test_fixture in every record, and no published Thailand trade value is claimed.",
+        "Published customs statistics are all-mode totals unless a mode dimension is explicitly provided; attributing them to ocean freight without that dimension would be an invented precision."
+      ],
+      "health": {
+        "source_id": "TH_CUSTOMS",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 105120
+      }
+    },
+    {
+      "source_id": "EPPO_FUEL",
+      "name": "EPPO retail fuel price publications",
+      "owner": "Energy Policy and Planning Office, Thailand",
+      "source_class": "official",
+      "landing_url": "https://www.eppo.go.th/data-energy-statistic/energy-price-th/",
+      "endpoint": null,
+      "access_method": "html",
+      "format": "html",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "daily to weekly, variable",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "domestic_fuel_or_energy_cost"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No controlled live validation has been performed; the endpoint field is null and the page is client-rendered, so a machine-readable extraction path is unconfirmed.",
+        "Reuse and redistribution terms have not been reviewed, so reuse_status and redistribution_status remain unknown."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "Dynamic page rendering may expose placeholders before the final data loads.",
+        "Parsed values require date, unit, and effective-date validation before publication.",
+        "WO-010: no controlled live validation could be performed. Fuel series used by the Ocean MVP are synthetic test fixtures, labelled synthetic_test_fixture in every record.",
+        "Retail pump prices are a domestic cost-context indicator. They are not bunker fuel prices and must not be presented as a shipping fuel cost."
+      ],
+      "health": {
+        "source_id": "EPPO_FUEL",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 10080
+      }
+    },
+    {
+      "source_id": "BOT_FX",
+      "name": "Bank of Thailand foreign exchange rates",
+      "owner": "Bank of Thailand",
+      "source_class": "official",
+      "landing_url": "https://apiportal.bot.or.th/",
+      "endpoint": null,
+      "access_method": "api",
+      "format": "json",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "each banking day",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free_with_registration",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "fx_context"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "Requires an API key. No credential-handling mechanism exists in this repository and WO-010 does not introduce one.",
+        "No controlled live validation has been performed.",
+        "Reuse and redistribution terms have not been reviewed."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "The developer portal requires account registration and an API key. A key is a credential and must never be committed to this repository, so enablement additionally requires a secrets-handling decision that WO-010 does not make.",
+        "A reference exchange rate is a cost-context indicator. A change in it does not by itself establish a change in any freight, bunker or landed cost actually paid.",
+        "WO-010: no controlled live validation could be performed; the endpoint field is null and the response envelope is unverified."
+      ],
+      "health": {
+        "source_id": "BOT_FX",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 10080
+      }
+    },
+    {
+      "source_id": "WB_COMMODITY",
+      "name": "World Bank Commodity Price Data",
+      "owner": "World Bank",
+      "source_class": "international",
+      "landing_url": "https://www.worldbank.org/en/research/commodity-markets",
+      "endpoint": null,
+      "access_method": "download",
+      "format": "xlsx",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "monthly",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "domestic_fuel_or_energy_cost",
+        "global_supply_chain_baseline"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No XLSX parser exists in this repository; adding one is outside the WO-010 scope and no fixture test has been written for this source.",
+        "No controlled live validation has been performed.",
+        "Reuse and redistribution terms have not been reviewed against the publisher's stated conditions."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "Global commodity benchmarks are energy-cost context. They are not a Thailand fuel price and not a bunker price paid by any carrier.",
+        "The published workbook format is XLSX; no XLSX parser is implemented by WO-010, so the fixture-first adapter covers the CSV shape only.",
+        "WO-010: no controlled live validation could be performed; the endpoint field is null."
+      ],
+      "health": {
+        "source_id": "WB_COMMODITY",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 89280
+      }
+    },
+    {
+      "source_id": "IMF_PORTWATCH",
+      "name": "IMF PortWatch port activity and trade estimates",
+      "owner": "International Monetary Fund",
+      "source_class": "international",
+      "landing_url": "https://portwatch.imf.org/",
+      "endpoint": null,
+      "access_method": "arcgis",
+      "format": "json",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "daily",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "thailand_port_or_maritime_activity"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No controlled live validation has been performed; no ArcGIS feature-service query URL has been confirmed by observation and the endpoint field remains null.",
+        "Reuse and redistribution terms have not been reviewed.",
+        "Whether derived daily estimates may be republished, as opposed to linked, is unresolved."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "PortWatch figures are model-derived estimates from vessel tracking, not port-authority reported throughput. They must be labelled as estimates and must never be presented as official port statistics.",
+        "Port call counts measure how many vessels called. They are a volume metric and can never on their own establish congestion, waiting time or berth delay.",
+        "WO-010: no controlled live validation could be performed; the ArcGIS query endpoint, its envelope shape and its rate limits are all unverified."
+      ],
+      "health": {
+        "source_id": "IMF_PORTWATCH",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 20160
+      }
+    },
+    {
+      "source_id": "UNCTAD_MARITIME",
+      "name": "UNCTAD maritime transport and connectivity indicators",
+      "owner": "United Nations Conference on Trade and Development",
+      "source_class": "international",
+      "landing_url": "https://unctadstat.unctad.org/",
+      "endpoint": null,
+      "access_method": "download",
+      "format": "csv",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "quarterly to annual",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "thailand_port_or_maritime_activity",
+        "global_supply_chain_baseline"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No controlled live validation has been performed; no stable machine-readable download URL has been confirmed by observation.",
+        "Reuse and redistribution terms have not been reviewed."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "Connectivity indices are structural measures published quarterly or annually. They describe how well connected an economy's liner network is; they are not an operational condition and cannot detect an event.",
+        "WO-010: no controlled live validation could be performed; the endpoint field is null."
+      ],
+      "health": {
+        "source_id": "UNCTAD_MARITIME",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 262080
+      }
+    },
+    {
+      "source_id": "PAT_NOTICE",
+      "name": "Port Authority of Thailand public notices",
+      "owner": "Port Authority of Thailand",
+      "source_class": "official",
+      "landing_url": "https://www.port.co.th/",
+      "endpoint": null,
+      "access_method": "html",
+      "format": "html",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "unknown",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "official_operational_notice"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No machine-readable notice feed has been confirmed; the endpoint field is null.",
+        "Publication cadence is unknown, so no automated schedule can be justified.",
+        "Reuse and redistribution terms have not been reviewed.",
+        "No controlled live validation has been performed."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "An official notice is evidence of the notice itself. It is not automatically evidence of an operational impact on any particular lane, service or organization.",
+        "No machine-readable notice feed has been confirmed. Whether the site publishes an RSS or Atom feed is unverified.",
+        "Publication cadence is unknown, so no automated collection schedule is justified and none is configured.",
+        "WO-010: no controlled live validation could be performed."
+      ],
+      "health": {
+        "source_id": "PAT_NOTICE",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 20160
+      }
+    },
+    {
+      "source_id": "ACP_ADVISORY",
+      "name": "Panama Canal Authority advisories to shipping",
+      "owner": "Autoridad del Canal de Panam\u00e1",
+      "source_class": "official",
+      "landing_url": "https://pancanal.com/en/advisories/",
+      "endpoint": null,
+      "access_method": "html",
+      "format": "html",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "as required, irregular",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "official_operational_notice"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No machine-readable advisory feed has been confirmed; the endpoint field is null.",
+        "Advisory bodies are commonly PDF; no PDF parsing path exists.",
+        "Reuse and redistribution terms have not been reviewed.",
+        "No controlled live validation has been performed."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "A canal advisory establishes the restriction it states. It does not establish which Thailand services actually route through the canal, and it therefore cannot on its own establish a Thailand lane impact.",
+        "Advisories are frequently published as PDF attachments; no PDF parser exists in this repository and none is added by WO-010.",
+        "WO-010: no controlled live validation could be performed."
+      ],
+      "health": {
+        "source_id": "ACP_ADVISORY",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 20160
+      }
+    },
+    {
+      "source_id": "SCA_CIRCULAR",
+      "name": "Suez Canal Authority circulars",
+      "owner": "Suez Canal Authority",
+      "source_class": "official",
+      "landing_url": "https://www.suezcanal.gov.eg/English/Navigation/Pages/RulesOfNavigation.aspx",
+      "endpoint": null,
+      "access_method": "html",
+      "format": "html",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "as required, irregular",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "official_operational_notice"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No machine-readable circular feed has been confirmed; the endpoint field is null.",
+        "Circular bodies are commonly PDF; no PDF parsing path exists.",
+        "Reuse and redistribution terms have not been reviewed.",
+        "No controlled live validation has been performed."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "A circular establishes the rule or toll it states. Whether a given Thailand service transits the canal, and whether it was affected, requires separate evidence.",
+        "Circulars are frequently published as PDF attachments; no PDF parser exists in this repository.",
+        "WO-010: no controlled live validation could be performed."
+      ],
+      "health": {
+        "source_id": "SCA_CIRCULAR",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 20160
+      }
+    },
+    {
+      "source_id": "MPA_SG_NOTICE",
+      "name": "Maritime and Port Authority of Singapore port marine notices",
+      "owner": "Maritime and Port Authority of Singapore",
+      "source_class": "regulator",
+      "landing_url": "https://www.mpa.gov.sg/port-marine-ops/port-marine-circulars-notices",
+      "endpoint": null,
+      "access_method": "html",
+      "format": "html",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "as required, irregular",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "official_operational_notice"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No machine-readable notice feed has been confirmed; the endpoint field is null.",
+        "Reuse and redistribution terms have not been reviewed.",
+        "No controlled live validation has been performed."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "Singapore is a transshipment hub for Thailand cargo, so a notice here is relevant to Thailand only through the transshipment mechanism, which must be stated rather than assumed.",
+        "A port marine notice is evidence of the notice, not of an operational effect on any particular service.",
+        "WO-010: no controlled live validation could be performed."
+      ],
+      "health": {
+        "source_id": "MPA_SG_NOTICE",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 20160
+      }
+    },
+    {
+      "source_id": "MANUAL_NOTICE_INTAKE",
+      "name": "Human-reviewed official operational notice intake",
+      "owner": "Logistics Situation Platform maintainers",
+      "source_class": "official",
+      "landing_url": "https://github.com/beer598623/Logistics-Situation-Platform",
+      "endpoint": null,
+      "access_method": "manual",
+      "format": "mixed",
+      "machine_readable_status": "manual_only",
+      "licence_status": "reviewed",
+      "terms_url": null,
+      "publication_cadence": "irregular, human-driven",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "permitted_with_attribution",
+      "redistribution_status": "link_only",
+      "logistics_role": [
+        "official_operational_notice"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_required",
+      "blockers": [
+        "No notice has yet been recorded through this path, so the intake exists but currently contributes no coverage."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "This is a bounded manual intake path, not an automated collector. It makes no network request of any kind.",
+        "A human records a bounded reference to an official notice they have read at the publisher's own site, together with the publisher, the notice reference, the publication date and a claim of at most 600 characters. Full notice text is never copied into this repository.",
+        "Coverage is whatever a human happened to record. Absence of a notice here is never evidence that no notice was published.",
+        "Every record must still name the underlying publisher as the evidence source; this contract is the intake mechanism, not the authority."
+      ],
+      "health": {
+        "source_id": "MANUAL_NOTICE_INTAKE",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 43200
+      }
+    },
+    {
+      "source_id": "NEWS_DISCOVERY",
+      "name": "Free structured public news discovery",
+      "owner": "The GDELT Project",
+      "source_class": "news",
+      "landing_url": "https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/",
+      "endpoint": null,
+      "access_method": "api",
+      "format": "json",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "continuous",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "link_only",
+      "logistics_role": [
+        "news_discovery",
+        "external_driver_context"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No controlled live validation has been performed; the query endpoint and its rate limits are unverified and the endpoint field is null.",
+        "Reuse terms have not been reviewed. Only link-level redistribution would be considered even if they were."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "This is a DISCOVERY source only. Every record it produces carries evidence_role 'discovery_only' and can never be the sole evidence for a material impact conclusion.",
+        "Only headline-level metadata and the publisher's own URL are retained. Article bodies are never fetched, stored or republished.",
+        "Coverage is skewed toward English-language and heavily syndicated outlets, so absence of a lead is not evidence that nothing happened.",
+        "Automated relevance matching produces false positives; every lead requires primary-source verification before it can support any conclusion.",
+        "WO-010: no controlled live validation could be performed; the endpoint field is null."
+      ],
+      "health": {
+        "source_id": "NEWS_DISCOVERY",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 10080
+      }
+    }
+  ],
+  "methodology": {
+    "version": "0.8",
+    "documents": [
+      "docs/bundle1_architecture.md",
+      "docs/data_model_and_persistence.md",
+      "docs/source_qualification_report.md",
+      "docs/source_enablement_decisions.md",
+      "docs/ocean_lane_selection.md",
+      "docs/indicator_definitions.md",
+      "docs/freight_proxy_limitations.md",
+      "docs/port_pressure_interpretation.md",
+      "docs/event_lifecycle.md",
+      "docs/external_driver_admission.md",
+      "docs/chatgpt_review_workflow.md",
+      "docs/human_review_process.md",
+      "docs/historical_validation.md",
+      "docs/dashboard_user_guide.md",
+      "docs/operations_runbook.md",
+      "docs/security_and_privacy_boundary.md",
+      "docs/known_data_gaps.md",
+      "docs/air_land_extension_points.md"
+    ],
+    "paid_source_dependency": 0,
+    "ai_api_used": false
+  },
+  "validation_summary": {
+    "traceability_rate": 1.0,
+    "impacts_assessed": 72,
+    "material_impacts": 11,
+    "unsupported_causation_count": 0,
+    "unsupported_causation_rate": 0.0,
+    "unsupported_causation_examples": [],
+    "geography_leakage_count": 0,
+    "geography_leakage_examples": [],
+    "missing_as_zero_count": 0,
+    "missing_as_zero_examples": [],
+    "event_impact_separation_examples": [
+      "EVT-20231030-001: event severity moderate vs worst impact severity low",
+      "EVT-20231218-001: event severity high vs worst impact severity moderate",
+      "EVT-20240326-001: event severity high vs worst impact severity none",
+      "EVT-20240614-002: event severity low vs worst impact severity none"
+    ],
+    "scenario_completeness_rate": 1.0,
+    "scenario_problems": [],
+    "preparedness_overreach_count": 0,
+    "preparedness_overreach_examples": [],
+    "insufficient_evidence_uses": 52,
+    "no_material_uses": 9,
+    "no_material_without_negative_evidence": [],
+    "material_impact_on_discovery_only_evidence": [],
+    "material_impact_on_inadmissible_driver": []
+  },
+  "validation_overall": "pass"
+}

@@ -52,7 +52,9 @@ def _join(items: Sequence[str]) -> str:
     return f"{', '.join(items[:-1])} and {items[-1]}"
 
 
-def _rule_triggers(assessments: Sequence[Mapping[str, Any]], direction: str) -> list[dict[str, str]]:
+def _rule_triggers(
+    assessments: Sequence[Mapping[str, Any]], direction: str
+) -> list[dict[str, str]]:
     """Turn each domain's own threshold rule into a monitorable trigger."""
     triggers: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -65,13 +67,15 @@ def _rule_triggers(assessments: Sequence[Mapping[str, Any]], direction: str) -> 
         if direction == "deteriorating":
             sign = "rises to or above" if threshold.higher_is_worse else "falls to or below"
             bound = (
-                f"+{threshold.deteriorating_at}" if threshold.higher_is_worse
+                f"+{threshold.deteriorating_at}"
+                if threshold.higher_is_worse
                 else f"-{threshold.deteriorating_at}"
             )
         else:
             sign = "falls to or below" if threshold.higher_is_worse else "rises to or above"
             bound = (
-                f"-{threshold.improving_at}" if threshold.higher_is_worse
+                f"-{threshold.improving_at}"
+                if threshold.higher_is_worse
                 else f"+{threshold.improving_at}"
             )
         unit = "" if threshold.basis == "absolute_deviation" else " percent"
@@ -116,7 +120,6 @@ def build_lane_outlook(
     """Build the three-case outlook for one lane."""
     domains = assessment["domain_assessments"]
     active = list(assessment.get("active_event_ids", []))
-    drivers = list(assessment.get("external_driver_event_ids", []))
     gaps = list(assessment.get("data_gaps", []))
     lane_name = lane["name"]
 
@@ -299,7 +302,9 @@ def build_preparedness_options(
                     "Routing information is carrier-specific and is not published by any "
                     "source qualified in this registry."
                 ],
-                "exit_condition": "Exposure has been established from the organization's own records.",
+                "exit_condition": (
+                    "Exposure has been established from the organization's own records."
+                ),
                 "evidence_basis": evidence_ids,
             }
         )
@@ -321,8 +326,7 @@ def build_preparedness_options(
                     "this lane transits."
                 ),
                 "possible_benefit": (
-                    "A planning assumption that is examined before it is tested rather than "
-                    "after."
+                    "A planning assumption that is examined before it is tested rather than after."
                 ),
                 "tradeoffs": [
                     "Alternative routings usually carry their own cost or transit penalty."

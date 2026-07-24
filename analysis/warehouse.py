@@ -16,6 +16,12 @@ Three properties are guaranteed and tested:
   revision and ``fact_observation_revision`` keeps every version, so history
   is never silently overwritten.
 
+Timestamps are stored as ISO-8601 ``VARCHAR`` rather than as ``TIMESTAMPTZ``.
+That is deliberate: the source records already carry exact UTC strings, storing
+them verbatim avoids both a lossy timezone coercion and DuckDB's optional
+timezone-database dependency, and the warehouse is a derived read model in
+which the JSON remains the authority on every value.
+
 The browser never talks to DuckDB. The Dashboard reads static JSON that
 ``scripts/build_dashboard.py`` exports, so the published site has no
 server-side dependency at all.
@@ -165,9 +171,9 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         period_start DATE,
         period_end DATE,
         period_type VARCHAR NOT NULL,
-        published_at TIMESTAMPTZ,
-        retrieved_at TIMESTAMPTZ NOT NULL,
-        revised_at TIMESTAMPTZ,
+        published_at VARCHAR,
+        retrieved_at VARCHAR NOT NULL,
+        revised_at VARCHAR,
         revision_number INTEGER NOT NULL,
         content_sha256 VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
@@ -202,9 +208,9 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         period_start DATE,
         period_end DATE,
         period_type VARCHAR NOT NULL,
-        published_at TIMESTAMPTZ,
-        retrieved_at TIMESTAMPTZ NOT NULL,
-        revised_at TIMESTAMPTZ,
+        published_at VARCHAR,
+        retrieved_at VARCHAR NOT NULL,
+        revised_at VARCHAR,
         revision_number INTEGER NOT NULL,
         content_sha256 VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
@@ -234,9 +240,9 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         period_start DATE,
         period_end DATE,
         period_type VARCHAR NOT NULL,
-        published_at TIMESTAMPTZ,
-        retrieved_at TIMESTAMPTZ NOT NULL,
-        revised_at TIMESTAMPTZ,
+        published_at VARCHAR,
+        retrieved_at VARCHAR NOT NULL,
+        revised_at VARCHAR,
         revision_number INTEGER NOT NULL,
         content_sha256 VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
@@ -268,9 +274,9 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         period_start DATE,
         period_end DATE,
         period_type VARCHAR NOT NULL,
-        published_at TIMESTAMPTZ,
-        retrieved_at TIMESTAMPTZ NOT NULL,
-        revised_at TIMESTAMPTZ,
+        published_at VARCHAR,
+        retrieved_at VARCHAR NOT NULL,
+        revised_at VARCHAR,
         revision_number INTEGER NOT NULL,
         content_sha256 VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
@@ -286,8 +292,8 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         revision_number INTEGER NOT NULL,
         value DOUBLE,
         value_status VARCHAR NOT NULL,
-        revised_at TIMESTAMPTZ,
-        retrieved_at TIMESTAMPTZ NOT NULL,
+        revised_at VARCHAR,
+        retrieved_at VARCHAR NOT NULL,
         content_sha256 VARCHAR NOT NULL,
         PRIMARY KEY (observation_family, record_id, revision_number)
     )
@@ -303,7 +309,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         event_date DATE,
         event_end_date DATE,
         publication_date DATE,
-        retrieval_date TIMESTAMPTZ NOT NULL,
+        retrieval_date VARCHAR NOT NULL,
         geography_ids VARCHAR NOT NULL,
         country_ids VARCHAR NOT NULL,
         node_ids VARCHAR,
@@ -319,7 +325,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         human_review_status VARCHAR NOT NULL,
         cluster_id VARCHAR,
         cluster_key VARCHAR NOT NULL,
-        last_reviewed_at TIMESTAMPTZ NOT NULL,
+        last_reviewed_at VARCHAR NOT NULL,
         closure_basis VARCHAR
     )
     """,
@@ -340,7 +346,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         scope_supported VARCHAR NOT NULL,
         event_date DATE,
         publication_date DATE,
-        retrieved_at TIMESTAMPTZ NOT NULL,
+        retrieved_at VARCHAR NOT NULL,
         content_sha256 VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
         licence_status VARCHAR NOT NULL,
@@ -349,10 +355,10 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     """,
     """
     CREATE TABLE fact_lane_assessment (
-        assessment_id VARCHAR PRIMARY KEY,
+        assessment_id VARCHAR NOT NULL,
         lane_id VARCHAR NOT NULL,
-        generated_at TIMESTAMPTZ NOT NULL,
-        data_cutoff_at TIMESTAMPTZ,
+        generated_at VARCHAR NOT NULL,
+        data_cutoff_at VARCHAR,
         overall_direction VARCHAR NOT NULL,
         attention_level VARCHAR NOT NULL,
         domain VARCHAR NOT NULL,
@@ -399,8 +405,8 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     CREATE TABLE fact_source_health (
         source_id VARCHAR PRIMARY KEY,
         status VARCHAR NOT NULL,
-        last_checked_at TIMESTAMPTZ,
-        last_success_at TIMESTAMPTZ,
+        last_checked_at VARCHAR,
+        last_success_at VARCHAR,
         last_error VARCHAR,
         item_count INTEGER,
         required_for_publication BOOLEAN NOT NULL,
@@ -413,7 +419,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         subject_type VARCHAR NOT NULL,
         subject_id VARCHAR NOT NULL,
         revision_number INTEGER NOT NULL,
-        recorded_at TIMESTAMPTZ NOT NULL,
+        recorded_at VARCHAR NOT NULL,
         action VARCHAR NOT NULL,
         content_sha256 VARCHAR NOT NULL,
         supersedes_history_id VARCHAR,
@@ -423,6 +429,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     )
     """,
 )
+
 
 def _joined(values: Iterable[Any] | None) -> str | None:
     if values is None:
@@ -483,13 +490,25 @@ def _observation_row(record: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+#: Rows per INSERT statement. DuckDB binds a prepared statement per call, so
+#: one statement carrying many value tuples is roughly an order of magnitude
+#: faster than executemany over the same rows; chunking keeps any single
+#: statement's parameter count bounded.
+_INSERT_CHUNK = 250
+
+
 def _insert(connection: Any, table: str, rows: Sequence[Mapping[str, Any]]) -> None:
     if not rows:
         return
     columns = list(rows[0])
-    placeholders = ", ".join("?" for _ in columns)
-    statement = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
-    connection.executemany(statement, [[row[column] for column in columns] for row in rows])
+    tuple_sql = "(" + ", ".join("?" for _ in columns) + ")"
+    prefix = f"INSERT INTO {table} ({', '.join(columns)}) VALUES "  # noqa: S608
+    for start in range(0, len(rows), _INSERT_CHUNK):
+        chunk = rows[start : start + _INSERT_CHUNK]
+        parameters: list[Any] = []
+        for row in chunk:
+            parameters.extend(row[column] for column in columns)
+        connection.execute(prefix + ", ".join(tuple_sql for _ in chunk), parameters)
 
 
 def create_schema(connection: Any) -> None:
@@ -697,9 +716,9 @@ def load_bundle(bundle: Mapping[str, Any], connection: Any) -> dict[str, int]:
 
     deduped_revisions: dict[tuple[str, str, int], dict[str, Any]] = {}
     for row in revision_rows:
-        deduped_revisions[
-            (row["observation_family"], row["record_id"], row["revision_number"])
-        ] = row
+        deduped_revisions[(row["observation_family"], row["record_id"], row["revision_number"])] = (
+            row
+        )
     ordered_revisions = [deduped_revisions[key] for key in sorted(deduped_revisions)]
     _insert(connection, "fact_observation_revision", ordered_revisions)
     counts["fact_observation_revision"] = len(ordered_revisions)

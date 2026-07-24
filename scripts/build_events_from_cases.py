@@ -30,7 +30,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from analysis.events import cluster_id_from_key, cluster_key, evaluate_transmission_chain  # noqa: E402
+from analysis.events import (  # noqa: E402
+    cluster_id_from_key,
+    cluster_key,
+    evaluate_transmission_chain,
+)
 from analysis.reference import geography_index, resolve_lane_relevance  # noqa: E402
 
 CASES_PATH = ROOT / "data" / "validation" / "historical_cases.json"
@@ -281,7 +285,10 @@ def main() -> int:
     args = parser.parse_args()
 
     events, evidence = build()
-    targets = [(EVENTS_PATH, render("events", events)), (EVIDENCE_PATH, render("evidence", evidence))]
+    targets = [
+        (EVENTS_PATH, render("events", events)),
+        (EVIDENCE_PATH, render("evidence", evidence)),
+    ]
 
     stale = []
     for path, rendered in targets:
@@ -292,7 +299,8 @@ def main() -> int:
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(rendered, encoding="utf-8")
-        print(f"{path.relative_to(ROOT)}: {len(events) if 'events' in path.name else len(evidence)} records")
+        written = len(events) if "events" in path.name else len(evidence)
+        print(f"{path.relative_to(ROOT)}: {written} records")
 
     if args.check:
         if stale:

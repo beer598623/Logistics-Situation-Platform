@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Literal
 
-from ..http_client import UnexpectedContentTypeError, validate_content_type
+from ..http_client import validate_content_type
 from ..observations import build_observation, content_hash, deduplicate_observations
 
 #: Content types a CSV series may legitimately arrive as. An HTML error or
@@ -126,8 +126,7 @@ def _period_bounds(period_value: str, period_type: str) -> tuple[str, str, str]:
             end = date.fromordinal(end)
         if period_type != "month":
             raise CsvContractError(
-                f"period column holds a month but the series declares period_type "
-                f"{period_type!r}"
+                f"period column holds a month but the series declares period_type {period_type!r}"
             )
         return start.isoformat(), end.isoformat(), text
     try:
@@ -157,8 +156,7 @@ def _parse_value(cell: str) -> tuple[float | None, str]:
         return float(normalized), "available"
     except ValueError as exc:
         raise CsvContractError(
-            "value column contains a token that is neither a number nor a recognised "
-            "missing marker"
+            "value column contains a token that is neither a number nor a recognised missing marker"
         ) from exc
 
 
@@ -244,9 +242,7 @@ def parse_csv_series(
             else None
         )
         revision_raw = (
-            row[positions[contract.revision_column]].strip()
-            if contract.revision_column
-            else ""
+            row[positions[contract.revision_column]].strip() if contract.revision_column else ""
         )
         try:
             revision_number = int(revision_raw) if revision_raw else 0

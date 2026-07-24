@@ -60,10 +60,16 @@ class ThresholdRule:
         if change is None or observations_used < self.min_observations:
             return INSUFFICIENT
 
-        worse_side = change >= self.deteriorating_at if self.higher_is_worse else change <= -abs(
-            self.deteriorating_at
+        worse_side = (
+            change >= self.deteriorating_at
+            if self.higher_is_worse
+            else change <= -abs(self.deteriorating_at)
         )
-        better_side = change <= -abs(self.improving_at) if self.higher_is_worse else change >= self.improving_at
+        better_side = (
+            change <= -abs(self.improving_at)
+            if self.higher_is_worse
+            else change >= self.improving_at
+        )
 
         if worse_side:
             return "deteriorating"

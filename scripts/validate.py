@@ -522,9 +522,7 @@ def main() -> int:
     for assessment in assessments:
         # preparedness_options is an additive field the Dashboard consumes; the
         # lane assessment contract itself stays focused on the assessment.
-        payload = {
-            key: value for key, value in assessment.items() if key != "preparedness_options"
-        }
+        payload = {key: value for key, value in assessment.items() if key != "preparedness_options"}
         errors = schema_errors(payload, "lane_assessment.schema.json")
         if errors:
             print(f"[FAIL] lane_assessment/{assessment['assessment_id']}")

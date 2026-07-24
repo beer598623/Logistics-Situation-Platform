@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Example Port Authority — public notices</title>
+    <link>https://example-authority.invalid/notices</link>
+    <description>Synthetic test fixture. Not a real publisher feed.</description>
+    <item>
+      <title>Notice 2026-014: temporary draft restriction at Berth 3</title>
+      <link>https://example-authority.invalid/notices/2026-014?utm_source=rss&amp;utm_campaign=feed</link>
+      <guid isPermaLink="false">NOTICE-2026-014</guid>
+      <pubDate>Mon, 06 Jul 2026 09:00:00 +0000</pubDate>
+      <description>A temporary maximum draft applies at Berth 3 while survey work is carried out. Vessel scheduling is unaffected.</description>
+    </item>
+    <item>
+      <title>Notice 2026-015: revised pilotage booking window</title>
+      <link>https://user:secret@example-authority.invalid/notices/2026-015</link>
+      <guid isPermaLink="false">NOTICE-2026-015</guid>
+      <pubDate>Wed, 08 Jul 2026 11:30:00 +0000</pubDate>
+      <description>The pilotage booking window is revised with effect from 15 July 2026.</description>
+    </item>
+  </channel>
+</rss>

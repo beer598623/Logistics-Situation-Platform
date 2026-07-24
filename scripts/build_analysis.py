@@ -29,8 +29,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from analysis.assessments import DOMAINS, build_domain_assessment, build_lane_assessment  # noqa: E402
-from analysis.assessments import direction_for_derivation  # noqa: E402
+from analysis.assessments import (  # noqa: E402
+    build_domain_assessment,
+    build_lane_assessment,
+    direction_for_derivation,  # noqa: E402
+)
 from analysis.indicators import SeriesDerivation, derive_series  # noqa: E402
 from analysis.reference import load_dimensions, load_lanes  # noqa: E402
 from analysis.scenarios import build_lane_outlook, build_preparedness_options  # noqa: E402
@@ -99,7 +102,9 @@ def series_records(
     return matched
 
 
-def contract_freshness_bounds(registry: Mapping[str, Any], source_id: str) -> tuple[int, int | None]:
+def contract_freshness_bounds(
+    registry: Mapping[str, Any], source_id: str
+) -> tuple[int, int | None]:
     for source in registry["sources"]:
         if source["id"] == source_id:
             return int(source["max_stale_minutes"]), source.get("expected_cadence_minutes")
@@ -162,8 +167,10 @@ def _event_domain_direction(
             "insufficient_evidence",
             [],
             [],
-            ["No event of any class is recorded against this lane, which is an absence of "
-             "evidence rather than evidence of normal operation."],
+            [
+                "No event of any class is recorded against this lane, which is an absence of "
+                "evidence rather than evidence of normal operation."
+            ],
         )
 
     leads_only = all(event["event_class"] == "discovery_lead" for event in relevant)
@@ -172,8 +179,10 @@ def _event_domain_direction(
             "insufficient_evidence",
             [event["event_id"] for event in relevant],
             [],
-            ["Only discovery-class leads are recorded against this lane; a lead cannot "
-             "support a direction."],
+            [
+                "Only discovery-class leads are recorded against this lane; a lead cannot "
+                "support a direction."
+            ],
         )
 
     adverse = []
@@ -190,15 +199,19 @@ def _event_domain_direction(
             "deteriorating",
             event_ids,
             sorted(set(evidence_ids)),
-            ["Direction reflects observed or potential impact recorded against this lane; "
-             "it is not a measurement of current operating conditions."],
+            [
+                "Direction reflects observed or potential impact recorded against this lane; "
+                "it is not a measurement of current operating conditions."
+            ],
         )
     return (
         "stable",
         event_ids,
         sorted(set(evidence_ids)),
-        ["Events are recorded against this lane but none carries an observed or potential "
-         "impact in these areas."],
+        [
+            "Events are recorded against this lane but none carries an observed or potential "
+            "impact in these areas."
+        ],
     )
 
 
@@ -494,9 +507,7 @@ def build_history(
 ) -> dict[str, Any]:
     entries = []
     for index, assessment in enumerate(lane_assessments, start=1):
-        digest = hashlib.sha256(
-            json.dumps(assessment, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        digest = hashlib.sha256(json.dumps(assessment, sort_keys=True).encode("utf-8")).hexdigest()
         entries.append(
             {
                 "history_id": f"HIST-{DATA_CUTOFF:%Y%m%d}-{index:03d}",

@@ -1,0 +1,154 @@
+{
+  "generated_at": "2026-07-24T00:00:00Z",
+  "data_cutoff_at": "2026-07-24T00:00:00Z",
+  "methodology_version": "0.8",
+  "overall_direction": "deteriorating",
+  "evidence_coverage": "insufficient",
+  "coverage_message": "One or more required capabilities lack sufficient source coverage.",
+  "live_coverage_statement": "Live coverage is INSUFFICIENT. No source in the registry is enabled and none has completed a controlled live validation, so every number shown here is derived from a labelled synthetic test fixture. This Dashboard demonstrates the platform's behaviour; it does not describe current real-world conditions.",
+  "key_changes": [
+    "First publication of the Ocean module under WO-010. There is no previous assessment to compare against, so no change can be reported."
+  ],
+  "lanes_requiring_attention": [
+    {
+      "lane_id": "LANE-OCEAN-TH-ASEAN-SG",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 ASEAN and Singapore transshipment",
+      "resolution": "regional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-NEUR",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 Northern Europe",
+      "resolution": "regional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-MED",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 Mediterranean",
+      "resolution": "regional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-USWC",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 United States West Coast",
+      "resolution": "regional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-USEC",
+      "attention_level": "elevated",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 United States East and Gulf Coast",
+      "resolution": "regional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-EASIA-CN",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 Mainland China and Hong Kong",
+      "resolution": "country"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-JPKR",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 Japan and Korea",
+      "resolution": "country"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-SASIA",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 South Asia",
+      "resolution": "regional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-MEGULF",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 Middle East and Gulf",
+      "resolution": "regional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-OCEANIA",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating",
+      "name": "Thailand \u2194 Australia and New Zealand",
+      "resolution": "regional"
+    },
+    {
+      "lane_id": "LANE-OCEAN-TH-DOMESTIC",
+      "attention_level": "watch",
+      "overall_direction": "deteriorating",
+      "name": "Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland)",
+      "resolution": "corridor"
+    }
+  ],
+  "active_verified_events": [
+    "EVT-20231030-001",
+    "EVT-20231218-001",
+    "EVT-20240326-001",
+    "EVT-20240520-001"
+  ],
+  "admitted_external_drivers": [
+    "EVT-20220301-001"
+  ],
+  "contextual_external_drivers": [
+    "EVT-20241118-001"
+  ],
+  "discovery_leads": [
+    "EVT-20260715-001"
+  ],
+  "major_data_gaps": [
+    "No source in the registry is enabled and none has completed a controlled live validation, so live coverage is insufficient.",
+    "All numeric series are labelled synthetic test fixtures and describe no real published statistic.",
+    "No Thailand-origin freight rate source is qualified, so no Thailand freight average is published anywhere in the platform.",
+    "No transit-time or schedule-reliability source is qualified, so service quality is assessed only through recorded events.",
+    "No operational-condition source is monitored live, so no real-time congestion statement is made anywhere in the platform."
+  ],
+  "cost_pressure": [
+    {
+      "series_id": "container_freight_benchmark",
+      "source_id": "EPPO_FUEL",
+      "current_value": 2136.7,
+      "current_period": "2026-06-30",
+      "unit": "index_points",
+      "month_over_month_pct": 6.5260743842855655,
+      "freshness": {
+        "status": "very_stale",
+        "as_of": "2026-06-20T00:00:00Z",
+        "age_days": 34.0
+      }
+    },
+    {
+      "series_id": "thailand_diesel_retail_price",
+      "source_id": "EPPO_FUEL",
+      "current_value": 32.34,
+      "current_period": "2026-06-30",
+      "unit": "THB_per_litre",
+      "month_over_month_pct": 0.779058896852602,
+      "freshness": {
+        "status": "very_stale",
+        "as_of": "2026-06-20T00:00:00Z",
+        "age_days": 34.0
+      }
+    },
+    {
+      "series_id": "usd_thb_reference_rate",
+      "source_id": "GSCPI",
+      "current_value": 34.767,
+      "current_period": "2026-06-30",
+      "unit": "THB_per_USD",
+      "month_over_month_pct": -0.798927154963318,
+      "freshness": {
+        "status": "very_stale",
+        "as_of": "2026-06-15T00:00:00Z",
+        "age_days": 39.0
+      }
+    }
+  ]
+}

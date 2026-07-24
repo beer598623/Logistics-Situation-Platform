@@ -50,6 +50,4 @@ def validator(schema_name: str) -> Draft202012Validator:
 def schema_errors(item: Any, schema_name: str) -> list[str]:
     """Return human-readable schema errors, ordered by location."""
     errors = sorted(validator(schema_name).iter_errors(item), key=lambda error: list(error.path))
-    return [
-        f"{'/'.join(map(str, error.path)) or '<root>'}: {error.message}" for error in errors
-    ]
+    return [f"{'/'.join(map(str, error.path)) or '<root>'}: {error.message}" for error in errors]
