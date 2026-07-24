@@ -876,6 +876,124 @@ def test_validate_candidate_unexpected_content_type_is_rejected(tmd_contract: di
     assert outcome.error_category == "content_type"
 
 
+def test_validate_candidate_missing_content_type_is_rejected(tmd_contract: dict) -> None:
+    """ChatGPT review round 1, finding 3: unlike collect()/discover_rss(),
+    a missing Content-Type header must fail candidate validation outright
+    -- never merely a warning -- and before any XML parsing."""
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_code == "UnexpectedContentTypeError"
+    assert outcome.error_category == "content_type"
+    assert outcome.envelope_classification is None
+
+
+def test_validate_candidate_unexpected_content_type_message_is_bounded(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 1, finding 7: the raw Content-Type header
+    value must be bounded before it ever reaches an exception message,
+    not only relying on the final report sanitizer."""
+    overlong_type = "text/x-" + ("a" * 500)
+    fake_http = FakeHttpClient(body=b"not-xml", headers={"content-type": overlong_type})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.error_category == "content_type"
+    assert overlong_type not in outcome.errors[0]
+    assert len(outcome.errors[0]) < len(overlong_type)
+
+
+def test_validate_candidate_never_leaks_parser_warnings_with_identifier_or_geometry(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 1, finding 4: parse_cap_alert()'s own warning
+    strings embed the raw CAP <identifier> and bounded-but-real invalid
+    timestamp/polygon/circle source values -- none of that may reach the
+    outcome, only a warning count."""
+    body = _read("invalid_geometry_and_timestamps.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.cap_parser_warning_count is not None
+    assert outcome.cap_parser_warning_count > 0
+    serialized = json.dumps(outcome.to_dict())
+    for canary in (
+        "synthetic-tmd-cap-invalid-0003",
+        "not-a-real-timestamp",
+        "999.0,999.0",
+        "15.0,100.0",
+    ):
+        assert canary not in serialized
+
+
+def test_validate_candidate_bounds_etag_and_last_modified_at_extraction(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 1, finding 7: ETag/Last-Modified are bounded
+    when extracted onto the outcome, independent of the final report
+    sanitizer."""
+    body = _read("valid_bilingual_alert.xml")
+    overlong_etag = '"' + ("e" * 500) + '"'
+    fake_http = FakeHttpClient(
+        body=body,
+        headers={"content-type": "application/cap+xml", "etag": overlong_etag},
+    )
+    adapter = _candidate_adapter(tmd_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.etag is not None
+    assert len(outcome.etag) < len(overlong_etag)
+
+
+def test_validate_candidate_construction_never_resolves_the_contract_endpoint(
+    tmd_contract: dict,
+) -> None:
+    """ChatGPT review round 1, finding 6: candidate validation must never
+    depend on config/sources.yaml's endpoint/alternate_endpoints -- proven
+    here with a contract whose endpoint is deliberately poisoned/missing,
+    which would raise if resolve_endpoint() were ever called."""
+    poisoned_contract = dict(tmd_contract)
+    poisoned_contract["endpoint"] = None
+    poisoned_contract.pop("alternate_endpoints", None)
+
+    body = _read("valid_bilingual_alert.xml")
+    fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
+    # Construction itself must not raise despite the poisoned endpoint.
+    adapter = _candidate_adapter(poisoned_contract, fake_http)
+
+    outcome = adapter.validate_candidate(
+        candidate_filename="CAPTMD20260723155032_2.xml",
+        evidence_run_id="1",
+        evidence_item_index=0,
+    )
+    assert outcome.errors == []
+    assert outcome.request_url == "https://www.tmd.go.th/uploads/CAP/en/CAPTMD20260723155032_2.xml"
+
+    with pytest.raises(ValueError):
+        _ = adapter.endpoint
+
+
 def test_validate_candidate_oversized_response_fails_before_parsing(tmd_contract: dict) -> None:
     body = b"x" * (CANDIDATE_MAX_RESPONSE_BYTES + 1)
     fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
@@ -938,6 +1056,12 @@ def test_validate_candidate_dns_rejection_never_reaches_the_transport(tmd_contra
 
 
 def test_validate_candidate_connected_ip_mismatch_fails_closed(tmd_contract: dict) -> None:
+    """ChatGPT review round 1, finding 2: a peer mismatch is now enforced
+    by the transport itself, before any request is sent -- the fake
+    mirrors that by raising PinnedConnectionError from inside
+    get_pinned_candidate, so validate_candidate never reaches the line
+    that would otherwise set connected_ip_matches_selected; it stays
+    None, not False, reflecting that no partial state was ever recorded."""
     body = _read("valid_bilingual_alert.xml")
     fake_http = FakeHttpClient(body=body, headers={"content-type": "application/cap+xml"})
     fake_http.connected_ip_override = "10.0.0.99"
@@ -950,7 +1074,9 @@ def test_validate_candidate_connected_ip_mismatch_fails_closed(tmd_contract: dic
     )
     assert isinstance(outcome.error_code, str)
     assert outcome.error_code == "PinnedConnectionError"
-    assert outcome.connected_ip_matches_selected is False
+    assert outcome.error_category == "security"
+    assert outcome.connected_ip_matches_selected is None
+    assert outcome.http_status is None
 
 
 def test_validate_candidate_derives_the_thai_url_and_ignores_the_contract_endpoint(

@@ -559,6 +559,83 @@ def test_main_candidate_cap_validation_unexpected_content_type(
     assert report["candidate_validation"]["error_category"] == "content_type"
 
 
+def test_main_candidate_cap_validation_missing_content_type_fails_before_parsing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """ChatGPT review round 1, finding 3, end-to-end: a candidate response
+    with no Content-Type header at all must fail non-zero, never merely
+    warn and continue into XML parsing."""
+    body = (CAP_FIXTURES / "valid_bilingual_alert.xml").read_bytes()
+    _install_fake_tmd_adapter(monkeypatch, body=body, headers={})
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 1
+    validation = report["candidate_validation"]
+    assert validation["error_code"] == "UnexpectedContentTypeError"
+    assert validation["error_category"] == "content_type"
+    assert validation["envelope_classification"] is None
+
+
+def test_main_candidate_cap_validation_never_leaks_parser_warning_source_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """ChatGPT review round 1, finding 4, end-to-end: an alert with
+    invalid geometry/timestamps produces parser warnings that embed the
+    raw CAP identifier and bounded-but-real source values -- none of that
+    may ever reach the final sanitized report.json, only a warning count."""
+    body = (CAP_FIXTURES / "invalid_geometry_and_timestamps.xml").read_bytes()
+    _install_fake_tmd_adapter(
+        monkeypatch, body=body, headers={"content-type": "application/cap+xml"}
+    )
+    monkeypatch.setattr(manual_live_source_test, "OUTPUT_DIR", tmp_path)
+
+    exit_code = main(
+        [
+            "--source",
+            "tmd_cap",
+            "--dry-run",
+            "false",
+            "--tmd-operation",
+            "candidate_cap_validation",
+            "--candidate-filename",
+            "CAPTMD20260723155032_2.xml",
+            "--candidate-evidence-run-id",
+            "1",
+            "--candidate-item-index",
+            "0",
+        ]
+    )
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert exit_code == 0
+    validation = report["candidate_validation"]
+    assert validation["cap_parser_warning_count"] > 0
+    report_text = json.dumps(report)
+    for canary in (
+        "synthetic-tmd-cap-invalid-0003",
+        "not-a-real-timestamp",
+        "999.0,999.0",
+        "15.0,100.0",
+    ):
+        assert canary not in report_text
+
+
 def test_main_candidate_cap_validation_response_too_large(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
@@ -719,7 +796,10 @@ def test_main_candidate_cap_validation_connected_ip_mismatch_fails_closed(
     assert exit_code == 1
     validation = report["candidate_validation"]
     assert validation["error_code"] == "PinnedConnectionError"
-    assert validation["connected_ip_matches_selected"] is False
+    # The mismatch is now enforced by the transport before any request is
+    # sent (ChatGPT review round 1, finding 2), so no partial connected-IP
+    # state is ever recorded on the outcome.
+    assert validation["connected_ip_matches_selected"] is None
 
 
 def test_main_candidate_cap_validation_never_creates_a_staging_record(

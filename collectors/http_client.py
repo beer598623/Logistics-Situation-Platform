@@ -400,7 +400,28 @@ class ResilientHttpClient:
         except OSError as exc:
             raise PinnedConnectionError("connection to pinned candidate address failed") from exc
 
+        # ChatGPT review round 1, finding 2: verify the socket actually
+        # connected to the DNS-validated selected IP *before* any request
+        # byte is sent, not after the response has already been read. A
+        # mismatch here closes the socket and fails closed without ever
+        # disclosing the request to whatever peer the connection reached.
         connected_ip = sock.getpeername()[0]
+        try:
+            connected_matches_selected = ipaddress.ip_address(connected_ip) == ipaddress.ip_address(
+                selected_ip
+            )
+        except ValueError as exc:
+            sock.close()
+            raise PinnedConnectionError(
+                "pinned candidate socket reported an unparseable peer address"
+            ) from exc
+        if not connected_matches_selected:
+            sock.close()
+            raise PinnedConnectionError(
+                "connected IP did not match the DNS-validated selected IP; "
+                "refusing to send the candidate request"
+            )
+
         conn = http.client.HTTPConnection(selected_ip, port, timeout=timeout_seconds)
         conn.sock = sock
         try:
@@ -446,6 +467,24 @@ class ResilientHttpClient:
                 content_sha256=self.sha256(body),
             )
             return http_response, connected_ip
+        # PinnedRedirectError/ResponseTooLargeError (raised above, both
+        # RuntimeError, neither an OSError/HTTPException) propagate through
+        # the except clauses below unmodified.
+        except ssl.SSLError as exc:
+            # A post-handshake TLS read/write failure (e.g. the peer resets
+            # the connection mid-response) -- distinct from the handshake
+            # failure caught above, same sanitized category (review round
+            # 1, finding 5).
+            raise PinnedTlsError(
+                f"TLS failure during the pinned candidate exchange with {hostname}"
+            ) from exc
+        except OSError as exc:
+            # Covers TimeoutError (a socket.timeout/OSError subclass) and
+            # any other connection-level failure raised while writing the
+            # request or reading the response/headers.
+            raise PinnedConnectionError(
+                f"connection failure during the pinned candidate exchange with {hostname}"
+            ) from exc
         except http.client.HTTPException as exc:
             raise PinnedConnectionError(
                 f"HTTP protocol error fetching pinned candidate from {hostname}"

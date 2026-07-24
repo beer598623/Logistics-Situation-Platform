@@ -28,8 +28,8 @@ from urllib.parse import urlparse
 from ..base import SourceAdapter
 from ..error_classification import classify_error
 from ..http_client import (
-    PinnedConnectionError,
     PinnedResolution,
+    UnexpectedContentTypeError,
     resolve_pinned_address,
     validate_content_type,
 )
@@ -352,6 +352,12 @@ class CandidateValidationOutcome:
     cap_languages: list[str]
     cap_reference_count: int | None
     cap_area_count: int | None
+    #: Count only, never the parser's own warning text -- see
+    #: ``validate_candidate``'s comment at the call site (ChatGPT review
+    #: round 1, finding 4): ``parse_cap_alert``'s warnings embed the raw
+    #: CAP identifier and bounded-but-real invalid timestamp/geometry
+    #: source values, which this result model must never retain.
+    cap_parser_warning_count: int | None
     warnings: list[str]
     errors: list[str]
     error_code: str | None = None
@@ -386,6 +392,7 @@ class CandidateValidationOutcome:
             "cap_languages": self.cap_languages,
             "cap_reference_count": self.cap_reference_count,
             "cap_area_count": self.cap_area_count,
+            "cap_parser_warning_count": self.cap_parser_warning_count,
             "warnings": self.warnings,
             "errors": self.errors,
             "error_code": self.error_code,
@@ -415,12 +422,23 @@ class TmdCapAdapter(SourceAdapter):
     ) -> None:
         super().__init__(contract, http)
         self.language = language
-        self.endpoint = resolve_endpoint(contract, language=language)
         # WO-006 Scope B: injectable so tests can substitute a fully
         # in-memory resolver (no real DNS lookup) without touching
         # production networking code, mirroring how ``http`` above is
         # already injectable. Defaults to the real DNS-pinning resolver.
         self._resolve_pinned = resolve_pinned or resolve_pinned_address
+
+    @property
+    def endpoint(self) -> str:
+        """Resolved lazily, on access, rather than at construction time
+        (ChatGPT review round 1, finding 6): ``validate_candidate()``
+        never reads this property at all, so constructing an adapter
+        purely for candidate validation never touches
+        ``config/sources.yaml``'s ``endpoint``/``alternate_endpoints``
+        fields -- only ``collect()`` and ``discover_rss()`` do, exactly
+        as before this change, just resolved on each access instead of
+        once at ``__init__`` time."""
+        return resolve_endpoint(self.contract, language=self.language)
 
     def collect(self) -> CollectionResult:
         started_dt = datetime.now(UTC).replace(microsecond=0)
@@ -726,6 +744,7 @@ class TmdCapAdapter(SourceAdapter):
         cap_languages: list[str] = []
         cap_reference_count: int | None = None
         cap_area_count: int | None = None
+        cap_parser_warning_count: int | None = None
 
         bounded_language = _bounded_field(str(self.language))
         bounded_run_id = (
@@ -760,21 +779,20 @@ class TmdCapAdapter(SourceAdapter):
                 timeout_seconds=int(http_contract["timeout_seconds"]),
                 max_response_bytes=CANDIDATE_MAX_RESPONSE_BYTES,
             )
+            # get_pinned_candidate() itself now verifies the connected peer
+            # matches selected_ip *before* sending any request byte
+            # (ChatGPT review round 1, finding 2) -- a mismatch raises
+            # PinnedConnectionError from inside that call and this line is
+            # never reached with connected_ip != selected_ip. Recorded here
+            # purely as evidence for the outcome, not as the enforcement
+            # point.
             connected_ip_matches_selected = connected_ip == selected_ip
             http_status = response.status
             content_length = len(response.body)
             content_sha256 = response.content_sha256
-            etag = response.headers.get("etag")
-            last_modified = response.headers.get("last-modified")
+            etag = _bounded_field(response.headers.get("etag"))
+            last_modified = _bounded_field(response.headers.get("last-modified"))
 
-            if not connected_ip_matches_selected:
-                # Structurally should never happen -- get_pinned_candidate
-                # connects only to the address it was given -- but this is
-                # verified explicitly rather than assumed, since it is the
-                # single most safety-critical invariant of this transport.
-                raise PinnedConnectionError(
-                    "connected IP did not match the DNS-validated selected IP"
-                )
             if response.status == 304:
                 raise UnexpectedNotModifiedError(
                     "received HTTP 304 Not Modified, but this request sent no "
@@ -787,11 +805,29 @@ class TmdCapAdapter(SourceAdapter):
                     "expected 200"
                 )
 
-            content_type, content_type_warning = validate_content_type(
-                response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
-            )
-            if content_type_warning:
-                warnings.append(content_type_warning)
+            # WO-006 Scope C requires a present, allowlisted Content-Type --
+            # unlike collect()/discover_rss(), a missing header is not
+            # merely a warning here (review round 1, finding 3). The raw
+            # header value is bounded before it ever reaches an exception
+            # message (finding 7); validate_content_type()'s own message
+            # embeds the complete raw value, so a present-but-unexpected
+            # type is re-raised with a bounded one instead of propagating
+            # unchanged.
+            raw_content_type = response.headers.get("content-type")
+            try:
+                content_type, _content_type_warning = validate_content_type(
+                    response.headers, TMD_CAP_ALLOWED_CONTENT_TYPES
+                )
+            except UnexpectedContentTypeError as exc:
+                raise UnexpectedContentTypeError(
+                    f"unexpected candidate Content-Type {_bounded_field(raw_content_type)!r}; "
+                    "expected an allowlisted CAP/XML type"
+                ) from exc
+            if content_type is None:
+                raise UnexpectedContentTypeError(
+                    "candidate response had no Content-Type header; a narrow "
+                    "XML/CAP allowlisted type is required for candidate validation"
+                )
 
             classification = classify_envelope(
                 response.body,
@@ -811,7 +847,16 @@ class TmdCapAdapter(SourceAdapter):
             alert, parse_warnings = parse_cap_alert(
                 response.body, max_bytes=CANDIDATE_MAX_RESPONSE_BYTES
             )
-            warnings.extend(parse_warnings)
+            # ChatGPT review round 1, finding 4: parse_cap_alert()'s own
+            # warning strings are prefixed with the raw CAP <identifier>
+            # and can embed bounded-but-real invalid timestamp/polygon/
+            # circle/altitude/ceiling source values (cap.py's own
+            # _bounded() only truncates length, it does not remove or hash
+            # the value). Copying them verbatim into this outcome would
+            # contradict the identifier-as-length/hash-only and no-
+            # geometry/timestamp-source-value promises this result model
+            # makes, so only the count is retained -- never the text.
+            cap_parser_warning_count = len(parse_warnings)
 
             identifier = alert["identifier"]
             cap_identifier_length = len(identifier)
@@ -861,6 +906,7 @@ class TmdCapAdapter(SourceAdapter):
             cap_languages=cap_languages,
             cap_reference_count=cap_reference_count,
             cap_area_count=cap_area_count,
+            cap_parser_warning_count=cap_parser_warning_count,
             warnings=warnings,
             errors=errors,
             error_code=error_code,

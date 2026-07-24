@@ -92,7 +92,13 @@ weakens RSS discovery, direct-CAP collection, or GDACS collection.
    validate the reference, derive the URL, resolve and pin DNS, make one
    pinned GET, classify the envelope, and -- only if `cap_alert` -- parse
    strictly and minimize the result. Never calls `normalize_tmd_alert`
-   and never produces a staging record.
+   and never produces a staging record. `TmdCapAdapter.endpoint` is a
+   lazy property, resolved only when `collect()`/`discover_rss()` read
+   it -- constructing an adapter and calling `validate_candidate()`
+   never touches `config/sources.yaml`'s `endpoint`/`alternate_endpoints`
+   fields at all (ChatGPT review round 1, finding 6: the original
+   implementation resolved the contract endpoint unconditionally at
+   `__init__` time, even for a candidate-only adapter instance).
 
 ## 3. Candidate reference grammar and rejections (Scope A)
 
@@ -168,10 +174,16 @@ activity**, with a specific `CandidateReferenceError` message
    are still performed against `www.tmd.go.th`, never against the raw IP
    literal. The `Host` header sent over that connection is likewise the
    hostname, not the IP (`http.client`'s `skip_host` mechanism, driven by
-   passing an explicit `Host` header). The transport records the peer IP
-   the socket actually connected to and the caller (`validate_candidate`)
-   explicitly asserts it equals the DNS-selected IP, raising
-   `PinnedConnectionError` if it ever does not.
+   passing an explicit `Host` header). **The transport itself** -- not
+   just the calling adapter -- reads the peer IP the socket actually
+   connected to and compares it (via `ipaddress.ip_address` equality) to
+   the DNS-selected IP **before constructing the HTTP request or sending
+   any byte**: a mismatch closes the socket and raises
+   `PinnedConnectionError` immediately, so a spoofed or unexpected peer
+   is never sent the candidate request in the first place (ChatGPT
+   review round 1, finding 2 -- the original implementation performed
+   this check only after the full request/response cycle had already
+   completed).
 5. **No environment proxy.** This path never touches `urllib.request`
    (the only thing in `collectors/http_client.py` that consults
    `HTTP_PROXY`/`HTTPS_PROXY`); it is a raw socket plus `http.client`.
@@ -197,6 +209,17 @@ activity**, with a specific `CandidateReferenceError` message
    `http.max_response_bytes`, which governs the whole feed). Exceeding
    either raises `ResponseTooLargeError` before the body is handed to any
    XML parser.
+10. **Post-handshake socket/protocol failures are sanitized, not leaked.**
+   A TLS read/write failure after the handshake (`ssl.SSLError`) raises
+   `PinnedTlsError`; any other connection-level failure while writing the
+   request or reading the response/headers (`OSError`, including
+   `TimeoutError`) raises `PinnedConnectionError`; an `http.client`
+   protocol-level failure also raises `PinnedConnectionError`. None of
+   these propagate the platform's raw exception text -- each is a short,
+   static, human-authored message (ChatGPT review round 1, finding 5;
+   the original implementation only wrapped `http.client.HTTPException`
+   here, letting a post-handshake `OSError`/`ssl.SSLError` escape
+   unclassified as `unexpected`).
 
 GDACS, direct-CAP (`get()`), and RSS-discovery (`get_no_redirect()`)
 transports are unaffected -- this method shares no connection-building
@@ -210,10 +233,19 @@ response is in memory:
 1. HTTP status must be `200` (304 is checked and rejected first, as a
    distinct structured failure per Section 4 item 8; any other non-200
    status raises `CandidateUnexpectedStatusError`).
-2. `Content-Type` must be in the existing narrow allowlist
-   (`TMD_CAP_ALLOWED_CONTENT_TYPES` -- `application/cap+xml`,
-   `application/xml`, `text/xml`; unchanged, reused from WO-002),
-   `validate_content_type()`'s existing parameter-safe parsing.
+2. `Content-Type` must be **present** and in the existing narrow
+   allowlist (`TMD_CAP_ALLOWED_CONTENT_TYPES` -- `application/cap+xml`,
+   `application/xml`, `text/xml`; unchanged, reused from WO-002).
+   Candidate validation is stricter here than `collect()`/
+   `discover_rss()`: those two treat a *missing* Content-Type header as
+   a non-fatal warning (some sources omit it), but a candidate response
+   with no Content-Type at all raises `UnexpectedContentTypeError` and
+   aborts before any XML parsing (ChatGPT review round 1, finding 3).
+   A *present-but-unexpected* type still raises the same exception, but
+   with the raw header value bounded to 64 characters before it ever
+   enters the exception message (finding 7) -- the shared
+   `validate_content_type()`'s own message embeds the complete raw
+   value, so candidate validation re-raises with a bounded one instead.
 3. The response-size cap (Section 4 item 9) was already enforced by the
    transport before this point.
 4. `classify_envelope()` (WO-004, unchanged) runs on the in-memory body.
@@ -238,8 +270,10 @@ and never becomes a staging record or candidate event.
 - `request_url` (derived, then redacted defensively even though it can
   never carry user-info by construction), `selected_ip`,
   `address_family`, `connected_ip_matches_selected`
-- `http_status`, `content_type`, `etag`, `last_modified`,
-  `content_length`, `content_sha256`
+- `http_status`, `content_type`, `etag`, `last_modified` (the latter two
+  bounded to 64 characters at extraction, independent of the final
+  report sanitizer -- ChatGPT review round 1, finding 7), `content_length`,
+  `content_sha256`
 - `envelope_classification` (WO-004's existing structural dict)
 - `cap_identifier_length` and `cap_identifier_sha256` -- **the raw CAP
   `<identifier>` is never retained**, only its length and a SHA-256
@@ -249,7 +283,19 @@ and never becomes a staging record or candidate event.
   64 characters independently, at extraction time)
 - `cap_info_count`, `cap_languages` (bounded, deduplicated, sorted),
   `cap_reference_count`, `cap_area_count`
-- `warnings`, `errors`, `error_code`, `error_category`
+- `cap_parser_warning_count` -- **a count only**, never
+  `parse_cap_alert()`'s own warning text. That text is itself prefixed
+  with the raw CAP `<identifier>` and can embed bounded-but-real invalid
+  timestamp/polygon/circle/altitude/ceiling source values (`cap.py`'s
+  own `_bounded()` helper only truncates length; it does not remove or
+  hash the value). Retaining those strings verbatim would contradict
+  both the identifier-as-length/hash-only promise and the
+  no-geometry/timestamp-source-value exclusion below, so only the count
+  is kept (ChatGPT review round 1, finding 4).
+- `warnings`, `errors`, `error_code`, `error_category` -- populated only
+  by this method's own static, human-authored messages (transport/
+  reference/envelope/status/content-type failures), never by
+  `parse_cap_alert()`'s warning text
 
 It **never** retains: raw XML; `title`/`headline`/`event`/`description`/
 `instruction`/`note`/`audience` prose; `web`, `contact`, `addresses`,
@@ -262,7 +308,10 @@ logistics-impact assessment. `tests/test_manual_workflow.py` and
 in the synthetic bilingual fixture (`headline`, `description`,
 `instruction`, `web`, `contact`, `areaDesc`, polygon coordinates, the
 geocode value) never appears anywhere in the outcome or the final
-sanitized `report.json`.
+sanitized `report.json`; a parallel set of tests does the same for the
+synthetic `invalid_geometry_and_timestamps.xml` fixture's identifier and
+invalid timestamp/polygon/circle source values, which reach
+`validate_candidate()` only via `parse_cap_alert()`'s warning strings.
 
 Every untrusted string is bounded twice: once at the point it is
 extracted in `validate_candidate()` (`_bounded_field`, 64 characters),
@@ -303,7 +352,13 @@ payload, certificate contents, credentials, or unbounded network
 exception text -- every raised exception's message is a short, static,
 human-authored string (see the class docstrings in `http_client.py` and
 `tmd_candidate.py`), never an interpolated raw value beyond a status
-code or byte count.
+code or byte count. This holds for post-handshake transport failures
+too: `get_pinned_candidate()` catches `ssl.SSLError` (-> `PinnedTlsError`)
+and `OSError`/`TimeoutError` (-> `PinnedConnectionError`) around the
+request/response exchange itself, not only around the initial connect,
+so a mid-exchange failure is classified the same stable way rather than
+escaping as an unclassified `unexpected` exception carrying the
+platform's own exception text (Section 4 item 10).
 
 ## 7. Manual workflow operation (Scope E)
 

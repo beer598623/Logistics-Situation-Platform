@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import socket
-import threading
 import urllib.request
 from email.message import Message
 from urllib.response import addinfourl
@@ -271,92 +270,84 @@ def test_resolve_pinned_address_prefers_ipv4_over_coexisting_ipv6(
 # --- WO-006 Scope B/G: get_pinned_candidate (pinned transport) -------------
 
 
-class _LoopbackHttpServer:
-    """A minimal, single-request HTTP server on 127.0.0.1 -- no TLS, no
-    external network access. Used together with monkeypatching
-    ``http_client._open_pinned_socket`` (the one factored-out extension
-    point ``get_pinned_candidate`` uses to obtain its connected socket) so
-    ``get_pinned_candidate``'s own HTTP-protocol handling (Host header,
-    header/body bounds, redirect/304 handling) is exercised through the
-    real ``http.client`` request/response machinery, without ever
-    performing a real TLS handshake or leaving loopback."""
+class _FakeSocket:
+    """A fully in-memory stand-in for a connected socket -- zero
+    ``socket()``, ``bind()``, ``listen()``, ``accept()``, or
+    ``create_connection()`` calls anywhere (ChatGPT review round 1,
+    finding 1: CI must be completely network-free, including loopback).
 
-    def __init__(self, response_bytes: bytes) -> None:
-        self._response = response_bytes
-        self.received_request: bytes = b""
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.bind(("127.0.0.1", 0))
-        self._sock.listen(1)
-        self.port = self._sock.getsockname()[1]
-        self.accept_count = 0
-        self._thread = threading.Thread(target=self._serve, daemon=True)
-        self._thread.start()
+    Implements just enough of the socket interface for
+    ``http.client.HTTPConnection``/``HTTPResponse`` to drive a full
+    request/response cycle against it: ``sendall`` records every byte
+    the real transport code would have put on the wire (so a test can
+    assert on the exact request, or assert nothing was ever sent),
+    ``makefile`` hands back an in-memory reader over the canned response,
+    and ``getpeername`` reports a fixed, test-supplied peer address.
+    """
 
-    def _serve(self) -> None:
-        conn, _addr = self._sock.accept()
-        self.accept_count += 1
-        conn.settimeout(5)
-        try:
-            self.received_request = conn.recv(65536)
-        except OSError:
-            self.received_request = b""
-        try:
-            conn.sendall(self._response)
-        except OSError:
-            pass
-        conn.close()
+    def __init__(self, response_bytes: bytes, peer_ip: str = "8.8.8.10") -> None:
+        self._rfile = io.BytesIO(response_bytes)
+        self._peer_ip = peer_ip
+        self.sent = b""
+        self.closed = False
 
-    def connect_client(self, timeout_seconds: float = 5) -> socket.socket:
-        return socket.create_connection(("127.0.0.1", self.port), timeout=timeout_seconds)
+    def sendall(self, data: bytes) -> None:
+        self.sent += data
 
-    def join(self, timeout: float = 5) -> None:
-        self._thread.join(timeout=timeout)
-        self._sock.close()
+    def makefile(self, mode: str = "r", *args, **kwargs):  # noqa: ARG002
+        if "r" in mode:
+            return self._rfile
+        return io.BytesIO()
+
+    def settimeout(self, timeout: float | None) -> None:  # noqa: ARG002
+        pass
+
+    def close(self) -> None:
+        self.closed = True
+
+    def getpeername(self) -> tuple[str, int]:
+        return (self._peer_ip, 443)
 
 
-def _install_loopback_server(
-    monkeypatch: pytest.MonkeyPatch, response_bytes: bytes
-) -> _LoopbackHttpServer:
-    server = _LoopbackHttpServer(response_bytes)
+def _install_fake_pinned_socket(
+    monkeypatch: pytest.MonkeyPatch, response_bytes: bytes, *, peer_ip: str = "8.8.8.10"
+) -> _FakeSocket:
+    fake_socket = _FakeSocket(response_bytes, peer_ip=peer_ip)
     monkeypatch.setattr(
         http_client,
         "_open_pinned_socket",
-        lambda selected_ip, port, verify_hostname, *, timeout_seconds: server.connect_client(
-            timeout_seconds
-        ),
+        lambda selected_ip, port, verify_hostname, *, timeout_seconds: fake_socket,
     )
-    return server
+    return fake_socket
 
 
 def test_get_pinned_candidate_sends_host_header_for_hostname_not_ip(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     response = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\nBODY"
-    server = _install_loopback_server(monkeypatch, response)
+    fake_socket = _install_fake_pinned_socket(monkeypatch, response, peer_ip="8.8.8.10")
 
     client = ResilientHttpClient()
     http_response, connected_ip = client.get_pinned_candidate(
         hostname="www.tmd.go.th",
         port=443,
         path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
-        selected_ip="127.0.0.1",
+        selected_ip="8.8.8.10",
         timeout_seconds=5,
         max_response_bytes=1_000_000,
     )
-    server.join()
 
     assert http_response.status == 200
     assert http_response.body == b"BODY"
-    assert connected_ip == "127.0.0.1"
-    assert server.accept_count == 1
-    request_text = server.received_request.decode("latin-1")
+    assert connected_ip == "8.8.8.10"
+    request_text = fake_socket.sent.decode("latin-1")
     assert "Host: www.tmd.go.th\r\n" in request_text
     assert "GET /uploads/CAP/en/CAPTMD20260723155032_2.xml HTTP/1.1" in request_text
 
 
 def test_get_pinned_candidate_rejects_a_3xx_response(monkeypatch: pytest.MonkeyPatch) -> None:
     response = b"HTTP/1.1 302 Found\r\nLocation: https://evil.test/x\r\n\r\n"
-    server = _install_loopback_server(monkeypatch, response)
+    _install_fake_pinned_socket(monkeypatch, response)
 
     client = ResilientHttpClient()
     with pytest.raises(PinnedRedirectError) as excinfo:
@@ -364,11 +355,10 @@ def test_get_pinned_candidate_rejects_a_3xx_response(monkeypatch: pytest.MonkeyP
             hostname="www.tmd.go.th",
             port=443,
             path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
-            selected_ip="127.0.0.1",
+            selected_ip="8.8.8.10",
             timeout_seconds=5,
             max_response_bytes=1_000_000,
         )
-    server.join()
     assert "evil.test" not in str(excinfo.value)
 
 
@@ -380,18 +370,17 @@ def test_get_pinned_candidate_passes_through_a_304_unmodified(
     # get_no_redirect()'s own division of responsibility), not this
     # transport's.
     response = b'HTTP/1.1 304 Not Modified\r\nETag: "abc"\r\n\r\n'
-    server = _install_loopback_server(monkeypatch, response)
+    _install_fake_pinned_socket(monkeypatch, response)
 
     client = ResilientHttpClient()
     http_response, _connected_ip = client.get_pinned_candidate(
         hostname="www.tmd.go.th",
         port=443,
         path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
-        selected_ip="127.0.0.1",
+        selected_ip="8.8.8.10",
         timeout_seconds=5,
         max_response_bytes=1_000_000,
     )
-    server.join()
     assert http_response.status == 304
 
 
@@ -400,7 +389,7 @@ def test_get_pinned_candidate_enforces_the_response_size_cap(
 ) -> None:
     body = b"x" * 1000
     response = b"HTTP/1.1 200 OK\r\nContent-Type: text/xml\r\n\r\n" + body
-    server = _install_loopback_server(monkeypatch, response)
+    _install_fake_pinned_socket(monkeypatch, response)
 
     client = ResilientHttpClient()
     with pytest.raises(ResponseTooLargeError):
@@ -408,30 +397,82 @@ def test_get_pinned_candidate_enforces_the_response_size_cap(
             hostname="www.tmd.go.th",
             port=443,
             path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
-            selected_ip="127.0.0.1",
+            selected_ip="8.8.8.10",
             timeout_seconds=5,
             max_response_bytes=10,
         )
-    server.join()
 
 
 def test_get_pinned_candidate_only_ever_makes_one_physical_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     response = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\nBODY"
-    server = _install_loopback_server(monkeypatch, response)
+    fake_socket = _install_fake_pinned_socket(monkeypatch, response)
 
     client = ResilientHttpClient()
     client.get_pinned_candidate(
         hostname="www.tmd.go.th",
         port=443,
         path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
-        selected_ip="127.0.0.1",
+        selected_ip="8.8.8.10",
         timeout_seconds=5,
         max_response_bytes=1_000_000,
     )
-    server.join()
-    assert server.accept_count == 1
+    # No retry parameter exists on get_pinned_candidate at all -- this
+    # counts the literal "GET " request lines that ever reached the wire
+    # to prove that structural absence actually holds at runtime.
+    assert fake_socket.sent.count(b"GET ") == 1
+
+
+def test_get_pinned_candidate_never_opens_a_real_socket(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ChatGPT review round 1, finding 1: an explicit guard proving the
+    candidate transport tests above never fall back to a real socket --
+    ``socket.socket``/``socket.create_connection`` are made to explode if
+    called, and the fake-socket-based request/response cycle still
+    succeeds without tripping either guard."""
+    response = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\nBODY"
+    _install_fake_pinned_socket(monkeypatch, response)
+
+    def _explode(*args, **kwargs):
+        raise AssertionError("a real socket was opened during a candidate transport test")
+
+    monkeypatch.setattr(socket, "socket", _explode)
+    monkeypatch.setattr(socket, "create_connection", _explode)
+
+    client = ResilientHttpClient()
+    http_response, _connected_ip = client.get_pinned_candidate(
+        hostname="www.tmd.go.th",
+        port=443,
+        path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+        selected_ip="8.8.8.10",
+        timeout_seconds=5,
+        max_response_bytes=1_000_000,
+    )
+    assert http_response.status == 200
+
+
+def test_get_pinned_candidate_fails_closed_before_sending_on_peer_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ChatGPT review round 1, finding 2: if the opened socket's peer does
+    not match the DNS-validated ``selected_ip``, the request must never be
+    sent at all -- not merely fail closed after the fact. Asserts zero
+    bytes ever reached ``sendall`` on the fake peer socket."""
+    response = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\nBODY"
+    fake_socket = _install_fake_pinned_socket(monkeypatch, response, peer_ip="8.8.8.99")
+
+    client = ResilientHttpClient()
+    with pytest.raises(PinnedConnectionError):
+        client.get_pinned_candidate(
+            hostname="www.tmd.go.th",
+            port=443,
+            path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+            selected_ip="8.8.8.10",
+            timeout_seconds=5,
+            max_response_bytes=1_000_000,
+        )
+    assert fake_socket.sent == b""
+    assert fake_socket.closed is True
 
 
 def test_get_pinned_candidate_wraps_a_connection_failure(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -497,3 +538,25 @@ def test_open_pinned_socket_verifies_the_hostname_not_the_ip(
     assert result == "WRAPPED_SOCKET"
     assert calls["sock"] is fake_raw_sock
     assert calls["server_hostname"] == "www.tmd.go.th"
+
+
+def test_get_pinned_candidate_ignores_environment_proxies(monkeypatch: pytest.MonkeyPatch) -> None:
+    """This transport never touches ``urllib.request`` -- the only thing in
+    this module that consults ``HTTP_PROXY``/``HTTPS_PROXY`` -- so
+    deliberately-broken proxy env vars must have zero effect on the pinned
+    candidate fetch."""
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy.invalid:9")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:9")
+    response = b"HTTP/1.1 200 OK\r\nContent-Type: application/cap+xml\r\n\r\nBODY"
+    _install_fake_pinned_socket(monkeypatch, response)
+
+    client = ResilientHttpClient()
+    http_response, _connected_ip = client.get_pinned_candidate(
+        hostname="www.tmd.go.th",
+        port=443,
+        path="/uploads/CAP/en/CAPTMD20260723155032_2.xml",
+        selected_ip="8.8.8.10",
+        timeout_seconds=5,
+        max_response_bytes=1_000_000,
+    )
+    assert http_response.status == 200
