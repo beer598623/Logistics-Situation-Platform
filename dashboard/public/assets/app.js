@@ -31,8 +31,27 @@
     very_stale: 'pill-critical',
     no_data: 'pill-muted',
     disabled: 'pill-muted',
-    error: 'pill-critical'
+    error: 'pill-critical',
+    /* Fixture statuses are deliberately disjoint from the real-world set: a
+       generated number has no publisher to have fallen behind. */
+    fixture_not_live: 'pill-demo',
+    historical_validation: 'pill-demo',
+    not_applicable: 'pill-muted'
   };
+
+  var DEMO_LABEL = {
+    technical_demo: 'Technical demonstration — synthetic fixture',
+    historical_validation: 'Historical validation — not a current condition'
+  };
+
+  /* Every panel built from fixture data is labelled individually. A reader who
+     lands mid-page, follows a deep link, or prints one section must still see
+     that what they are looking at is not current intelligence. */
+  function demoTag(dataset) {
+    if (!DEMO_LABEL[dataset]) return '';
+    return '<span class="pill pill-demo">' + esc(DEMO_LABEL[dataset]) + '</span>';
+  }
+
   var STATUS_PILL = {
     observed: 'pill-critical',
     potential: 'pill-warning',
@@ -168,6 +187,16 @@
   }
 
   function seriesBlock(series, title, metaLines) {
+    var provenance = [];
+    if (series.source_id) {
+      provenance.push('Source: ' + series.source_id);
+    }
+    if (series.intended_source_id) {
+      provenance.push('Stands in for: ' + series.intended_source_id);
+    }
+    if (series.evidence_origin) {
+      provenance.push('Origin: ' + words(series.evidence_origin));
+    }
     var figures = [
       ['Latest value', num(series.current_value, 2) + (series.unit ? ' <small>' + esc(series.unit) + '</small>' : '')],
       ['Period', esc(series.current_period || 'none')],
@@ -184,9 +213,11 @@
 
     var limitations = (series.limitations || []).concat(series.source_limitations || []);
 
-    return '<div class="series">' +
-      '<h4>' + esc(title || series.series_id) + '</h4>' +
-      '<p class="series-meta">' + (metaLines || []).map(esc).join(' · ') +
+    return '<div class="series' + (DEMO_LABEL[series.dataset] ? ' is-demo' : '') + '"' +
+      (DEMO_LABEL[series.dataset] ? ' data-demo-label="' + esc(DEMO_LABEL[series.dataset]) + '"' : '') +
+      '>' +
+      '<h4>' + esc(title || series.series_id) + ' ' + demoTag(series.dataset) + '</h4>' +
+      '<p class="series-meta">' + (metaLines || []).concat(provenance).map(esc).join(' · ') +
       ' · Freshness: ' + freshnessCell(series.freshness) + '</p>' +
       '<div class="series-figures">' + figures + '</div>' +
       sparkline(series.points || []) +
@@ -231,11 +262,11 @@
     el('situation-cards').innerHTML = [
       ['Overall direction', words(data.overall_direction), 'Transparent roll-up of the lane directions, not a composite score.'],
       ['Evidence coverage', words(data.evidence_coverage), data.coverage_message],
+      ['Qualified observations', String(data.qualified_observation_count), 'Live-retrieved or human-reviewed records. Fixtures are excluded.'],
+      ['Qualified events', String(data.qualified_event_count), 'Events with retrieved or human-reviewed evidence.'],
       ['Lanes needing attention', String(data.lanes_requiring_attention.length), 'Out of the published lane set.'],
-      ['Verified operational events', String(data.active_verified_events.length), 'Reported, verified or impact-observed.'],
-      ['Admitted external drivers', String(data.admitted_external_drivers.length), 'Drivers with a complete transmission chain.'],
-      ['Contextual drivers', String(data.contextual_external_drivers.length), 'No transmission mechanism established; contextual only.'],
-      ['Discovery leads', String(data.discovery_leads.length), 'Unconfirmed; cannot support a conclusion.']
+      ['Active verified events', String(data.active_verified_events.length), 'Confirmed still active at the data cutoff.'],
+      ['Demo lanes at attention', String(data.demo_summary.lanes_requiring_attention), 'Technical demonstration only — synthetic fixtures.']
     ].map(function (card) {
       return '<div class="card"><div class="label">' + esc(card[0]) + '</div>' +
         '<div class="value">' + esc(card[1]) + '</div>' +
@@ -250,11 +281,19 @@
             '<td>' + pill(lane.overall_direction, DIRECTION_PILL) + '</td>' +
             '<td>' + esc(words(lane.resolution)) + '</td></tr>';
         }).join('')
-      : '<tr><td colspan="4">No lane is above routine attention.</td></tr>';
+      : '<tr><td colspan="4">No lane is above routine attention. With no qualified ' +
+        'evidence, no lane can be raised — which is a coverage gap, not an all-clear.</td></tr>';
+
+    el('situation-cost-current').textContent =
+      'No qualified cost observation exists, so no current cost pressure reading is ' +
+      'published. The table below is a technical demonstration built from synthetic ' +
+      'fixtures.';
 
     var costBody = el('situation-cost-table').querySelector('tbody');
     costBody.innerHTML = data.cost_pressure.map(function (item) {
-      return '<tr><th scope="row">' + esc(item.series_id) + '<br><small>' + esc(item.source_id || '') + '</small></th>' +
+      return '<tr><th scope="row">' + esc(item.series_id) + '<br><small>' + esc(item.source_id || '') +
+        (item.intended_source_id ? ' — stands in for ' + esc(item.intended_source_id) : '') +
+        ' · ' + esc(words(item.evidence_origin)) + '</small></th>' +
         '<td class="num">' + num(item.current_value, 2) + ' <small>' + esc(item.unit || '') + '</small></td>' +
         '<td>' + esc(item.current_period || 'none') + '</td>' +
         '<td class="num">' + pct(item.month_over_month_pct) + '</td>' +
@@ -269,21 +308,43 @@
     }).join('');
   }
 
-  function laneCard(lane) {
-    var assessment = lane.assessment;
-    var domains = assessment ? assessment.domain_assessments : [];
-    var domainRows = domains.map(function (item) {
+  function domainTable(assessment) {
+    var rows = ((assessment && assessment.domain_assessments) || []).map(function (item) {
       return '<tr><th scope="row">' + esc(words(item.domain)) + '</th>' +
         '<td>' + pill(item.direction, DIRECTION_PILL) + '</td>' +
         '<td>' + esc(item.threshold_rule_id || 'no threshold rule (event or coverage derived)') + '</td>' +
         '<td>' + esc(item.data_period || 'none') + '</td>' +
         '<td>' + freshnessCell(item.freshness) + '</td></tr>';
     }).join('');
+    return '<div class="table-wrap"><table><thead><tr><th scope="col">Domain</th><th scope="col">Direction</th>' +
+      '<th scope="col">Threshold rule</th><th scope="col">Data period</th><th scope="col">Freshness</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
+  }
+
+  /* The demonstration assessment lives inside the lane card, in its own bordered
+     panel with its own label. Placing it beside the current assessment without a
+     marker of its own would let a reader carry a synthetic attention level away
+     as if it were the lane's real state. */
+  function demoPanel(demo) {
+    if (!demo) return '';
+    return '<div class="demo-panel">' +
+      '<span class="demo-tag">' + esc(DEMO_LABEL[demo.dataset] || 'Technical demonstration') + '</span>' +
+      '<div class="badges">' + pill(demo.attention_level, ATTENTION_PILL) +
+      pill(demo.overall_direction, DIRECTION_PILL) + '</div>' +
+      '<p class="meta">Derived from synthetic fixtures to exercise the threshold rules. ' +
+      'This attention level describes no real-world condition and must not be quoted as one.</p>' +
+      detailsBlock('Demonstration domain assessments (9)', domainTable(demo)) +
+      '</div>';
+  }
+
+  function laneCard(lane) {
+    var assessment = lane.assessment;
 
     return '<div class="lane-card">' +
       '<div class="badges">' +
       (assessment ? pill(assessment.attention_level, ATTENTION_PILL) : pill('insufficient_evidence', ATTENTION_PILL)) +
       (assessment ? pill(assessment.overall_direction, DIRECTION_PILL) : '') +
+      '<span class="pill pill-note">current</span>' +
       '<span class="pill pill-muted">' + esc(words(lane.resolution)) + ' resolution</span>' +
       '<span class="pill pill-muted">mode: ' + esc(lane.mode) + '</span>' +
       '</div>' +
@@ -291,10 +352,11 @@
       '<p class="meta">' + esc(lane.origin) + ' → ' + esc(lane.destination) +
       ' · ' + esc(lane.lane_id) + ' · reviewed ' + esc(lane.review_date) + ' · ' + esc(lane.status) + '</p>' +
       '<p class="meta">Chokepoints: ' + (lane.chokepoint_ids.length ? esc(lane.chokepoint_ids.join(', ')) : 'none registered') + '</p>' +
-      detailsBlock('Domain assessments (9)',
-        '<div class="table-wrap"><table><thead><tr><th scope="col">Domain</th><th scope="col">Direction</th>' +
-        '<th scope="col">Threshold rule</th><th scope="col">Data period</th><th scope="col">Freshness</th></tr></thead>' +
-        '<tbody>' + domainRows + '</tbody></table></div>') +
+      detailsBlock('Current domain assessments (9)', domainTable(assessment)) +
+      (assessment && assessment.data_gaps
+        ? detailsBlock('Current data gaps (' + assessment.data_gaps.length + ')', list(assessment.data_gaps))
+        : '') +
+      demoPanel(lane.demo_assessment) +
       detailsBlock('Selection evidence (' + lane.selection_evidence.length + ')',
         '<div class="table-wrap"><table><thead><tr><th scope="col">Criterion</th><th scope="col">Statement</th>' +
         '<th scope="col">Evidence class</th><th scope="col">Reference</th></tr></thead><tbody>' +
@@ -310,8 +372,10 @@
 
   function renderOcean(data) {
     el('port-note').textContent = data.port_interpretation_note;
+    el('ocean-demo-label').textContent = data.demo_label;
+    el('current-notice-statement').textContent = data.current_notice_statement;
 
-    el('port-series').innerHTML = data.port_series.map(function (series) {
+    el('port-series').innerHTML = data.demo_port_series.map(function (series) {
       return seriesBlock(series, series.series_id, [
         'Metric: ' + words(series.metric),
         'Interpretation: ' + words(series.operational_interpretation),
@@ -345,10 +409,17 @@
         '<td>' + pill(status, { official_notice_active: 'pill-critical', no_notice: 'pill-muted' }) + '</td></tr>';
     }).join('');
 
-    el('notices').innerHTML = data.operational_notices.length
-      ? data.operational_notices.map(function (notice) {
-          return '<div class="event"><div class="badges">' +
+    el('notices').innerHTML = data.demo_operational_notices.length
+      ? data.demo_operational_notices.map(function (notice) {
+          return '<div class="event is-demo" data-demo-label="' +
+            esc(DEMO_LABEL[notice.dataset] || '') + '"><div class="badges">' +
+            demoTag(notice.dataset) +
+            (notice.assessment_cutoff
+              ? '<span class="pill pill-muted">assessed at cutoff ' + esc(notice.assessment_cutoff.slice(0, 10)) + '</span>'
+              : '') +
+            (notice.case_id ? '<span class="pill pill-muted">' + esc(notice.case_id) + '</span>' : '') +
             '<span class="pill pill-note">official notice</span>' +
+            '<span class="pill pill-muted">' + esc(words(notice.retrieval_status)) + '</span>' +
             '<span class="pill pill-muted">' + esc(notice.source_class) + '</span>' +
             '<span class="pill pill-muted">licence: ' + esc(words(notice.licence_status)) + '</span></div>' +
             '<h4>' + esc(notice.source_name) + '</h4>' +
@@ -363,20 +434,22 @@
       : '<p class="empty-state">No official operational notice is recorded. No notice channel is monitored live, ' +
         'so this is an absence of records rather than evidence that no notice was published.</p>';
 
-    el('capacity-table').querySelector('tbody').innerHTML = data.capacity_and_service_evidence.length
-      ? data.capacity_and_service_evidence.map(function (item) {
-          return '<tr><th scope="row">' + esc(item.title) + '<br><small>' + esc(item.event_id) + '</small></th>' +
+    el('capacity-table').querySelector('tbody').innerHTML = data.demo_capacity_and_service_evidence.length
+      ? data.demo_capacity_and_service_evidence.map(function (item) {
+          return '<tr><th scope="row">' + esc(item.title) + '<br><small>' + esc(item.event_id) +
+            ' · cutoff ' + esc((item.assessment_cutoff || '').slice(0, 10)) + '</small></th>' +
             '<td>' + esc(item.area) + '</td>' +
             '<td>' + pill(item.status, STATUS_PILL) + '</td>' +
             '<td>' + esc(item.severity) + '</td>' +
             '<td>' + esc(item.evidence_strength) + '</td>' +
             '<td>' + esc(item.confidence) + '</td></tr>';
         }).join('')
-      : '<tr><td colspan="6">No capacity or service impact is recorded. No transit-time or ' +
-        'schedule-reliability source is qualified, so this is a coverage gap.</td></tr>';
+      : '<tr><td colspan="6">No capacity or service impact is recorded.</td></tr>';
   }
 
   function renderTrade(data) {
+    el('trade-current').textContent = data.current_statement;
+    el('trade-demo-label').textContent = data.demo_label;
     el('trade-note').innerHTML = esc(data.lane_selection_note) + ' ' + esc(data.revision_note);
     el('trade-lanes').innerHTML = data.lane_flows.map(function (lane) {
       var body = lane.flows.map(function (flow) {
@@ -392,6 +465,8 @@
   }
 
   function renderCost(data) {
+    el('cost-current').textContent = data.current_statement;
+    el('cost-demo-label').textContent = data.demo_label;
     el('cost-limits-banner').innerHTML =
       '<strong>These are benchmarks, not quotations.</strong>' +
       esc(data.benchmark_limitations[1]);
@@ -450,16 +525,29 @@
       return '<tr><th scope="row">' + esc(item.source_name) + '<br><small>' + esc(item.evidence_id) + '</small></th>' +
         '<td>' + pill(item.claim_type, {}) + '</td>' +
         '<td>' + pill(item.evidence_role, { confirming: 'pill-ok', contextual: 'pill-note', discovery_only: 'pill-muted' }) + '</td>' +
-        '<td>' + esc(item.strength) + '</td>' +
+        '<td>' + esc(item.strength) +
+        '<br><small>' + esc(words(item.strength_basis)) + '</small></td>' +
+        '<td>' + esc(words(item.evidence_origin)) +
+        (item.intended_source_id ? '<br><small>stands in for ' + esc(item.intended_source_id) + '</small>' : '') +
+        '</td>' +
+        '<td>' + esc(words(item.retrieval_status)) + '</td>' +
         '<td>' + esc(item.publication_date || 'unknown') + '</td>' +
-        '<td>' + esc(item.retrieved_at) + '</td>' +
+        '<td>' + (item.retrieved_at ? esc(item.retrieved_at) : '<span class="missing">never retrieved</span>') + '</td>' +
         '<td>' + esc(item.claim) +
         (item.source_url ? '<br><a href="' + esc(item.source_url) + '" rel="noopener noreferrer" target="_blank">source</a>' : '') +
         '</td></tr>';
     }).join('');
 
-    return '<article class="event">' +
+    var demoLabel = DEMO_LABEL[event.dataset] || '';
+
+    return '<article class="event' + (demoLabel ? ' is-demo' : '') + '"' +
+      (demoLabel ? ' data-demo-label="' + esc(demoLabel) + '"' : '') + '>' +
       '<div class="badges">' +
+      demoTag(event.dataset) +
+      (event.assessment_cutoff
+        ? '<span class="pill pill-demo">assessed at cutoff ' + esc(String(event.assessment_cutoff).slice(0, 10)) + '</span>'
+        : '') +
+      (event.case_id ? '<span class="pill pill-muted">' + esc(event.case_id) + '</span>' : '') +
       pill(event.event_class, { direct_operational_event: 'pill-critical', external_driver: 'pill-warning', discovery_lead: 'pill-muted' }) +
       pill(event.lifecycle_status, {}) +
       '<span class="pill pill-muted">' + esc(words(event.event_type)) + '</span>' +
@@ -472,7 +560,12 @@
       ' · event date ' + esc(event.event_date || 'unknown') +
       ' · published ' + esc(event.publication_date || 'unknown') +
       ' · retrieved ' + esc(event.retrieval_date) +
-      ' · last reviewed ' + esc(event.last_reviewed_at) + '</small></p>' +
+      ' · last reviewed ' + esc(event.last_reviewed_at) +
+      ' · ' + (event.active_as_of
+        ? 'confirmed active as of ' + esc(String(event.active_as_of).slice(0, 10)) +
+          ' (' + esc(words(event.active_basis)) + ')'
+        : 'no confirmation that this event is still active') +
+      '</small></p>' +
       chainList(event.transmission_chain) +
       (event.thailand_relevance_basis.length
         ? '<p class="prose"><strong>Thailand relevance basis:</strong></p>' + list(event.thailand_relevance_basis)
@@ -498,8 +591,12 @@
         '</small></p>') +
       detailsBlock('Evidence (' + event.evidence.length + ')',
         '<div class="table-wrap"><table><thead><tr><th scope="col">Source</th><th scope="col">Claim type</th>' +
-        '<th scope="col">Role</th><th scope="col">Strength</th><th scope="col">Published</th>' +
-        '<th scope="col">Retrieved</th><th scope="col">Claim</th></tr></thead><tbody>' + evidenceRows + '</tbody></table></div>') +
+        '<th scope="col">Role</th><th scope="col">Strength</th><th scope="col">Origin</th>' +
+        '<th scope="col">Retrieval</th><th scope="col">Published</th>' +
+        '<th scope="col">Retrieved</th><th scope="col">Claim</th></tr></thead><tbody>' + evidenceRows + '</tbody></table></div>' +
+        '<p class="prose"><small>Strength recorded as <em>expected at cutoff</em> is the strength a ' +
+        'qualified source would have carried had it been retrieved. It has not been verified ' +
+        'against any retrieved document.</small></p>') +
       detailsBlock('Conflicting evidence (' + event.conflicting_evidence.length + ')',
         event.conflicting_evidence.length
           ? list(event.conflicting_evidence.map(function (c) { return c.description + ' — ' + words(c.resolution_status); }))
@@ -510,11 +607,19 @@
 
   function renderEvents(data) {
     el('events-note').textContent = data.lifecycle_note;
+    el('events-current-statement').textContent = data.current_statement;
+    el('events-demo-label').textContent = data.demo_label;
     [
-      ['events-operational', data.direct_operational_events, 'No direct operational event is recorded.'],
-      ['events-admitted', data.admitted_external_drivers, 'No external driver currently has a complete transmission chain.'],
-      ['events-contextual', data.contextual_external_drivers, 'No contextual external driver is recorded.'],
-      ['events-leads', data.discovery_leads, 'No discovery lead is recorded.']
+      ['events-current-operational', data.current_direct_operational_events,
+        'No current direct operational event is recorded. Every event held is a historical ' +
+        'validation fixture. An empty list here is a coverage gap, not an all-clear.'],
+      ['events-current-drivers', data.current_external_drivers,
+        'No current external driver is recorded. An empty list here is a coverage gap, not a ' +
+        'finding that no driver exists.'],
+      ['events-operational', data.demo_direct_operational_events, 'No direct operational event is recorded.'],
+      ['events-admitted', data.demo_admitted_external_drivers, 'No external driver currently has a complete transmission chain.'],
+      ['events-contextual', data.demo_contextual_external_drivers, 'No contextual external driver is recorded.'],
+      ['events-leads', data.demo_discovery_leads, 'No discovery lead is recorded.']
     ].forEach(function (entry) {
       el(entry[0]).innerHTML = entry[1].length
         ? entry[1].map(eventCard).join('')
@@ -553,31 +658,39 @@
       : '';
 
     el('deterministic-note').textContent = data.deterministic_note;
-    el('outlooks').innerHTML = data.deterministic_outlooks.map(function (entry) {
-      var scenarios = entry.scenarios;
-      return '<div class="series">' +
-        '<div class="badges">' + pill(entry.attention_level, ATTENTION_PILL) + '</div>' +
-        '<h4>' + esc(entry.lane_name || entry.lane_id) + '</h4>' +
-        (scenarios
-          ? scenarioCase('Base case', scenarios.base_case) +
-            scenarioCase('Deterioration case', scenarios.deterioration_case) +
-            scenarioCase('Improvement case', scenarios.improvement_case)
-          : '<p class="empty-state">No outlook generated for this lane.</p>') +
-        detailsBlock('Conditional preparedness options (' + entry.preparedness_options.length + ')',
-          entry.preparedness_options.length
-            ? entry.preparedness_options.map(function (option) {
-                return '<div class="series"><h4>' + esc(words(option.option_type)) + '</h4>' +
-                  '<p class="prose">' + esc(option.description) + '</p>' +
-                  '<p class="prose"><strong>Applies to:</strong> ' + esc(option.applicable_to) + '</p>' +
-                  '<p class="prose"><strong>Trigger:</strong> ' + esc(option.trigger_condition) + '</p>' +
-                  '<p class="prose"><strong>Exit:</strong> ' + esc(option.exit_condition) + '</p>' +
-                  detailsBlock('Trade-offs and limitations',
-                    list((option.tradeoffs || []).concat(option.limitations || []))) +
-                  '</div>';
-              }).join('')
-            : '<p class="empty-state">No preparedness option applies.</p>') +
-        '</div>';
-    }).join('');
+    el('outlook-demo-label').textContent = data.demo_label;
+    el('current-outlooks').innerHTML = (data.current_outlooks || []).map(outlookBlock).join('') ||
+      '<p class="empty-state">No current lane outlook is published.</p>';
+    el('outlooks').innerHTML = (data.demo_outlooks || []).map(outlookBlock).join('') ||
+      '<p class="empty-state">No demonstration outlook was generated.</p>';
+  }
+
+  function outlookBlock(entry) {
+    var scenarios = entry.scenarios;
+    var demoLabel = DEMO_LABEL[entry.dataset] || '';
+    return '<div class="series' + (demoLabel ? ' is-demo' : '') + '"' +
+      (demoLabel ? ' data-demo-label="' + esc(demoLabel) + '"' : '') + '>' +
+      '<div class="badges">' + pill(entry.attention_level, ATTENTION_PILL) + demoTag(entry.dataset) + '</div>' +
+      '<h4>' + esc(entry.lane_name || entry.lane_id) + '</h4>' +
+      (scenarios
+        ? scenarioCase('Base case', scenarios.base_case) +
+          scenarioCase('Deterioration case', scenarios.deterioration_case) +
+          scenarioCase('Improvement case', scenarios.improvement_case)
+        : '<p class="empty-state">No outlook generated for this lane.</p>') +
+      detailsBlock('Conditional preparedness options (' + entry.preparedness_options.length + ')',
+        entry.preparedness_options.length
+          ? entry.preparedness_options.map(function (option) {
+              return '<div class="series"><h4>' + esc(words(option.option_type)) + '</h4>' +
+                '<p class="prose">' + esc(option.description) + '</p>' +
+                '<p class="prose"><strong>Applies to:</strong> ' + esc(option.applicable_to) + '</p>' +
+                '<p class="prose"><strong>Trigger:</strong> ' + esc(option.trigger_condition) + '</p>' +
+                '<p class="prose"><strong>Exit:</strong> ' + esc(option.exit_condition) + '</p>' +
+                detailsBlock('Trade-offs and limitations',
+                  list((option.tradeoffs || []).concat(option.limitations || []))) +
+                '</div>';
+            }).join('')
+          : '<p class="empty-state">No preparedness option applies.</p>') +
+      '</div>';
   }
 
   function renderSources(data) {

@@ -67,7 +67,12 @@ class ResponseTooLargeError(ValueError):
 
 @dataclass(slots=True, frozen=True)
 class SeriesSpec:
-    """Everything needed to turn one CSV column into observation records."""
+    """Everything needed to turn one CSV column into observation records.
+
+    ``evidence_origin`` and ``intended_source_id`` carry provenance truth: a
+    spec bound to a fixture payload records what the fixture stands in for
+    rather than attributing generated numbers to a publisher.
+    """
 
     series_id: str
     family: ObservationFamily
@@ -82,6 +87,13 @@ class SeriesSpec:
     lane_id: str | None = None
     node_id: str | None = None
     known_limitations: tuple[str, ...] = ()
+    #: Where records built from this spec come from. Defaults to the synthetic
+    #: fixture origin because that is what every WO-010 spec is bound to; a
+    #: live spec must set it explicitly rather than inherit it.
+    evidence_origin: str = "synthetic_test_fixture"
+    #: The production source candidate a fixture stands in for. Required
+    #: whenever ``evidence_origin`` is a fixture origin.
+    intended_source_id: str | None = None
     #: Family-specific fields merged into the emitted record, e.g.
     #: ``{"flow_direction": "export", "measure": "value"}`` for a trade
     #: series or ``{"benchmark_class": "market_benchmark"}`` for a cost one.
@@ -90,7 +102,12 @@ class SeriesSpec:
 
 @dataclass(slots=True, frozen=True)
 class CsvSeriesContract:
-    """The parse contract for one CSV payload."""
+    """The parse contract for one CSV payload.
+
+    ``source_id`` is the source the payload actually came from. For a local
+    fixture that is the reserved synthetic identifier, never the publisher the
+    fixture imitates.
+    """
 
     source_id: str
     parser_version: str
@@ -164,7 +181,10 @@ def parse_csv_series(
     payload: bytes,
     contract: CsvSeriesContract,
     *,
-    retrieved_at: str,
+    retrieved_at: str | None = None,
+    fixture_created_at: str | None = None,
+    retrieval_status: str = "not_retrieved",
+    content_hash_scope: str = "local_fixture_payload",
     content_type: str | None = "text/csv",
     max_bytes: int = MAX_BYTES,
     max_rows: int = MAX_ROWS,
@@ -267,6 +287,11 @@ def parse_csv_series(
                     period_end=period_end,
                     period_type=spec.period_type,
                     retrieved_at=retrieved_at,
+                    retrieval_status=retrieval_status,
+                    content_hash_scope=content_hash_scope,
+                    evidence_origin=spec.evidence_origin,
+                    intended_source_id=spec.intended_source_id,
+                    fixture_created_at=fixture_created_at,
                     parser_version=contract.parser_version,
                     evidence_class=spec.evidence_class,
                     content_sha256=payload_hash,

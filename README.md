@@ -83,14 +83,23 @@ its rejection rules and human-approval gate, eight historical validation cases, 
 DuckDB warehouse, and a seven-section static Dashboard.
 
 **Live coverage is insufficient and the Dashboard says so on its face.** No source in the
-registry is enabled and none has completed a controlled live validation, so every numeric
-series is a labelled synthetic test fixture and all event evidence is a historical validation
-fixture whose content was not retrieved. `Paid-source dependency = 0`; no AI API is called.
-See [`docs/source_qualification_report.md`](docs/source_qualification_report.md) and
-[`docs/known_data_gaps.md`](docs/known_data_gaps.md).
+registry is enabled and none has completed a controlled live validation, so the platform
+holds no live-retrieved or human-reviewed evidence at all. `Paid-source dependency = 0`; no
+AI API is called. See [`docs/source_qualification_report.md`](docs/source_qualification_report.md)
+and [`docs/known_data_gaps.md`](docs/known_data_gaps.md).
+
+**Fixtures and current intelligence are separated (WO-010-R1).** Every observation and
+evidence record carries a machine-readable `evidence_origin`, and only `live_retrieved` or
+`human_reviewed_manual` records may reach the current view. With zero such records, every
+current reading is `insufficient_evidence` — a coverage gap, not an all-clear — while the
+synthetic and historical-validation fixtures that exercise the analysis engine appear only in
+separately labelled Technical demonstration and Historical validation panels, each marked on
+its own card rather than by a page banner alone. See
+[`docs/evidence_provenance_and_datasets.md`](docs/evidence_provenance_and_datasets.md).
 
 Key WO-010 documents: [`bundle1_architecture`](docs/bundle1_architecture.md),
 [`data_model_and_persistence`](docs/data_model_and_persistence.md),
+[`evidence_provenance_and_datasets`](docs/evidence_provenance_and_datasets.md),
 [`ocean_lane_selection`](docs/ocean_lane_selection.md),
 [`indicator_definitions`](docs/indicator_definitions.md),
 [`event_lifecycle`](docs/event_lifecycle.md),

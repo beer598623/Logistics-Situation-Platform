@@ -1,11 +1,15 @@
 {
   "version": "0.8",
   "generated_by": "scripts/build_events_from_cases.py",
-  "source_note": "Expanded from data/validation/historical_cases.json. Evidence content was not retrieved under WO-010; original publisher URLs are retained for independent verification.",
+  "dataset": "historical_validation",
+  "source_note": "Expanded from data/validation/historical_cases.json. Every record belongs to the historical-validation dataset and is excluded from the current-publication view. Evidence content was not retrieved; source_id is the reserved synthetic identifier, the publisher is recorded in intended_source_id, and the original publisher URL is retained for independent verification.",
   "record_count": 8,
   "events": [
     {
       "event_id": "EVT-20220301-001",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
       "canonical_event_id": "CEVT-b1df6fc476387d56",
       "title": "Crude and refined product prices rise sharply, raising bunker and domestic fuel costs",
       "event_class": "external_driver",
@@ -340,6 +344,9 @@
     },
     {
       "event_id": "EVT-20231030-001",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
       "canonical_event_id": "CEVT-273133479ba15d6a",
       "title": "Panama Canal Authority restricts daily transit slots during drought conditions",
       "event_class": "direct_operational_event",
@@ -593,6 +600,9 @@
     },
     {
       "event_id": "EVT-20231218-001",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
       "canonical_event_id": "CEVT-1814d49b2ca1a335",
       "title": "Container carriers divert Asia\u2013Europe services away from the Red Sea and Suez routing",
       "event_class": "direct_operational_event",
@@ -876,6 +886,9 @@
     },
     {
       "event_id": "EVT-20240326-001",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
       "canonical_event_id": "CEVT-f2736ee26cccd125",
       "title": "Francis Scott Key Bridge collapse suspends vessel traffic at the Port of Baltimore",
       "event_class": "direct_operational_event",
@@ -1130,6 +1143,9 @@
     },
     {
       "event_id": "EVT-20240520-001",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
       "canonical_event_id": "CEVT-a32fb2a143fa67d1",
       "title": "Elevated vessel waiting times reported at Singapore container terminals",
       "event_class": "direct_operational_event",
@@ -1423,6 +1439,9 @@
     },
     {
       "event_id": "EVT-20240614-002",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
       "canonical_event_id": "CEVT-e1be36210773d9c0",
       "title": "Pasir Panjang oil spill response with port operations reported unaffected",
       "event_class": "direct_operational_event",
@@ -1704,6 +1723,9 @@
     },
     {
       "event_id": "EVT-20241118-001",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
       "canonical_event_id": "CEVT-9bb259aad2ee5dd9",
       "title": "Damage to Baltic Sea subsea telecommunications cables reported",
       "event_class": "external_driver",
@@ -1962,6 +1984,9 @@
     },
     {
       "event_id": "EVT-20260715-001",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
       "canonical_event_id": "CEVT-eea81892adc7b175",
       "title": "Unverified report of a labour dispute affecting a Southeast Asian container terminal",
       "event_class": "discovery_lead",

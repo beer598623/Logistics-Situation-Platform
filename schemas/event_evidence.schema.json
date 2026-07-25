@@ -21,22 +21,58 @@
     "scope_supported",
     "event_date",
     "publication_date",
-    "retrieved_at",
     "content_sha256",
     "parser_version",
     "licence_status",
-    "known_limitations"
+    "known_limitations",
+    "evidence_origin",
+    "retrieval_status",
+    "content_hash_scope",
+    "retrieved_at",
+    "strength_basis"
   ],
   "properties": {
-    "evidence_id": {"type": "string", "pattern": "^EVD-[A-Za-z0-9-]+$"},
-    "event_id": {"type": "string", "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"},
-    "source_id": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
-    "source_name": {"type": "string", "minLength": 1},
-    "source_class": {
-      "enum": ["official", "official_research", "international", "operator", "regulator", "industry", "news", "vendor"]
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^EVD-[A-Za-z0-9-]+$"
     },
-    "source_url": {"type": ["string", "null"], "format": "uri"},
-    "source_record_id": {"type": ["string", "null"]},
+    "event_id": {
+      "type": "string",
+      "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$"
+    },
+    "source_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_class": {
+      "enum": [
+        "official",
+        "official_research",
+        "international",
+        "operator",
+        "regulator",
+        "industry",
+        "news",
+        "vendor"
+      ]
+    },
+    "source_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri"
+    },
+    "source_record_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "claim": {
       "type": "string",
       "minLength": 1,
@@ -44,28 +80,156 @@
       "description": "A bounded statement of what this source says. Bounded deliberately: the platform records the claim and links to the source, and never republishes a full copyrighted article."
     },
     "claim_type": {
-      "enum": ["verified_fact", "official_notice", "official_forecast", "reported_claim", "analytical_inference", "discovery_lead"]
+      "enum": [
+        "verified_fact",
+        "official_notice",
+        "official_forecast",
+        "reported_claim",
+        "analytical_inference",
+        "discovery_lead"
+      ]
     },
     "evidence_role": {
       "description": "Whether this item may carry a material conclusion. A discovery source may detect a lead but may never be the sole evidence for a material impact conclusion; 'discovery_only' marks items that are structurally barred from doing so.",
-      "enum": ["confirming", "contextual", "discovery_only"]
+      "enum": [
+        "confirming",
+        "contextual",
+        "discovery_only"
+      ]
     },
-    "relation": {"enum": ["supports", "contradicts", "contextual", "supersedes"]},
-    "strength": {"enum": ["A", "B", "C", "D"]},
-    "scope_supported": {"enum": ["asset", "facility", "node", "route", "lane", "country", "region", "global"]},
-    "event_date": {"type": ["string", "null"], "format": "date"},
-    "publication_date": {"type": ["string", "null"], "format": "date"},
-    "retrieved_at": {"type": "string", "format": "date-time"},
-    "revised_at": {"type": ["string", "null"], "format": "date-time"},
-    "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "parser_version": {"type": "string", "pattern": "^[a-z0-9_]+_v[0-9]+$"},
-    "source_revision": {"type": ["string", "null"]},
-    "licence_status": {"enum": ["reviewed", "pending_review", "restricted", "unknown"]},
-    "redistribution_status": {"enum": ["permitted", "derived_only", "link_only", "prohibited", "unknown"]},
+    "relation": {
+      "enum": [
+        "supports",
+        "contradicts",
+        "contextual",
+        "supersedes"
+      ]
+    },
+    "strength": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "Evidence strength. Read together with strength_basis: an 'expected_at_cutoff' grading is what the case asserts, not a verified assessment of retrieved content."
+    },
+    "scope_supported": {
+      "enum": [
+        "asset",
+        "facility",
+        "node",
+        "route",
+        "lane",
+        "country",
+        "region",
+        "global"
+      ]
+    },
+    "event_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "publication_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "retrieved_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When the source content was actually retrieved. Null unless retrieval_status is 'retrieved'; a historical fixture whose content was never fetched has no retrieval time."
+    },
+    "revised_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Content hash, scoped by content_hash_scope. For a fixture this is a claim-record hash over this repository's own authored text, and is not evidence about any publisher response."
+    },
+    "parser_version": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+_v[0-9]+$"
+    },
+    "source_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "licence_status": {
+      "enum": [
+        "reviewed",
+        "pending_review",
+        "restricted",
+        "unknown"
+      ]
+    },
+    "redistribution_status": {
+      "enum": [
+        "permitted",
+        "derived_only",
+        "link_only",
+        "prohibited",
+        "unknown"
+      ]
+    },
     "raw_snapshot_path": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "description": "Always null in the public repository. Raw responses, caches and restricted content must not enter the public repository."
     },
-    "known_limitations": {"type": "array", "items": {"type": "string"}}
+    "known_limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_origin": {
+      "$ref": "observation_common.schema.json#/$defs/evidenceOrigin"
+    },
+    "retrieval_status": {
+      "$ref": "observation_common.schema.json#/$defs/retrievalStatus"
+    },
+    "content_hash_scope": {
+      "$ref": "observation_common.schema.json#/$defs/contentHashScope"
+    },
+    "intended_source_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Z0-9_]+$",
+      "description": "For a fixture, the publisher this evidence stands in for. Never a claim that the content came from there."
+    },
+    "fixture_created_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "strength_basis": {
+      "description": "Whether 'strength' is a verified grading of retrieved content, or the strength the authored case asserts would have been available at its cutoff. A fixture can only ever be 'expected_at_cutoff'.",
+      "enum": [
+        "verified",
+        "expected_at_cutoff"
+      ]
+    }
   }
 }

@@ -65,7 +65,33 @@ reviewer record and the archive path.
 This is what makes a later change of view visible as a change, rather than as the way things
 always were.
 
-## 5. Boundaries a reviewer cannot waive
+## 5. Approve and reject are asymmetric (WO-010-R1)
+
+A rejection is a statement about the **inbound** assessment. It says nothing about the
+assessment already approved.
+
+| | Reject | Approve |
+|---|---|---|
+| Re-runs every gate | Records the outcome | **Blocks on failure** |
+| Approved assessment file | **Untouched, byte for byte** | Replaced atomically |
+| Archive | Nothing archived | Previous version archived, but only after the new one passes |
+| History | Rejection recorded | Approval recorded with a revision number and the entry it supersedes |
+
+Under WO-010 a rejection archived the currently approved assessment: declining a bad
+submission silently withdrew the good one that was live, and the Dashboard lost its AI
+Outlook because someone said "no" to something else. `scripts/review_decision.py` now
+archives only on the approve path.
+
+Both paths are transactional. Every file the script may touch — the history, the approved
+assessment and the archive destination — is captured before any change and restored if
+anything raises, so a failure part-way through leaves the repository exactly as it was
+rather than with an archived old version and no new one. Archive destinations are also
+de-duplicated: two approvals of the same package within the same second used to produce the
+same filename, and the second move overwrote the first archived version.
+
+Regression coverage is in `tests/test_review_decision_transactions.py`.
+
+## 6. Boundaries a reviewer cannot waive
 
 - No paid source may be enabled or required for publication.
 - No private company data may enter the public repository.
@@ -75,7 +101,7 @@ always were.
 - Missing data may not be published as zero.
 - No AI output may be published without passing through this process.
 
-## 6. Current state
+## 7. Current state
 
 No assessment has been submitted for review, so no review record exists. The process,
 its scripts and its gates are implemented and tested.

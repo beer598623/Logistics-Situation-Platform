@@ -35,7 +35,16 @@ from analysis.events import (  # noqa: E402
     cluster_key,
     evaluate_transmission_chain,
 )
+from analysis.provenance import (  # noqa: E402
+    HISTORICAL_VALIDATION,
+    HISTORICAL_VALIDATION_FIXTURE,
+    SYNTHETIC_SOURCE_ID,
+)
 from analysis.reference import geography_index, resolve_lane_relevance  # noqa: E402
+
+#: When these fixtures were authored. Recorded instead of a retrieval time,
+#: because no publisher content was ever fetched for any of them.
+FIXTURE_CREATED_AT = "2026-07-24T00:00:00Z"
 
 CASES_PATH = ROOT / "data" / "validation" / "historical_cases.json"
 EVENTS_PATH = ROOT / "data" / "events" / "events.json"
@@ -129,7 +138,10 @@ def _expand_evidence(case: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "evidence_id": item["evidence_id"],
                 "event_id": event_id,
-                "source_id": item["source_id"],
+                # The fixture's own identity is synthetic; the publisher it
+                # stands in for is an intention, not a provenance claim.
+                "source_id": SYNTHETIC_SOURCE_ID,
+                "intended_source_id": item["source_id"],
                 "source_name": item["source_name"],
                 "source_class": item["source_class"],
                 "source_url": item.get("source_url"),
@@ -142,9 +154,18 @@ def _expand_evidence(case: dict[str, Any]) -> list[dict[str, Any]]:
                 "scope_supported": item["scope_supported"],
                 "event_date": case["event"].get("event_date"),
                 "publication_date": item.get("publication_date"),
-                "retrieved_at": case["assessment_cutoff"],
+                # Nothing was retrieved, so there is no retrieval time. The
+                # case's assessment cutoff is recorded on the event, not here:
+                # putting it in retrieved_at asserted a fetch that never
+                # happened.
+                "retrieval_status": "not_retrieved",
+                "retrieved_at": None,
+                "evidence_origin": HISTORICAL_VALIDATION_FIXTURE,
+                "fixture_created_at": FIXTURE_CREATED_AT,
                 "revised_at": None,
                 "content_sha256": _evidence_hash(item),
+                "content_hash_scope": "authored_claim_record",
+                "strength_basis": "expected_at_cutoff",
                 "parser_version": "historical_case_v1",
                 "source_revision": None,
                 "licence_status": "pending_review",
@@ -155,8 +176,13 @@ def _expand_evidence(case: dict[str, Any]) -> list[dict[str, Any]]:
                     "under WO-010 because no source was reachable from the execution "
                     "environment; the original source URL is retained so the claim can be "
                     "verified independently.",
-                    "The content hash covers this repository's record of the claim, not a "
-                    "retrieved publisher response.",
+                    "The content hash is a claim-record hash over this repository's own "
+                    "authored text. It is not a hash of any publisher response and is not "
+                    "evidence about one.",
+                    f"'strength' is the grading the authored case asserts would have been "
+                    f"available at its {case['assessment_cutoff'][:10]} cutoff "
+                    "(strength_basis 'expected_at_cutoff'), not a verified assessment of "
+                    "retrieved content.",
                 ],
             }
         )
@@ -197,6 +223,14 @@ def build() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
 
         event = {
             "event_id": source["event_id"],
+            # Every case here is a replay fixture. Belonging to the historical
+            # validation dataset is what keeps it out of the current view, and
+            # it is recorded rather than inferred.
+            "dataset": HISTORICAL_VALIDATION,
+            # Activity was never confirmed at any current cutoff. A null
+            # event_end_date does not make a 2023 case active today.
+            "active_as_of": None,
+            "active_basis": None,
             "canonical_event_id": f"CEVT-{key[:16]}",
             "title": source["title"],
             "event_class": source["event_class"],
@@ -265,10 +299,14 @@ def render(kind: str, records: list[dict[str, Any]]) -> str:
             {
                 "version": "0.8",
                 "generated_by": "scripts/build_events_from_cases.py",
+                "dataset": HISTORICAL_VALIDATION,
                 "source_note": (
-                    "Expanded from data/validation/historical_cases.json. Evidence content "
-                    "was not retrieved under WO-010; original publisher URLs are retained "
-                    "for independent verification."
+                    "Expanded from data/validation/historical_cases.json. Every record "
+                    "belongs to the historical-validation dataset and is excluded from the "
+                    "current-publication view. Evidence content was not retrieved; "
+                    "source_id is the reserved synthetic identifier, the publisher is "
+                    "recorded in intended_source_id, and the original publisher URL is "
+                    "retained for independent verification."
                 ),
                 "record_count": len(records),
                 kind: records,

@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import copy
+from datetime import UTC, datetime
 
 import pytest
 
 from analysis.events import (
     TITLE_SIMILARITY_THRESHOLD,
+    active_events,
     canonicalize_url,
     cluster_id_from_key,
     cluster_key,
     evaluate_transmission_chain,
+    event_domain_direction,
+    event_qualifies_for_current_publication,
     external_driver_admission,
+    has_negative_operational_evidence,
     has_non_discovery_evidence,
+    is_active_at,
     normalize_title,
     should_cluster,
     title_similarity,
@@ -492,3 +498,278 @@ def test_declared_completeness_must_match_the_computed_chain():
 
 def test_similarity_threshold_is_high_enough_to_avoid_casual_merges():
     assert TITLE_SIMILARITY_THRESHOLD >= 0.5
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R1 §3: an event is active only when something says it still is.
+# ---------------------------------------------------------------------------
+
+CUTOFF = datetime(2026, 7, 24, tzinfo=UTC)
+
+
+def _live_evidence(**overrides):
+    item = {
+        "evidence_id": "EVD-TEST-001",
+        "claim_type": "official_notice",
+        "evidence_role": "confirming",
+        "strength": "A",
+        "evidence_origin": "live_retrieved",
+        "retrieval_status": "retrieved",
+        "retrieved_at": "2026-07-20T00:00:00Z",
+    }
+    item.update(overrides)
+    return {item["evidence_id"]: item}
+
+
+def _fixture_evidence(**overrides):
+    return _live_evidence(
+        evidence_origin="historical_validation_fixture",
+        retrieval_status="not_retrieved",
+        retrieved_at=None,
+        **overrides,
+    )
+
+
+def _current_event(**overrides):
+    return make_event(
+        dataset="current_publication",
+        active_as_of="2026-07-20T00:00:00Z",
+        active_basis="Port authority notice re-checked on 2026-07-20 and still in force.",
+        **overrides,
+    )
+
+
+def test_a_historical_fixture_is_never_an_active_event():
+    """The whole R1 defect in one case: a 2021 case with a null end date used
+    to stay 'active' indefinitely and reach the current view."""
+    event = make_event(
+        dataset="historical_validation",
+        event_date="2021-03-23",
+        event_end_date=None,
+        active_as_of=None,
+        active_basis=None,
+    )
+    decision = is_active_at(event, _fixture_evidence(), cutoff=CUTOFF)
+    assert decision.is_active is False
+    assert "historical_validation" in decision.reason
+    assert active_events([event], _fixture_evidence(), cutoff=CUTOFF) == []
+
+
+def test_a_closed_event_is_not_active():
+    event = _current_event(
+        lifecycle_status="closed",
+        closure_basis="The terminal reopened and the authority withdrew the notice.",
+    )
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    assert decision.is_active is False
+    assert "closure basis" in decision.reason or "not an active status" in decision.reason
+
+
+def test_an_event_that_ended_before_the_cutoff_is_not_active():
+    event = _current_event(event_end_date="2026-05-01")
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    assert decision.is_active is False
+    assert "ended on 2026-05-01" in decision.reason
+
+
+def test_an_event_without_an_active_as_of_basis_is_not_active():
+    """A null ``event_end_date`` is silence, not a confirmation."""
+    event = make_event(
+        dataset="current_publication",
+        event_end_date=None,
+        active_as_of=None,
+        active_basis=None,
+    )
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    assert decision.is_active is False
+    assert "null event end date is not itself evidence" in decision.reason
+
+
+def test_a_stale_confirmation_falls_out_of_the_active_window():
+    event = make_event(
+        dataset="current_publication",
+        active_as_of="2026-01-01T00:00:00Z",
+        active_basis="Confirmed in January and not re-checked since.",
+    )
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    assert decision.is_active is False
+    assert "confirmation window" in decision.reason
+
+
+def test_a_reviewed_event_with_a_recent_confirmation_is_active():
+    event = _current_event()
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    assert decision.is_active is True
+    assert active_events([event], _live_evidence(), cutoff=CUTOFF) == [event]
+
+
+def test_fixture_evidence_alone_cannot_make_an_event_active():
+    event = _current_event()
+    decision = is_active_at(event, _fixture_evidence(), cutoff=CUTOFF)
+    assert decision.is_active is False
+    assert "fixture evidence cannot establish a current condition" in decision.reason
+
+
+def test_a_historical_chokepoint_notice_does_not_create_a_current_notice():
+    """A 2021 canal notice is evidence that a notice was published in 2021.
+    It is not evidence that a notice is in force now."""
+    event = make_event(
+        dataset="historical_validation",
+        event_type="chokepoint_disruption",
+        chokepoint_ids=["CHK-SUEZ"],
+        active_as_of=None,
+        active_basis=None,
+    )
+    assert active_events([event], _fixture_evidence(), cutoff=CUTOFF) == []
+    assert event_qualifies_for_current_publication(event, _fixture_evidence()) is False
+
+
+def test_an_event_assembled_from_fixtures_cannot_join_the_current_dataset():
+    event = _current_event()
+    problems = validate_event(event, _fixture_evidence())
+    assert any("cannot establish a current condition" in problem for problem in problems)
+
+
+def test_an_active_as_of_time_with_no_basis_is_rejected():
+    event = make_event(
+        dataset="current_publication",
+        active_as_of="2026-07-20T00:00:00Z",
+        active_basis=None,
+    )
+    problems = validate_event(event, _live_evidence())
+    assert any("no basis" in problem for problem in problems)
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R1 §4: missing impact evidence is not a stable condition.
+# ---------------------------------------------------------------------------
+
+LANE = "LANE-OCEAN-TH-NEUR"
+CAPACITY_AREAS = ("capacity", "service")
+
+
+def _lane_event(**overrides):
+    overrides.setdefault("lane_relevance", [{"lane_id": LANE, "relevance": "direct", "basis": "x"}])
+    return make_event(**overrides)
+
+
+def test_no_event_at_all_is_insufficient_not_stable():
+    direction, event_ids, evidence_ids, limitations = event_domain_direction(
+        LANE, [], CAPACITY_AREAS
+    )
+    assert direction == "insufficient_evidence"
+    assert event_ids == [] and evidence_ids == []
+    assert "absence of evidence rather than evidence of normal operation" in limitations[0]
+
+
+def test_an_event_whose_domain_was_never_assessed_is_insufficient():
+    """The corrected rule. An event exists, it touches the lane, and nobody
+    looked at capacity or service. That is not calm; it is silence."""
+    event = _lane_event()
+    direction, event_ids, evidence_ids, limitations = event_domain_direction(
+        LANE, [event], CAPACITY_AREAS
+    )
+    assert direction == "insufficient_evidence"
+    assert event_ids == [event["event_id"]]
+    assert evidence_ids == []
+    assert any(
+        "absence of an adverse record is not evidence that conditions are normal" in limitation
+        for limitation in limitations
+    )
+
+
+def test_an_assessed_event_with_no_negative_evidence_is_still_insufficient():
+    event = _lane_event(
+        impacts={
+            "capacity": {"status": "insufficient_evidence", "severity": "none"},
+            "service": {"status": "insufficient_evidence", "severity": "none"},
+        }
+    )
+    direction, _, _, _ = event_domain_direction(LANE, [event], CAPACITY_AREAS)
+    assert direction == "insufficient_evidence"
+
+
+def test_only_a_discovery_lead_is_insufficient():
+    event = _lane_event(
+        event_class="discovery_lead",
+        transmission_chain={
+            "external_driver": None,
+            "operational_change": None,
+            "logistics_mechanism": None,
+            "observable_indicator": None,
+            "outcome": None,
+        },
+    )
+    direction, _, _, limitations = event_domain_direction(LANE, [event], CAPACITY_AREAS)
+    assert direction == "insufficient_evidence"
+    assert any("lead cannot support a direction" in limitation for limitation in limitations)
+
+
+def test_explicit_negative_operational_evidence_supports_stable():
+    """``stable`` is a finding: somebody checked capacity and service and
+    recorded that there was no material effect."""
+    event = _lane_event(
+        negative_operational_evidence=True,
+        impacts={
+            "capacity": {
+                "status": "no_material",
+                "severity": "none",
+                "evidence_ids": ["EVD-TEST-001"],
+            },
+            "service": {
+                "status": "no_material",
+                "severity": "none",
+                "evidence_ids": ["EVD-TEST-001"],
+            },
+        },
+    )
+    direction, _, evidence_ids, limitations = event_domain_direction(LANE, [event], CAPACITY_AREAS)
+    assert direction == "stable"
+    assert evidence_ids == ["EVD-TEST-001"]
+    assert any("explicit negative operational evidence" in limit for limit in limitations)
+
+
+def test_an_observed_adverse_impact_is_deteriorating():
+    event = _lane_event(
+        impacts={
+            "capacity": {
+                "status": "observed",
+                "severity": "moderate",
+                "evidence_ids": ["EVD-TEST-001"],
+                "transmission_mechanism": ["Terminal closure removes capacity."],
+            }
+        }
+    )
+    direction, _, evidence_ids, _ = event_domain_direction(LANE, [event], CAPACITY_AREAS)
+    assert direction == "deteriorating"
+    assert evidence_ids == ["EVD-TEST-001"]
+
+
+def test_negative_evidence_for_another_domain_does_not_settle_this_one():
+    """``negative_operational_evidence`` is a flag on the event. It only
+    licenses a negative conclusion for the areas actually assessed."""
+    event = _lane_event(
+        negative_operational_evidence=True,
+        impacts={
+            "cost": {
+                "status": "no_material",
+                "severity": "none",
+                "evidence_ids": ["EVD-TEST-001"],
+            }
+        },
+    )
+    assert has_negative_operational_evidence(event, CAPACITY_AREAS) is False
+    direction, _, _, _ = event_domain_direction(LANE, [event], CAPACITY_AREAS)
+    assert direction == "insufficient_evidence"
+
+
+def test_missing_event_data_never_produces_routine_attention():
+    """Attention level is derived from the domain directions, so the whole
+    chain has to hold: no evidence must not come out the other end as
+    'routine, nothing to see'."""
+    from analysis.assessments import attention_level
+
+    direction = event_domain_direction(LANE, [], CAPACITY_AREAS)[0]
+    domains = [{"domain": f"domain_{index}", "direction": direction} for index in range(9)]
+    assert {domain["direction"] for domain in domains} == {"insufficient_evidence"}
+    assert attention_level(domains, active_operational_event_ids=[]) == "insufficient_evidence"

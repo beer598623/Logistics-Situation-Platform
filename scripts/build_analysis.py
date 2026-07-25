@@ -30,11 +30,20 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from analysis.assessments import (  # noqa: E402
+    DOMAINS,
     build_domain_assessment,
     build_lane_assessment,
-    direction_for_derivation,  # noqa: E402
+    direction_for_derivation,
 )
+from analysis.events import active_events, event_domain_direction  # noqa: E402
 from analysis.indicators import SeriesDerivation, derive_series  # noqa: E402
+from analysis.provenance import (  # noqa: E402
+    CURRENT_PUBLICATION,
+    TECHNICAL_DEMO,
+    effective_source_id,
+    publishable,
+    record_origin,
+)
 from analysis.reference import load_dimensions, load_lanes  # noqa: E402
 from analysis.scenarios import build_lane_outlook, build_preparedness_options  # noqa: E402
 from analysis.thresholds import combine_directions  # noqa: E402
@@ -61,14 +70,20 @@ _SHARED_DOMAIN_SERIES = {
     "fx_pressure": ("usd_thb_reference_rate", "FX-MOM-V1"),
 }
 
-_SOURCE_BY_SERIES = {
-    "thailand_port_calls": "IMF_PORTWATCH",
-    "container_freight_benchmark": "EPPO_FUEL",
-    "thailand_diesel_retail_price": "EPPO_FUEL",
-    "usd_thb_reference_rate": "GSCPI",
-    "gscpi_index": "GSCPI",
-    "thailand_lsci": "GSCPI",
-}
+#: Series carried in the technical-demonstration indicator export. Source
+#: identity is NOT listed here: it is read from each record's own provenance.
+#: WO-010 kept a hard-coded series-to-source table, and it drifted -- the
+#: freight benchmark was attributed to a fuel publisher and FX to a
+#: supply-chain index publisher. A table that can disagree with the data is a
+#: table that eventually will.
+_DEMO_SERIES = (
+    "thailand_port_calls",
+    "container_freight_benchmark",
+    "thailand_diesel_retail_price",
+    "usd_thb_reference_rate",
+    "gscpi_index",
+    "thailand_lsci",
+)
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -123,12 +138,18 @@ def derive_all_series(
     """
     derivations: dict[str, SeriesDerivation] = {}
     payloads: dict[str, dict[str, Any]] = {}
-    for series_id, source_id in _SOURCE_BY_SERIES.items():
+    for series_id in _DEMO_SERIES:
         records = series_records(observations, series_id)
         if not records:
             continue
+        provenance = records[0]["provenance"]
+        # Source identity comes from the record, never from a lookup table.
+        source_id = provenance["source_id"]
+        intended = provenance.get("intended_source_id")
+        max_stale, cadence = contract_freshness_bounds(
+            registry, effective_source_id(records[0]) or source_id
+        )
         baseline_definition = records[0].get("baseline_definition")
-        max_stale, cadence = contract_freshness_bounds(registry, source_id)
         derivation = derive_series(
             series_id,
             records,
@@ -137,82 +158,248 @@ def derive_all_series(
             max_stale_minutes=max_stale,
             expected_cadence_minutes=cadence,
             now=DATA_CUTOFF,
+            origin=record_origin(records[0]),
         )
         derivations[series_id] = derivation
         payload = derivation.to_dict()
         payload["source_id"] = source_id
-        payload["source_limitations"] = list(records[0]["provenance"]["known_limitations"])
+        payload["intended_source_id"] = intended
+        payload["evidence_origin"] = record_origin(records[0])
+        payload["dataset"] = TECHNICAL_DEMO
+        payload["source_limitations"] = list(provenance["known_limitations"])
         payloads[series_id] = payload
     return derivations, payloads
 
 
-def _event_domain_direction(
-    lane_id: str,
-    events: Sequence[Mapping[str, Any]],
-    areas: Sequence[str],
-) -> tuple[str, list[str], list[str], list[str]]:
-    """Direction for an event-driven domain, plus the evidence behind it.
+# ---------------------------------------------------------------------------
+# Current publication (WO-010-R1)
+# ---------------------------------------------------------------------------
 
-    Returns ``(direction, event_ids, evidence_ids, limitations)``. A lane with
-    only discovery leads against it gets ``insufficient_evidence``, never
-    ``stable``: a lead is not an observation of calm.
+#: What a reader is told wherever the current view has nothing to report.
+NO_QUALIFIED_EVIDENCE = (
+    "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and "
+    "historical-validation fixtures exercise the analysis engine but are excluded from "
+    "the current view, so there is nothing to assess -- which is a coverage gap, not a "
+    "finding that conditions are normal."
+)
+
+
+def build_current_lane_assessments(
+    lanes: Sequence[Mapping[str, Any]],
+    qualified_observations: Mapping[str, Sequence[Mapping[str, Any]]],
+    qualified_events: Sequence[Mapping[str, Any]],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+    source_status: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Lane assessments built from qualified evidence only.
+
+    With zero qualified evidence every domain is ``insufficient_evidence``,
+    every lane is ``insufficient_evidence`` overall, no lane reaches watch or
+    elevated, and no chokepoint is reported as carrying an active notice. That
+    is not a special case coded for the current state -- it falls out of
+    feeding the same builder nothing but qualified records.
     """
-    relevant = [
-        event
-        for event in events
-        if any(entry["lane_id"] == lane_id for entry in event.get("lane_relevance", []))
+    active = active_events(qualified_events, evidence_by_id, cutoff=DATA_CUTOFF)
+    active_ids = sorted({event["event_id"] for event in active})
+    assessments: list[dict[str, Any]] = []
+
+    for lane in lanes:
+        lane_id = lane["lane_id"]
+        lane_active = sorted(
+            {
+                event["event_id"]
+                for event in active
+                if any(entry["lane_id"] == lane_id for entry in event.get("lane_relevance", []))
+            }
+        )
+        lane_drivers = sorted(
+            {
+                event["event_id"]
+                for event in qualified_events
+                if event["event_class"] == "external_driver"
+                and any(entry["lane_id"] == lane_id for entry in event.get("lane_relevance", []))
+            }
+        )
+
+        domain_assessments = []
+        for domain in DOMAINS:
+            if domain in {
+                "operational_event_status",
+                "capacity_evidence",
+                "transit_time_or_service_evidence",
+            }:
+                direction, _, evidence_ids, limitations = event_domain_direction(
+                    lane_id, qualified_events, _EVENT_DOMAIN_AREAS[domain]
+                )
+            else:
+                direction, evidence_ids, limitations = (
+                    "insufficient_evidence",
+                    [],
+                    [NO_QUALIFIED_EVIDENCE],
+                )
+            domain_assessments.append(
+                build_domain_assessment(
+                    domain,
+                    direction=direction,
+                    basis=(
+                        "Derived from qualified (retrieved or human-reviewed) records only. "
+                        f"{len(qualified_observations.get('all', []))} such observations exist."
+                    ),
+                    evidence_ids=evidence_ids,
+                    freshness={"status": "no_data", "as_of": None, "age_days": None},
+                    known_limitations=[*limitations, NO_QUALIFIED_EVIDENCE],
+                )
+            )
+
+        assessment = build_lane_assessment(
+            lane,
+            assessment_id=f"LAS-CUR-{lane_id.replace('LANE-', '')}-{DATA_CUTOFF:%Y%m%d}",
+            generated_at=DATA_CUTOFF_ISO,
+            data_cutoff_at=DATA_CUTOFF_ISO,
+            domain_assessments=domain_assessments,
+            active_event_ids=lane_active,
+            external_driver_event_ids=lane_drivers,
+            chokepoint_exposure=[
+                {
+                    "chokepoint_id": chokepoint_id,
+                    "status": "insufficient_evidence",
+                    "basis": (
+                        "No notice channel is monitored and no qualified notice is recorded "
+                        "for this chokepoint. Absence of a record is not absence of a notice."
+                    ),
+                }
+                for chokepoint_id in lane.get("chokepoint_ids", [])
+            ],
+            data_gaps=[NO_QUALIFIED_EVIDENCE],
+            known_limitations=[NO_QUALIFIED_EVIDENCE, *lane["known_limitations"]],
+        )
+        assessment["dataset"] = CURRENT_PUBLICATION
+        assessment["scenarios"] = build_coverage_only_outlook(lane)
+        assessment["preparedness_options"] = build_preparedness_options(lane, assessment)
+        assessments.append(assessment)
+
+    _ = active_ids
+    return assessments
+
+
+def build_current_thailand_assessment(
+    lane_assessments: Sequence[Mapping[str, Any]],
+    qualified_events: Sequence[Mapping[str, Any]],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+    source_status: Mapping[str, Any],
+) -> dict[str, Any]:
+    """The Thailand Ocean view built from qualified evidence only."""
+    active = active_events(qualified_events, evidence_by_id, cutoff=DATA_CUTOFF)
+    attention = [
+        assessment
+        for assessment in lane_assessments
+        if assessment["attention_level"] in {"watch", "elevated"}
     ]
-    if not relevant:
-        return (
-            "insufficient_evidence",
-            [],
-            [],
-            [
-                "No event of any class is recorded against this lane, which is an absence of "
-                "evidence rather than evidence of normal operation."
-            ],
-        )
-
-    leads_only = all(event["event_class"] == "discovery_lead" for event in relevant)
-    if leads_only:
-        return (
-            "insufficient_evidence",
-            [event["event_id"] for event in relevant],
-            [],
-            [
-                "Only discovery-class leads are recorded against this lane; a lead cannot "
-                "support a direction."
-            ],
-        )
-
-    adverse = []
-    evidence_ids: list[str] = []
-    for event in relevant:
-        for impact in event["impact_assessments"]:
-            if impact["area"] in areas and impact["status"] in {"observed", "potential"}:
-                if impact["severity"] != "none":
-                    adverse.append(event["event_id"])
-                    evidence_ids.extend(impact.get("evidence_ids", []))
-    event_ids = sorted({event["event_id"] for event in relevant})
-    if adverse:
-        return (
-            "deteriorating",
-            event_ids,
-            sorted(set(evidence_ids)),
-            [
-                "Direction reflects observed or potential impact recorded against this lane; "
-                "it is not a measurement of current operating conditions."
-            ],
-        )
-    return (
-        "stable",
-        event_ids,
-        sorted(set(evidence_ids)),
-        [
-            "Events are recorded against this lane but none carries an observed or potential "
-            "impact in these areas."
+    return {
+        "assessment_id": f"THA-CUR-OCEAN-{DATA_CUTOFF:%Y%m%d}",
+        "dataset": CURRENT_PUBLICATION,
+        "subject": "thailand_ocean",
+        "generated_at": DATA_CUTOFF_ISO,
+        "data_cutoff_at": DATA_CUTOFF_ISO,
+        "overall_direction": combine_directions(
+            [assessment["overall_direction"] for assessment in lane_assessments]
+        ),
+        "evidence_coverage": source_status["overall_status"],
+        "coverage_message": source_status["coverage_message"],
+        "qualified_observation_count": 0,
+        "qualified_event_count": len(qualified_events),
+        "lanes_requiring_attention": [
+            {
+                "lane_id": assessment["lane_id"],
+                "attention_level": assessment["attention_level"],
+                "overall_direction": assessment["overall_direction"],
+            }
+            for assessment in attention
         ],
+        "active_verified_events": [event["event_id"] for event in active],
+        "admitted_external_drivers": [],
+        "contextual_external_drivers": [],
+        "discovery_leads": [],
+        "key_changes": [
+            "No current assessment can be produced: the platform holds no live-retrieved or "
+            "human-reviewed evidence, so there is nothing to compare and nothing to report."
+        ],
+        "major_data_gaps": [
+            "No source in the registry is enabled and none has completed a controlled live "
+            "validation, so live coverage is insufficient.",
+            "Every numeric series held by the platform is a synthetic test fixture and is "
+            "excluded from this view.",
+            "Every event held by the platform is a historical validation fixture with an "
+            "assessment cutoff in the past and is excluded from this view.",
+            "No Thailand-origin freight rate source is qualified, so no Thailand freight "
+            "average is published anywhere in the platform.",
+            "No operational-condition source is registered, so no congestion, waiting-time "
+            "or berth-delay statement is made anywhere in the platform.",
+        ],
+        "methodology_version": "0.8",
+    }
+
+
+def build_coverage_only_outlook(lane: Mapping[str, Any]) -> dict[str, Any]:
+    """The only outlook publishable with no qualified evidence.
+
+    All three cases say the same thing, because with nothing observed there is
+    nothing to differentiate them. What each case does carry is the trigger
+    that would have to fire before an assessment could begin -- which is the
+    genuinely useful content at zero coverage.
+    """
+    begin_trigger = [
+        {
+            "condition": (
+                "a source covering this lane completes a controlled live validation and is "
+                "enabled, or a human records a reviewed official notice for one of its "
+                "nodes or chokepoints"
+            ),
+            "observable_via": (
+                "the source registry's enablement records and the Sources and Methodology section"
+            ),
+        }
+    ]
+    narrative = (
+        f"No outlook can be offered for {lane['name']}. The platform holds no qualified "
+        "evidence for this lane, so its current state is unknown rather than unchanged. "
+        "The trigger below is what would have to happen before any assessment could begin."
     )
+    case = {
+        "narrative": narrative,
+        "time_horizon": "1-4_weeks",
+        "trigger_conditions": begin_trigger,
+        "evidence_ids": [],
+        "confidence": "low",
+        "data_gaps": [NO_QUALIFIED_EVIDENCE],
+        "point_forecast_disclaimer": (
+            "No numeric forecast is given anywhere in this platform, and with zero qualified "
+            "evidence no qualitative direction is given either."
+        ),
+    }
+    return {
+        "outlook_id": f"OUT-CUR-{lane['lane_id'].replace('LANE-', '')}",
+        "subject_type": "lane",
+        "subject_id": lane["lane_id"],
+        "generated_at": DATA_CUTOFF_ISO,
+        "data_cutoff_at": DATA_CUTOFF_ISO,
+        "base_case": dict(case),
+        "deterioration_case": dict(case),
+        "improvement_case": dict(case),
+        "known_limitations": [
+            "This is a coverage statement, not an outlook. All three cases are identical "
+            "because with no qualified evidence there is nothing to differentiate them.",
+            *lane.get("known_limitations", []),
+        ],
+    }
+
+
+#: Which impact areas each event-derived domain reads.
+_EVENT_DOMAIN_AREAS = {
+    "operational_event_status": ("transport", "logistics", "import_export"),
+    "capacity_evidence": ("capacity",),
+    "transit_time_or_service_evidence": ("service", "transport"),
+}
 
 
 def build_lane_records(
@@ -221,6 +408,8 @@ def build_lane_records(
     registry: Mapping[str, Any],
     source_status: Mapping[str, Any],
     derivations: Mapping[str, SeriesDerivation],
+    *,
+    dataset: str = TECHNICAL_DEMO,
 ) -> list[dict[str, Any]]:
     lanes = load_lanes()["lanes"]
     assessments: list[dict[str, Any]] = []
@@ -239,13 +428,16 @@ def build_lane_records(
             observations, f"th_export_value_{_lane_slug(lane_id)}", lane_id=lane_id
         )
         if trade_records:
-            max_stale, cadence = contract_freshness_bounds(registry, "TH_CUSTOMS")
+            max_stale, cadence = contract_freshness_bounds(
+                registry, effective_source_id(trade_records[0]) or ""
+            )
             trade_derivation = derive_series(
                 f"th_export_value_{_lane_slug(lane_id)}",
                 trade_records,
                 max_stale_minutes=max_stale,
                 expected_cadence_minutes=cadence,
                 now=DATA_CUTOFF,
+                origin=record_origin(trade_records[0]),
             )
             direction, _ = direction_for_derivation(trade_derivation, "TH-TRADE-YOY-V1")
             domain_assessments.append(
@@ -303,7 +495,7 @@ def build_lane_records(
             ("capacity_evidence", ("capacity",)),
             ("transit_time_or_service_evidence", ("service", "transport")),
         ):
-            direction, event_ids, evidence_ids, limitations = _event_domain_direction(
+            direction, event_ids, evidence_ids, limitations = event_domain_direction(
                 lane_id, events, areas
             )
             domain_assessments.append(
@@ -390,7 +582,10 @@ def build_lane_records(
 
         assessment = build_lane_assessment(
             lane,
-            assessment_id=f"LAS-{lane_id.replace('LANE-', '')}-{DATA_CUTOFF:%Y%m%d}",
+            assessment_id=(
+                f"LAS-{'DEMO' if dataset == TECHNICAL_DEMO else 'CUR'}-"
+                f"{lane_id.replace('LANE-', '')}-{DATA_CUTOFF:%Y%m%d}"
+            ),
             generated_at=DATA_CUTOFF_ISO,
             data_cutoff_at=DATA_CUTOFF_ISO,
             domain_assessments=domain_assessments,
@@ -400,6 +595,7 @@ def build_lane_records(
             data_gaps=data_gaps,
             known_limitations=[coverage_limitation, *lane["known_limitations"]],
         )
+        assessment["dataset"] = dataset
         assessment["scenarios"] = build_lane_outlook(
             lane, assessment, generated_at=DATA_CUTOFF_ISO, data_cutoff_at=DATA_CUTOFF_ISO
         )
@@ -560,23 +756,48 @@ def main() -> int:
     registry = load_registry()
     observations = load_observations()
     events = _load(EVENTS_PATH)["events"]
+    evidence_by_id = {
+        item["evidence_id"]: item
+        for item in _load(ROOT / "data/events/event_evidence.json")["evidence"]
+    }
+    lanes = load_lanes()["lanes"]
     load_dimensions()
 
     source_status = evaluate_registry_health(registry, {}, now=DATA_CUTOFF)
-    derivations, indicator_payloads = derive_all_series(observations, registry)
-    lane_assessments = build_lane_records(
-        observations, events, registry, source_status, derivations
+
+    # --- current publication: qualified evidence only ----------------------
+    qualified_observations = {
+        family: publishable(records) for family, records in observations.items()
+    }
+    qualified_events = publishable(events)
+    current_lane_assessments = build_current_lane_assessments(
+        lanes, qualified_observations, qualified_events, evidence_by_id, source_status
     )
-    thailand = build_thailand_assessment(lane_assessments, events, source_status)
-    history = build_history(lane_assessments, thailand)
+    current_thailand = build_current_thailand_assessment(
+        current_lane_assessments, qualified_events, evidence_by_id, source_status
+    )
+
+    # --- technical demonstration: the engine exercised on fixtures ---------
+    derivations, indicator_payloads = derive_all_series(observations, registry)
+    demo_lane_assessments = build_lane_records(
+        observations, events, registry, source_status, derivations, dataset=TECHNICAL_DEMO
+    )
+    demo_thailand = build_thailand_assessment(demo_lane_assessments, events, source_status)
+    demo_thailand["dataset"] = TECHNICAL_DEMO
+    demo_thailand["assessment_id"] = f"THA-DEMO-OCEAN-{DATA_CUTOFF:%Y%m%d}"
+
+    history = build_history(current_lane_assessments, current_thailand)
 
     indicators = {
         "generated_at": DATA_CUTOFF_ISO,
         "data_cutoff_at": DATA_CUTOFF_ISO,
+        "dataset": TECHNICAL_DEMO,
         "note": (
-            "Derived from labelled synthetic fixtures via scripts/build_analysis.py. Every "
-            "series carries evidence_class 'synthetic_test_fixture'; none is a published "
-            "statistic. Missing periods are reported as gaps and are never counted as zero."
+            "TECHNICAL DEMONSTRATION ONLY. Derived from labelled synthetic fixtures via "
+            "scripts/build_analysis.py. Every series carries evidence_origin "
+            "'synthetic_test_fixture' and source_id 'SYNTHETIC_FIXTURE'; none is a "
+            "published statistic and none feeds the current-publication view. Missing "
+            "periods are reported as gaps and are never counted as zero."
         ),
         "indicators": [indicator_payloads[key] for key in sorted(indicator_payloads)],
     }
@@ -588,11 +809,32 @@ def main() -> int:
             ASSESSMENT_DIR / "lane_assessments.json",
             {
                 "version": "0.8",
+                "dataset": CURRENT_PUBLICATION,
                 "generated_at": DATA_CUTOFF_ISO,
-                "assessments": lane_assessments,
+                "note": (
+                    "Current-publication lane assessments, built from qualified "
+                    "(live-retrieved or human-reviewed) evidence only."
+                ),
+                "assessments": current_lane_assessments,
             },
         ),
-        (ASSESSMENT_DIR / "thailand_assessment.json", thailand),
+        (ASSESSMENT_DIR / "thailand_assessment.json", current_thailand),
+        (
+            ASSESSMENT_DIR / "demo_lane_assessments.json",
+            {
+                "version": "0.8",
+                "dataset": TECHNICAL_DEMO,
+                "generated_at": DATA_CUTOFF_ISO,
+                "note": (
+                    "TECHNICAL DEMONSTRATION ONLY. Built from synthetic fixtures and "
+                    "historical validation cases to exercise the analysis engine. These "
+                    "assessments describe the platform's behaviour, not the real world, and "
+                    "never feed the current-publication view."
+                ),
+                "assessments": demo_lane_assessments,
+            },
+        ),
+        (ASSESSMENT_DIR / "demo_thailand_assessment.json", demo_thailand),
         (ASSESSMENT_DIR / "assessment_history.json", history),
     ]
 

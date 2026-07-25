@@ -1,5 +1,8 @@
 {
+  "dataset": "technical_demo",
+  "demo_label": "Technical demonstration \u2014 every series below is a synthetic fixture standing in for a production candidate. No fuel, FX or freight figure has been retrieved.",
   "generated_at": "2026-07-24T00:00:00Z",
+  "current_statement": "No qualified cost observation exists, so no current cost or freight pressure reading is published.",
   "cost_series": [
     {
       "series_id": "thailand_diesel_retail_price",
@@ -17,9 +20,9 @@
       "baseline_definition": null,
       "deviation_from_baseline": null,
       "freshness": {
-        "status": "very_stale",
+        "status": "fixture_not_live",
         "as_of": "2026-06-20T00:00:00Z",
-        "age_days": 34.0
+        "age_days": null
       },
       "revision_status": "original",
       "periods_total": 30,
@@ -32,6 +35,10 @@
       "limitations": [
         "No baseline is defined for this series, so no deviation from baseline is published."
       ],
+      "dataset": "technical_demo",
+      "source_id": "SYNTHETIC_FIXTURE",
+      "intended_source_id": "EPPO_FUEL",
+      "evidence_origin": "synthetic_test_fixture",
       "cost_family": "retail_fuel",
       "benchmark_class": "published_official_price",
       "quotation_claim": "not_a_quotation",
@@ -240,9 +247,9 @@
       "baseline_definition": null,
       "deviation_from_baseline": null,
       "freshness": {
-        "status": "very_stale",
+        "status": "fixture_not_live",
         "as_of": "2026-06-20T00:00:00Z",
-        "age_days": 34.0
+        "age_days": null
       },
       "revision_status": "original",
       "periods_total": 30,
@@ -255,6 +262,10 @@
       "limitations": [
         "No baseline is defined for this series, so no deviation from baseline is published."
       ],
+      "dataset": "technical_demo",
+      "source_id": "SYNTHETIC_FIXTURE",
+      "intended_source_id": "WB_COMMODITY",
+      "evidence_origin": "synthetic_test_fixture",
       "cost_family": "crude_energy",
       "benchmark_class": "market_benchmark",
       "quotation_claim": "not_a_quotation",
@@ -463,9 +474,9 @@
       "baseline_definition": null,
       "deviation_from_baseline": null,
       "freshness": {
-        "status": "very_stale",
+        "status": "fixture_not_live",
         "as_of": "2026-06-20T00:00:00Z",
-        "age_days": 34.0
+        "age_days": null
       },
       "revision_status": "original",
       "periods_total": 30,
@@ -478,6 +489,10 @@
       "limitations": [
         "No baseline is defined for this series, so no deviation from baseline is published."
       ],
+      "dataset": "technical_demo",
+      "source_id": "SYNTHETIC_FIXTURE",
+      "intended_source_id": "FBX_PUBLIC",
+      "evidence_origin": "synthetic_test_fixture",
       "cost_family": "container_freight",
       "benchmark_class": "route_proxy",
       "quotation_claim": "not_a_quotation",
@@ -688,9 +703,9 @@
     "baseline_definition": null,
     "deviation_from_baseline": null,
     "freshness": {
-      "status": "very_stale",
+      "status": "fixture_not_live",
       "as_of": "2026-06-15T00:00:00Z",
-      "age_days": 39.0
+      "age_days": null
     },
     "revision_status": "original",
     "periods_total": 30,
@@ -703,6 +718,10 @@
     "limitations": [
       "No baseline is defined for this series, so no deviation from baseline is published."
     ],
+    "dataset": "technical_demo",
+    "source_id": "SYNTHETIC_FIXTURE",
+    "intended_source_id": "BOT_FX",
+    "evidence_origin": "synthetic_test_fixture",
     "points": [
       {
         "period": "2024-01-31",

@@ -104,9 +104,51 @@ because they concern the same country or the same conflict** — asserted direct
 normalized title. `validate_event` recomputes it and rejects a record whose stored key does
 not match, so a tampered or stale key cannot survive validation.
 
-## 8. Current state
+## 8. Activity at a data cutoff (WO-010-R1)
+
+Lifecycle status says what kind of thing an event is. It does not say whether the event is
+still happening. `analysis/events.py::is_active_at` decides that, and requires **every**
+condition:
+
+1. the event belongs to the `current_publication` dataset;
+2. at least one piece of retrieved or human-reviewed evidence supports it;
+3. its lifecycle status is in `ACTIVE_LIFECYCLE_STATUSES`;
+4. it is not closed and did not end before the cutoff; and
+5. it records an explicit `active_as_of` timestamp **and** an `active_basis`, dated within
+   `ACTIVE_CONFIRMATION_WINDOW_DAYS` (90) of the cutoff.
+
+Condition 5 is the WO-010-R1 correction. Under WO-010 a historical case with a null
+`event_end_date` stayed "active" indefinitely: nothing had marked it finished, so nothing
+excluded it, and a 2021 canal closure could reach the current view. **A null end date is
+silence, not a confirmation.** An event nobody has re-confirmed for a quarter is not
+evidence of a current condition, whatever its lifecycle field says.
+
+Conditions 1 and 2 keep fixtures out entirely. A historical case is evidence that something
+was published at its cutoff; it is not evidence that anything is in force now, and a
+historical chokepoint notice therefore never produces a current `official_notice_active`.
+
+Regression coverage is in `tests/test_events_analysis.py` under the WO-010-R1 §3 heading.
+
+## 9. Missing impact evidence is not calm
+
+`event_domain_direction` returns `insufficient_evidence` when a domain was not assessed, and
+returns `stable` only where an event records `negative_operational_evidence` **and** actually
+assessed one of the relevant areas to `no_material`.
+
+> The absence of an adverse record is not evidence that conditions are normal.
+
+The two states look identical in a summary and mean opposite things: "we checked capacity
+and service and found no material effect" versus "nobody looked". The flag is also scoped —
+negative evidence recorded for the cost area licenses no conclusion about capacity.
+
+## 10. Current state
 
 Eight events are recorded, all expanded from the authored historical validation cases: five
 direct operational events, two external drivers (one admitted, one contextual) and one
-discovery lead. Ten evidence items support them, every one carrying the publisher's original
-URL and an explicit statement that the content was not retrieved under WO-010.
+discovery lead. Every one carries `dataset: historical_validation`, a null `active_as_of`,
+and therefore never appears as a current event. Ten evidence items support them, each
+carrying `evidence_origin: historical_validation_fixture`,
+`retrieval_status: not_retrieved`, a null `retrieved_at`, a
+`content_hash_scope: authored_claim_record`, and a `strength_basis: expected_at_cutoff`.
+Publisher URLs are retained for independent verification, with the explicit limitation that
+the content behind them was never retrieved by this platform.

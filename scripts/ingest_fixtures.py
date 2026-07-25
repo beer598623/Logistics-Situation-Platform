@@ -37,10 +37,14 @@ from collectors.series_catalog import FIXTURE_CONTRACTS  # noqa: E402
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "csv_series"
 OUTPUT_DIR = ROOT / "data" / "observations"
 
-#: Retrieval time recorded on every fixture-derived record. Fixed rather than
-#: "now" so that re-ingesting is a no-op and the committed records stay
-#: byte-stable. It is the date WO-010 ingested the fixtures.
-FIXTURE_RETRIEVED_AT = "2026-07-24T00:00:00Z"
+#: When the fixtures were generated. Fixed rather than "now" so re-ingesting is
+#: a no-op and the committed records stay byte-stable.
+#:
+#: This is a *fixture creation* time, not a retrieval time. Nothing was
+#: retrieved, so every record carries retrieval_status 'not_retrieved' and a
+#: null retrieved_at -- the WO-010-R1 correction to what was previously
+#: recorded as though a publisher had been contacted.
+FIXTURE_CREATED_AT = "2026-07-24T00:00:00Z"
 
 _FAMILY_FILES = {
     "indicator_observations": "indicator_observations.json",
@@ -58,7 +62,10 @@ def collect() -> dict[str, list[dict[str, Any]]]:
         records = parse_csv_series(
             payload,
             contract,
-            retrieved_at=FIXTURE_RETRIEVED_AT,
+            retrieval_status="not_retrieved",
+            retrieved_at=None,
+            fixture_created_at=FIXTURE_CREATED_AT,
+            content_hash_scope="local_fixture_payload",
             content_type="text/csv",
         )
         for family, family_records in group_by_family(records).items():
@@ -77,10 +84,14 @@ def render(family: str, records: list[dict[str, Any]]) -> str:
         "version": "0.8",
         "family": family,
         "generated_by": "scripts/ingest_fixtures.py",
+        "dataset": "technical_demo",
         "source_note": (
             "Parsed from the labelled synthetic fixtures in tests/fixtures/csv_series/ "
             "through collectors/adapters/csv_series.py. Every record carries "
-            "evidence_class 'synthetic_test_fixture'. These are not published statistics."
+            "evidence_origin 'synthetic_test_fixture', source_id 'SYNTHETIC_FIXTURE' and "
+            "the production candidate it stands in for in intended_source_id. Nothing was "
+            "retrieved from any publisher. These are not published statistics and they do "
+            "not feed the current-publication view."
         ),
         "record_count": len(records),
         "records": records,

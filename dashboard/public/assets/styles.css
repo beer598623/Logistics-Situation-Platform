@@ -15,6 +15,8 @@
   --warning-line: #8a6100;
   --note-bg: #eef4f9;
   --note-line: #14496b;
+  --demo-bg: #f3eefb;
+  --demo-line: #5b3a8e;
   --ok-bg: #ecf6ee;
   --ok-line: #1d6b33;
   --radius: 8px;
@@ -68,6 +70,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .banner-critical { border-color: var(--critical-line); background: var(--critical-bg); }
 .banner-warning { border-color: var(--warning-line); background: var(--warning-bg); }
 .banner-note { border-color: var(--note-line); background: var(--note-bg); }
+.banner-demo { border-color: var(--demo-line); background: var(--demo-bg); }
 .banner strong { display: block; margin-bottom: 4px; }
 
 /* ---------- nav ---------- */
@@ -96,6 +99,26 @@ section {
 }
 section > h2 { margin-top: 0; font-size: 1.3rem; border-bottom: 2px solid var(--line); padding-bottom: 8px; }
 section h3 { margin: 26px 0 8px; font-size: 1.03rem; }
+.demo-heading { padding-left: 10px; border-left: 4px solid var(--demo-line); }
+/* Every panel built from fixture data carries its own marker, so a reader who
+   lands mid-page still sees it. A page-level banner alone is not enough. */
+.demo-panel {
+  border: 1px solid var(--demo-line); border-radius: var(--radius);
+  background: var(--demo-bg); padding: 10px 12px; margin: 10px 0;
+}
+.demo-panel > .demo-tag {
+  display: inline-block; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: #452a70;
+  margin-bottom: 6px;
+}
+.series.is-demo, .event.is-demo, .lane-card .demo-panel { border-color: var(--demo-line); }
+.series.is-demo::before, .event.is-demo::before {
+  content: attr(data-demo-label);
+  display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #452a70; background: var(--demo-bg);
+  margin: -14px -14px 10px; padding: 6px 12px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
 .section-intro { color: var(--ink-muted); max-width: 78ch; margin-top: 0; }
 .prose { max-width: 82ch; }
 .prose-list { max-width: 82ch; padding-left: 20px; }
@@ -130,6 +153,7 @@ section h3 { margin: 26px 0 8px; font-size: 1.03rem; }
 .pill-ok       { background: var(--ok-bg);       border-color: var(--ok-line);       color: #14501f; }
 .pill-note     { background: var(--note-bg);     border-color: var(--note-line);     color: #0e3550; }
 .pill-muted    { background: #eef0f3; color: #46525f; font-weight: 500; }
+.pill-demo     { background: var(--demo-bg); border-color: var(--demo-line); color: #452a70; }
 
 /* ---------- tables ---------- */
 

@@ -1,7 +1,18 @@
 {
+  "dataset": "current_publication",
   "generated_at": "2026-07-24T00:00:00Z",
-  "direct_operational_events": [
+  "current_direct_operational_events": [],
+  "current_external_drivers": [],
+  "current_statement": "No qualified event is recorded. Every event the platform holds is a historical validation fixture with an assessment cutoff in the past; none is evidence of a current condition, and none appears above.",
+  "demo_label": "Historical validation \u2014 each case is assessed at its own cutoff, shown on the card. These exercise the event model and describe no current condition.",
+  "demo_direct_operational_events": [
     {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2023-11-15T00:00:00Z",
+      "case_id": "HVC-002",
+      "active_as_of": null,
+      "active_basis": null,
       "event_id": "EVT-20231030-001",
       "title": "Panama Canal Authority restricts daily transit slots during drought conditions",
       "event_class": "direct_operational_event",
@@ -233,6 +244,10 @@
       "evidence": [
         {
           "evidence_id": "EVD-HVC-002-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "MANUAL_NOTICE_INTAKE",
           "source_name": "Autoridad del Canal de Panam\u00e1",
           "source_class": "official",
           "source_url": "https://pancanal.com/en/advisories/",
@@ -241,15 +256,22 @@
           "evidence_role": "confirming",
           "strength": "A",
           "publication_date": "2023-10-30",
-          "retrieved_at": "2023-11-15T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2023-11-15 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         }
       ]
     },
     {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2024-01-15T00:00:00Z",
+      "case_id": "HVC-001",
+      "active_as_of": null,
+      "active_basis": null,
       "event_id": "EVT-20231218-001",
       "title": "Container carriers divert Asia\u2013Europe services away from the Red Sea and Suez routing",
       "event_class": "direct_operational_event",
@@ -508,6 +530,10 @@
       "evidence": [
         {
           "evidence_id": "EVD-HVC-001-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "MANUAL_NOTICE_INTAKE",
           "source_name": "Suez Canal Authority",
           "source_class": "official",
           "source_url": "https://www.suezcanal.gov.eg/English/Navigation/Pages/NavigationStatistics.aspx",
@@ -516,14 +542,19 @@
           "evidence_role": "confirming",
           "strength": "A",
           "publication_date": "2023-12-18",
-          "retrieved_at": "2024-01-15T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2024-01-15 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         },
         {
           "evidence_id": "EVD-HVC-001-B",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "NEWS_DISCOVERY",
           "source_name": "Public news discovery",
           "source_class": "news",
           "source_url": "https://www.gdeltproject.org/",
@@ -532,15 +563,22 @@
           "evidence_role": "discovery_only",
           "strength": "D",
           "publication_date": "2023-12-19",
-          "retrieved_at": "2024-01-15T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2024-01-15 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         }
       ]
     },
     {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2024-04-05T00:00:00Z",
+      "case_id": "HVC-003",
+      "active_as_of": null,
+      "active_basis": null,
       "event_id": "EVT-20240326-001",
       "title": "Francis Scott Key Bridge collapse suspends vessel traffic at the Port of Baltimore",
       "event_class": "direct_operational_event",
@@ -773,6 +811,10 @@
       "evidence": [
         {
           "evidence_id": "EVD-HVC-003-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "MANUAL_NOTICE_INTAKE",
           "source_name": "Maryland Port Administration",
           "source_class": "official",
           "source_url": "https://mpa.maryland.gov/Pages/index.aspx",
@@ -781,15 +823,22 @@
           "evidence_role": "confirming",
           "strength": "A",
           "publication_date": "2024-03-26",
-          "retrieved_at": "2024-04-05T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2024-04-05 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         }
       ]
     },
     {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2024-06-10T00:00:00Z",
+      "case_id": "HVC-004",
+      "active_as_of": null,
+      "active_basis": null,
       "event_id": "EVT-20240520-001",
       "title": "Elevated vessel waiting times reported at Singapore container terminals",
       "event_class": "direct_operational_event",
@@ -1060,6 +1109,10 @@
       "evidence": [
         {
           "evidence_id": "EVD-HVC-004-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "MANUAL_NOTICE_INTAKE",
           "source_name": "Maritime and Port Authority of Singapore",
           "source_class": "regulator",
           "source_url": "https://www.mpa.gov.sg/port-marine-ops/port-marine-circulars-notices",
@@ -1068,14 +1121,19 @@
           "evidence_role": "confirming",
           "strength": "B",
           "publication_date": "2024-05-22",
-          "retrieved_at": "2024-06-10T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2024-06-10 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         },
         {
           "evidence_id": "EVD-HVC-004-B",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "IMF_PORTWATCH",
           "source_name": "IMF PortWatch",
           "source_class": "international",
           "source_url": "https://portwatch.imf.org/",
@@ -1084,15 +1142,22 @@
           "evidence_role": "contextual",
           "strength": "C",
           "publication_date": "2024-06-01",
-          "retrieved_at": "2024-06-10T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2024-06-10 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         }
       ]
     },
     {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2024-06-20T00:00:00Z",
+      "case_id": "HVC-007",
+      "active_as_of": null,
+      "active_basis": null,
       "event_id": "EVT-20240614-002",
       "title": "Pasir Panjang oil spill response with port operations reported unaffected",
       "event_class": "direct_operational_event",
@@ -1352,6 +1417,10 @@
       "evidence": [
         {
           "evidence_id": "EVD-HVC-007-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "MANUAL_NOTICE_INTAKE",
           "source_name": "Maritime and Port Authority of Singapore",
           "source_class": "operator",
           "source_url": "https://www.mpa.gov.sg/media-centre/details/oil-spill-clean-up-in-progress-at-pasir-panjang-terminal",
@@ -1360,17 +1429,24 @@
           "evidence_role": "confirming",
           "strength": "B",
           "publication_date": "2024-06-14",
-          "retrieved_at": "2024-06-20T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2024-06-20 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         }
       ]
     }
   ],
-  "admitted_external_drivers": [
+  "demo_admitted_external_drivers": [
     {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2022-06-30T00:00:00Z",
+      "case_id": "HVC-005",
+      "active_as_of": null,
+      "active_basis": null,
       "event_id": "EVT-20220301-001",
       "title": "Crude and refined product prices rise sharply, raising bunker and domestic fuel costs",
       "event_class": "external_driver",
@@ -1683,6 +1759,10 @@
       "evidence": [
         {
           "evidence_id": "EVD-HVC-005-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "EPPO_FUEL",
           "source_name": "Energy Policy and Planning Office, Thailand",
           "source_class": "official",
           "source_url": "https://www.eppo.go.th/data-energy-statistic/energy-price-th/",
@@ -1691,17 +1771,24 @@
           "evidence_role": "confirming",
           "strength": "B",
           "publication_date": "2022-03-01",
-          "retrieved_at": "2022-06-30T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2022-06-30 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         }
       ]
     }
   ],
-  "contextual_external_drivers": [
+  "demo_contextual_external_drivers": [
     {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2024-12-01T00:00:00Z",
+      "case_id": "HVC-006",
+      "active_as_of": null,
+      "active_basis": null,
       "event_id": "EVT-20241118-001",
       "title": "Damage to Baltic Sea subsea telecommunications cables reported",
       "event_class": "external_driver",
@@ -1937,6 +2024,10 @@
       "evidence": [
         {
           "evidence_id": "EVD-HVC-006-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "NEWS_DISCOVERY",
           "source_name": "Public news discovery",
           "source_class": "news",
           "source_url": "https://www.gdeltproject.org/",
@@ -1945,17 +2036,24 @@
           "evidence_role": "discovery_only",
           "strength": "D",
           "publication_date": "2024-11-18",
-          "retrieved_at": "2024-12-01T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2024-12-01 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         }
       ]
     }
   ],
-  "discovery_leads": [
+  "demo_discovery_leads": [
     {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2026-07-24T00:00:00Z",
+      "case_id": "HVC-008",
+      "active_as_of": null,
+      "active_basis": null,
       "event_id": "EVT-20260715-001",
       "title": "Unverified report of a labour dispute affecting a Southeast Asian container terminal",
       "event_class": "discovery_lead",
@@ -2168,6 +2266,10 @@
       "evidence": [
         {
           "evidence_id": "EVD-HVC-008-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "NEWS_DISCOVERY",
           "source_name": "Public news discovery",
           "source_class": "news",
           "source_url": "https://www.gdeltproject.org/",
@@ -2176,10 +2278,11 @@
           "evidence_role": "discovery_only",
           "strength": "D",
           "publication_date": "2026-07-15",
-          "retrieved_at": "2026-07-24T00:00:00Z",
+          "retrieved_at": null,
           "known_limitations": [
             "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
-            "The content hash covers this repository's record of the claim, not a retrieved publisher response."
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2026-07-24 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
           ]
         }
       ]

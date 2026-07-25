@@ -50,7 +50,9 @@
       <thead><tr><th scope="col">Lane</th><th scope="col">Attention</th><th scope="col">Direction</th><th scope="col">Resolution</th></tr></thead>
       <tbody></tbody>
     </table></div>
-    <h3>Cost pressure at a glance</h3>
+    <h3>Current cost pressure</h3>
+    <p class="banner banner-note" id="situation-cost-current"></p>
+    <h3 class="demo-heading">Cost pressure <span class="pill pill-demo">technical demonstration</span></h3>
     <div class="table-wrap"><table id="situation-cost-table">
       <caption>Latest reading per cost-context series, with its own freshness. A stale reading is labelled stale; it is never presented as current.</caption>
       <thead><tr><th scope="col">Series</th><th scope="col">Latest value</th><th scope="col">Period</th><th scope="col">Month over month</th><th scope="col">Freshness</th></tr></thead>
@@ -66,10 +68,11 @@
     <h2 id="ocean-h">2. Ocean Logistics</h2>
     <p class="section-intro">Thailand port and maritime indicators, the lane set, chokepoint exposure, official notices, and the capacity and service evidence that exists.</p>
     <p class="banner banner-warning" id="port-note"></p>
-    <h3>Thailand port and maritime indicators</h3>
+    <h3 class="demo-heading">Thailand port and maritime indicators <span class="pill pill-demo">technical demonstration</span></h3>
+    <p class="banner banner-demo" id="ocean-demo-label"></p>
     <div id="port-series"></div>
     <h3>Ocean lanes</h3>
-    <p class="section-intro">Each lane states the analytical resolution it actually supports. A regional lane is never displayed as a port-pair lane.</p>
+    <p class="section-intro">Each lane states the analytical resolution it actually supports. A regional lane is never displayed as a port-pair lane. Each card shows its <strong>current</strong> assessment; where a technical-demonstration assessment exists it is in a separately labelled panel inside the card.</p>
     <div id="lane-cards" class="lane-grid"></div>
     <h3>Chokepoints</h3>
     <div class="table-wrap"><table id="chokepoint-table">
@@ -77,9 +80,11 @@
       <thead><tr><th scope="col">Chokepoint</th><th scope="col">Type</th><th scope="col">Modes</th><th scope="col">Operating authority</th><th scope="col">Exposed lanes</th><th scope="col">Notice status</th></tr></thead>
       <tbody></tbody>
     </table></div>
-    <h3>Official operational notices</h3>
+    <h3>Current official operational notices</h3>
+    <p class="banner banner-note" id="current-notice-statement"></p>
+    <h3 class="demo-heading">Official notices <span class="pill pill-demo">historical validation</span></h3>
     <div id="notices"></div>
-    <h3>Capacity and service evidence</h3>
+    <h3 class="demo-heading">Capacity and service evidence <span class="pill pill-demo">historical validation</span></h3>
     <div class="table-wrap"><table id="capacity-table">
       <caption>Capacity and service impacts actually recorded against an event, with the evidence strength and confidence behind each.</caption>
       <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
@@ -90,6 +95,8 @@
   <section id="trade" aria-labelledby="trade-h">
     <h2 id="trade-h">3. Trade and Flow</h2>
     <p class="section-intro">Thailand import and export value by lane group, with period comparisons and revision status.</p>
+    <p class="banner banner-note" id="trade-current"></p>
+    <p class="banner banner-demo" id="trade-demo-label"></p>
     <p class="banner banner-note" id="trade-note"></p>
     <div id="trade-lanes"></div>
   </section>
@@ -97,6 +104,8 @@
   <section id="cost" aria-labelledby="cost-h">
     <h2 id="cost-h">4. Cost and Freight Pressure</h2>
     <p class="section-intro">Fuel, FX and freight benchmarks. Each series states what kind of number it is.</p>
+    <p class="banner banner-note" id="cost-current"></p>
+    <p class="banner banner-demo" id="cost-demo-label"></p>
     <p class="banner banner-warning" id="cost-limits-banner"></p>
     <div id="cost-series"></div>
     <h3>FX context</h3>
@@ -111,13 +120,19 @@
     <h2 id="events-h">5. Events and External Drivers</h2>
     <p class="section-intro">Direct operational events, external drivers and discovery leads are kept separate. An external driver stays contextual until a transmission mechanism is stated.</p>
     <p class="banner banner-note" id="events-note"></p>
-    <h3>Direct operational events</h3>
+    <h3>Current direct operational events</h3>
+    <p class="banner banner-note" id="events-current-statement"></p>
+    <div id="events-current-operational"></div>
+    <h3>Current external drivers</h3>
+    <div id="events-current-drivers"></div>
+    <p class="banner banner-demo" id="events-demo-label"></p>
+    <h3 class="demo-heading">Direct operational events <span class="pill pill-demo">historical validation</span></h3>
     <div id="events-operational"></div>
-    <h3>External drivers with a stated transmission mechanism</h3>
+    <h3 class="demo-heading">External drivers with a stated transmission mechanism <span class="pill pill-demo">historical validation</span></h3>
     <div id="events-admitted"></div>
-    <h3>Contextual external drivers <span class="pill pill-muted">no transmission mechanism established</span></h3>
+    <h3 class="demo-heading">Contextual external drivers <span class="pill pill-muted">no transmission mechanism established</span> <span class="pill pill-demo">historical validation</span></h3>
     <div id="events-contextual"></div>
-    <h3>Discovery leads <span class="pill pill-muted">unconfirmed, cannot support a conclusion</span></h3>
+    <h3 class="demo-heading">Discovery leads <span class="pill pill-muted">unconfirmed, cannot support a conclusion</span> <span class="pill pill-demo">historical validation</span></h3>
     <div id="events-leads"></div>
   </section>
 
@@ -127,8 +142,11 @@
     <p class="banner banner-critical" id="ai-status"></p>
     <p class="prose" id="ai-boundary"></p>
     <div id="approved-assessments"></div>
-    <h3>Deterministic lane outlooks</h3>
+    <h3>Current deterministic lane outlooks</h3>
     <p class="section-intro" id="deterministic-note"></p>
+    <div id="current-outlooks"></div>
+    <h3 class="demo-heading">Lane outlooks <span class="pill pill-demo">technical demonstration</span></h3>
+    <p class="banner banner-demo" id="outlook-demo-label"></p>
     <div id="outlooks"></div>
   </section>
 

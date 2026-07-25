@@ -27,12 +27,18 @@ from collectors.series_catalog import (
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "csv_series"
-RETRIEVED = "2026-07-24T00:00:00Z"
+
+#: When the fixture file was written. Deliberately *not* a retrieval time:
+#: these bytes came off local disk, so there is no retrieval to timestamp.
+FIXTURE_CREATED = "2026-07-24T00:00:00Z"
 
 
 def _parse(filename: str, contract: CsvSeriesContract, **kwargs):
     return parse_csv_series(
-        (FIXTURES / filename).read_bytes(), contract, retrieved_at=RETRIEVED, **kwargs
+        (FIXTURES / filename).read_bytes(),
+        contract,
+        fixture_created_at=FIXTURE_CREATED,
+        **kwargs,
     )
 
 
@@ -58,7 +64,8 @@ def test_trade_fixture_parses():
     assert exports[0]["flow_direction"] == "export"
     assert exports[0]["reporter_country_id"] == "TH"
     assert exports[0]["placement"]["lane_id"] == "LANE-OCEAN-TH-NEUR"
-    assert all(record["provenance"]["source_id"] == "TH_CUSTOMS" for record in exports)
+    assert all(record["provenance"]["source_id"] == "SYNTHETIC_FIXTURE" for record in exports)
+    assert all(record["provenance"]["intended_source_id"] == "TH_CUSTOMS" for record in exports)
 
 
 def test_port_fixture_parses():
@@ -119,7 +126,7 @@ def test_empty_cells_become_missing_not_zero():
 @pytest.mark.parametrize("marker", ["", "-", "n/a", "NA", "null", "None", ".", ":"])
 def test_recognised_missing_markers(marker):
     contract = CsvSeriesContract(
-        source_id="TEST_SRC",
+        source_id="SYNTHETIC_FIXTURE",
         parser_version="test_v1",
         period_column="period",
         series=(
@@ -130,12 +137,13 @@ def test_recognised_missing_markers(marker):
                 unit="index_points",
                 period_type="month",
                 evidence_class="synthetic_test_fixture",
+                intended_source_id="TEST_SRC",
                 attributes={"indicator_id": "probe", "indicator_name": "Probe"},
             ),
         ),
     )
     payload = f"period,value\n2026-01,{marker}\n".encode()
-    record = parse_csv_series(payload, contract, retrieved_at=RETRIEVED)[0]
+    record = parse_csv_series(payload, contract, fixture_created_at=FIXTURE_CREATED)[0]
     assert record["measurement"]["value"] is None
     assert record["measurement"]["value_status"] == "missing"
 
@@ -163,19 +171,19 @@ def test_too_many_rows_is_rejected():
 def test_missing_required_column_is_rejected():
     payload = b"period,other\n2026-01,1.0\n"
     with pytest.raises(CsvContractError, match="missing required columns"):
-        parse_csv_series(payload, INDICATOR_CONTRACT, retrieved_at=RETRIEVED)
+        parse_csv_series(payload, INDICATOR_CONTRACT, fixture_created_at=FIXTURE_CREATED)
 
 
 def test_ragged_row_is_rejected_rather_than_truncating_the_series():
     payload = b"period,published_at,usd_thb_rate,gscpi_index,thailand_lsci\n2026-01,x,1,2\n"
     with pytest.raises(CsvContractError, match="fields but the header declares"):
-        parse_csv_series(payload, INDICATOR_CONTRACT, retrieved_at=RETRIEVED)
+        parse_csv_series(payload, INDICATOR_CONTRACT, fixture_created_at=FIXTURE_CREATED)
 
 
 def test_unparseable_period_is_rejected():
     payload = b"period,published_at,usd_thb_rate,gscpi_index,thailand_lsci\nQ1-2026,x,1,2,3\n"
     with pytest.raises(CsvContractError, match="not an ISO date or YYYY-MM month"):
-        parse_csv_series(payload, INDICATOR_CONTRACT, retrieved_at=RETRIEVED)
+        parse_csv_series(payload, INDICATOR_CONTRACT, fixture_created_at=FIXTURE_CREATED)
 
 
 def test_non_numeric_token_is_rejected_rather_than_silently_dropped():
@@ -183,17 +191,17 @@ def test_non_numeric_token_is_rejected_rather_than_silently_dropped():
         b"period,published_at,usd_thb_rate,gscpi_index,thailand_lsci\n2026-01,x,about 34,2,3\n"
     )
     with pytest.raises(CsvContractError, match="neither a number nor a recognised"):
-        parse_csv_series(payload, INDICATOR_CONTRACT, retrieved_at=RETRIEVED)
+        parse_csv_series(payload, INDICATOR_CONTRACT, fixture_created_at=FIXTURE_CREATED)
 
 
 def test_payload_that_is_not_utf8_is_rejected():
     with pytest.raises(CsvContractError, match="not valid UTF-8"):
-        parse_csv_series(b"\xff\xfe\x00bad", INDICATOR_CONTRACT, retrieved_at=RETRIEVED)
+        parse_csv_series(b"\xff\xfe\x00bad", INDICATOR_CONTRACT, fixture_created_at=FIXTURE_CREATED)
 
 
 def test_empty_payload_is_rejected():
     with pytest.raises(CsvContractError, match="no header row"):
-        parse_csv_series(b"", INDICATOR_CONTRACT, retrieved_at=RETRIEVED)
+        parse_csv_series(b"", INDICATOR_CONTRACT, fixture_created_at=FIXTURE_CREATED)
 
 
 def test_overlong_field_is_rejected():
@@ -203,7 +211,7 @@ def test_overlong_field_is_rejected():
         + b",1,2,3\n"
     )
     with pytest.raises(CsvContractError, match="character bound"):
-        parse_csv_series(payload, INDICATOR_CONTRACT, retrieved_at=RETRIEVED)
+        parse_csv_series(payload, INDICATOR_CONTRACT, fixture_created_at=FIXTURE_CREATED)
 
 
 # ---------------------------------------------------------------------------
@@ -217,13 +225,13 @@ def test_duplicate_source_rows_collapse_to_one_record():
         b"2026-01,2026-01-15T00:00:00Z,34.5,0.1,42.0\n"
         b"2026-01,2026-01-15T00:00:00Z,34.5,0.1,42.0\n"
     )
-    records = parse_csv_series(payload, INDICATOR_CONTRACT, retrieved_at=RETRIEVED)
+    records = parse_csv_series(payload, INDICATOR_CONTRACT, fixture_created_at=FIXTURE_CREATED)
     assert len(_series(records, "usd_thb_reference_rate")) == 1
 
 
 def test_a_later_revision_supersedes_the_earlier_value():
     contract = CsvSeriesContract(
-        source_id="TEST_SRC",
+        source_id="SYNTHETIC_FIXTURE",
         parser_version="test_v1",
         period_column="period",
         revision_column="revision",
@@ -236,6 +244,7 @@ def test_a_later_revision_supersedes_the_earlier_value():
                 unit="index_points",
                 period_type="month",
                 evidence_class="synthetic_test_fixture",
+                intended_source_id="TEST_SRC",
                 attributes={"indicator_id": "probe", "indicator_name": "Probe"},
             ),
         ),
@@ -245,7 +254,7 @@ def test_a_later_revision_supersedes_the_earlier_value():
         b"2026-01,2026-02-01T00:00:00Z,0,100\n"
         b"2026-01,2026-03-01T00:00:00Z,1,115\n"
     )
-    records = parse_csv_series(payload, contract, retrieved_at=RETRIEVED)
+    records = parse_csv_series(payload, contract, fixture_created_at=FIXTURE_CREATED)
     assert len(records) == 1
     assert records[0]["measurement"]["value"] == 115.0
     assert records[0]["provenance"]["revision_number"] == 1
@@ -254,7 +263,7 @@ def test_a_later_revision_supersedes_the_earlier_value():
 
 def test_non_integer_revision_marker_is_rejected():
     contract = CsvSeriesContract(
-        source_id="TEST_SRC",
+        source_id="SYNTHETIC_FIXTURE",
         parser_version="test_v1",
         period_column="period",
         revision_column="revision",
@@ -266,13 +275,14 @@ def test_non_integer_revision_marker_is_rejected():
                 unit="index_points",
                 period_type="month",
                 evidence_class="synthetic_test_fixture",
+                intended_source_id="TEST_SRC",
                 attributes={"indicator_id": "probe", "indicator_name": "Probe"},
             ),
         ),
     )
     with pytest.raises(CsvContractError, match="non-integer revision marker"):
         parse_csv_series(
-            b"period,revision,value\n2026-01,r1,100\n", contract, retrieved_at=RETRIEVED
+            b"period,revision,value\n2026-01,r1,100\n", contract, fixture_created_at=FIXTURE_CREATED
         )
 
 

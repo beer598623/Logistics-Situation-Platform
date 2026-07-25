@@ -20,6 +20,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any
 
+from .provenance import fixture_freshness_status, is_fixture
+
 #: Number of periods in the trailing average the platform publishes. Three is
 #: short enough to stay responsive on a monthly series and long enough to
 #: damp a single revision.
@@ -53,8 +55,9 @@ class SeriesPoint:
     unit: str | None
     currency: str | None
     published_at: str | None
-    retrieved_at: str
+    retrieved_at: str | None
     revised_at: str | None
+    evidence_origin: str | None
     revision_number: int
     evidence_class: str
     record_id: str
@@ -133,8 +136,9 @@ def to_points(observations: Iterable[Mapping[str, Any]]) -> list[SeriesPoint]:
                 unit=measurement.get("unit"),
                 currency=measurement.get("currency"),
                 published_at=provenance.get("published_at"),
-                retrieved_at=provenance["retrieved_at"],
+                retrieved_at=provenance.get("retrieved_at"),
                 revised_at=provenance.get("revised_at"),
+                evidence_origin=provenance.get("evidence_origin"),
                 revision_number=int(provenance.get("revision_number", 0)),
                 evidence_class=provenance["evidence_class"],
                 record_id=provenance["record_id"],
@@ -145,6 +149,17 @@ def to_points(observations: Iterable[Mapping[str, Any]]) -> list[SeriesPoint]:
         (point for point in points if point.end_date is not None),
         key=lambda point: point.end_date,  # type: ignore[arg-type,return-value]
     )
+
+
+def _origin_of(points: Sequence[SeriesPoint]) -> str | None:
+    """The single origin shared by a series' points, or ``None`` if mixed.
+
+    A mixed-origin series cannot be given one freshness label honestly, so the
+    caller falls back to the real-world computation and ``scripts/validate.py``
+    surfaces the mixture separately.
+    """
+    origins = {point.evidence_origin for point in points}
+    return origins.pop() if len(origins) == 1 else None
 
 
 def _pct_change(current: float, previous: float) -> float | None:
@@ -192,13 +207,26 @@ def evaluate_freshness(
     max_stale_minutes: int,
     expected_cadence_minutes: int | None = None,
     now: datetime | None = None,
+    origin: str | None = None,
 ) -> Freshness:
     """Classify series freshness using the same boundaries as source health.
 
     A series with no usable point at all is ``no_data`` -- never ``fresh``
     with a zero age.
+
+    A fixture series never receives a real-world freshness label. "Stale"
+    describes how far behind a publisher's data has fallen, and a generated
+    number has no publisher to fall behind. Fixtures get a disjoint status
+    (``fixture_not_live`` / ``historical_validation``) so the two can never be
+    confused -- the WO-010-R1 correction.
     """
     moment = now or datetime.now(UTC)
+    if is_fixture(origin):
+        return Freshness(
+            status=fixture_freshness_status(origin),
+            as_of=latest_point.published_at if latest_point else None,
+            age_days=None,
+        )
     if latest_point is None:
         return Freshness(status="no_data", as_of=None, age_days=None)
 
@@ -237,6 +265,7 @@ def derive_series(
     max_stale_minutes: int = 52560,
     expected_cadence_minutes: int | None = None,
     now: datetime | None = None,
+    origin: str | None = None,
 ) -> SeriesDerivation:
     """Derive the published readings for one series.
 
@@ -359,6 +388,7 @@ def derive_series(
             max_stale_minutes=max_stale_minutes,
             expected_cadence_minutes=expected_cadence_minutes,
             now=now,
+            origin=origin if origin is not None else _origin_of(points),
         ),
         revision_status=revision_status,
         periods_total=len(points),

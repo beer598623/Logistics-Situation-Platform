@@ -24,7 +24,18 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from analysis.events import (  # noqa: E402
+    active_events,
+    event_qualifies_for_current_publication,
+)
 from analysis.indicators import derive_series  # noqa: E402
+from analysis.provenance import (  # noqa: E402
+    CURRENT_PUBLICATION,
+    HISTORICAL_VALIDATION,
+    TECHNICAL_DEMO,
+    is_fixture,
+    record_origin,
+)
 
 PUBLIC = ROOT / "dashboard/public"
 DATA = PUBLIC / "data"
@@ -92,7 +103,12 @@ def build_payloads() -> dict[str, Any]:
     lanes = _load(ROOT / "data/reference/lanes.json")["lanes"]
     lane_by_id = {lane["lane_id"]: lane for lane in lanes}
     assessments = _load(ROOT / "data/assessments/lane_assessments.json")["assessments"]
+    demo_assessments = _load(ROOT / "data/assessments/demo_lane_assessments.json")["assessments"]
+    demo_thailand = _load(ROOT / "data/assessments/demo_thailand_assessment.json")
     thailand = _load(ROOT / "data/assessments/thailand_assessment.json")
+    cases = _load(ROOT / "data/validation/historical_cases.json")["cases"]
+    cutoff_by_event = {case["event"]["event_id"]: case["assessment_cutoff"] for case in cases}
+    case_id_by_event = {case["event"]["event_id"]: case["case_id"] for case in cases}
     events = _load(ROOT / "data/events/events.json")["events"]
     evidence = _load(ROOT / "data/events/event_evidence.json")["evidence"]
     evidence_by_id = {item["evidence_id"]: item for item in evidence}
@@ -112,6 +128,7 @@ def build_payloads() -> dict[str, Any]:
 
     # ---- Thailand Logistics Situation ------------------------------------
     situation = {
+        "dataset": CURRENT_PUBLICATION,
         "generated_at": DATA_CUTOFF_ISO,
         "data_cutoff_at": thailand["data_cutoff_at"],
         "methodology_version": METHODOLOGY_VERSION,
@@ -120,9 +137,21 @@ def build_payloads() -> dict[str, Any]:
         "coverage_message": thailand["coverage_message"],
         "live_coverage_statement": (
             "Live coverage is INSUFFICIENT. No source in the registry is enabled and none "
-            "has completed a controlled live validation, so every number shown here is "
-            "derived from a labelled synthetic test fixture. This Dashboard demonstrates "
-            "the platform's behaviour; it does not describe current real-world conditions."
+            "has completed a controlled live validation, so the platform holds no "
+            "live-retrieved or human-reviewed evidence at all. Every current reading below "
+            "is therefore 'insufficient evidence' -- which is a coverage gap, not a finding "
+            "that conditions are normal. Synthetic and historical-validation fixtures are "
+            "shown only in the separately labelled Technical demonstration panels and never "
+            "contribute to a current reading."
+        ),
+        "qualified_observation_count": sum(
+            1
+            for records in observations.values()
+            for record in records
+            if not is_fixture(record_origin(record))
+        ),
+        "qualified_event_count": sum(
+            1 for event in events if event_qualifies_for_current_publication(event, evidence_by_id)
         ),
         "key_changes": thailand["key_changes"],
         "lanes_requiring_attention": [
@@ -138,10 +167,19 @@ def build_payloads() -> dict[str, Any]:
         "contextual_external_drivers": thailand["contextual_external_drivers"],
         "discovery_leads": thailand["discovery_leads"],
         "major_data_gaps": thailand["major_data_gaps"],
+        "demo_summary": {
+            "dataset": TECHNICAL_DEMO,
+            "label": "Technical demonstration — synthetic fixtures, not current intelligence",
+            "overall_direction": demo_thailand["overall_direction"],
+            "lanes_requiring_attention": len(demo_thailand["lanes_requiring_attention"]),
+        },
         "cost_pressure": [
             {
+                "dataset": TECHNICAL_DEMO,
                 "series_id": indicator["series_id"],
                 "source_id": indicator.get("source_id"),
+                "intended_source_id": indicator.get("intended_source_id"),
+                "evidence_origin": indicator.get("evidence_origin"),
                 "current_value": indicator["current_value"],
                 "current_period": indicator["current_period"],
                 "unit": indicator["unit"],
@@ -168,10 +206,20 @@ def build_payloads() -> dict[str, Any]:
         records = _records_for(observations, series_id=series_id)
         if not records:
             continue
-        derivation = derive_series(series_id, records, max_stale_minutes=20160, now=DATA_CUTOFF)
+        derivation = derive_series(
+            series_id,
+            records,
+            max_stale_minutes=20160,
+            now=DATA_CUTOFF,
+            origin=record_origin(records[0]),
+        )
         port_series.append(
             {
                 **derivation.to_dict(),
+                "dataset": TECHNICAL_DEMO,
+                "source_id": records[0]["provenance"]["source_id"],
+                "intended_source_id": records[0]["provenance"].get("intended_source_id"),
+                "evidence_origin": record_origin(records[0]),
                 "metric": records[0]["metric"],
                 "operational_interpretation": records[0]["operational_interpretation"],
                 "resolution": records[0]["resolution"],
@@ -182,8 +230,13 @@ def build_payloads() -> dict[str, Any]:
         )
 
     ocean = {
+        "dataset": CURRENT_PUBLICATION,
         "generated_at": DATA_CUTOFF_ISO,
-        "port_series": port_series,
+        "demo_port_series": port_series,
+        "demo_label": (
+            "Technical demonstration — derived from synthetic fixtures. These panels "
+            "exercise the analysis engine and describe no real-world condition."
+        ),
         "port_interpretation_note": (
             "Every port series here is a VOLUME measure. Rising throughput means more cargo "
             "moved; it is not congestion. No congestion, berth-delay, yard-congestion or "
@@ -207,9 +260,26 @@ def build_payloads() -> dict[str, Any]:
                 "known_limitations": lane["known_limitations"],
                 "review_date": lane["review_date"],
                 "status": lane["status"],
+                "demo_assessment": next(
+                    (
+                        {
+                            "dataset": TECHNICAL_DEMO,
+                            "assessment_id": item["assessment_id"],
+                            "overall_direction": item["overall_direction"],
+                            "attention_level": item["attention_level"],
+                            "domain_assessments": item["domain_assessments"],
+                            "scenarios": item.get("scenarios"),
+                            "preparedness_options": item.get("preparedness_options", []),
+                        }
+                        for item in demo_assessments
+                        if item["lane_id"] == lane["lane_id"]
+                    ),
+                    None,
+                ),
                 "assessment": next(
                     (
                         {
+                            "dataset": CURRENT_PUBLICATION,
                             "assessment_id": item["assessment_id"],
                             "overall_direction": item["overall_direction"],
                             "attention_level": item["attention_level"],
@@ -231,9 +301,21 @@ def build_payloads() -> dict[str, Any]:
         ],
         "chokepoints": dimensions["chokepoints"],
         "nodes": dimensions["logistics_nodes"],
-        "operational_notices": [
+        "current_operational_notices": [],
+        "current_notice_statement": (
+            "No qualified operational notice is recorded. No notice channel is monitored "
+            "live and no human-reviewed notice has been entered, so this is an absence of "
+            "records rather than evidence that no notice was published."
+        ),
+        "demo_operational_notices": [
             {
+                "dataset": HISTORICAL_VALIDATION,
                 "evidence_id": item["evidence_id"],
+                "evidence_origin": item["evidence_origin"],
+                "retrieval_status": item["retrieval_status"],
+                "intended_source_id": item.get("intended_source_id"),
+                "assessment_cutoff": cutoff_by_event.get(item["event_id"]),
+                "case_id": case_id_by_event.get(item["event_id"]),
                 "event_id": item["event_id"],
                 "source_name": item["source_name"],
                 "source_class": item["source_class"],
@@ -247,8 +329,11 @@ def build_payloads() -> dict[str, Any]:
             for item in evidence
             if item["claim_type"] == "official_notice"
         ],
-        "capacity_and_service_evidence": [
+        "current_capacity_and_service_evidence": [],
+        "demo_capacity_and_service_evidence": [
             {
+                "dataset": HISTORICAL_VALIDATION,
+                "assessment_cutoff": cutoff_by_event.get(event["event_id"]),
                 "event_id": event["event_id"],
                 "title": event["title"],
                 "area": impact["area"],
@@ -286,11 +371,19 @@ def build_payloads() -> dict[str, Any]:
             if not records:
                 continue
             derivation = derive_series(
-                series_id, records, max_stale_minutes=105120, now=DATA_CUTOFF
+                series_id,
+                records,
+                max_stale_minutes=105120,
+                now=DATA_CUTOFF,
+                origin=record_origin(records[0]),
             )
             entry["flows"].append(
                 {
                     **derivation.to_dict(),
+                    "dataset": TECHNICAL_DEMO,
+                    "source_id": records[0]["provenance"]["source_id"],
+                    "intended_source_id": records[0]["provenance"].get("intended_source_id"),
+                    "evidence_origin": record_origin(records[0]),
                     "flow_direction": direction,
                     "partner_label": records[0]["partner_label"],
                     "partner_scope": records[0]["partner_scope"],
@@ -302,7 +395,16 @@ def build_payloads() -> dict[str, Any]:
         trade_lanes.append(entry)
 
     trade = {
+        "dataset": TECHNICAL_DEMO,
+        "demo_label": (
+            "Technical demonstration — every series below is a synthetic fixture standing in "
+            "for a production candidate. No Thailand trade statistic has been retrieved."
+        ),
         "generated_at": DATA_CUTOFF_ISO,
+        "current_statement": (
+            "No qualified Thailand trade observation exists, so no current trade reading is "
+            "published."
+        ),
         "lane_flows": trade_lanes,
         "revision_note": (
             "Published trade statistics can be revised. Every observation carries a revision "
@@ -326,10 +428,20 @@ def build_payloads() -> dict[str, Any]:
         records = _records_for(observations, series_id=series_id)
         if not records:
             continue
-        derivation = derive_series(series_id, records, max_stale_minutes=10080, now=DATA_CUTOFF)
+        derivation = derive_series(
+            series_id,
+            records,
+            max_stale_minutes=10080,
+            now=DATA_CUTOFF,
+            origin=record_origin(records[0]),
+        )
         cost_series.append(
             {
                 **derivation.to_dict(),
+                "dataset": TECHNICAL_DEMO,
+                "source_id": records[0]["provenance"]["source_id"],
+                "intended_source_id": records[0]["provenance"].get("intended_source_id"),
+                "evidence_origin": record_origin(records[0]),
                 "cost_family": records[0]["cost_family"],
                 "benchmark_class": records[0]["benchmark_class"],
                 "quotation_claim": records[0]["quotation_claim"],
@@ -342,13 +454,33 @@ def build_payloads() -> dict[str, Any]:
 
     fx_records = _records_for(observations, series_id="usd_thb_reference_rate")
     fx = derive_series(
-        "usd_thb_reference_rate", fx_records, max_stale_minutes=10080, now=DATA_CUTOFF
+        "usd_thb_reference_rate",
+        fx_records,
+        max_stale_minutes=10080,
+        now=DATA_CUTOFF,
+        origin=record_origin(fx_records[0]),
     )
 
     cost = {
+        "dataset": TECHNICAL_DEMO,
+        "demo_label": (
+            "Technical demonstration — every series below is a synthetic fixture standing in "
+            "for a production candidate. No fuel, FX or freight figure has been retrieved."
+        ),
         "generated_at": DATA_CUTOFF_ISO,
+        "current_statement": (
+            "No qualified cost observation exists, so no current cost or freight pressure "
+            "reading is published."
+        ),
         "cost_series": cost_series,
-        "fx": {**fx.to_dict(), "points": _series_points(fx_records)},
+        "fx": {
+            **fx.to_dict(),
+            "dataset": TECHNICAL_DEMO,
+            "source_id": fx_records[0]["provenance"]["source_id"],
+            "intended_source_id": fx_records[0]["provenance"].get("intended_source_id"),
+            "evidence_origin": record_origin(fx_records[0]),
+            "points": _series_points(fx_records),
+        },
         "benchmark_limitations": [
             "The container freight series is a market benchmark for a third route, published "
             "here only as a directional indicator.",
@@ -370,6 +502,12 @@ def build_payloads() -> dict[str, Any]:
     # ---- Events and External Drivers --------------------------------------
     def _event_view(event: dict[str, Any]) -> dict[str, Any]:
         return {
+            "dataset": event.get("dataset"),
+            "evidence_origin": record_origin(event),
+            "assessment_cutoff": cutoff_by_event.get(event["event_id"]),
+            "case_id": case_id_by_event.get(event["event_id"]),
+            "active_as_of": event.get("active_as_of"),
+            "active_basis": event.get("active_basis"),
             "event_id": event["event_id"],
             "title": event["title"],
             "event_class": event["event_class"],
@@ -398,6 +536,10 @@ def build_payloads() -> dict[str, Any]:
             "evidence": [
                 {
                     "evidence_id": eid,
+                    "evidence_origin": evidence_by_id[eid]["evidence_origin"],
+                    "retrieval_status": evidence_by_id[eid]["retrieval_status"],
+                    "strength_basis": evidence_by_id[eid]["strength_basis"],
+                    "intended_source_id": evidence_by_id[eid].get("intended_source_id"),
                     "source_name": evidence_by_id[eid]["source_name"],
                     "source_class": evidence_by_id[eid]["source_class"],
                     "source_url": evidence_by_id[eid].get("source_url"),
@@ -414,26 +556,47 @@ def build_payloads() -> dict[str, Any]:
             ],
         }
 
+    current_active = active_events(events, evidence_by_id, cutoff=DATA_CUTOFF)
     event_payload = {
+        "dataset": CURRENT_PUBLICATION,
         "generated_at": DATA_CUTOFF_ISO,
-        "direct_operational_events": [
+        "current_direct_operational_events": [
+            _event_view(event)
+            for event in current_active
+            if event["event_class"] == "direct_operational_event"
+        ],
+        "current_external_drivers": [
+            _event_view(event)
+            for event in current_active
+            if event["event_class"] == "external_driver"
+        ],
+        "current_statement": (
+            "No qualified event is recorded. Every event the platform holds is a historical "
+            "validation fixture with an assessment cutoff in the past; none is evidence of a "
+            "current condition, and none appears above."
+        ),
+        "demo_label": (
+            "Historical validation — each case is assessed at its own cutoff, shown on the "
+            "card. These exercise the event model and describe no current condition."
+        ),
+        "demo_direct_operational_events": [
             _event_view(event)
             for event in events
             if event["event_class"] == "direct_operational_event"
         ],
-        "admitted_external_drivers": [
+        "demo_admitted_external_drivers": [
             _event_view(event)
             for event in events
             if event["event_class"] == "external_driver"
             and event["transmission_chain"]["completeness"] == "complete"
         ],
-        "contextual_external_drivers": [
+        "demo_contextual_external_drivers": [
             _event_view(event)
             for event in events
             if event["event_class"] == "external_driver"
             and event["transmission_chain"]["completeness"] != "complete"
         ],
-        "discovery_leads": [
+        "demo_discovery_leads": [
             _event_view(event) for event in events if event["event_class"] == "discovery_lead"
         ],
         "lifecycle_note": (
@@ -463,8 +626,10 @@ def build_payloads() -> dict[str, Any]:
             "This repository calls no AI API. High or Critical conclusions can never be "
             "published without an explicit human-review record."
         ),
-        "deterministic_outlooks": [
+        "dataset": CURRENT_PUBLICATION,
+        "current_outlooks": [
             {
+                "dataset": CURRENT_PUBLICATION,
                 "lane_id": item["lane_id"],
                 "lane_name": lane_by_id[item["lane_id"]]["name"],
                 "attention_level": item["attention_level"],
@@ -473,10 +638,27 @@ def build_payloads() -> dict[str, Any]:
             }
             for item in assessments
         ],
+        "demo_label": (
+            "Technical demonstration — generated from synthetic fixtures to exercise the "
+            "scenario engine. Not a current outlook."
+        ),
+        "demo_outlooks": [
+            {
+                "dataset": TECHNICAL_DEMO,
+                "lane_id": item["lane_id"],
+                "lane_name": lane_by_id[item["lane_id"]]["name"],
+                "attention_level": item["attention_level"],
+                "scenarios": item.get("scenarios"),
+                "preparedness_options": item.get("preparedness_options", []),
+            }
+            for item in demo_assessments
+        ],
         "deterministic_note": (
             "The outlooks below are a deterministic analytical product derived from the "
             "documented threshold rules, open events and data gaps. They are not an AI "
-            "assessment and are shown separately from one."
+            "assessment and are shown separately from one. With zero qualified evidence the "
+            "current outlooks state only what coverage is missing and what would have to "
+            "happen before an assessment could begin."
         ),
     }
 
@@ -533,6 +715,7 @@ def build_payloads() -> dict[str, Any]:
             "documents": [
                 "docs/bundle1_architecture.md",
                 "docs/data_model_and_persistence.md",
+                "docs/evidence_provenance_and_datasets.md",
                 "docs/source_qualification_report.md",
                 "docs/source_enablement_decisions.md",
                 "docs/ocean_lane_selection.md",
@@ -571,6 +754,8 @@ def build_payloads() -> dict[str, Any]:
         "solutions.json": _load(ROOT / "innovation/solution_register.json"),
         "build_status.json": {
             "built_at": DATA_CUTOFF_ISO,
+            "fixture_generated_at": DATA_CUTOFF_ISO,
+            "qualified_evidence": False,
             "methodology_version": METHODOLOGY_VERSION,
             "data_cutoff_at": DATA_CUTOFF_ISO,
             "live_coverage": "insufficient",

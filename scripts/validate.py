@@ -14,6 +14,7 @@ Runs entirely offline.
 from __future__ import annotations
 
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +29,23 @@ from analysis.assessments import (  # noqa: E402
     validate_scenario_outlook,
 )
 from analysis.contracts import load_json, schema_errors  # noqa: E402
-from analysis.events import validate_event  # noqa: E402
+from analysis.events import (  # noqa: E402
+    event_qualifies_for_current_publication,
+    is_active_at,
+    validate_event,
+)
+from analysis.provenance import (  # noqa: E402
+    CURRENT_PUBLICATION,
+    LIVE_FRESHNESS_STATUSES,
+    SYNTHETIC_SOURCE_ID,
+    dataset_of,
+    is_fixture,
+    provenance_problems,
+    qualifies_for_current_publication,
+    record_intended_source_id,
+    record_origin,
+    record_source_id,
+)
 from analysis.reference import (  # noqa: E402
     chokepoint_index,
     country_index,
@@ -162,6 +179,55 @@ def source_contract_checks(registry: dict[str, Any]) -> list[str]:
                 "(Paid-source dependency = 0)"
             )
         if source.get("enabled"):
+            # WO-010-R1: every qualification and reuse gate, not just the
+            # structural ones. A future enablement cannot slip through on an
+            # unreviewed licence or an unobserved freshness.
+            if qualification.get("access_cost") not in {"free", "free_with_registration"}:
+                problems.append(
+                    f"{source_id}: an enabled source must be free or free-with-registration, "
+                    f"not {qualification.get('access_cost')!r}"
+                )
+            if qualification.get("paywall_status") == "full":
+                problems.append(f"{source_id}: a fully paywalled source cannot be enabled")
+            if qualification.get("reuse_status") in {None, "unknown", "restricted"}:
+                problems.append(
+                    f"{source_id}: an enabled source requires a reviewed reuse position, "
+                    f"not {qualification.get('reuse_status')!r}"
+                )
+            if qualification.get("redistribution_status") in {None, "unknown", "prohibited"}:
+                problems.append(
+                    f"{source_id}: an enabled source requires a resolved redistribution "
+                    f"position, not {qualification.get('redistribution_status')!r}"
+                )
+            if qualification.get("prototype_eligibility") != "eligible":
+                problems.append(
+                    f"{source_id}: an enabled source must be prototype_eligibility "
+                    f"'eligible', not {qualification.get('prototype_eligibility')!r}"
+                )
+            if not qualification.get("observed_freshness"):
+                problems.append(
+                    f"{source_id}: an enabled source must record an independently observed "
+                    "freshness, not a claimed cadence alone"
+                )
+            if not qualification.get("publication_cadence"):
+                problems.append(f"{source_id}: an enabled source must record its cadence")
+            if source.get("access_method") != "manual" and (
+                enablement.get("live_validation_status") == "not_required"
+            ):
+                problems.append(
+                    f"{source_id}: live validation may only be 'not_required' for a genuinely "
+                    "manual, non-network contract"
+                )
+            if enablement.get("live_validation_status") == "completed" and not enablement.get(
+                "live_validation_reference"
+            ):
+                problems.append(
+                    f"{source_id}: a completed live validation must cite its evidence reference"
+                )
+            if not enablement.get("fixture_test_reference"):
+                problems.append(
+                    f"{source_id}: an enabled source must cite its fixture test reference"
+                )
             if enablement.get("blockers"):
                 problems.append(
                     f"{source_id}: an enabled source cannot have unresolved enablement "
@@ -423,6 +489,236 @@ def lane_assessment_checks(
     return problems
 
 
+# --------------------------------------------------------------------------
+# WO-010-R1: provenance truthfulness and the current-publication boundary
+# --------------------------------------------------------------------------
+
+
+def provenance_checks(
+    records: list[dict[str, Any]],
+    label: str,
+    registry_ids: set[str],
+) -> list[str]:
+    """Every record's origin, retrieval status and source identity must be true."""
+    problems: list[str] = []
+    for record in records:
+        provenance = record.get("provenance", record)
+        identifier = provenance.get("record_id") or record.get("evidence_id") or "<unknown>"
+        problems.extend(provenance_problems(record, label=f"{label}/{identifier}"))
+
+        source_id = record_source_id(record)
+        if source_id and source_id != SYNTHETIC_SOURCE_ID and source_id not in registry_ids:
+            problems.append(
+                f"{label}/{identifier}: source_id {source_id!r} is not in the source registry"
+            )
+        intended = record_intended_source_id(record)
+        if intended and intended not in registry_ids:
+            problems.append(
+                f"{label}/{identifier}: intended_source_id {intended!r} is not in the source "
+                "registry"
+            )
+    return problems
+
+
+def series_source_compatibility(
+    records: list[dict[str, Any]],
+    label: str,
+    registry: dict[str, Any],
+) -> list[str]:
+    """A series must be compatible with the logistics role of its source.
+
+    This is the check that would have caught WO-010's freight benchmark being
+    attributed to a retail fuel publisher: the series' family and the source's
+    declared logistics role simply do not overlap.
+    """
+    problems: list[str] = []
+    roles_by_source = {
+        source["id"]: set((source.get("qualification") or {}).get("logistics_role", []))
+        for source in registry["sources"]
+    }
+    required_roles = {
+        "trade_observations": {"thailand_trade_flow"},
+        "port_observations": {"thailand_port_or_maritime_activity"},
+        "cost_observations": {
+            "domestic_fuel_or_energy_cost",
+            "freight_market_benchmark_or_proxy",
+            "fx_context",
+        },
+        "indicator_observations": {
+            "fx_context",
+            "global_supply_chain_baseline",
+            "thailand_port_or_maritime_activity",
+            "external_driver_context",
+        },
+    }
+    needed = required_roles.get(label)
+    if not needed:
+        return problems
+
+    by_series: dict[str, str] = {}
+    for record in records:
+        series_id = record.get("series_id") or record.get("indicator_id")
+        source = record_intended_source_id(record) or record_source_id(record)
+        if not series_id or not source:
+            continue
+        previous = by_series.setdefault(series_id, source)
+        if previous != source:
+            problems.append(
+                f"{label}/{series_id}: conflicting source mappings {previous!r} and "
+                f"{source!r}; one series cannot come from two sources"
+            )
+        roles = roles_by_source.get(source, set())
+        if roles and not (roles & needed):
+            problems.append(
+                f"{label}/{series_id}: source {source!r} declares logistics role(s) "
+                f"{sorted(roles)}, which is incompatible with a {label.replace('_', ' ')} "
+                f"series (expected one of {sorted(needed)})"
+            )
+    return problems
+
+
+def current_publication_checks(
+    thailand: dict[str, Any],
+    lane_assessments: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+    evidence_by_id: dict[str, dict[str, Any]],
+    observations: dict[str, list[dict[str, Any]]],
+) -> list[str]:
+    """The current view must never rest on a fixture.
+
+    With no qualified evidence, every current reading must be
+    ``insufficient_evidence``, no lane may be raised above routine, no event
+    may be active and no chokepoint may carry a notice. This is the check the
+    Work Order asks for: it fails whenever a current-publication payload
+    references a synthetic or historical-validation record as current evidence.
+    """
+    problems: list[str] = []
+
+    qualified_observations = [
+        record
+        for records in observations.values()
+        for record in records
+        if qualifies_for_current_publication(record_origin(record))
+    ]
+    # An event carries no origin of its own; it qualifies through its dataset
+    # and the evidence behind it. Reading `record_origin` on an event would
+    # always return None and quietly classify every event as non-fixture.
+    qualified_events = [
+        event for event in events if event_qualifies_for_current_publication(event, evidence_by_id)
+    ]
+    has_qualified_evidence = bool(qualified_observations) or bool(qualified_events)
+
+    if dataset_of(thailand) != CURRENT_PUBLICATION:
+        problems.append(
+            f"thailand_assessment: dataset is {dataset_of(thailand)!r}, but this file is the "
+            "current-publication view"
+        )
+
+    fixture_event_ids = {
+        event["event_id"]
+        for event in events
+        if not event_qualifies_for_current_publication(event, evidence_by_id)
+    }
+    fixture_evidence_ids = {
+        item["evidence_id"] for item in evidence_by_id.values() if is_fixture(record_origin(item))
+    }
+
+    referenced = set(thailand.get("active_verified_events", []))
+    referenced |= set(thailand.get("admitted_external_drivers", []))
+    referenced |= set(thailand.get("contextual_external_drivers", []))
+    referenced |= set(thailand.get("discovery_leads", []))
+    leaked = referenced & fixture_event_ids
+    if leaked:
+        problems.append(
+            f"thailand_assessment: references fixture events {sorted(leaked)} as current evidence"
+        )
+
+    for assessment in lane_assessments:
+        assessment_id = assessment["assessment_id"]
+        if dataset_of(assessment) != CURRENT_PUBLICATION:
+            problems.append(
+                f"{assessment_id}: dataset is {dataset_of(assessment)!r} in the "
+                "current-publication file"
+            )
+        lane_events = set(assessment["active_event_ids"]) | set(
+            assessment["external_driver_event_ids"]
+        )
+        lane_leaked = lane_events & fixture_event_ids
+        if lane_leaked:
+            problems.append(
+                f"{assessment_id}: references fixture events {sorted(lane_leaked)} as current "
+                "evidence"
+            )
+        for domain in assessment["domain_assessments"]:
+            leaked_evidence = set(domain.get("evidence_ids", [])) & fixture_evidence_ids
+            if leaked_evidence:
+                problems.append(
+                    f"{assessment_id}/{domain['domain']}: cites fixture evidence "
+                    f"{sorted(leaked_evidence)} as current evidence"
+                )
+            status = domain["freshness"]["status"]
+            if status in LIVE_FRESHNESS_STATUSES - {"no_data"} and not has_qualified_evidence:
+                problems.append(
+                    f"{assessment_id}/{domain['domain']}: reports real-world freshness "
+                    f"{status!r} with no qualified evidence behind it"
+                )
+
+    if not has_qualified_evidence:
+        if thailand.get("overall_direction") != "insufficient_evidence":
+            problems.append(
+                "thailand_assessment: overall_direction is "
+                f"{thailand.get('overall_direction')!r} with zero qualified evidence; it must "
+                "be 'insufficient_evidence'"
+            )
+        if thailand.get("active_verified_events"):
+            problems.append(
+                "thailand_assessment: reports active verified events with zero qualified evidence"
+            )
+        if thailand.get("lanes_requiring_attention"):
+            problems.append(
+                "thailand_assessment: raises lanes to attention with zero qualified evidence"
+            )
+        for assessment in lane_assessments:
+            if assessment["attention_level"] in {"watch", "elevated"}:
+                problems.append(
+                    f"{assessment['assessment_id']}: attention level "
+                    f"{assessment['attention_level']!r} with zero qualified evidence"
+                )
+            if assessment["overall_direction"] != "insufficient_evidence":
+                problems.append(
+                    f"{assessment['assessment_id']}: overall_direction "
+                    f"{assessment['overall_direction']!r} with zero qualified evidence"
+                )
+            for exposure in assessment.get("chokepoint_exposure", []):
+                if exposure["status"] == "official_notice_active":
+                    problems.append(
+                        f"{assessment['assessment_id']}/{exposure['chokepoint_id']}: reports an "
+                        "active official notice with zero qualified evidence"
+                    )
+
+    return problems
+
+
+def event_dataset_checks(
+    events: list[dict[str, Any]],
+    evidence_by_id: dict[str, dict[str, Any]],
+    cutoff: datetime,
+) -> list[str]:
+    """No fixture-backed event may be publishable as currently active."""
+    problems: list[str] = []
+    for event in events:
+        decision = is_active_at(event, evidence_by_id, cutoff=cutoff)
+        if decision.is_active and not event_qualifies_for_current_publication(
+            event, evidence_by_id
+        ):
+            problems.append(
+                f"{event['event_id']}: a fixture-origin event was judged currently active"
+            )
+        if event.get("active_as_of") and not event.get("active_basis"):
+            problems.append(f"{event['event_id']}: active_as_of recorded with no active_basis")
+    return problems
+
+
 def main() -> int:
     ok = True
 
@@ -469,8 +765,11 @@ def main() -> int:
         "port_observations": "port_transport_observation.schema.json",
         "cost_observations": "cost_observation.schema.json",
     }
+    registry_ids = {source["id"] for source in registry["sources"]}
+    all_observations: dict[str, list[dict[str, Any]]] = {}
     for family, schema_name in observation_schemas.items():
         records = load_json(ROOT / f"data/observations/{family}.json")["records"]
+        all_observations[family] = records
         family_ok = True
         for record in records:
             errors = schema_errors(record, schema_name)
@@ -483,6 +782,11 @@ def main() -> int:
             print(f"[PASS] {family} ({len(records)} records)")
         ok &= family_ok
         ok &= report(f"{family} semantics", observation_checks(records, family))
+        ok &= report(f"{family} provenance", provenance_checks(records, family, registry_ids))
+        ok &= report(
+            f"{family} source compatibility",
+            series_source_compatibility(records, family, registry),
+        )
 
     # ---- Events and evidence ---------------------------------------------
     events = load_json(ROOT / "data/events/events.json")["events"]
@@ -500,6 +804,13 @@ def main() -> int:
     if evidence_ok:
         print(f"[PASS] event_evidence ({len(evidence)} records)")
     ok &= evidence_ok
+    ok &= report(
+        "event_evidence provenance", provenance_checks(evidence, "event_evidence", registry_ids)
+    )
+    ok &= report(
+        "event dataset semantics",
+        event_dataset_checks(events, evidence_by_id, datetime(2026, 7, 24, tzinfo=UTC)),
+    )
 
     events_ok = True
     event_problems: list[str] = []
@@ -540,6 +851,38 @@ def main() -> int:
             {event["event_id"] for event in events},
         ),
     )
+
+    thailand = load_json(ROOT / "data/assessments/thailand_assessment.json")
+    ok &= report(
+        "current publication boundary",
+        current_publication_checks(thailand, assessments, events, evidence_by_id, all_observations),
+    )
+
+    demo_path = ROOT / "data/assessments/demo_lane_assessments.json"
+    if demo_path.exists():
+        demo = load_json(demo_path)["assessments"]
+        demo_ok = True
+        for assessment in demo:
+            payload = {
+                key: value for key, value in assessment.items() if key != "preparedness_options"
+            }
+            errors = schema_errors(payload, "lane_assessment.schema.json")
+            if errors:
+                print(f"[FAIL] demo_lane_assessment/{assessment['assessment_id']}")
+                for error in errors:
+                    print(f"  - {error}")
+                demo_ok = False
+        if demo_ok:
+            print(f"[PASS] demo_lane_assessments ({len(demo)} records)")
+        ok &= demo_ok
+        ok &= report(
+            "demo lane assessment semantics",
+            lane_assessment_checks(
+                demo,
+                {lane["lane_id"] for lane in lanes},
+                {event["event_id"] for event in events},
+            ),
+        )
 
     history = load_json(ROOT / "data/assessments/assessment_history.json")
     ok &= validate_item(history, "assessment_history.schema.json", "assessment_history")

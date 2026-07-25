@@ -152,6 +152,26 @@
       "item_count": null,
       "required_for_publication": false,
       "max_stale_minutes": 10080
+    },
+    {
+      "source_id": "PAT_STATISTICS",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 105120
+    },
+    {
+      "source_id": "FBX_PUBLIC",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 20160
     }
   ],
   "capabilities": [
@@ -215,6 +235,14 @@
       "gap_reason": "No enabled source currently backs external_driver_context."
     },
     {
+      "capability": "freight_benchmark",
+      "status": "insufficient",
+      "supporting_sources": [
+        "FBX_PUBLIC"
+      ],
+      "gap_reason": "No enabled source currently backs freight_benchmark."
+    },
+    {
       "capability": "fx_context",
       "status": "insufficient",
       "supporting_sources": [
@@ -265,7 +293,8 @@
       "status": "insufficient",
       "supporting_sources": [
         "IMF_PORTWATCH",
-        "UNCTAD_MARITIME"
+        "UNCTAD_MARITIME",
+        "PAT_STATISTICS"
       ],
       "gap_reason": "No enabled source currently backs port_activity_indicator."
     },
@@ -281,7 +310,8 @@
       "capability": "thailand_port_operations",
       "status": "insufficient",
       "supporting_sources": [
-        "PAT_NOTICE"
+        "PAT_NOTICE",
+        "PAT_STATISTICS"
       ],
       "gap_reason": "No enabled source currently backs thailand_port_operations."
     },

@@ -58,7 +58,9 @@ rather than halting the bundle:
 | `UNCTAD_MARITIME` | Confirm a stable download URL; read and record reuse terms |
 | Notice channels | Confirm a machine-readable feed **or** commit to the manual intake path; establish cadence before configuring any schedule |
 | `NEWS_DISCOVERY` | Confirm the query endpoint and rate limits; confirm link-level redistribution is permitted |
-| `TMD_CAP`, `GDACS` | Out of scope. A separate Work Order and their own governance records apply |
+| `PAT_STATISTICS` | Confirm a stable machine-readable throughput publication and its scope (TEU vs tonnes, port vs terminal); read and record reuse terms |
+| `FBX_PUBLIC` | Confirm which figures are publicly reusable versus subscription-only; record route scope, unit and redistribution position before any value is committed |
+| `TMD_CAP`, `GDACS` | Out of scope, and explicitly excluded from WO-010-R1. A separate Work Order and their own governance records apply. Neither was contacted |
 
 ## Schedule policy
 
@@ -67,6 +69,45 @@ rather than halting the bundle:
 cadence means no automated schedule until cadence is justified — that rule is applied, not
 merely stated. Monthly sources record a monthly, manually triggered schedule; nothing in
 this repository polls a monthly source more often than monthly.
+
+## The enablement gate (hardened by WO-010-R1)
+
+`scripts/validate.py::source_contract_checks` blocks `enabled: true` unless **every** one of
+these holds. Each is covered by a negative test in
+`tests/test_current_publication_boundary.py`, so a gate that stops being enforced fails CI.
+
+**Qualification**
+
+| Gate | Requirement |
+|---|---|
+| `access_cost` | `free` or `free_with_registration`. `paid` is refused outright under the free-only policy |
+| `paywall_status` | not `full` |
+| `reuse_status` | reviewed — not null, `unknown` or `restricted` |
+| `redistribution_status` | resolved — not null, `unknown` or `prohibited` |
+| `prototype_eligibility` | exactly `eligible` |
+| `observed_freshness` | recorded from an independent observation, not a claimed cadence alone |
+| `publication_cadence` | recorded |
+
+**Enablement**
+
+| Gate | Requirement |
+|---|---|
+| `blockers` | empty |
+| `machine_readable_status` | `verified` |
+| `licence_status` | `reviewed` |
+| `endpoint` | present |
+| `fixture_test_exists` / `fixture_test_reference` | both present, and the reference names a real test |
+| `live_validation_status` | `completed` with a cited `live_validation_reference`, or `not_required` **only** for a genuinely manual, non-network contract |
+| `parser_fails_closed` | true |
+| `response_bounded` | true |
+| `schedule_justified` | true |
+| `public_repository_safe` | true |
+
+Series compatibility is checked separately: a series' source must declare a logistics role
+compatible with what the series measures, every `source_id` and `intended_source_id` must
+exist in the registry, and one series may never resolve to two sources.
+
+**All seventeen sources remain disabled under WO-010-R1.** No source was contacted.
 
 ## Governance
 

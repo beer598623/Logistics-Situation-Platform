@@ -88,7 +88,9 @@ def test_insufficient_coverage_is_stated_on_the_face_of_the_dashboard(payloads):
     situation = payloads["thailand_situation.json"]
     assert situation["evidence_coverage"] == "insufficient"
     assert "INSUFFICIENT" in situation["live_coverage_statement"]
-    assert "synthetic test fixture" in situation["live_coverage_statement"]
+    assert "Synthetic and historical-validation fixtures" in situation["live_coverage_statement"]
+    assert situation["qualified_observation_count"] == 0
+    assert situation["qualified_event_count"] == 0
     assert payloads["build_status.json"]["live_coverage"] == "insufficient"
 
 
@@ -100,14 +102,12 @@ def test_the_build_records_zero_paid_dependency_and_no_ai_api(payloads):
 
 def test_stale_sources_are_shown_as_stale_not_as_current(payloads):
     """Freshness travels with every reading so nothing implies currency."""
+    # Fixture series carry fixture freshness. A generated number has no
+    # publisher to have fallen behind, so it is never called "fresh" either.
     for series in payloads["cost.json"]["cost_series"]:
-        assert series["freshness"]["status"] in {"fresh", "stale", "very_stale", "no_data"}
-    for series in payloads["ocean.json"]["port_series"]:
-        assert "status" in series["freshness"]
-    assert any(
-        series["freshness"]["status"] in {"stale", "very_stale"}
-        for series in payloads["cost.json"]["cost_series"]
-    )
+        assert series["freshness"]["status"] == "fixture_not_live"
+    for series in payloads["ocean.json"]["demo_port_series"]:
+        assert series["freshness"]["status"] == "fixture_not_live"
 
 
 def test_missing_periods_survive_into_the_dashboard_as_gaps(payloads):
@@ -144,7 +144,10 @@ def test_the_ai_section_shows_an_explicit_empty_state_not_a_blank_panel(payloads
 def test_deterministic_outlooks_are_labelled_as_not_being_an_ai_assessment(payloads):
     outlook = payloads["ai_outlook.json"]
     assert "not an AI assessment" in outlook["deterministic_note"]
-    assert len(outlook["deterministic_outlooks"]) == 11
+    assert len(outlook["current_outlooks"]) == 11
+    assert len(outlook["demo_outlooks"]) == 11
+    assert all(item["dataset"] == "current_publication" for item in outlook["current_outlooks"])
+    assert all(item["dataset"] == "technical_demo" for item in outlook["demo_outlooks"])
 
 
 def test_every_lane_reaches_the_dashboard_with_its_resolution_and_limitations(payloads):
@@ -160,7 +163,7 @@ def test_every_lane_reaches_the_dashboard_with_its_resolution_and_limitations(pa
 def test_port_series_are_labelled_volume_only(payloads):
     ocean = payloads["ocean.json"]
     assert "not congestion" in ocean["port_interpretation_note"]
-    for series in ocean["port_series"]:
+    for series in ocean["demo_port_series"]:
         assert series["operational_interpretation"] == "volume_only"
 
 
@@ -203,18 +206,18 @@ def test_no_thailand_freight_average_is_published(payloads):
 
 def test_events_are_separated_by_class(payloads):
     events = payloads["events.json"]
-    assert events["direct_operational_events"]
-    assert events["contextual_external_drivers"]
-    assert events["discovery_leads"]
-    for event in events["contextual_external_drivers"]:
+    assert events["demo_direct_operational_events"]
+    assert events["demo_contextual_external_drivers"]
+    assert events["demo_discovery_leads"]
+    for event in events["demo_contextual_external_drivers"]:
         assert event["transmission_chain"]["completeness"] != "complete"
-    for event in events["discovery_leads"]:
+    for event in events["demo_discovery_leads"]:
         assert all(item["evidence_role"] == "discovery_only" for item in event["evidence"])
 
 
 def test_the_sources_section_exposes_licence_freshness_and_blockers(payloads):
     sources = payloads["sources.json"]["sources"]
-    assert len(sources) == 15
+    assert len(sources) == 17
     for source in sources:
         assert source["licence_status"]
         assert source["health"] is not None

@@ -1,20 +1,44 @@
 # Dashboard user guide
 
-**Work Order:** WO-010 Gate K · **Status:** implemented
+**Work Order:** WO-010 Gate K, corrected by WO-010-R1 · **Status:** implemented
 **Source:** `dashboard/public/` · **Build:** `python scripts/build_dashboard.py`
 
-## 1. Read the banner first
+## 1. The page has two kinds of panel, and they are not the same thing
 
-The red banner at the top of the page states the platform's live coverage. It currently
-reads **insufficient**, and says so in words: no source is enabled, none has completed a
-controlled live validation, and every number on the page is derived from a labelled
-synthetic test fixture. The Dashboard demonstrates the platform's behaviour; it does not
-describe current real-world conditions.
+Since WO-010-R1 every section is split in two, and the split is the most
+important thing to understand about this page.
 
-If a payload fails to load, the banner switches to the same pessimistic reading rather than
-leaving a section silently blank.
+**Current Logistics Intelligence** is what the platform asserts about
+conditions now. It rests exclusively on evidence that was either retrieved
+from a publisher or transcribed by a named human. No source is enabled today,
+so there is no such evidence, and every current reading is
+`insufficient_evidence`.
 
-## 2. The seven sections
+**Technical demonstration** and **Historical validation** panels are driven by
+fixtures this repository generated or authored. They exist to exercise the
+analysis engine and to replay documented past cases. They describe no
+real-world condition, and nothing in them feeds a current reading.
+
+Each demonstration panel carries its own marker — a bordered panel, a heading
+pill, or a label along the top of the card — not only the page-level banner.
+A reader who deep-links to one section, or prints one panel, still sees what
+they are looking at. Historical cases additionally show the assessment cutoff
+they were assessed at.
+
+An empty current panel is a **coverage gap, not an all-clear**. The page says
+so in those words wherever a current list is empty.
+
+## 2. Read the banner
+
+The red banner at the top of the page states the platform's live coverage. It
+currently reads **insufficient**: no source is enabled, none has completed a
+controlled live validation, and the platform therefore holds no live-retrieved
+or human-reviewed evidence at all.
+
+If a payload fails to load, the banner switches to the same pessimistic reading
+rather than leaving a section silently blank.
+
+## 3. The seven sections
 
 ### 1 — Thailand Logistics Situation
 The overview: data cutoff, overall direction, evidence coverage, how many lanes need
@@ -84,7 +108,7 @@ and known limitations.
 Also capability coverage, the historical-validation summary, and the methodology document
 list.
 
-## 3. How to read a value that is not there
+## 4. How to read a value that is not there
 
 | Display | Meaning |
 |---|---|
@@ -94,15 +118,24 @@ list.
 | *no baseline defined* | Deviation is not publishable for this series |
 | `insufficient_evidence` | The rule's inputs were missing or too few |
 | `none_established` | No basis to assess was found. **Not** a finding of no effect |
+| An empty "Current" list | No qualified evidence exists. **Not** a finding that nothing is happening |
 | A break in a chart line | A missing period. Gaps are drawn as gaps, never interpolated or zeroed |
 
-## 4. Freshness
+## 5. Freshness
 
-Every reading carries its own freshness pill — `fresh`, `stale`, `very_stale`, `no_data`,
-`disabled` or `error` — with its age in days. Stale data is labelled stale. Nothing on the
-page implies that an old reading is current.
+Every reading carries its own freshness pill with its age in days. Two vocabularies are
+used, and they do not overlap.
 
-## 5. Accessibility and device support
+| Vocabulary | Statuses | Applies to |
+|---|---|---|
+| Real-world | `fresh`, `stale`, `very_stale`, `no_data`, `disabled`, `error` | Records actually retrieved from a publisher, or transcribed by a named human |
+| Fixture | `fixture_not_live`, `historical_validation`, `not_applicable` | Everything in the demonstration panels |
+
+A generated number has no publisher who could have fallen behind, so it is never called
+"fresh" and never called "stale". Stale real data is labelled stale. Nothing on the page
+implies that an old reading — or a generated one — is current.
+
+## 6. Accessibility and device support
 
 - Semantic HTML with a skip link, labelled sections, table captions and scoped headers.
 - Status is never conveyed by colour alone; every pill carries its text.
@@ -112,10 +145,13 @@ page implies that an old reading is current.
   Verified at 390px width.
 - A print stylesheet expands collapsed panels.
 
-## 6. What the Dashboard will not do
+## 7. What the Dashboard will not do
 
 - It will not tell any specific organization what to do. It holds no shipment, booking,
   quotation or capacity data and cannot know anyone's exposure.
 - It will not publish a number where it has none.
 - It will not claim real-time conditions it does not measure.
 - It will not publish an AI conclusion no human approved.
+- It will not present a synthetic or historical fixture as a current condition. Fixtures
+  appear only in their own labelled panels, and never contribute to a current direction,
+  attention level, active event, chokepoint notice or freshness reading.

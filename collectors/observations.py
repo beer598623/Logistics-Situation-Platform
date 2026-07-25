@@ -18,6 +18,8 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from analysis.provenance import FIXTURE_ORIGINS, SYNTHETIC_SOURCE_ID
+
 #: Statuses that permit a non-null value. Exactly one, deliberately.
 _AVAILABLE = "available"
 
@@ -62,10 +64,15 @@ def build_observation(
     period_start: str | None,
     period_end: str | None,
     period_type: str,
-    retrieved_at: str,
     parser_version: str,
     evidence_class: str,
     content_sha256: str,
+    evidence_origin: str,
+    retrieval_status: str,
+    content_hash_scope: str,
+    retrieved_at: str | None = None,
+    intended_source_id: str | None = None,
+    fixture_created_at: str | None = None,
     published_at: str | None = None,
     revised_at: str | None = None,
     revision_number: int = 0,
@@ -85,6 +92,10 @@ def build_observation(
     disagree. That is a hard failure rather than a silent correction: an
     adapter that thinks it has a value for a period the source did not
     publish has a bug, and quietly rewriting either field would hide it.
+
+    Provenance is held to the same standard. A record whose origin is a
+    fixture may not claim a real publisher as its source, and a record that
+    retrieved nothing may not carry a retrieval time.
     """
     if value_status == _AVAILABLE and value is None:
         raise ObservationContractError(
@@ -100,11 +111,45 @@ def build_observation(
             f"{series_id}/{period_key}: an available value must record its unit"
         )
 
+    if retrieval_status != "retrieved" and retrieved_at is not None:
+        raise ObservationContractError(
+            f"{series_id}/{period_key}: retrieval_status is {retrieval_status!r} but a "
+            "retrieved_at timestamp was supplied; nothing was retrieved, so there is no "
+            "retrieval time"
+        )
+    if retrieval_status == "retrieved" and retrieved_at is None:
+        raise ObservationContractError(
+            f"{series_id}/{period_key}: retrieval_status is 'retrieved' but no retrieved_at "
+            "was supplied"
+        )
+    if evidence_origin in FIXTURE_ORIGINS:
+        if source_id != SYNTHETIC_SOURCE_ID:
+            raise ObservationContractError(
+                f"{series_id}/{period_key}: a {evidence_origin} record must record source_id "
+                f"{SYNTHETIC_SOURCE_ID!r}, not {source_id!r}; attributing generated content to "
+                "a real publisher misstates its provenance"
+            )
+        if not intended_source_id:
+            raise ObservationContractError(
+                f"{series_id}/{period_key}: a fixture must record the intended_source_id it "
+                "stands in for"
+            )
+    elif source_id == SYNTHETIC_SOURCE_ID:
+        raise ObservationContractError(
+            f"{series_id}/{period_key}: origin {evidence_origin!r} is publishable but the "
+            "reserved synthetic source identifier was supplied"
+        )
+
     record: dict[str, Any] = dict(extra or {})
     record["provenance"] = {
         "record_id": build_record_id(source_id, series_id, period_key),
         "source_id": source_id,
         "source_record_id": source_record_id,
+        "evidence_origin": evidence_origin,
+        "retrieval_status": retrieval_status,
+        "content_hash_scope": content_hash_scope,
+        "intended_source_id": intended_source_id,
+        "fixture_created_at": fixture_created_at,
         "period_start": period_start,
         "period_end": period_end,
         "period_type": period_type,

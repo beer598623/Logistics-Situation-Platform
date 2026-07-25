@@ -1010,3 +1010,153 @@ sources:
       blockers:
         - No controlled live validation has been performed; the query endpoint and its rate limits are unverified and the endpoint field is null.
         - Reuse terms have not been reviewed. Only link-level redistribution would be considered even if they were.
+
+  # ---------------------------------------------------------------------------
+  # WO-010-R1 additions.
+  #
+  # Both correct a provenance defect rather than adding capability: WO-010
+  # published a synthetic Thailand port-throughput series against a vessel-
+  # tracking estimate source, and a synthetic container freight benchmark
+  # against a fuel publisher. Neither mapping was true. These two contracts give
+  # each series a correctly scoped candidate to stand in for. Both are disabled.
+  # ---------------------------------------------------------------------------
+
+  - id: PAT_STATISTICS
+    name: Port Authority of Thailand published port statistics
+    owner: Port Authority of Thailand
+    source_class: official
+    purposes: [port_activity_indicator, thailand_port_operations]
+    authoritative_for: [port_authority_of_thailand_published_throughput]
+    landing_url: https://www.port.co.th/
+    endpoint: null
+    access_method: html
+    format: html
+    machine_readable_status: unverified
+    parser: pat_statistics_v1
+    stable_id_field: [terminal, period]
+    expected_cadence_minutes: 44640
+    max_stale_minutes: 105120
+    publication_lag: monthly_variable
+    pagination:
+      type: none
+      page_size: null
+    http:
+      supports_etag: unknown
+      supports_last_modified: unknown
+      timeout_seconds: 60
+      max_response_bytes: 25000000
+    retry:
+      attempts: 3
+      backoff: exponential_jitter
+    licence_status: pending_review
+    terms_url: null
+    terms_reviewed_at: null
+    fallback_sources: [IMF_PORTWATCH]
+    known_limitations:
+      - "Reported throughput published by the port authority is a different measure from a model-derived vessel-tracking estimate. The two must never be presented as the same series, which is the WO-010-R1 correction: Thailand container throughput now stands in for this candidate rather than for IMF_PORTWATCH."
+      - Throughput is a volume measure. It can never on its own establish congestion, waiting time or berth delay.
+      - No machine-readable statistics endpoint has been confirmed; whether figures are published in a parseable form is unverified.
+      - "WO-010-R1: no controlled live validation could be performed."
+    enabled: false
+    required_for_publication: false
+    qualification:
+      access_cost: free
+      registration_requirement: none
+      paywall_status: none
+      reuse_status: unknown
+      reuse_licence_name: null
+      redistribution_status: unknown
+      publication_cadence: monthly with variable lag
+      observed_freshness: null
+      data_period: null
+      geography: [Thailand]
+      logistics_role: [thailand_port_or_maritime_activity]
+      rate_limit: null
+      response_size_limit_bytes: 25000000
+      prototype_eligibility: eligible_pending_validation
+      reviewed_at: "2026-07-24"
+    enablement:
+      fixture_test_exists: true
+      fixture_test_reference: tests/test_csv_series_adapter.py::test_port_fixture_parses
+      live_validation_status: not_performed
+      live_validation_reference: null
+      parser_fails_closed: true
+      response_bounded: true
+      schedule_justified: true
+      collection_schedule: monthly, manually triggered
+      public_repository_safe: true
+      blockers:
+        - No machine-readable statistics endpoint has been confirmed; the endpoint field is null.
+        - No controlled live validation has been performed.
+        - Reuse and redistribution terms have not been reviewed, so reuse_status and redistribution_status remain unknown.
+
+  - id: FBX_PUBLIC
+    name: Freightos Baltic Index public container freight series
+    owner: Freightos
+    source_class: industry
+    purposes: [freight_benchmark]
+    authoritative_for: [fbx_published_index_value]
+    landing_url: https://fbx.freightos.com/
+    endpoint: null
+    access_method: html
+    format: html
+    machine_readable_status: unverified
+    parser: freight_benchmark_v1
+    stable_id_field: [route, period]
+    expected_cadence_minutes: 1440
+    max_stale_minutes: 20160
+    publication_lag: daily to weekly
+    pagination:
+      type: none
+      page_size: null
+    http:
+      supports_etag: unknown
+      supports_last_modified: unknown
+      timeout_seconds: 30
+      max_response_bytes: 10000000
+    retry:
+      attempts: 3
+      backoff: exponential_jitter
+    licence_status: pending_review
+    terms_url: null
+    terms_reviewed_at: null
+    fallback_sources: []
+    known_limitations:
+      - "This is a market benchmark for named east-west container routes. It is NOT a Thailand shipment quotation, NOT a Thailand average, and NOT a rate paid by any shipper. It may be used only as a directional indicator."
+      - No route in this index is a Thailand-origin route, so any Thailand reading derived from it is directional context only and must be labelled as such.
+      - "WO-010-R1 registered this candidate so that the synthetic freight benchmark has a correctly scoped source to stand in for. WO-010 had attributed it to EPPO_FUEL, a domestic retail fuel publisher, which was wrong in both route scope and cost family."
+      - Whether the publicly displayed series is redistributable, as opposed to linkable, is unresolved. Only a directional derived reading would be considered even if reuse were permitted.
+      - The index is a commercial product with a free public display tier. The free tier's coverage, history depth and machine-readability are all unverified.
+      - "WO-010-R1: no controlled live validation could be performed."
+    enabled: false
+    required_for_publication: false
+    qualification:
+      access_cost: free
+      registration_requirement: none
+      paywall_status: partial
+      reuse_status: unknown
+      reuse_licence_name: null
+      redistribution_status: unknown
+      publication_cadence: daily to weekly
+      observed_freshness: null
+      data_period: null
+      geography: [Global]
+      logistics_role: [freight_market_benchmark_or_proxy]
+      rate_limit: null
+      response_size_limit_bytes: 10000000
+      prototype_eligibility: eligible_pending_validation
+      reviewed_at: "2026-07-24"
+    enablement:
+      fixture_test_exists: true
+      fixture_test_reference: tests/test_csv_series_adapter.py::test_freight_benchmark_fixture_parses
+      live_validation_status: not_performed
+      live_validation_reference: null
+      parser_fails_closed: true
+      response_bounded: true
+      schedule_justified: true
+      collection_schedule: weekly, manually triggered
+      public_repository_safe: true
+      blockers:
+        - No controlled live validation has been performed; no machine-readable endpoint is confirmed and the endpoint field is null.
+        - Reuse and redistribution terms have not been reviewed. The index is a commercial product and its free display tier's reuse position is unresolved.
+        - Part of the product is behind a paywall (paywall_status is partial); which series are genuinely free is unverified.

@@ -62,7 +62,28 @@ inland drayage between Thailand ports and the hinterland. It is **not** the fuel
 burns, and it must not be presented as an ocean freight input. The series carries that
 limitation on every record.
 
-## 7. Surcharges and fees
+## 7. The freight benchmark's source disposition (WO-010-R1)
+
+WO-010 published a synthetic `container_freight_benchmark` whose fixture was attributed to
+`EPPO_FUEL` — Thailand's retail fuel publisher, which publishes no freight benchmark of any
+kind. That attribution was wrong twice over: the publisher does not produce the measure, and
+a generated number should not have carried a real publisher's identity at all.
+
+R1 resolves it by adding a properly scoped candidate contract, `FBX_PUBLIC`, covering the
+publicly visible portion of a container freight index. It is **disabled**, carries its
+access, licence, route, unit and redistribution limitations, and records its enablement
+blockers — chiefly that the publicly reusable subset of the index has not been established
+and that no value may be committed until the redistribution position is resolved.
+
+The synthetic series now records `source_id: SYNTHETIC_FIXTURE` with
+`intended_source_id: FBX_PUBLIC`, so it stands in for the candidate without claiming to come
+from it. `EPPO_FUEL` does not declare `freight_market_benchmark_or_proxy` among its
+logistics roles, and validation would reject the old mapping.
+
+Whatever eventually backs it, the benchmark remains directional only. It is not a Thailand
+quotation, not a Thailand average, and not a rate any shipper was charged.
+
+## 8. Surcharges and fees
 
 No surcharge or fee series is published. No registry source publishing carrier surcharges
 has been qualified, so the platform records that as a coverage gap on the Cost section

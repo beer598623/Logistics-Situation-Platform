@@ -1,5 +1,8 @@
 {
+  "dataset": "technical_demo",
+  "demo_label": "Technical demonstration \u2014 every series below is a synthetic fixture standing in for a production candidate. No Thailand trade statistic has been retrieved.",
   "generated_at": "2026-07-24T00:00:00Z",
+  "current_statement": "No qualified Thailand trade observation exists, so no current trade reading is published.",
   "lane_flows": [
     {
       "lane_id": "LANE-OCEAN-TH-EASIA-CN",
@@ -23,9 +26,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -38,6 +41,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "Mainland China and Hong Kong",
           "partner_scope": "country",
@@ -245,9 +252,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -260,6 +267,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "Mainland China and Hong Kong",
           "partner_scope": "country",
@@ -475,9 +486,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -490,6 +501,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "Japan and Korea",
           "partner_scope": "lane_group",
@@ -697,9 +712,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -712,6 +727,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "Japan and Korea",
           "partner_scope": "lane_group",
@@ -927,9 +946,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -942,6 +961,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "ASEAN and Singapore transshipment",
           "partner_scope": "lane_group",
@@ -1149,9 +1172,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -1164,6 +1187,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "ASEAN and Singapore transshipment",
           "partner_scope": "lane_group",
@@ -1379,9 +1406,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -1394,6 +1421,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "South Asia",
           "partner_scope": "lane_group",
@@ -1601,9 +1632,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -1616,6 +1647,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "South Asia",
           "partner_scope": "lane_group",
@@ -1831,9 +1866,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -1846,6 +1881,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "Middle East and Gulf",
           "partner_scope": "lane_group",
@@ -2053,9 +2092,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -2068,6 +2107,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "Middle East and Gulf",
           "partner_scope": "lane_group",
@@ -2283,9 +2326,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -2298,6 +2341,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "Northern Europe",
           "partner_scope": "lane_group",
@@ -2505,9 +2552,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -2520,6 +2567,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "Northern Europe",
           "partner_scope": "lane_group",
@@ -2735,9 +2786,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "very_stale",
+            "status": "fixture_not_live",
             "as_of": "2026-04-28T00:00:00Z",
-            "age_days": 87.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -2754,6 +2805,10 @@
             "No baseline is defined for this series, so no deviation from baseline is published.",
             "2 of 30 periods have no usable value and are excluded from every derivation; they are not treated as zero."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "Mediterranean",
           "partner_scope": "lane_group",
@@ -2961,9 +3016,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -2976,6 +3031,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "Mediterranean",
           "partner_scope": "lane_group",
@@ -3191,9 +3250,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -3206,6 +3265,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "United States West Coast",
           "partner_scope": "lane_group",
@@ -3413,9 +3476,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -3428,6 +3491,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "United States West Coast",
           "partner_scope": "lane_group",
@@ -3643,9 +3710,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -3658,6 +3725,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "United States East and Gulf Coast",
           "partner_scope": "lane_group",
@@ -3865,9 +3936,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -3880,6 +3951,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "United States East and Gulf Coast",
           "partner_scope": "lane_group",
@@ -4095,9 +4170,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -4110,6 +4185,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "Australia and New Zealand",
           "partner_scope": "lane_group",
@@ -4317,9 +4396,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "stale",
+            "status": "fixture_not_live",
             "as_of": "2026-05-28T00:00:00Z",
-            "age_days": 57.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -4335,6 +4414,10 @@
             "No baseline is defined for this series, so no deviation from baseline is published.",
             "1 of 30 periods have no usable value and are excluded from every derivation; they are not treated as zero."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "Australia and New Zealand",
           "partner_scope": "lane_group",
@@ -4550,9 +4633,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -4565,6 +4648,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "export",
           "partner_label": "Thailand domestic and inland connection",
           "partner_scope": "country",
@@ -4772,9 +4859,9 @@
           "baseline_definition": null,
           "deviation_from_baseline": null,
           "freshness": {
-            "status": "fresh",
+            "status": "fixture_not_live",
             "as_of": "2026-06-28T00:00:00Z",
-            "age_days": 26.0
+            "age_days": null
           },
           "revision_status": "original",
           "periods_total": 30,
@@ -4787,6 +4874,10 @@
           "limitations": [
             "No baseline is defined for this series, so no deviation from baseline is published."
           ],
+          "dataset": "technical_demo",
+          "source_id": "SYNTHETIC_FIXTURE",
+          "intended_source_id": "TH_CUSTOMS",
+          "evidence_origin": "synthetic_test_fixture",
           "flow_direction": "import",
           "partner_label": "Thailand domestic and inland connection",
           "partner_scope": "country",

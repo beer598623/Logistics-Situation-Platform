@@ -21,10 +21,18 @@ import hashlib
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from collectors.url_redaction import redact_url_userinfo
+
+from .provenance import (
+    CURRENT_PUBLICATION,
+    dataset_of,
+    qualifies_for_current_publication,
+    record_origin,
+)
 
 #: Query parameters stripped when canonicalizing a URL for clustering. These
 #: are campaign/tracking parameters that vary between syndicated copies of
@@ -117,6 +125,10 @@ MATERIAL_IMPACT_STATUSES = frozenset({"observed", "potential"})
 #: Severities that may never be published without an explicit human-review
 #: record.
 HUMAN_REVIEW_SEVERITIES = frozenset({"high", "critical"})
+
+#: Returned wherever the evidence does not support a direction. Named rather
+#: than inlined so no caller can substitute "stable" for "we did not look".
+INSUFFICIENT = "insufficient_evidence"
 
 
 def canonicalize_url(url: str | None) -> str | None:
@@ -407,6 +419,31 @@ def validate_event(
     if not admitted and material_areas:
         problems.append(f"{event_id}: {reason}")
 
+    # WO-010-R1: a fixture cannot become current intelligence by carrying a
+    # confident-looking lifecycle status.
+    fixture_backed = evidence_items and not any(
+        qualifies_for_current_publication(record_origin(item)) for item in evidence_items
+    )
+    if dataset_of(event) == CURRENT_PUBLICATION and fixture_backed:
+        problems.append(
+            f"{event_id}: belongs to the current-publication dataset but is supported only "
+            "by fixture evidence; a fixture cannot establish a current condition"
+        )
+    if (
+        fixture_backed
+        and event.get("lifecycle_status") == "verified_event"
+        and (dataset_of(event) == CURRENT_PUBLICATION)
+    ):
+        problems.append(
+            f"{event_id}: a fixture-backed event cannot independently reach lifecycle "
+            "status 'verified_event' in the current event store"
+        )
+    if event.get("active_as_of") and not event.get("active_basis"):
+        problems.append(
+            f"{event_id}: records an active-as-of time with no basis; an assertion of "
+            "activity with nothing behind it is not publishable"
+        )
+
     for conflict in event.get("conflicting_evidence", []):
         unknown_conflict = set(conflict.get("evidence_ids", [])) - known_ids
         if unknown_conflict:
@@ -432,3 +469,270 @@ def validate_event(
         )
 
     return problems
+
+
+# ---------------------------------------------------------------------------
+# Current-publication filtering (WO-010-R1)
+# ---------------------------------------------------------------------------
+
+#: Lifecycle statuses that describe an event that is still running. A closed
+#: event, an event whose evidence was insufficient, and a bare discovery lead
+#: are all excluded: none of them is an active operational event.
+ACTIVE_LIFECYCLE_STATUSES = frozenset(
+    {"reported_event", "verified_event", "operational_impact_observed", "monitoring"}
+)
+
+#: How stale a confirmation of activity may be before the event stops counting
+#: as active. An event nobody has re-confirmed for a quarter is not evidence of
+#: a current condition, whatever its lifecycle field says.
+ACTIVE_CONFIRMATION_WINDOW_DAYS = 90
+
+
+def _as_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def _as_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+@dataclass(slots=True, frozen=True)
+class ActivityDecision:
+    """Whether an event may be published as active, and why not if not."""
+
+    is_active: bool
+    reason: str
+
+
+def is_active_at(
+    event: Mapping[str, Any],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+    *,
+    cutoff: datetime,
+    window_days: int = ACTIVE_CONFIRMATION_WINDOW_DAYS,
+) -> ActivityDecision:
+    """Decide whether an event counts as active at ``cutoff``.
+
+    Every condition must hold. The default answer is **not active**, which is
+    the WO-010-R1 correction: previously a historical case with a null
+    ``event_end_date`` stayed "active" forever simply because nothing had
+    marked it finished.
+    """
+    if dataset_of(event) != CURRENT_PUBLICATION:
+        return ActivityDecision(
+            False,
+            f"event belongs to the {dataset_of(event)!r} dataset, not the current "
+            "publication dataset",
+        )
+
+    if event.get("lifecycle_status") not in ACTIVE_LIFECYCLE_STATUSES:
+        return ActivityDecision(
+            False, f"lifecycle status {event.get('lifecycle_status')!r} is not an active status"
+        )
+
+    if event.get("closure_basis"):
+        return ActivityDecision(False, "the event records a closure basis")
+
+    end_date = _as_date(event.get("event_end_date"))
+    if end_date is not None and end_date < cutoff.date():
+        return ActivityDecision(False, f"the event ended on {end_date.isoformat()}")
+
+    supporting = [
+        evidence_by_id[eid] for eid in event.get("evidence_ids", []) if eid in evidence_by_id
+    ]
+    if not any(qualifies_for_current_publication(record_origin(item)) for item in supporting):
+        return ActivityDecision(
+            False,
+            "no retrieved or human-reviewed evidence supports this event; fixture evidence "
+            "cannot establish a current condition",
+        )
+
+    active_as_of = _as_datetime(event.get("active_as_of"))
+    if active_as_of is None or not event.get("active_basis"):
+        return ActivityDecision(
+            False,
+            "the event records no active-as-of confirmation and basis; a null event end "
+            "date is not itself evidence that the event is still running",
+        )
+
+    age_days = (cutoff - active_as_of).total_seconds() / 86400.0
+    if age_days > window_days:
+        return ActivityDecision(
+            False,
+            f"activity was last confirmed {age_days:.0f} days before the cutoff, beyond the "
+            f"{window_days}-day confirmation window",
+        )
+    if age_days < 0:
+        return ActivityDecision(
+            False, "activity is confirmed only for a time after the data cutoff"
+        )
+
+    return ActivityDecision(True, f"activity confirmed at {event['active_as_of']}")
+
+
+def event_qualifies_for_current_publication(
+    event: Mapping[str, Any],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    """Whether an event may appear in the current view at all.
+
+    An event carries no origin of its own -- it is an assembled record, not a
+    retrieved one -- so its qualification is read from the two things that do
+    carry origin: the dataset it was built for, and the evidence standing
+    behind it. An event assembled from fixtures is a fixture, whatever its
+    lifecycle status says.
+
+    This is weaker than :func:`is_active_at`, which additionally requires a
+    dated confirmation that the event is still running.
+    """
+    if dataset_of(event) != CURRENT_PUBLICATION:
+        return False
+    return any(
+        qualifies_for_current_publication(record_origin(evidence_by_id[eid]))
+        for eid in event.get("evidence_ids", [])
+        if eid in evidence_by_id
+    )
+
+
+def active_events(
+    events: Sequence[Mapping[str, Any]],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+    *,
+    cutoff: datetime,
+) -> list[dict[str, Any]]:
+    """Every event that may be published as active at ``cutoff``."""
+    return [
+        dict(event)
+        for event in events
+        if is_active_at(event, evidence_by_id, cutoff=cutoff).is_active
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Event-derived domain direction (WO-010-R1)
+# ---------------------------------------------------------------------------
+
+
+def has_negative_operational_evidence(
+    event: Mapping[str, Any],
+    areas: Sequence[str],
+) -> bool:
+    """Whether an event carries explicit negative operational evidence for
+    these domains.
+
+    A negative conclusion is a finding, not a default. It requires the event
+    to record ``negative_operational_evidence`` **and** to have actually
+    assessed one of the relevant areas to ``no_material``.
+    """
+    if not event.get("negative_operational_evidence"):
+        return False
+    return any(
+        impact["area"] in areas and impact.get("status") == "no_material"
+        for impact in event.get("impact_assessments", [])
+    )
+
+
+def event_domain_direction(
+    lane_id: str,
+    events: Sequence[Mapping[str, Any]],
+    areas: Sequence[str],
+) -> tuple[str, list[str], list[str], list[str]]:
+    """Direction for an event-driven domain, with the evidence behind it.
+
+    Returns ``(direction, event_ids, evidence_ids, limitations)``.
+
+    The governing rule, corrected by WO-010-R1: **the absence of an adverse
+    record is not evidence of calm.** A domain nobody assessed returns
+    ``insufficient_evidence``. ``stable`` is reserved for the case where an
+    event actually recorded negative operational evidence covering these
+    areas -- a finding that conditions were checked and found normal.
+    """
+    relevant = [
+        event
+        for event in events
+        if any(entry["lane_id"] == lane_id for entry in event.get("lane_relevance", []))
+    ]
+    if not relevant:
+        return (
+            INSUFFICIENT,
+            [],
+            [],
+            [
+                "No event of any class is recorded against this lane, which is an absence "
+                "of evidence rather than evidence of normal operation."
+            ],
+        )
+
+    event_ids = sorted({event["event_id"] for event in relevant})
+
+    if all(event["event_class"] == "discovery_lead" for event in relevant):
+        return (
+            INSUFFICIENT,
+            event_ids,
+            [],
+            [
+                "Only discovery-class leads are recorded against this lane; a lead cannot "
+                "support a direction."
+            ],
+        )
+
+    adverse_evidence: list[str] = []
+    for event in relevant:
+        for impact in event.get("impact_assessments", []):
+            if (
+                impact["area"] in areas
+                and impact.get("status") in MATERIAL_IMPACT_STATUSES
+                and impact.get("severity") != "none"
+            ):
+                adverse_evidence.extend(impact.get("evidence_ids", []))
+    if adverse_evidence:
+        return (
+            "deteriorating",
+            event_ids,
+            sorted(set(adverse_evidence)),
+            [
+                "Direction reflects observed or potential impact recorded against this lane; "
+                "it is not a measurement of current operating conditions."
+            ],
+        )
+
+    negative_evidence: list[str] = []
+    for event in relevant:
+        if not has_negative_operational_evidence(event, areas):
+            continue
+        for impact in event.get("impact_assessments", []):
+            if impact["area"] in areas and impact.get("status") == "no_material":
+                negative_evidence.extend(impact.get("evidence_ids", []))
+    if negative_evidence:
+        return (
+            "stable",
+            event_ids,
+            sorted(set(negative_evidence)),
+            [
+                "Direction rests on explicit negative operational evidence: an event was "
+                "assessed for these areas and found no material effect. It covers only the "
+                "geography, lane and period that evidence covers."
+            ],
+        )
+
+    return (
+        INSUFFICIENT,
+        event_ids,
+        [],
+        [
+            "Events are recorded against this lane but none assessed these areas against "
+            "negative operational evidence. The absence of an adverse record is not "
+            "evidence that conditions are normal."
+        ],
+    )

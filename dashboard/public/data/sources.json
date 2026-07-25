@@ -66,6 +66,14 @@
       "gap_reason": "No enabled source currently backs external_driver_context."
     },
     {
+      "capability": "freight_benchmark",
+      "status": "insufficient",
+      "supporting_sources": [
+        "FBX_PUBLIC"
+      ],
+      "gap_reason": "No enabled source currently backs freight_benchmark."
+    },
+    {
       "capability": "fx_context",
       "status": "insufficient",
       "supporting_sources": [
@@ -116,7 +124,8 @@
       "status": "insufficient",
       "supporting_sources": [
         "IMF_PORTWATCH",
-        "UNCTAD_MARITIME"
+        "UNCTAD_MARITIME",
+        "PAT_STATISTICS"
       ],
       "gap_reason": "No enabled source currently backs port_activity_indicator."
     },
@@ -132,7 +141,8 @@
       "capability": "thailand_port_operations",
       "status": "insufficient",
       "supporting_sources": [
-        "PAT_NOTICE"
+        "PAT_NOTICE",
+        "PAT_STATISTICS"
       ],
       "gap_reason": "No enabled source currently backs thailand_port_operations."
     },
@@ -848,6 +858,102 @@
         "required_for_publication": false,
         "max_stale_minutes": 10080
       }
+    },
+    {
+      "source_id": "PAT_STATISTICS",
+      "name": "Port Authority of Thailand published port statistics",
+      "owner": "Port Authority of Thailand",
+      "source_class": "official",
+      "landing_url": "https://www.port.co.th/",
+      "endpoint": null,
+      "access_method": "html",
+      "format": "html",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "monthly with variable lag",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "thailand_port_or_maritime_activity"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No machine-readable statistics endpoint has been confirmed; the endpoint field is null.",
+        "No controlled live validation has been performed.",
+        "Reuse and redistribution terms have not been reviewed, so reuse_status and redistribution_status remain unknown."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "Reported throughput published by the port authority is a different measure from a model-derived vessel-tracking estimate. The two must never be presented as the same series, which is the WO-010-R1 correction: Thailand container throughput now stands in for this candidate rather than for IMF_PORTWATCH.",
+        "Throughput is a volume measure. It can never on its own establish congestion, waiting time or berth delay.",
+        "No machine-readable statistics endpoint has been confirmed; whether figures are published in a parseable form is unverified.",
+        "WO-010-R1: no controlled live validation could be performed."
+      ],
+      "health": {
+        "source_id": "PAT_STATISTICS",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 105120
+      }
+    },
+    {
+      "source_id": "FBX_PUBLIC",
+      "name": "Freightos Baltic Index public container freight series",
+      "owner": "Freightos",
+      "source_class": "industry",
+      "landing_url": "https://fbx.freightos.com/",
+      "endpoint": null,
+      "access_method": "html",
+      "format": "html",
+      "machine_readable_status": "unverified",
+      "licence_status": "pending_review",
+      "terms_url": null,
+      "publication_cadence": "daily to weekly",
+      "observed_freshness": null,
+      "data_period": null,
+      "access_cost": "free",
+      "reuse_status": "unknown",
+      "redistribution_status": "unknown",
+      "logistics_role": [
+        "freight_market_benchmark_or_proxy"
+      ],
+      "prototype_eligibility": "eligible_pending_validation",
+      "live_validation_status": "not_performed",
+      "blockers": [
+        "No controlled live validation has been performed; no machine-readable endpoint is confirmed and the endpoint field is null.",
+        "Reuse and redistribution terms have not been reviewed. The index is a commercial product and its free display tier's reuse position is unresolved.",
+        "Part of the product is behind a paywall (paywall_status is partial); which series are genuinely free is unverified."
+      ],
+      "enabled": false,
+      "required_for_publication": false,
+      "known_limitations": [
+        "This is a market benchmark for named east-west container routes. It is NOT a Thailand shipment quotation, NOT a Thailand average, and NOT a rate paid by any shipper. It may be used only as a directional indicator.",
+        "No route in this index is a Thailand-origin route, so any Thailand reading derived from it is directional context only and must be labelled as such.",
+        "WO-010-R1 registered this candidate so that the synthetic freight benchmark has a correctly scoped source to stand in for. WO-010 had attributed it to EPPO_FUEL, a domestic retail fuel publisher, which was wrong in both route scope and cost family.",
+        "Whether the publicly displayed series is redistributable, as opposed to linkable, is unresolved. Only a directional derived reading would be considered even if reuse were permitted.",
+        "The index is a commercial product with a free public display tier. The free tier's coverage, history depth and machine-readability are all unverified.",
+        "WO-010-R1: no controlled live validation could be performed."
+      ],
+      "health": {
+        "source_id": "FBX_PUBLIC",
+        "status": "disabled",
+        "last_checked_at": null,
+        "last_success_at": null,
+        "last_error": null,
+        "item_count": null,
+        "required_for_publication": false,
+        "max_stale_minutes": 20160
+      }
     }
   ],
   "methodology": {
@@ -855,6 +961,7 @@
     "documents": [
       "docs/bundle1_architecture.md",
       "docs/data_model_and_persistence.md",
+      "docs/evidence_provenance_and_datasets.md",
       "docs/source_qualification_report.md",
       "docs/source_enablement_decisions.md",
       "docs/ocean_lane_selection.md",

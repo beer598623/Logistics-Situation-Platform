@@ -125,3 +125,23 @@ records of what was publicly known at each cutoff, with evidence content not ret
 demonstrate that the analysis code reaches the documented conclusion from the documented
 inputs; they cannot demonstrate that live collection would produce those inputs, because no
 source is enabled.
+
+## 7. How these cases are kept out of the current view (WO-010-R1)
+
+Every record built from a historical case is marked so the current-publication code can
+exclude it without knowing anything about cases:
+
+| Record | Marking |
+|---|---|
+| Event | `dataset: historical_validation`, `active_as_of: null`, `active_basis: null` |
+| Evidence | `evidence_origin: historical_validation_fixture`, `retrieval_status: not_retrieved`, `retrieved_at: null` |
+| Evidence hash | `content_hash_scope: authored_claim_record` — the hash covers the claim text this repository wrote, not any publisher response |
+| Evidence source | `source_id: SYNTHETIC_FIXTURE` with `intended_source_id` naming the publisher a real implementation would use |
+| Evidence strength | `strength_basis: expected_at_cutoff` — the strength a qualified source *would* have carried, recorded separately from a strength verified against a retrieved document |
+
+On the Dashboard these appear only in panels headed "Historical validation", each showing
+the case ID and the assessment cutoff it was assessed at. They contribute nothing to a
+current direction, attention level, active event or chokepoint notice, and
+`scripts/validate.py` fails the build if they ever do.
+
+See `docs/evidence_provenance_and_datasets.md` for the full vocabulary.

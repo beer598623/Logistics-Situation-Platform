@@ -16,6 +16,14 @@ Three properties are guaranteed and tested:
   revision and ``fact_observation_revision`` keeps every version, so history
   is never silently overwritten.
 
+Every fact table carries the record's origin (``evidence_origin``,
+``retrieval_status``, ``intended_source_id``, ``content_hash_scope``) and every
+event and lane assessment carries its ``dataset``. A query against the warehouse
+can therefore separate live-retrieved evidence from a fixture without consulting
+anything outside the database, and ``retrieved_at`` is nullable precisely so a
+record that was never retrieved cannot be given a retrieval timestamp to satisfy
+a NOT NULL constraint.
+
 Timestamps are stored as ISO-8601 ``VARCHAR`` rather than as ``TIMESTAMPTZ``.
 That is deliberate: the source records already carry exact UTC strings, storing
 them verbatim avoids both a lossy timezone coercion and DuckDB's optional
@@ -172,13 +180,18 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         period_end DATE,
         period_type VARCHAR NOT NULL,
         published_at VARCHAR,
-        retrieved_at VARCHAR NOT NULL,
+        retrieved_at VARCHAR,
         revised_at VARCHAR,
         revision_number INTEGER NOT NULL,
         content_sha256 VARCHAR NOT NULL,
+        content_hash_scope VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
         source_revision VARCHAR,
         evidence_class VARCHAR NOT NULL,
+        evidence_origin VARCHAR NOT NULL,
+        retrieval_status VARCHAR NOT NULL,
+        intended_source_id VARCHAR,
+        fixture_created_at VARCHAR,
         baseline_definition VARCHAR,
         known_limitations VARCHAR
     )
@@ -209,13 +222,18 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         period_end DATE,
         period_type VARCHAR NOT NULL,
         published_at VARCHAR,
-        retrieved_at VARCHAR NOT NULL,
+        retrieved_at VARCHAR,
         revised_at VARCHAR,
         revision_number INTEGER NOT NULL,
         content_sha256 VARCHAR NOT NULL,
+        content_hash_scope VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
         source_revision VARCHAR,
         evidence_class VARCHAR NOT NULL,
+        evidence_origin VARCHAR NOT NULL,
+        retrieval_status VARCHAR NOT NULL,
+        intended_source_id VARCHAR,
+        fixture_created_at VARCHAR,
         known_limitations VARCHAR
     )
     """,
@@ -241,13 +259,18 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         period_end DATE,
         period_type VARCHAR NOT NULL,
         published_at VARCHAR,
-        retrieved_at VARCHAR NOT NULL,
+        retrieved_at VARCHAR,
         revised_at VARCHAR,
         revision_number INTEGER NOT NULL,
         content_sha256 VARCHAR NOT NULL,
+        content_hash_scope VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
         source_revision VARCHAR,
         evidence_class VARCHAR NOT NULL,
+        evidence_origin VARCHAR NOT NULL,
+        retrieval_status VARCHAR NOT NULL,
+        intended_source_id VARCHAR,
+        fixture_created_at VARCHAR,
         known_limitations VARCHAR
     )
     """,
@@ -275,13 +298,18 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         period_end DATE,
         period_type VARCHAR NOT NULL,
         published_at VARCHAR,
-        retrieved_at VARCHAR NOT NULL,
+        retrieved_at VARCHAR,
         revised_at VARCHAR,
         revision_number INTEGER NOT NULL,
         content_sha256 VARCHAR NOT NULL,
+        content_hash_scope VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
         source_revision VARCHAR,
         evidence_class VARCHAR NOT NULL,
+        evidence_origin VARCHAR NOT NULL,
+        retrieval_status VARCHAR NOT NULL,
+        intended_source_id VARCHAR,
+        fixture_created_at VARCHAR,
         known_limitations VARCHAR
     )
     """,
@@ -293,7 +321,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         value DOUBLE,
         value_status VARCHAR NOT NULL,
         revised_at VARCHAR,
-        retrieved_at VARCHAR NOT NULL,
+        retrieved_at VARCHAR,
         content_sha256 VARCHAR NOT NULL,
         PRIMARY KEY (observation_family, record_id, revision_number)
     )
@@ -306,6 +334,9 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         event_class VARCHAR NOT NULL,
         event_type VARCHAR NOT NULL,
         lifecycle_status VARCHAR NOT NULL,
+        dataset VARCHAR NOT NULL,
+        active_as_of VARCHAR,
+        active_basis VARCHAR,
         event_date DATE,
         event_end_date DATE,
         publication_date DATE,
@@ -343,11 +374,17 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         evidence_role VARCHAR NOT NULL,
         relation VARCHAR NOT NULL,
         strength VARCHAR NOT NULL,
+        strength_basis VARCHAR NOT NULL,
         scope_supported VARCHAR NOT NULL,
         event_date DATE,
         publication_date DATE,
-        retrieved_at VARCHAR NOT NULL,
+        retrieved_at VARCHAR,
+        evidence_origin VARCHAR NOT NULL,
+        retrieval_status VARCHAR NOT NULL,
+        intended_source_id VARCHAR,
+        fixture_created_at VARCHAR,
         content_sha256 VARCHAR NOT NULL,
+        content_hash_scope VARCHAR NOT NULL,
         parser_version VARCHAR NOT NULL,
         licence_status VARCHAR NOT NULL,
         redistribution_status VARCHAR
@@ -357,6 +394,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     CREATE TABLE fact_lane_assessment (
         assessment_id VARCHAR NOT NULL,
         lane_id VARCHAR NOT NULL,
+        dataset VARCHAR NOT NULL,
         generated_at VARCHAR NOT NULL,
         data_cutoff_at VARCHAR,
         overall_direction VARCHAR NOT NULL,
@@ -479,13 +517,18 @@ def _observation_row(record: Mapping[str, Any]) -> dict[str, Any]:
         "period_end": provenance.get("period_end"),
         "period_type": provenance["period_type"],
         "published_at": provenance.get("published_at"),
-        "retrieved_at": provenance["retrieved_at"],
+        "retrieved_at": provenance.get("retrieved_at"),
         "revised_at": provenance.get("revised_at"),
         "revision_number": int(provenance.get("revision_number", 0)),
         "content_sha256": provenance["content_sha256"],
+        "content_hash_scope": provenance["content_hash_scope"],
         "parser_version": provenance["parser_version"],
         "source_revision": provenance.get("source_revision"),
         "evidence_class": provenance["evidence_class"],
+        "evidence_origin": provenance["evidence_origin"],
+        "retrieval_status": provenance["retrieval_status"],
+        "intended_source_id": provenance.get("intended_source_id"),
+        "fixture_created_at": provenance.get("fixture_created_at"),
         "known_limitations": _joined(provenance.get("known_limitations")),
     }
 
@@ -709,7 +752,7 @@ def load_bundle(bundle: Mapping[str, Any], connection: Any) -> dict[str, int]:
                     "value": record["measurement"].get("value"),
                     "value_status": record["measurement"]["value_status"],
                     "revised_at": provenance.get("revised_at"),
-                    "retrieved_at": provenance["retrieved_at"],
+                    "retrieved_at": provenance.get("retrieved_at"),
                     "content_sha256": provenance["content_sha256"],
                 }
             )
@@ -738,6 +781,9 @@ def load_bundle(bundle: Mapping[str, Any], connection: Any) -> dict[str, int]:
                 "event_class": event["event_class"],
                 "event_type": event["event_type"],
                 "lifecycle_status": event["lifecycle_status"],
+                "dataset": event["dataset"],
+                "active_as_of": event.get("active_as_of"),
+                "active_basis": event.get("active_basis"),
                 "event_date": event.get("event_date"),
                 "event_end_date": event.get("event_end_date"),
                 "publication_date": event.get("publication_date"),
@@ -814,11 +860,17 @@ def load_bundle(bundle: Mapping[str, Any], connection: Any) -> dict[str, int]:
             "evidence_role": item["evidence_role"],
             "relation": item["relation"],
             "strength": item["strength"],
+            "strength_basis": item["strength_basis"],
             "scope_supported": item["scope_supported"],
             "event_date": item.get("event_date"),
             "publication_date": item.get("publication_date"),
-            "retrieved_at": item["retrieved_at"],
+            "retrieved_at": item.get("retrieved_at"),
+            "evidence_origin": item["evidence_origin"],
+            "retrieval_status": item["retrieval_status"],
+            "intended_source_id": item.get("intended_source_id"),
+            "fixture_created_at": item.get("fixture_created_at"),
             "content_sha256": item["content_sha256"],
+            "content_hash_scope": item["content_hash_scope"],
             "parser_version": item["parser_version"],
             "licence_status": item["licence_status"],
             "redistribution_status": item.get("redistribution_status"),
@@ -835,6 +887,7 @@ def load_bundle(bundle: Mapping[str, Any], connection: Any) -> dict[str, int]:
                 {
                     "assessment_id": assessment["assessment_id"],
                     "lane_id": assessment["lane_id"],
+                    "dataset": assessment["dataset"],
                     "generated_at": assessment["generated_at"],
                     "data_cutoff_at": assessment.get("data_cutoff_at"),
                     "overall_direction": assessment["overall_direction"],
