@@ -22,8 +22,34 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import scripts.review_decision as decision  # noqa: E402
+from analysis.review_package import build_input_package  # noqa: E402
+from tests.positive_path import TEST_REGISTRY, manual_notice_evidence  # noqa: E402
 
 PACKAGE_ID = "PKG-20260724-001"
+
+
+def _current_package(package_id: str = PACKAGE_ID) -> dict:
+    """A valid current-publication input package for the approval gate.
+
+    R2 binds an approval to the exact package it was produced from, so these
+    transaction tests need a real package on disk rather than an inbound
+    assessment alone.
+    """
+    return build_input_package(
+        package_id=package_id,
+        generated_at="2026-07-24T00:00:00Z",
+        data_cutoff_at="2026-07-24T00:00:00Z",
+        source_health={"overall_status": "insufficient", "coverage_message": "x"},
+        key_indicators=[],
+        lane_status=[],
+        events=[],
+        evidence=[manual_notice_evidence(evidence_id="EVD-1", event_id="EVT-1")],
+        previous_assessments=[],
+        data_gaps=["no live source"],
+        dataset="current_publication",
+        source_cutoff="2026-07-24T00:00:00Z",
+    )
+
 
 INBOUND_ASSESSMENT = {
     "package_id": PACKAGE_ID,
@@ -85,7 +111,15 @@ def workspace(tmp_path, monkeypatch):
         json.dumps(INBOUND_ASSESSMENT, indent=2) + "\n", encoding="utf-8"
     )
 
+    packages = tmp_path / "packages"
+    packages.mkdir()
+    (packages / f"{PACKAGE_ID}.json").write_text(
+        json.dumps(_current_package(), indent=2) + "\n", encoding="utf-8"
+    )
+
     monkeypatch.setattr(decision, "INBOUND_DIR", inbound)
+    monkeypatch.setattr(decision, "PACKAGE_DIR", packages)
+    monkeypatch.setattr(decision, "load_registry", lambda: TEST_REGISTRY)
     monkeypatch.setattr(decision, "APPROVED_DIR", approved)
     monkeypatch.setattr(decision, "ARCHIVE_DIR", archive)
     monkeypatch.setattr(decision, "HISTORY_PATH", history_path)
@@ -97,6 +131,7 @@ def workspace(tmp_path, monkeypatch):
         "approved": approved,
         "archive": archive,
         "history": history_path,
+        "packages": packages,
         "approved_file": approved / f"{PACKAGE_ID}.json",
     }
 

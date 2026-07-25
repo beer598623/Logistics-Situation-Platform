@@ -52,6 +52,7 @@
     </table></div>
     <h3>Current cost pressure</h3>
     <p class="banner banner-note" id="situation-cost-current"></p>
+    <div id="situation-cost-current-series"></div>
     <h3 class="demo-heading">Cost pressure <span class="pill pill-demo">technical demonstration</span></h3>
     <div class="table-wrap"><table id="situation-cost-table">
       <caption>Latest reading per cost-context series, with its own freshness. A stale reading is labelled stale; it is never presented as current.</caption>
@@ -80,8 +81,17 @@
       <thead><tr><th scope="col">Chokepoint</th><th scope="col">Type</th><th scope="col">Modes</th><th scope="col">Operating authority</th><th scope="col">Exposed lanes</th><th scope="col">Notice status</th></tr></thead>
       <tbody></tbody>
     </table></div>
+    <h3>Thailand port and maritime indicators <span class="pill pill-note">current</span></h3>
+    <div id="current-port-series"></div>
     <h3>Current official operational notices</h3>
     <p class="banner banner-note" id="current-notice-statement"></p>
+    <div id="current-notices"></div>
+    <h3>Current capacity and service evidence</h3>
+    <div class="table-wrap"><table id="current-capacity-table">
+      <caption>Capacity and service impacts recorded against a currently active event, each backed by qualified evidence.</caption>
+      <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
     <h3 class="demo-heading">Official notices <span class="pill pill-demo">historical validation</span></h3>
     <div id="notices"></div>
     <h3 class="demo-heading">Capacity and service evidence <span class="pill pill-demo">historical validation</span></h3>
@@ -96,6 +106,7 @@
     <h2 id="trade-h">3. Trade and Flow</h2>
     <p class="section-intro">Thailand import and export value by lane group, with period comparisons and revision status.</p>
     <p class="banner banner-note" id="trade-current"></p>
+    <div id="current-trade-lanes"></div>
     <p class="banner banner-demo" id="trade-demo-label"></p>
     <p class="banner banner-note" id="trade-note"></p>
     <div id="trade-lanes"></div>
@@ -105,6 +116,7 @@
     <h2 id="cost-h">4. Cost and Freight Pressure</h2>
     <p class="section-intro">Fuel, FX and freight benchmarks. Each series states what kind of number it is.</p>
     <p class="banner banner-note" id="cost-current"></p>
+    <div id="current-cost-series"></div>
     <p class="banner banner-demo" id="cost-demo-label"></p>
     <p class="banner banner-warning" id="cost-limits-banner"></p>
     <div id="cost-series"></div>
@@ -141,6 +153,8 @@
     <p class="section-intro">Human-approved AI assessments only.</p>
     <p class="banner banner-critical" id="ai-status"></p>
     <p class="prose" id="ai-boundary"></p>
+    <p class="prose" id="ai-package-note"></p>
+    <div id="withheld-assessments"></div>
     <div id="approved-assessments"></div>
     <h3>Current deterministic lane outlooks</h3>
     <p class="section-intro" id="deterministic-note"></p>

@@ -29,7 +29,8 @@
     "retrieval_status",
     "content_hash_scope",
     "retrieved_at",
-    "strength_basis"
+    "strength_basis",
+    "dataset"
   ],
   "properties": {
     "evidence_id": {
@@ -229,6 +230,14 @@
       "enum": [
         "verified",
         "expected_at_cutoff"
+      ]
+    },
+    "dataset": {
+      "description": "The publication surface this evidence belongs to. Carried at record level: an evidence item cited by a current assessment must itself be current.",
+      "enum": [
+        "current_publication",
+        "technical_demo",
+        "historical_validation"
       ]
     }
   }

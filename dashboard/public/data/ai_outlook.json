@@ -1,9 +1,12 @@
 {
   "generated_at": "2026-07-24T00:00:00Z",
   "approved_assessments": [],
+  "withheld_assessments": [],
+  "publication_gate_note": "Publication re-checks every approved assessment independently of the approval step: it must be bound to a current-publication package, cite that package's hash, record that it passed validation, not be superseded, and make no current claim resting on fixture-origin evidence. An assessment failing any of those is withheld and listed rather than published.",
   "review_status": "no_approved_assessment",
   "status_message": "No human-approved AI assessment exists. The human-triggered ChatGPT workflow, its input and output contracts, its rejection rules and its approval gate are implemented and tested, but producing an assessment requires a human to run a package through ChatGPT out-of-band. This section shows only human-approved assessments, so it is empty rather than speculative.",
   "boundary_note": "This repository calls no AI API. High or Critical conclusions can never be published without an explicit human-review record.",
+  "package_boundary_note": "The review package a human hands to ChatGPT is built from the current view only. Synthetic observations, technical-demonstration indicators and lane assessments, historical-validation events and their evidence are filtered out and counted, and every approval is bound to the exact package it was produced from by that package's SHA-256. A demonstration package can be generated for exercising the workflow, but it records its own purpose and can never be approved into this section.",
   "dataset": "current_publication",
   "current_outlooks": [
     {

@@ -8,7 +8,45 @@
   "coverage_message": "One or more required capabilities lack sufficient source coverage.",
   "live_coverage_statement": "Live coverage is INSUFFICIENT. No source in the registry is enabled and none has completed a controlled live validation, so the platform holds no live-retrieved or human-reviewed evidence at all. Every current reading below is therefore 'insufficient evidence' -- which is a coverage gap, not a finding that conditions are normal. Synthetic and historical-validation fixtures are shown only in the separately labelled Technical demonstration panels and never contribute to a current reading.",
   "qualified_observation_count": 0,
+  "current_indicator_count": 0,
   "qualified_event_count": 0,
+  "current_lane_coverage": {
+    "lanes_total": 11,
+    "lanes_with_any_qualified_domain": 0,
+    "lane_ids_with_any_qualified_domain": []
+  },
+  "current_capability_coverage": [
+    {
+      "capability": "cost_and_freight_context",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "global_baseline_context",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "operational_event_evidence",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "thailand_port_or_maritime_activity",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "thailand_trade_flow",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    }
+  ],
   "key_changes": [
     "No current assessment can be produced: the platform holds no live-retrieved or human-reviewed evidence, so there is nothing to compare and nothing to report."
   ],
@@ -30,6 +68,7 @@
     "overall_direction": "deteriorating",
     "lanes_requiring_attention": 11
   },
+  "current_cost_pressure": [],
   "cost_pressure": [
     {
       "dataset": "technical_demo",

@@ -107,7 +107,36 @@ Series compatibility is checked separately: a series' source must declare a logi
 compatible with what the series measures, every `source_id` and `intended_source_id` must
 exist in the registry, and one series may never resolve to two sources.
 
-**All seventeen sources remain disabled under WO-010-R1.** No source was contacted.
+### Publication use (WO-010-R2)
+
+`reuse_status` answered "may we read this". The platform was acting on "may we
+republish this". Those are different permissions, and every source now records
+the second separately as `qualification.publication_use`:
+`raw_values_permitted`, `derived_values_only`, `bounded_claim_and_link_only`,
+`metadata_link_only`, `internal_validation_only` or `publication_prohibited`.
+
+Validation enforces the disposition against the source's own terms, for every
+source whether enabled or not: it may not exceed what `redistribution_status`
+allows, an `unknown` reuse status permits nothing beyond a metadata link, an
+enabled source that may publish nothing is a contradiction, an unresolved rate
+limit cannot justify a collection schedule, and an allowed manual intake must
+require every record to name the underlying publisher.
+
+**Current dispositions.** Every source whose redistribution position is
+unresolved records `internal_validation_only`: not knowing whether republication
+is permitted is not permission. `MANUAL_NOTICE_INTAKE` records
+`bounded_claim_and_link_only` and is the one allowed manual intake path —
+`manual_intake_status: allowed`, `underlying_publisher_required: true` — so a
+human-reviewed notice can reach the current view without the source being
+enabled. `NEWS_DISCOVERY` records `metadata_link_only`.
+
+Applying the rate-limit rule surfaced six sources (`EPPO_FUEL`, `BOT_FX`,
+`IMF_PORTWATCH`, `NEWS_DISCOVERY`, `PAT_STATISTICS`, `FBX_PUBLIC`) that claimed
+a justified collection schedule while their rate limits were unresolved. All six
+now record `schedule_justified: false` and carry the blocker that explains it.
+
+**All seventeen sources remain disabled under WO-010-R1 and WO-010-R2.** No
+source was contacted.
 
 ## Governance
 

@@ -289,6 +289,22 @@
       'published. The table below is a technical demonstration built from synthetic ' +
       'fixtures.';
 
+    el('situation-cost-current-series').innerHTML = data.current_cost_pressure.length
+      ? '<div class="table-wrap"><table>' +
+        '<caption>Current cost-context readings, from qualified records only.</caption>' +
+        '<thead><tr><th scope="col">Series</th><th scope="col" class="num">Latest value</th>' +
+        '<th scope="col">Period</th><th scope="col" class="num">Month over month</th>' +
+        '<th scope="col">Freshness</th></tr></thead><tbody>' +
+        data.current_cost_pressure.map(function (item) {
+          return '<tr><th scope="row">' + esc(item.series_id) + '<br><small>' +
+            esc(item.source_id || '') + ' · ' + esc(words(item.evidence_origin)) + '</small></th>' +
+            '<td class="num">' + num(item.current_value, 2) + ' <small>' + esc(item.unit || '') + '</small></td>' +
+            '<td>' + esc(item.current_period || 'none') + '</td>' +
+            '<td class="num">' + pct(item.month_over_month_pct) + '</td>' +
+            '<td>' + freshnessCell(item.freshness) + '</td></tr>';
+        }).join('') + '</tbody></table></div>'
+      : '';
+
     var costBody = el('situation-cost-table').querySelector('tbody');
     costBody.innerHTML = data.cost_pressure.map(function (item) {
       return '<tr><th scope="row">' + esc(item.series_id) + '<br><small>' + esc(item.source_id || '') +
@@ -375,6 +391,49 @@
     el('ocean-demo-label').textContent = data.demo_label;
     el('current-notice-statement').textContent = data.current_notice_statement;
 
+    el('current-port-series').innerHTML = data.current_port_series.length
+      ? data.current_port_series.map(function (series) {
+          return seriesBlock(series, series.series_id, [
+            'Metric: ' + words(series.metric || ''),
+            'Interpretation: volume only'
+          ]);
+        }).join('')
+      : '<p class="empty-state">No qualified port or maritime observation exists, so no ' +
+        'current reading is published. This is a coverage gap, not a finding that activity ' +
+        'is normal.</p>';
+
+    el('current-notices').innerHTML = data.current_operational_notices.length
+      ? data.current_operational_notices.map(function (notice) {
+          return '<div class="event"><div class="badges">' +
+            '<span class="pill pill-note">current</span>' +
+            '<span class="pill pill-muted">' + esc(words(notice.evidence_origin)) + '</span>' +
+            '<span class="pill pill-muted">' + esc(words(notice.retrieval_status)) + '</span>' +
+            '</div><h4>' + esc(notice.source_name) + '</h4>' +
+            (notice.underlying_publisher
+              ? '<p class="meta">Underlying publisher: ' + esc(notice.underlying_publisher) + '</p>'
+              : '') +
+            '<p class="prose">' + esc(notice.claim) + '</p>' +
+            '<p class="meta"><small>Published ' + esc(notice.publication_date || 'unknown') +
+            (notice.source_url ? ' · <a href="' + esc(notice.source_url) + '" rel="noopener noreferrer" target="_blank">source</a>' : '') +
+            '</small></p>' +
+            detailsBlock('Known limitations', list(notice.known_limitations)) +
+            '</div>';
+        }).join('')
+      : '';
+
+    el('current-capacity-table').querySelector('tbody').innerHTML =
+      data.current_capacity_and_service_evidence.length
+        ? data.current_capacity_and_service_evidence.map(function (item) {
+            return '<tr><th scope="row">' + esc(item.title) + '<br><small>' + esc(item.event_id) +
+              '</small></th><td>' + esc(item.area) + '</td>' +
+              '<td>' + pill(item.status, STATUS_PILL) + '</td>' +
+              '<td>' + esc(item.severity) + '</td>' +
+              '<td>' + esc(item.evidence_strength) + '</td>' +
+              '<td>' + esc(item.confidence) + '</td></tr>';
+          }).join('')
+        : '<tr><td colspan="6">No qualified capacity or service impact is recorded against a ' +
+          'currently active event. This is a coverage gap, not an all-clear.</td></tr>';
+
     el('port-series').innerHTML = data.demo_port_series.map(function (series) {
       return seriesBlock(series, series.series_id, [
         'Metric: ' + words(series.metric),
@@ -450,6 +509,16 @@
   function renderTrade(data) {
     el('trade-current').textContent = data.current_statement;
     el('trade-demo-label').textContent = data.demo_label;
+    el('current-trade-lanes').innerHTML = data.current_lane_flows.length
+      ? data.current_lane_flows.map(function (lane) {
+          return '<div class="series"><h4>' + esc(lane.name) + '</h4>' +
+            lane.flows.map(function (flow) {
+              return seriesBlock(flow, lane.name + ' — ' + flow.flow_direction, [
+                'Flow: ' + words(flow.flow_direction)
+              ]);
+            }).join('') + '</div>';
+        }).join('')
+      : '';
     el('trade-note').innerHTML = esc(data.lane_selection_note) + ' ' + esc(data.revision_note);
     el('trade-lanes').innerHTML = data.lane_flows.map(function (lane) {
       var body = lane.flows.map(function (flow) {
@@ -467,6 +536,11 @@
   function renderCost(data) {
     el('cost-current').textContent = data.current_statement;
     el('cost-demo-label').textContent = data.demo_label;
+    el('current-cost-series').innerHTML = data.current_cost_series.length
+      ? data.current_cost_series.map(function (series) {
+          return seriesBlock(series, series.series_id, ['Current cost-context reading']);
+        }).join('')
+      : '';
     el('cost-limits-banner').innerHTML =
       '<strong>These are benchmarks, not quotations.</strong>' +
       esc(data.benchmark_limitations[1]);
@@ -648,6 +722,17 @@
     status.className = 'banner ' + (data.review_status === 'approved' ? 'banner-note' : 'banner-critical');
     status.textContent = data.status_message;
     el('ai-boundary').textContent = data.boundary_note;
+    el('ai-package-note').textContent = data.package_boundary_note;
+
+    el('withheld-assessments').innerHTML = data.withheld_assessments.length
+      ? '<p class="banner banner-critical"><strong>Withheld from publication.</strong>' +
+        esc(data.publication_gate_note) + '</p>' +
+        data.withheld_assessments.map(function (item) {
+          return '<div class="series"><h4>' + esc(item.package_id) + '</h4>' +
+            '<p class="meta">Bound to a ' + esc(words(item.input_dataset)) + ' package.</p>' +
+            list(item.reasons) + '</div>';
+        }).join('')
+      : '';
 
     el('approved-assessments').innerHTML = data.approved_assessments.length
       ? data.approved_assessments.map(function (item) {

@@ -91,6 +91,34 @@ same filename, and the second move overwrote the first archived version.
 
 Regression coverage is in `tests/test_review_decision_transactions.py`.
 
+## 5b. What a reviewer cannot approve (WO-010-R2)
+
+Approval is bound to the exact package the assessment was produced from. Typing
+`--decision approve` is not sufficient, and the following are refused before any
+file is touched:
+
+- a package that is not `current_publication`, or whose dataset and purpose
+  disagree;
+- a package containing fixture or historical-validation evidence;
+- an output citing evidence that is not current evidence in that package;
+- a package edited after it was generated — its recorded `package_sha256` no
+  longer matches its contents;
+- an output produced against a different version of the package;
+- a data cutoff differing from the package's without an explicit supersession;
+- an output making current claims when the package holds no evidence eligible to
+  support one.
+
+The approved record retains the package ID, its SHA-256, its dataset and
+purpose, both cutoffs, the evidence IDs, an evidence-origin summary, the
+validation status, the supersession flag, the approval time, the reviewer and
+the output hash.
+
+Publication re-checks every one of those **independently**, from the files on
+disk. An approved assessment that is not bound to a current package, cites no
+package hash, did not pass validation, has been superseded, or rests on
+fixture-origin evidence is withheld and listed on the Dashboard rather than
+published.
+
 ## 6. Boundaries a reviewer cannot waive
 
 - No paid source may be enabled or required for publication.
@@ -100,6 +128,8 @@ Regression coverage is in `tests/test_review_decision_transactions.py`.
   them.
 - Missing data may not be published as zero.
 - No AI output may be published without passing through this process.
+- No assessment produced from a demonstration or historical package may be approved into
+  the current AI Outlook, whatever a reviewer decides.
 
 ## 7. Current state
 

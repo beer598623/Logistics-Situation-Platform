@@ -8,7 +8,45 @@
   "evidence_coverage": "insufficient",
   "coverage_message": "One or more required capabilities lack sufficient source coverage.",
   "qualified_observation_count": 0,
+  "current_indicator_count": 0,
   "qualified_event_count": 0,
+  "current_lane_coverage": {
+    "lanes_total": 11,
+    "lanes_with_any_qualified_domain": 0,
+    "lane_ids_with_any_qualified_domain": []
+  },
+  "current_capability_coverage": [
+    {
+      "capability": "cost_and_freight_context",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "global_baseline_context",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "operational_event_evidence",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "thailand_port_or_maritime_activity",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "thailand_trade_flow",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    }
+  ],
   "lanes_requiring_attention": [],
   "active_verified_events": [],
   "admitted_external_drivers": [],

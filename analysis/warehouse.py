@@ -17,10 +17,11 @@ Three properties are guaranteed and tested:
   is never silently overwritten.
 
 Every fact table carries the record's origin (``evidence_origin``,
-``retrieval_status``, ``intended_source_id``, ``content_hash_scope``) and every
-event and lane assessment carries its ``dataset``. A query against the warehouse
-can therefore separate live-retrieved evidence from a fixture without consulting
-anything outside the database, and ``retrieved_at`` is nullable precisely so a
+``retrieval_status``, ``intended_source_id``, ``content_hash_scope``) and its
+``dataset``, and ``dim_source`` carries each source's ``publication_use``. A
+query against the warehouse can therefore separate live-retrieved evidence from
+a fixture, and see what a source's terms permit publishing, without consulting
+anything outside the database. ``retrieved_at`` is nullable precisely so a
 record that was never retrieved cannot be given a retrieval timestamp to satisfy
 a NOT NULL constraint.
 
@@ -82,6 +83,8 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         access_cost VARCHAR,
         redistribution_status VARCHAR,
         reuse_status VARCHAR,
+        publication_use VARCHAR,
+        manual_intake_status VARCHAR,
         prototype_eligibility VARCHAR,
         publication_cadence VARCHAR,
         observed_freshness VARCHAR,
@@ -190,6 +193,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         evidence_class VARCHAR NOT NULL,
         evidence_origin VARCHAR NOT NULL,
         retrieval_status VARCHAR NOT NULL,
+        dataset VARCHAR NOT NULL,
         intended_source_id VARCHAR,
         fixture_created_at VARCHAR,
         baseline_definition VARCHAR,
@@ -232,6 +236,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         evidence_class VARCHAR NOT NULL,
         evidence_origin VARCHAR NOT NULL,
         retrieval_status VARCHAR NOT NULL,
+        dataset VARCHAR NOT NULL,
         intended_source_id VARCHAR,
         fixture_created_at VARCHAR,
         known_limitations VARCHAR
@@ -269,6 +274,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         evidence_class VARCHAR NOT NULL,
         evidence_origin VARCHAR NOT NULL,
         retrieval_status VARCHAR NOT NULL,
+        dataset VARCHAR NOT NULL,
         intended_source_id VARCHAR,
         fixture_created_at VARCHAR,
         known_limitations VARCHAR
@@ -308,6 +314,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         evidence_class VARCHAR NOT NULL,
         evidence_origin VARCHAR NOT NULL,
         retrieval_status VARCHAR NOT NULL,
+        dataset VARCHAR NOT NULL,
         intended_source_id VARCHAR,
         fixture_created_at VARCHAR,
         known_limitations VARCHAR
@@ -381,6 +388,7 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         retrieved_at VARCHAR,
         evidence_origin VARCHAR NOT NULL,
         retrieval_status VARCHAR NOT NULL,
+        dataset VARCHAR NOT NULL,
         intended_source_id VARCHAR,
         fixture_created_at VARCHAR,
         content_sha256 VARCHAR NOT NULL,
@@ -527,6 +535,7 @@ def _observation_row(record: Mapping[str, Any]) -> dict[str, Any]:
         "evidence_class": provenance["evidence_class"],
         "evidence_origin": provenance["evidence_origin"],
         "retrieval_status": provenance["retrieval_status"],
+        "dataset": provenance["dataset"],
         "intended_source_id": provenance.get("intended_source_id"),
         "fixture_created_at": provenance.get("fixture_created_at"),
         "known_limitations": _joined(provenance.get("known_limitations")),
@@ -585,6 +594,8 @@ def load_bundle(bundle: Mapping[str, Any], connection: Any) -> dict[str, int]:
                 "access_cost": qualification.get("access_cost"),
                 "redistribution_status": qualification.get("redistribution_status"),
                 "reuse_status": qualification.get("reuse_status"),
+                "publication_use": qualification.get("publication_use"),
+                "manual_intake_status": qualification.get("manual_intake_status"),
                 "prototype_eligibility": qualification.get("prototype_eligibility"),
                 "publication_cadence": qualification.get("publication_cadence"),
                 "observed_freshness": qualification.get("observed_freshness"),
@@ -867,6 +878,7 @@ def load_bundle(bundle: Mapping[str, Any], connection: Any) -> dict[str, int]:
             "retrieved_at": item.get("retrieved_at"),
             "evidence_origin": item["evidence_origin"],
             "retrieval_status": item["retrieval_status"],
+            "dataset": item["dataset"],
             "intended_source_id": item.get("intended_source_id"),
             "fixture_created_at": item.get("fixture_created_at"),
             "content_sha256": item["content_sha256"],

@@ -28,6 +28,13 @@ they were assessed at.
 An empty current panel is a **coverage gap, not an all-clear**. The page says
 so in those words wherever a current list is empty.
 
+Every current panel is **derived by filtering**, not written as an empty list.
+The same code that produces today's empty result would publish a reading the
+moment a qualifying record existed — that is what
+`tests/test_current_positive_path.py` demonstrates, by pushing real qualifying
+records through the production code and watching them arrive. Nothing about the
+empty state is special-cased.
+
 ## 2. Read the banner
 
 The red banner at the top of the page states the platform's live coverage. It
@@ -155,3 +162,10 @@ implies that an old reading — or a generated one — is current.
 - It will not present a synthetic or historical fixture as a current condition. Fixtures
   appear only in their own labelled panels, and never contribute to a current direction,
   attention level, active event, chokepoint notice or freshness reading.
+- It will not publish a value a source's terms do not permit it to republish. Each source
+  records what may be published from it, and enablement alone is not that permission.
+- It will not show an AI assessment that was produced from a demonstration package. The
+  ChatGPT package built for the current view excludes demonstration and historical data
+  entirely, every approval is bound to its input package by hash, and publication re-checks
+  that binding independently. A demonstration assessment is withheld and listed, never
+  shown as current.

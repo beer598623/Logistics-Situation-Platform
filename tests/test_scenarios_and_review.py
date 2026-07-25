@@ -23,6 +23,7 @@ from analysis.review_package import (
     unavailable_series_ids,
     validate_output,
 )
+from tests.positive_path import TEST_REGISTRY, manual_notice_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -258,22 +259,33 @@ def base_package():
         data_cutoff_at="2026-07-24T00:00:00Z",
         source_health={"overall_status": "insufficient", "coverage_message": "x"},
         key_indicators=[
-            {"series_id": "container_freight_benchmark", "current_value": 2136.7},
-            {"series_id": "thailand_lsci", "current_value": None},
+            {
+                "series_id": "container_freight_benchmark",
+                "current_value": 2136.7,
+                "dataset": "current_publication",
+                "evidence_origin": "live_retrieved",
+            },
+            {
+                "series_id": "thailand_lsci",
+                "current_value": None,
+                "dataset": "current_publication",
+                "evidence_origin": "live_retrieved",
+            },
         ],
         lane_status=[],
         events=[
             {
                 "event_id": "EVT-1",
                 "event_class": "direct_operational_event",
+                "dataset": "current_publication",
                 "conflicting_evidence": [],
             }
         ],
+        # A genuinely qualifying evidence item, so these tests exercise the
+        # rejection rules rather than tripping the provenance gate first.
         evidence=[
             {
-                "evidence_id": "EVD-1",
-                "claim_type": "official_notice",
-                "evidence_role": "confirming",
+                **manual_notice_evidence(evidence_id="EVD-1", event_id="EVT-1"),
                 "scope_supported": "node",
             }
         ],
@@ -322,7 +334,7 @@ def test_the_package_separates_operational_events_from_drivers():
 
 
 def test_a_clean_output_passes():
-    assert validate_output(base_output(), base_package()) == []
+    assert validate_output(base_output(), base_package(), registry=TEST_REGISTRY) == []
 
 
 def test_unknown_evidence_is_rejected():
@@ -367,19 +379,19 @@ def test_presenting_a_proxy_as_a_quotation_is_rejected():
 def test_a_realtime_congestion_claim_without_operational_evidence_is_rejected():
     package = base_package()
     package["evidence_records"][0]["scope_supported"] = "global"
-    assert not has_operational_condition_evidence(package)
+    assert not has_operational_condition_evidence(package, registry=TEST_REGISTRY)
     output = base_output(
         reported_claims=[
             {"statement": "The hub is congested with berth delays.", "evidence_ids": []}
         ]
     )
-    problems = validate_output(output, package)
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
     assert any("real-time operational condition" in problem for problem in problems)
 
 
 def test_a_congestion_claim_is_permitted_when_operational_evidence_exists():
     package = base_package()
-    assert has_operational_condition_evidence(package)
+    assert has_operational_condition_evidence(package, registry=TEST_REGISTRY)
     output = base_output(
         evidence_references=["EVD-1"],
         reported_claims=[
@@ -389,7 +401,7 @@ def test_a_congestion_claim_is_permitted_when_operational_evidence_exists():
             }
         ],
     )
-    assert validate_output(output, package) == []
+    assert validate_output(output, package, registry=TEST_REGISTRY) == []
 
 
 def test_causation_without_an_evidence_reference_is_rejected():

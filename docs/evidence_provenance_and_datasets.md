@@ -2,7 +2,8 @@
 
 This document defines the five kinds of evidence the platform recognises, the
 three publication surfaces they can reach, and the single rule that separates
-them. It is the reference for WO-010-R1.
+them, plus what each source's terms permit the platform to publish. It is the
+reference for WO-010-R1 and WO-010-R2.
 
 The problem it exists to solve is specific. WO-010 delivered a working
 analysis engine driven entirely by fixtures this repository generated. The
@@ -15,6 +16,26 @@ freshness label and a Dashboard panel that read as current intelligence.
 
 R1 makes origin a first-class, machine-readable property and puts one
 predicate in charge of the boundary.
+
+---
+
+## 0. What WO-010-R2 added
+
+R1 gave every record an origin and kept fixtures out of the current view. It
+left three gaps, which R2 closes:
+
+1. **Qualification asked only about the origin string.** A live-retrieved
+   record carrying `dataset: historical_validation` passed. Qualification is
+   now a decision about the whole record.
+2. **The ChatGPT review package was still combined.** Synthetic series and 2021
+   cases were handed to a reviewer alongside "what is the situation now", and
+   an approval was bound to nothing. The current package is now filtered, and
+   an approval is bound to the exact package by its SHA-256.
+3. **The current path only ever produced empty results.** Nothing proved a
+   qualifying record would actually get through, and several current lists were
+   literal `[]`. They are now derived by filtering, and
+   `tests/test_current_positive_path.py` drives real qualifying records end to
+   end.
 
 ---
 
@@ -34,15 +55,36 @@ The two publishable origins are exactly the two where a publisher or a named
 human stands behind the content. Both fixture origins exist to test code.
 
 `analysis/provenance.py` owns this vocabulary. The whole boundary reduces to
-one function:
+one function, which takes the **record** — not its origin string:
 
 ```python
-def qualifies_for_current_publication(origin: str | None) -> bool:
-    return origin in PUBLISHABLE_ORIGINS
+qualifies_for_current_publication(
+    record, *, registry=None, publication_use=None
+) -> PublicationDecision
 ```
 
-There is one place to read it, one place to test it, and one place to change
-it.
+`PublicationDecision` is falsey when the record may not be published and
+carries the reason it reached. Every condition must hold:
+
+| Condition | Why |
+|---|---|
+| `dataset == current_publication` | A record's surface travels with the record |
+| origin is `live_retrieved` or `human_reviewed_manual` | Someone stands behind it |
+| a live record has `retrieval_status: retrieved` | It says it was fetched, so it was |
+| a manual record has a manual, non-network retrieval status | Nothing was fetched, so nothing may claim to have been |
+| `source_id` is in the registry | An unknown publisher is not a publisher |
+| the source is enabled, **or** is an allowed manual intake | Enablement, or an explicit exception with its own record |
+| the series is compatible with the source's logistics role | A freight benchmark does not come from a fuel publisher |
+| the source's `publication_use` covers the intended use | Reading and republishing are different permissions |
+| `licence_status` is `reviewed` | An unreviewed licence authorises nothing |
+
+There is no second, looser predicate. Keeping an origin-only check alongside
+this one is the obvious shortcut and the obvious way to end up with two answers
+that disagree — which is exactly the defect R2 fixes.
+
+`registry` is optional only so the record-intrinsic rules can be exercised in
+isolation. Omitting it does not skip the registry-dependent conditions: the
+decision comes back negative saying the registry was not supplied.
 
 ### Why an origin cannot be inferred
 
@@ -148,6 +190,46 @@ compatible logistics role, and that one series never resolves to two sources.
 
 ---
 
+## 4b. Publication use
+
+`reuse_status` answered "may we read this". The platform was acting on "may we
+republish this". Those are different permissions, and R2 records the second one
+separately per source under `qualification.publication_use`:
+
+| Disposition | Permits |
+|---|---|
+| `raw_values_permitted` | raw values, derived values, bounded claims, links |
+| `derived_values_only` | derived values, bounded claims, links |
+| `bounded_claim_and_link_only` | bounded claims, links |
+| `metadata_link_only` | links |
+| `internal_validation_only` | nothing publishable |
+| `publication_prohibited` | nothing publishable |
+
+A caller states its intended use (`publish_raw_value`, `publish_derived_value`,
+`publish_bounded_claim`, `publish_link_only`) and gets an answer specific to
+that use rather than a blanket yes. Note that permitting a *derived* value does
+not permit publishing the raw series it came from — that is precisely what a
+derived-only licence draws a line around.
+
+`publication_use_problems()` additionally checks each disposition against the
+source's own terms, for every source whether enabled or not:
+
+* it may not exceed what `redistribution_status` allows — `link_only` terms
+  cannot be squared with publishing numbers, however derived;
+* an `unknown` reuse status permits nothing beyond a metadata link;
+* an enabled source whose disposition publishes nothing is a contradiction;
+* an unresolved rate limit cannot justify a collection schedule;
+* an allowed manual intake must require every record to name the underlying
+  publisher it transcribes.
+
+**Today every source with an unresolved redistribution position records
+`internal_validation_only`.** Not knowing whether republication is permitted is
+not permission. Applying this rule also surfaced six sources claiming a
+justified collection schedule with unresolved rate limits; all six now record
+`schedule_justified: false` and the blocker that explains it.
+
+---
+
 ## 5. Publication datasets
 
 | Dataset | What it is | Where it appears |
@@ -237,8 +319,66 @@ effect" versus "nobody looked".
 | --- | --- |
 | What is the origin vocabulary? | `analysis/provenance.py` |
 | Can this record carry current intelligence? | `qualifies_for_current_publication` |
+| What may we publish from this source? | `qualification.publication_use`, `publication_use_problems` |
+| What is in the ChatGPT current package? | `scripts/build_review_package.py` |
+| What blocks an approval reaching the Dashboard? | `approval_provenance_problems`, `publishable_assessment_problems` |
+| Where is the positive path tested? | `tests/test_current_positive_path.py`, `tests/positive_path.py` |
+| Where is package isolation tested? | `tests/test_review_package_isolation.py` |
 | Is this event active now? | `analysis/events.py::is_active_at` |
 | What separates current from demo on the Dashboard? | `scripts/build_dashboard.py`, `dashboard/public/assets/app.js` |
 | What blocks a source from being enabled? | `scripts/validate.py::source_contract_checks` |
 | Where are the boundary tests? | `tests/test_current_publication_boundary.py` |
 | Where are the approval-safety tests? | `tests/test_review_decision_transactions.py` |
+
+---
+
+## 10. The ChatGPT review package (WO-010-R2)
+
+`scripts/build_review_package.py` builds one surface at a time, and the default
+is `current_publication`.
+
+A **current** package contains only records that pass
+`qualifies_for_current_publication`: current-publication indicators derived from
+qualified observations, current lane assessments, currently active operational
+events, external drivers that meet the admission rule, the evidence supporting
+those selected events, previously approved current assessments, and current
+source health and data gaps. Synthetic observations, technical-demo indicators
+and lane assessments, historical-validation events and evidence, demo scenarios
+and historical expected strengths are filtered out — and the number excluded is
+recorded in the package.
+
+With zero qualified evidence the package contains no indicators, no events, no
+drivers and no evidence records; every lane reads `insufficient_evidence`; and
+the data gaps lead with an explicit instruction that no current directional
+conclusion can be produced from it, that an empty result is a coverage gap
+rather than a finding of normality, and that substituting general knowledge for
+the missing evidence will be rejected.
+
+A **demonstration** package is available with `--surface technical_demo`. It
+carries the fixtures, records `package_purpose: engine_demonstration`, and can
+never be approved into the current AI Outlook.
+
+Every package records `dataset`, `package_purpose`, `source_cutoff`, a
+provenance summary, the excluded-record count, and its own `package_sha256`.
+
+### Approval binding
+
+An approved assessment retains the input package's ID, SHA-256, dataset,
+purpose, data cutoff, source cutoff, evidence IDs, evidence-origin summary,
+validation status, supersession flag, approval time, reviewer and output hash.
+
+Approval is refused when the package is not `current_publication`, its dataset
+and purpose disagree, it contains fixture or historical evidence, the returned
+output cites evidence that is not current evidence in that package, the package
+has been edited since it was generated (its recorded hash no longer matches its
+contents), the output was produced against a different package version, the
+cutoffs differ without an explicit supersession, or the output makes current
+claims while the package holds no evidence eligible to support one.
+
+Publication re-checks all of this **independently**, from the files on disk:
+`publishable_assessment_problems()` in `scripts/build_dashboard.py` withholds
+and lists any approved assessment that is not bound to a current package, cites
+no package hash, did not pass validation, has been superseded, or rests on
+fixture-origin evidence. Approval is a decision made at one moment by one
+person; publication happens later, and must not assume that whatever is sitting
+in the approved directory earned its place.

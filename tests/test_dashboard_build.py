@@ -258,3 +258,70 @@ def test_chart_data_always_has_a_table_equivalent():
     # emits pointsTable alongside.
     block = script.split("function seriesBlock", 1)[1].split("\n  }", 1)[0]
     assert "sparkline(" in block and "pointsTable(" in block
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R2: the current view is derived, and the page renders it
+# ---------------------------------------------------------------------------
+
+
+def test_current_lists_are_derived_rather_than_hard_coded(payloads):
+    """Each of these was a literal ``[]`` under R1. They are now the output of
+    a filter, which is why the positive-path tests can make them non-empty."""
+    ocean = payloads["ocean.json"]
+    assert ocean["current_operational_notices"] == []
+    assert ocean["current_capacity_and_service_evidence"] == []
+    assert ocean["current_port_series"] == []
+    assert payloads["cost.json"]["current_cost_series"] == []
+    assert payloads["trade.json"]["current_lane_flows"] == []
+
+    source = (ROOT / "scripts" / "build_dashboard.py").read_text(encoding="utf-8")
+    assert '"current_operational_notices": [],' not in source
+    assert '"current_capacity_and_service_evidence": [],' not in source
+
+
+def test_the_situation_counts_come_from_the_analysis_build(payloads):
+    situation = payloads["thailand_situation.json"]
+    thailand = json.loads(
+        (ROOT / "data/assessments/thailand_assessment.json").read_text(encoding="utf-8")
+    )
+    for key in (
+        "qualified_observation_count",
+        "current_indicator_count",
+        "qualified_event_count",
+        "current_lane_coverage",
+        "current_capability_coverage",
+    ):
+        assert situation[key] == thailand[key]
+
+    source = (ROOT / "scripts" / "build_analysis.py").read_text(encoding="utf-8")
+    assert '"qualified_observation_count": 0' not in source
+
+
+def test_the_ai_section_states_the_package_boundary(payloads):
+    outlook = payloads["ai_outlook.json"]
+    assert "filtered out and counted" in outlook["package_boundary_note"]
+    assert "never be approved into this section" in outlook["package_boundary_note"]
+    assert outlook["withheld_assessments"] == []
+    assert "independently of the approval step" in outlook["publication_gate_note"]
+
+
+def test_the_page_declares_a_container_for_every_current_panel():
+    html = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    for element_id in (
+        "situation-cost-current-series",
+        "current-port-series",
+        "current-notices",
+        "current-capacity-table",
+        "current-trade-lanes",
+        "current-cost-series",
+        "ai-package-note",
+        "withheld-assessments",
+    ):
+        assert f'id="{element_id}"' in html, element_id
+
+
+def test_an_empty_current_panel_says_coverage_gap_not_all_clear():
+    script = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
+    assert script.count("coverage gap") >= 2
+    assert "not an all-clear" in script

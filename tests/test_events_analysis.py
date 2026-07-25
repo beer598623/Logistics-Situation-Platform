@@ -25,6 +25,7 @@ from analysis.events import (
     title_similarity,
     validate_event,
 )
+from tests.positive_path import TEST_REGISTRY, manual_notice_evidence
 
 IMPACT_AREAS = (
     "warehouse",
@@ -508,24 +509,17 @@ CUTOFF = datetime(2026, 7, 24, tzinfo=UTC)
 
 
 def _live_evidence(**overrides):
-    item = {
-        "evidence_id": "EVD-TEST-001",
-        "claim_type": "official_notice",
-        "evidence_role": "confirming",
-        "strength": "A",
-        "evidence_origin": "live_retrieved",
-        "retrieval_status": "retrieved",
-        "retrieved_at": "2026-07-20T00:00:00Z",
-    }
-    item.update(overrides)
+    """Evidence that genuinely qualifies: current dataset, human-reviewed
+    manual intake from an allowed source, no claimed retrieval."""
+    item = manual_notice_evidence(evidence_id="EVD-TEST-001", **overrides)
     return {item["evidence_id"]: item}
 
 
 def _fixture_evidence(**overrides):
     return _live_evidence(
         evidence_origin="historical_validation_fixture",
+        dataset="historical_validation",
         retrieval_status="not_retrieved",
-        retrieved_at=None,
         **overrides,
     )
 
@@ -549,10 +543,10 @@ def test_a_historical_fixture_is_never_an_active_event():
         active_as_of=None,
         active_basis=None,
     )
-    decision = is_active_at(event, _fixture_evidence(), cutoff=CUTOFF)
+    decision = is_active_at(event, _fixture_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY)
     assert decision.is_active is False
     assert "historical_validation" in decision.reason
-    assert active_events([event], _fixture_evidence(), cutoff=CUTOFF) == []
+    assert active_events([event], _fixture_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY) == []
 
 
 def test_a_closed_event_is_not_active():
@@ -560,14 +554,14 @@ def test_a_closed_event_is_not_active():
         lifecycle_status="closed",
         closure_basis="The terminal reopened and the authority withdrew the notice.",
     )
-    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY)
     assert decision.is_active is False
     assert "closure basis" in decision.reason or "not an active status" in decision.reason
 
 
 def test_an_event_that_ended_before_the_cutoff_is_not_active():
     event = _current_event(event_end_date="2026-05-01")
-    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY)
     assert decision.is_active is False
     assert "ended on 2026-05-01" in decision.reason
 
@@ -580,7 +574,7 @@ def test_an_event_without_an_active_as_of_basis_is_not_active():
         active_as_of=None,
         active_basis=None,
     )
-    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY)
     assert decision.is_active is False
     assert "null event end date is not itself evidence" in decision.reason
 
@@ -591,23 +585,25 @@ def test_a_stale_confirmation_falls_out_of_the_active_window():
         active_as_of="2026-01-01T00:00:00Z",
         active_basis="Confirmed in January and not re-checked since.",
     )
-    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY)
     assert decision.is_active is False
     assert "confirmation window" in decision.reason
 
 
 def test_a_reviewed_event_with_a_recent_confirmation_is_active():
     event = _current_event()
-    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF)
+    decision = is_active_at(event, _live_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY)
     assert decision.is_active is True
-    assert active_events([event], _live_evidence(), cutoff=CUTOFF) == [event]
+    assert active_events([event], _live_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY) == [
+        event
+    ]
 
 
 def test_fixture_evidence_alone_cannot_make_an_event_active():
     event = _current_event()
-    decision = is_active_at(event, _fixture_evidence(), cutoff=CUTOFF)
+    decision = is_active_at(event, _fixture_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY)
     assert decision.is_active is False
-    assert "fixture evidence cannot establish a current condition" in decision.reason
+    assert "cannot establish a current condition" in decision.reason
 
 
 def test_a_historical_chokepoint_notice_does_not_create_a_current_notice():
@@ -620,13 +616,13 @@ def test_a_historical_chokepoint_notice_does_not_create_a_current_notice():
         active_as_of=None,
         active_basis=None,
     )
-    assert active_events([event], _fixture_evidence(), cutoff=CUTOFF) == []
+    assert active_events([event], _fixture_evidence(), cutoff=CUTOFF, registry=TEST_REGISTRY) == []
     assert event_qualifies_for_current_publication(event, _fixture_evidence()) is False
 
 
 def test_an_event_assembled_from_fixtures_cannot_join_the_current_dataset():
     event = _current_event()
-    problems = validate_event(event, _fixture_evidence())
+    problems = validate_event(event, _fixture_evidence(), registry=TEST_REGISTRY)
     assert any("cannot establish a current condition" in problem for problem in problems)
 
 
@@ -636,7 +632,7 @@ def test_an_active_as_of_time_with_no_basis_is_rejected():
         active_as_of="2026-07-20T00:00:00Z",
         active_basis=None,
     )
-    problems = validate_event(event, _live_evidence())
+    problems = validate_event(event, _live_evidence(), registry=TEST_REGISTRY)
     assert any("no basis" in problem for problem in problems)
 
 

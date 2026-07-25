@@ -30,6 +30,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from analysis.provenance import TECHNICAL_DEMO  # noqa: E402
 from collectors.adapters.csv_series import group_by_family, parse_csv_series  # noqa: E402
 from collectors.observations import deduplicate_observations  # noqa: E402
 from collectors.series_catalog import FIXTURE_CONTRACTS  # noqa: E402
@@ -66,6 +67,7 @@ def collect() -> dict[str, list[dict[str, Any]]]:
             retrieved_at=None,
             fixture_created_at=FIXTURE_CREATED_AT,
             content_hash_scope="local_fixture_payload",
+            dataset=TECHNICAL_DEMO,
             content_type="text/csv",
         )
         for family, family_records in group_by_family(records).items():
@@ -84,7 +86,7 @@ def render(family: str, records: list[dict[str, Any]]) -> str:
         "version": "0.8",
         "family": family,
         "generated_by": "scripts/ingest_fixtures.py",
-        "dataset": "technical_demo",
+        "dataset": TECHNICAL_DEMO,
         "source_note": (
             "Parsed from the labelled synthetic fixtures in tests/fixtures/csv_series/ "
             "through collectors/adapters/csv_series.py. Every record carries "

@@ -153,6 +153,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: monthly
       observed_freshness: null
       data_period: null
@@ -221,6 +226,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: monthly with variable lag
       observed_freshness: null
       data_period: null
@@ -290,6 +300,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: daily to weekly, variable
       observed_freshness: null
       data_period: null
@@ -306,10 +321,13 @@ sources:
       live_validation_reference: null
       parser_fails_closed: true
       response_bounded: true
-      schedule_justified: true
+      # WO-010-R2: an unresolved rate limit cannot justify a schedule.
+      schedule_justified: false
       collection_schedule: weekly, manually triggered
       public_repository_safe: true
       blockers:
+        - >-
+          Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.
         - No controlled live validation has been performed; the endpoint field is null and the page is client-rendered, so a machine-readable extraction path is unconfirmed.
         - Reuse and redistribution terms have not been reviewed, so reuse_status and redistribution_status remain unknown.
 
@@ -371,6 +389,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: each banking day
       observed_freshness: null
       data_period: null
@@ -387,10 +410,13 @@ sources:
       live_validation_reference: null
       parser_fails_closed: true
       response_bounded: true
-      schedule_justified: true
+      # WO-010-R2: an unresolved rate limit cannot justify a schedule.
+      schedule_justified: false
       collection_schedule: daily on banking days, manually triggered
       public_repository_safe: true
       blockers:
+        - >-
+          Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.
         - Requires an API key. No credential-handling mechanism exists in this repository and WO-010 does not introduce one.
         - No controlled live validation has been performed.
         - Reuse and redistribution terms have not been reviewed.
@@ -439,6 +465,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: monthly
       observed_freshness: null
       data_period: null
@@ -508,6 +539,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: daily
       observed_freshness: null
       data_period: null
@@ -524,10 +560,13 @@ sources:
       live_validation_reference: null
       parser_fails_closed: true
       response_bounded: true
-      schedule_justified: true
+      # WO-010-R2: an unresolved rate limit cannot justify a schedule.
+      schedule_justified: false
       collection_schedule: weekly, manually triggered
       public_repository_safe: true
       blockers:
+        - >-
+          Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.
         - No controlled live validation has been performed; no ArcGIS feature-service query URL has been confirmed by observation and the endpoint field remains null.
         - Reuse and redistribution terms have not been reviewed.
         - Whether derived daily estimates may be republished, as opposed to linked, is unresolved.
@@ -575,6 +614,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: quarterly to annual
       observed_freshness: null
       data_period: null
@@ -643,6 +687,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: unknown
       observed_freshness: null
       data_period: null
@@ -712,6 +761,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: as required, irregular
       observed_freshness: null
       data_period: null
@@ -781,6 +835,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: as required, irregular
       observed_freshness: null
       data_period: null
@@ -850,6 +909,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: as required, irregular
       observed_freshness: null
       data_period: null
@@ -919,6 +983,13 @@ sources:
       reuse_status: permitted_with_attribution
       reuse_licence_name: bounded citation of a publicly published official notice
       redistribution_status: link_only
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: bounded_claim_and_link_only
+      manual_intake_status: allowed
+      underlying_publisher_required: true
+      publication_use_basis: >-
+        A transcribed notice may be published as a bounded claim with a link to the underlying publisher. The notice text itself is never republished.
       publication_cadence: irregular, human-driven
       observed_freshness: null
       data_period: null
@@ -988,6 +1059,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: link_only
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: metadata_link_only
+      publication_use_basis: >-
+        Discovery results may be published as a headline, publisher and link. No article text and no numeric value derived from one.
       publication_cadence: continuous
       observed_freshness: null
       data_period: null
@@ -1004,10 +1080,13 @@ sources:
       live_validation_reference: null
       parser_fails_closed: true
       response_bounded: true
-      schedule_justified: true
+      # WO-010-R2: an unresolved rate limit cannot justify a schedule.
+      schedule_justified: false
       collection_schedule: daily, manually triggered
       public_repository_safe: true
       blockers:
+        - >-
+          Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.
         - No controlled live validation has been performed; the query endpoint and its rate limits are unverified and the endpoint field is null.
         - Reuse terms have not been reviewed. Only link-level redistribution would be considered even if they were.
 
@@ -1066,6 +1145,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: monthly with variable lag
       observed_freshness: null
       data_period: null
@@ -1082,10 +1166,13 @@ sources:
       live_validation_reference: null
       parser_fails_closed: true
       response_bounded: true
-      schedule_justified: true
+      # WO-010-R2: an unresolved rate limit cannot justify a schedule.
+      schedule_justified: false
       collection_schedule: monthly, manually triggered
       public_repository_safe: true
       blockers:
+        - >-
+          Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.
         - No machine-readable statistics endpoint has been confirmed; the endpoint field is null.
         - No controlled live validation has been performed.
         - Reuse and redistribution terms have not been reviewed, so reuse_status and redistribution_status remain unknown.
@@ -1137,6 +1224,11 @@ sources:
       reuse_status: unknown
       reuse_licence_name: null
       redistribution_status: unknown
+      # WO-010-R2: what this source's terms permit the platform to publish.
+      # Reading a page and republishing what it says are different permissions.
+      publication_use: internal_validation_only
+      publication_use_basis: >-
+        Redistribution position is unresolved, so nothing from this source may be published. Reviewing the terms is a precondition of enablement.
       publication_cadence: daily to weekly
       observed_freshness: null
       data_period: null
@@ -1153,10 +1245,13 @@ sources:
       live_validation_reference: null
       parser_fails_closed: true
       response_bounded: true
-      schedule_justified: true
+      # WO-010-R2: an unresolved rate limit cannot justify a schedule.
+      schedule_justified: false
       collection_schedule: weekly, manually triggered
       public_repository_safe: true
       blockers:
+        - >-
+          Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.
         - No controlled live validation has been performed; no machine-readable endpoint is confirmed and the endpoint field is null.
         - Reuse and redistribution terms have not been reviewed. The index is a commercial product and its free display tier's reuse position is unresolved.
         - Part of the product is behind a paywall (paywall_status is partial); which series are genuinely free is unverified.

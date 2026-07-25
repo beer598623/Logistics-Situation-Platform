@@ -372,6 +372,7 @@
       "prototype_eligibility": "eligible_pending_validation",
       "live_validation_status": "not_performed",
       "blockers": [
+        "Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.",
         "No controlled live validation has been performed; the endpoint field is null and the page is client-rendered, so a machine-readable extraction path is unconfirmed.",
         "Reuse and redistribution terms have not been reviewed, so reuse_status and redistribution_status remain unknown."
       ],
@@ -418,6 +419,7 @@
       "prototype_eligibility": "eligible_pending_validation",
       "live_validation_status": "not_performed",
       "blockers": [
+        "Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.",
         "Requires an API key. No credential-handling mechanism exists in this repository and WO-010 does not introduce one.",
         "No controlled live validation has been performed.",
         "Reuse and redistribution terms have not been reviewed."
@@ -511,6 +513,7 @@
       "prototype_eligibility": "eligible_pending_validation",
       "live_validation_status": "not_performed",
       "blockers": [
+        "Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.",
         "No controlled live validation has been performed; no ArcGIS feature-service query URL has been confirmed by observation and the endpoint field remains null.",
         "Reuse and redistribution terms have not been reviewed.",
         "Whether derived daily estimates may be republished, as opposed to linked, is unresolved."
@@ -836,6 +839,7 @@
       "prototype_eligibility": "eligible_pending_validation",
       "live_validation_status": "not_performed",
       "blockers": [
+        "Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.",
         "No controlled live validation has been performed; the query endpoint and its rate limits are unverified and the endpoint field is null.",
         "Reuse terms have not been reviewed. Only link-level redistribution would be considered even if they were."
       ],
@@ -883,6 +887,7 @@
       "prototype_eligibility": "eligible_pending_validation",
       "live_validation_status": "not_performed",
       "blockers": [
+        "Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.",
         "No machine-readable statistics endpoint has been confirmed; the endpoint field is null.",
         "No controlled live validation has been performed.",
         "Reuse and redistribution terms have not been reviewed, so reuse_status and redistribution_status remain unknown."
@@ -930,6 +935,7 @@
       "prototype_eligibility": "eligible_pending_validation",
       "live_validation_status": "not_performed",
       "blockers": [
+        "Rate limits are unresolved and the access method makes repeated requests, so no collection schedule is justified. A manual-only disposition applies until the publisher's rate limits are established.",
         "No controlled live validation has been performed; no machine-readable endpoint is confirmed and the endpoint field is null.",
         "Reuse and redistribution terms have not been reviewed. The index is a commercial product and its free display tier's reuse position is unresolved.",
         "Part of the product is behind a paywall (paywall_status is partial); which series are genuinely free is unverified."

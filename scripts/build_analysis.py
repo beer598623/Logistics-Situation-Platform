@@ -30,19 +30,26 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from analysis.assessments import (  # noqa: E402
-    DOMAINS,
     build_domain_assessment,
     build_lane_assessment,
     direction_for_derivation,
 )
-from analysis.events import active_events, event_domain_direction  # noqa: E402
+from analysis.events import (  # noqa: E402
+    active_events,
+    event_domain_direction,
+    event_qualifies_for_current_publication,
+)
 from analysis.indicators import SeriesDerivation, derive_series  # noqa: E402
 from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
+    PUBLISH_BOUNDED_CLAIM,
+    PUBLISH_DERIVED_VALUE,
     TECHNICAL_DEMO,
     effective_source_id,
-    publishable,
+    qualified_records,
+    qualifies_for_current_publication,
     record_origin,
+    record_source_id,
 )
 from analysis.reference import load_dimensions, load_lanes  # noqa: E402
 from analysis.scenarios import build_lane_outlook, build_preparedness_options  # noqa: E402
@@ -60,6 +67,7 @@ OBSERVATION_DIR = ROOT / "data" / "observations"
 EVENTS_PATH = ROOT / "data" / "events" / "events.json"
 ASSESSMENT_DIR = ROOT / "data" / "assessments"
 INDICATOR_PATH = ROOT / "data" / "indicators" / "latest.json"
+CURRENT_INDICATOR_PATH = ROOT / "data" / "indicators" / "current.json"
 SOURCE_STATUS_PATH = ROOT / "data" / "source_status" / "latest.json"
 
 #: Lane-independent series used by every lane, with the rule that reads them.
@@ -172,7 +180,7 @@ def derive_all_series(
 
 
 # ---------------------------------------------------------------------------
-# Current publication (WO-010-R1)
+# Current publication (WO-010-R1, positive path completed by WO-010-R2)
 # ---------------------------------------------------------------------------
 
 #: What a reader is told wherever the current view has nothing to report.
@@ -183,6 +191,175 @@ NO_QUALIFIED_EVIDENCE = (
     "finding that conditions are normal."
 )
 
+#: Which impact areas each event-derived domain reads.
+_EVENT_DOMAIN_AREAS = {
+    "operational_event_status": ("transport", "logistics", "import_export"),
+    "capacity_evidence": ("capacity",),
+    "transit_time_or_service_evidence": ("service", "transport"),
+}
+
+
+def qualified_series_records(
+    qualified_observations: Mapping[str, Sequence[Mapping[str, Any]]],
+    series_id: str,
+    *,
+    lane_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Qualified records for one series.
+
+    Reads the already-filtered families, so a demonstration record cannot
+    reach a current derivation even by sharing a series identifier with a
+    qualified one. Current and demonstration records are never combined into
+    one derivation: they are drawn from different collections entirely.
+    """
+    matched: list[dict[str, Any]] = []
+    for records in qualified_observations.values():
+        for record in records:
+            identifier = record.get("series_id") or record.get("indicator_id")
+            if identifier != series_id:
+                continue
+            if lane_id is not None and record["placement"].get("lane_id") != lane_id:
+                continue
+            matched.append(dict(record))
+    return matched
+
+
+def derive_current_series(
+    records: Sequence[Mapping[str, Any]],
+    series_id: str,
+    registry: Mapping[str, Any],
+) -> SeriesDerivation:
+    """Derive one current series from qualified records.
+
+    Source identity, and therefore the freshness contract applied, comes from
+    the records' own provenance. Freshness ages against the real data cutoff:
+    a qualified record is a claim about the world, so it gets a real-world
+    freshness label rather than a fixture one.
+    """
+    source_id = record_source_id(records[0])
+    max_stale, cadence = contract_freshness_bounds(registry, source_id or "")
+    baseline_definition = records[0].get("baseline_definition")
+    return derive_series(
+        series_id,
+        records,
+        baseline_definition=baseline_definition,
+        baseline_value=0.0 if baseline_definition else None,
+        max_stale_minutes=max_stale,
+        expected_cadence_minutes=cadence,
+        now=DATA_CUTOFF,
+        origin=record_origin(records[0]),
+    )
+
+
+def current_series_domain(
+    domain: str,
+    series_id: str,
+    rule_id: str,
+    records: Sequence[Mapping[str, Any]],
+    registry: Mapping[str, Any],
+    *,
+    absent_basis: str,
+) -> dict[str, Any]:
+    """One series-driven current domain assessment.
+
+    With no qualified records the domain is ``insufficient_evidence``. With
+    qualified records it is the documented threshold rule applied to them --
+    the same rule the demonstration engine applies, on a different set of
+    records. A series with too few periods still comes out
+    ``insufficient_evidence``, because the rule's ``min_observations`` is what
+    decides that, not the presence of the series.
+
+    A domain is only ever populated by the series that domain reads, so one
+    qualified series cannot make an unrelated domain look sufficient.
+    """
+    if not records:
+        return build_domain_assessment(
+            domain,
+            direction="insufficient_evidence",
+            basis=absent_basis,
+            known_limitations=[NO_QUALIFIED_EVIDENCE],
+        )
+
+    derivation = derive_current_series(records, series_id, registry)
+    direction, _ = direction_for_derivation(derivation, rule_id)
+    source_id = record_source_id(records[0])
+    return build_domain_assessment(
+        domain,
+        direction=direction,
+        basis=(
+            f"Applied threshold rule {rule_id} to {len(records)} qualified "
+            f"observation(s) of series {series_id} from source {source_id}."
+        ),
+        threshold_rule_id=rule_id,
+        indicator_ids=[series_id],
+        data_period=derivation.current_period,
+        freshness=derivation.freshness.to_dict(),
+        revision_status=derivation.revision_status,
+        # Scope limitations travel with the series. A global or proxy
+        # indicator does not become Thailand-specific by being qualified.
+        known_limitations=[
+            *derivation.limitations,
+            *records[0]["provenance"].get("known_limitations", []),
+        ],
+    )
+
+
+def current_chokepoint_exposure(
+    lane: Mapping[str, Any],
+    active: Sequence[Mapping[str, Any]],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+    registry: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Chokepoint notice status derived from qualified active events.
+
+    ``official_notice_active`` requires a qualified, currently active event
+    carrying an official-notice evidence item for that chokepoint. Nothing is
+    hard-coded to ``insufficient_evidence``: with no qualified events the
+    search simply finds nothing.
+    """
+    exposure = []
+    for chokepoint_id in lane.get("chokepoint_ids", []):
+        noticing = [
+            event
+            for event in active
+            if chokepoint_id in event.get("chokepoint_ids", [])
+            and any(
+                evidence_by_id[eid].get("claim_type") == "official_notice"
+                and qualifies_for_current_publication(
+                    evidence_by_id[eid],
+                    registry=registry,
+                    publication_use=PUBLISH_BOUNDED_CLAIM,
+                )
+                for eid in event.get("evidence_ids", [])
+                if eid in evidence_by_id
+            )
+        ]
+        if noticing:
+            exposure.append(
+                {
+                    "chokepoint_id": chokepoint_id,
+                    "status": "official_notice_active",
+                    "basis": (
+                        "A qualified official operational notice is recorded against this "
+                        "chokepoint by "
+                        + ", ".join(sorted(event["event_id"] for event in noticing))
+                        + ", and the event is confirmed active at the data cutoff."
+                    ),
+                }
+            )
+        else:
+            exposure.append(
+                {
+                    "chokepoint_id": chokepoint_id,
+                    "status": "insufficient_evidence",
+                    "basis": (
+                        "No qualified notice is recorded for this chokepoint. Absence of a "
+                        "record is not absence of a notice."
+                    ),
+                }
+            )
+    return exposure
+
 
 def build_current_lane_assessments(
     lanes: Sequence[Mapping[str, Any]],
@@ -190,18 +367,26 @@ def build_current_lane_assessments(
     qualified_events: Sequence[Mapping[str, Any]],
     evidence_by_id: Mapping[str, Mapping[str, Any]],
     source_status: Mapping[str, Any],
+    registry: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
     """Lane assessments built from qualified evidence only.
 
-    With zero qualified evidence every domain is ``insufficient_evidence``,
-    every lane is ``insufficient_evidence`` overall, no lane reaches watch or
-    elevated, and no chokepoint is reported as carrying an active notice. That
-    is not a special case coded for the current state -- it falls out of
-    feeding the same builder nothing but qualified records.
+    This is a real derivation path, not a zero-coverage special case. Feed it
+    qualified observations and it applies the documented threshold rules; feed
+    it none and every domain comes out ``insufficient_evidence``, no lane
+    reaches watch or elevated, and no chokepoint carries a notice. Both
+    behaviours fall out of the same code, which is what makes the empty result
+    trustworthy rather than merely asserted.
     """
-    active = active_events(qualified_events, evidence_by_id, cutoff=DATA_CUTOFF)
-    active_ids = sorted({event["event_id"] for event in active})
+    active = active_events(qualified_events, evidence_by_id, cutoff=DATA_CUTOFF, registry=registry)
     assessments: list[dict[str, Any]] = []
+    total_qualified = sum(len(records) for records in qualified_observations.values())
+
+    coverage_basis = (
+        f"Derived from qualified (live-retrieved or human-reviewed) current-publication "
+        f"records only. {total_qualified} such observation(s) and {len(qualified_events)} "
+        f"such event(s) exist at this cutoff."
+    )
 
     for lane in lanes:
         lane_id = lane["lane_id"]
@@ -217,39 +402,77 @@ def build_current_lane_assessments(
                 event["event_id"]
                 for event in qualified_events
                 if event["event_class"] == "external_driver"
+                and event["transmission_chain"]["completeness"] == "complete"
                 and any(entry["lane_id"] == lane_id for entry in event.get("lane_relevance", []))
             }
         )
 
-        domain_assessments = []
-        for domain in DOMAINS:
-            if domain in {
-                "operational_event_status",
-                "capacity_evidence",
-                "transit_time_or_service_evidence",
-            }:
-                direction, _, evidence_ids, limitations = event_domain_direction(
-                    lane_id, qualified_events, _EVENT_DOMAIN_AREAS[domain]
+        domain_assessments: list[dict[str, Any]] = []
+
+        trade_series = f"th_export_value_{_lane_slug(lane_id)}"
+        domain_assessments.append(
+            current_series_domain(
+                "thailand_trade_flow",
+                trade_series,
+                "TH-TRADE-YOY-V1",
+                qualified_series_records(qualified_observations, trade_series, lane_id=lane_id),
+                registry,
+                absent_basis=("No qualified Thailand trade observation is recorded for this lane."),
+            )
+        )
+
+        for domain, (series_id, rule_id) in _SHARED_DOMAIN_SERIES.items():
+            domain_assessments.append(
+                current_series_domain(
+                    domain,
+                    series_id,
+                    rule_id,
+                    qualified_series_records(qualified_observations, series_id),
+                    registry,
+                    absent_basis=f"No qualified observation exists for series {series_id}.",
                 )
-            else:
-                direction, evidence_ids, limitations = (
-                    "insufficient_evidence",
-                    [],
-                    [NO_QUALIFIED_EVIDENCE],
-                )
+            )
+
+        for domain, areas in _EVENT_DOMAIN_AREAS.items():
+            direction, event_ids, evidence_ids, limitations = event_domain_direction(
+                lane_id, qualified_events, areas
+            )
             domain_assessments.append(
                 build_domain_assessment(
                     domain,
                     direction=direction,
                     basis=(
-                        "Derived from qualified (retrieved or human-reviewed) records only. "
-                        f"{len(qualified_observations.get('all', []))} such observations exist."
+                        "Derived from qualified events recorded against this lane: "
+                        f"{', '.join(event_ids) if event_ids else 'none'}."
                     ),
                     evidence_ids=evidence_ids,
-                    freshness={"status": "no_data", "as_of": None, "age_days": None},
-                    known_limitations=[*limitations, NO_QUALIFIED_EVIDENCE],
+                    known_limitations=list(limitations),
                 )
             )
+
+        domain_assessments.append(
+            build_domain_assessment(
+                "source_freshness_and_coverage",
+                direction=(
+                    "insufficient_evidence"
+                    if source_status["overall_status"] == "insufficient"
+                    else "stable"
+                ),
+                basis=source_status["coverage_message"],
+                known_limitations=[coverage_basis],
+            )
+        )
+
+        data_gaps = sorted(
+            {
+                limitation
+                for item in domain_assessments
+                for limitation in item["known_limitations"]
+                if "insufficient" in limitation.lower()
+                or "no qualified" in limitation.lower()
+                or "coverage gap" in limitation.lower()
+            }
+        ) or [NO_QUALIFIED_EVIDENCE]
 
         assessment = build_lane_assessment(
             lane,
@@ -259,42 +482,132 @@ def build_current_lane_assessments(
             domain_assessments=domain_assessments,
             active_event_ids=lane_active,
             external_driver_event_ids=lane_drivers,
-            chokepoint_exposure=[
-                {
-                    "chokepoint_id": chokepoint_id,
-                    "status": "insufficient_evidence",
-                    "basis": (
-                        "No notice channel is monitored and no qualified notice is recorded "
-                        "for this chokepoint. Absence of a record is not absence of a notice."
-                    ),
-                }
-                for chokepoint_id in lane.get("chokepoint_ids", [])
-            ],
-            data_gaps=[NO_QUALIFIED_EVIDENCE],
-            known_limitations=[NO_QUALIFIED_EVIDENCE, *lane["known_limitations"]],
+            chokepoint_exposure=current_chokepoint_exposure(lane, active, evidence_by_id, registry),
+            data_gaps=data_gaps,
+            known_limitations=[NO_QUALIFIED_EVIDENCE, *lane["known_limitations"]]
+            if not total_qualified
+            else list(lane["known_limitations"]),
         )
         assessment["dataset"] = CURRENT_PUBLICATION
-        assessment["scenarios"] = build_coverage_only_outlook(lane)
+        assessment["scenarios"] = (
+            build_coverage_only_outlook(lane)
+            if assessment["attention_level"] == "insufficient_evidence"
+            else build_lane_outlook(
+                lane, assessment, generated_at=DATA_CUTOFF_ISO, data_cutoff_at=DATA_CUTOFF_ISO
+            )
+        )
         assessment["preparedness_options"] = build_preparedness_options(lane, assessment)
         assessments.append(assessment)
 
-    _ = active_ids
     return assessments
+
+
+def build_current_indicators(
+    qualified_observations: Mapping[str, Sequence[Mapping[str, Any]]],
+    registry: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Indicator payloads for the current view, from qualified records only."""
+    payloads: list[dict[str, Any]] = []
+    series_ids = sorted(
+        {
+            record.get("series_id") or record.get("indicator_id")
+            for records in qualified_observations.values()
+            for record in records
+        }
+        - {None}
+    )
+    for series_id in series_ids:
+        records = qualified_series_records(qualified_observations, str(series_id))
+        if not records:
+            continue
+        derivation = derive_current_series(records, str(series_id), registry)
+        payload = derivation.to_dict()
+        payload["dataset"] = CURRENT_PUBLICATION
+        payload["source_id"] = record_source_id(records[0])
+        payload["intended_source_id"] = None
+        payload["evidence_origin"] = record_origin(records[0])
+        payload["source_limitations"] = list(records[0]["provenance"]["known_limitations"])
+        payloads.append(payload)
+    return payloads
+
+
+def current_capability_coverage(
+    qualified_observations: Mapping[str, Sequence[Mapping[str, Any]]],
+    qualified_events: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Which analytical capabilities have qualified current evidence behind them.
+
+    Computed from the filtered records, so it reports zero today because there
+    is nothing to count -- not because zero was written down.
+    """
+    families = {
+        "thailand_trade_flow": len(qualified_observations.get("trade_observations", [])),
+        "thailand_port_or_maritime_activity": len(
+            qualified_observations.get("port_observations", [])
+        ),
+        "cost_and_freight_context": len(qualified_observations.get("cost_observations", [])),
+        "global_baseline_context": len(qualified_observations.get("indicator_observations", [])),
+        "operational_event_evidence": len(qualified_events),
+    }
+    return [
+        {
+            "capability": capability,
+            "qualified_record_count": count,
+            "status": "sufficient" if count else "insufficient",
+            "gap_reason": None
+            if count
+            else "No qualified current-publication record supports this capability.",
+        }
+        for capability, count in sorted(families.items())
+    ]
 
 
 def build_current_thailand_assessment(
     lane_assessments: Sequence[Mapping[str, Any]],
+    qualified_observations: Mapping[str, Sequence[Mapping[str, Any]]],
     qualified_events: Sequence[Mapping[str, Any]],
     evidence_by_id: Mapping[str, Mapping[str, Any]],
     source_status: Mapping[str, Any],
+    registry: Mapping[str, Any],
+    current_indicators: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
-    """The Thailand Ocean view built from qualified evidence only."""
-    active = active_events(qualified_events, evidence_by_id, cutoff=DATA_CUTOFF)
+    """The Thailand Ocean view built from qualified evidence only.
+
+    Every count below is computed from the filtered records. WO-010-R1 wrote
+    ``qualified_observation_count: 0`` as a literal, which happened to be true
+    and would have stayed "true" after the first source was enabled.
+    """
+    active = active_events(qualified_events, evidence_by_id, cutoff=DATA_CUTOFF, registry=registry)
     attention = [
         assessment
         for assessment in lane_assessments
         if assessment["attention_level"] in {"watch", "elevated"}
     ]
+    qualified_observation_count = sum(len(records) for records in qualified_observations.values())
+    lanes_with_evidence = [
+        assessment
+        for assessment in lane_assessments
+        if any(
+            domain["direction"] != "insufficient_evidence"
+            for domain in assessment["domain_assessments"]
+        )
+    ]
+    admitted = [
+        event["event_id"]
+        for event in qualified_events
+        if event["event_class"] == "external_driver"
+        and event["transmission_chain"]["completeness"] == "complete"
+    ]
+    contextual = [
+        event["event_id"]
+        for event in qualified_events
+        if event["event_class"] == "external_driver"
+        and event["transmission_chain"]["completeness"] != "complete"
+    ]
+    leads = [
+        event["event_id"] for event in qualified_events if event["event_class"] == "discovery_lead"
+    ]
+
     return {
         "assessment_id": f"THA-CUR-OCEAN-{DATA_CUTOFF:%Y%m%d}",
         "dataset": CURRENT_PUBLICATION,
@@ -306,8 +619,19 @@ def build_current_thailand_assessment(
         ),
         "evidence_coverage": source_status["overall_status"],
         "coverage_message": source_status["coverage_message"],
-        "qualified_observation_count": 0,
+        "qualified_observation_count": qualified_observation_count,
+        "current_indicator_count": len(current_indicators),
         "qualified_event_count": len(qualified_events),
+        "current_lane_coverage": {
+            "lanes_total": len(lane_assessments),
+            "lanes_with_any_qualified_domain": len(lanes_with_evidence),
+            "lane_ids_with_any_qualified_domain": sorted(
+                assessment["lane_id"] for assessment in lanes_with_evidence
+            ),
+        },
+        "current_capability_coverage": current_capability_coverage(
+            qualified_observations, qualified_events
+        ),
         "lanes_requiring_attention": [
             {
                 "lane_id": assessment["lane_id"],
@@ -317,13 +641,21 @@ def build_current_thailand_assessment(
             for assessment in attention
         ],
         "active_verified_events": [event["event_id"] for event in active],
-        "admitted_external_drivers": [],
-        "contextual_external_drivers": [],
-        "discovery_leads": [],
-        "key_changes": [
-            "No current assessment can be produced: the platform holds no live-retrieved or "
-            "human-reviewed evidence, so there is nothing to compare and nothing to report."
-        ],
+        "admitted_external_drivers": admitted,
+        "contextual_external_drivers": contextual,
+        "discovery_leads": leads,
+        "key_changes": (
+            [
+                "No current assessment can be produced: the platform holds no live-retrieved "
+                "or human-reviewed evidence, so there is nothing to compare and nothing to "
+                "report."
+            ]
+            if not qualified_observation_count and not qualified_events
+            else [
+                f"{qualified_observation_count} qualified observation(s) and "
+                f"{len(qualified_events)} qualified event(s) are in scope at this cutoff."
+            ]
+        ),
         "major_data_gaps": [
             "No source in the registry is enabled and none has completed a controlled live "
             "validation, so live coverage is insufficient.",
@@ -392,14 +724,6 @@ def build_coverage_only_outlook(lane: Mapping[str, Any]) -> dict[str, Any]:
             *lane.get("known_limitations", []),
         ],
     }
-
-
-#: Which impact areas each event-derived domain reads.
-_EVENT_DOMAIN_AREAS = {
-    "operational_event_status": ("transport", "logistics", "import_export"),
-    "capacity_evidence": ("capacity",),
-    "transit_time_or_service_evidence": ("service", "transport"),
-}
 
 
 def build_lane_records(
@@ -766,15 +1090,29 @@ def main() -> int:
     source_status = evaluate_registry_health(registry, {}, now=DATA_CUTOFF)
 
     # --- current publication: qualified evidence only ----------------------
+    # The filter is the whole mechanism. Nothing downstream knows or cares that
+    # the result is currently empty; it derives whatever it is handed.
     qualified_observations = {
-        family: publishable(records) for family, records in observations.items()
+        family: qualified_records(records, registry=registry, publication_use=PUBLISH_DERIVED_VALUE)
+        for family, records in observations.items()
     }
-    qualified_events = publishable(events)
+    qualified_events = [
+        event
+        for event in events
+        if event_qualifies_for_current_publication(event, evidence_by_id, registry=registry)
+    ]
     current_lane_assessments = build_current_lane_assessments(
-        lanes, qualified_observations, qualified_events, evidence_by_id, source_status
+        lanes, qualified_observations, qualified_events, evidence_by_id, source_status, registry
     )
+    current_indicators = build_current_indicators(qualified_observations, registry)
     current_thailand = build_current_thailand_assessment(
-        current_lane_assessments, qualified_events, evidence_by_id, source_status
+        current_lane_assessments,
+        qualified_observations,
+        qualified_events,
+        evidence_by_id,
+        source_status,
+        registry,
+        current_indicators,
     )
 
     # --- technical demonstration: the engine exercised on fixtures ---------
@@ -802,8 +1140,23 @@ def main() -> int:
         "indicators": [indicator_payloads[key] for key in sorted(indicator_payloads)],
     }
 
+    current_indicator_payload = {
+        "generated_at": DATA_CUTOFF_ISO,
+        "data_cutoff_at": DATA_CUTOFF_ISO,
+        "dataset": CURRENT_PUBLICATION,
+        "note": (
+            "Current-publication indicators, derived from qualified (live-retrieved or "
+            "human-reviewed) observations only. Empty because no source is enabled, not "
+            "because the list is hard-coded: it is whatever the qualification filter "
+            "returns."
+        ),
+        "indicator_count": len(current_indicators),
+        "indicators": current_indicators,
+    }
+
     outputs = [
         (INDICATOR_PATH, indicators),
+        (CURRENT_INDICATOR_PATH, current_indicator_payload),
         (SOURCE_STATUS_PATH, source_status),
         (
             ASSESSMENT_DIR / "lane_assessments.json",

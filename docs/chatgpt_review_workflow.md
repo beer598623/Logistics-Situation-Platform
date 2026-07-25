@@ -104,3 +104,72 @@ Every rule has a dedicated test in `tests/test_scenarios_and_review.py`.
 No AI assessment has been produced or approved. `data/review/inbound/` and
 `data/assessments/approved/` are empty by design, and the Dashboard states that in words
 rather than showing an empty panel.
+
+## The current package is a filtered artifact (WO-010-R2)
+
+`scripts/build_review_package.py` defaults to `--surface current_publication`.
+
+WO-010 built one combined package: every record the repository held, handed to
+ChatGPT alongside a request for a current assessment. A synthetic freight series
+and a 2021 canal closure travelled in the same payload as the question "what is
+the situation now", and nothing on the way back could tell which was which.
+
+**A current package contains only records that pass
+`qualifies_for_current_publication`.** Excluded, and counted in
+`provenance_summary.excluded_fixture_record_count`:
+
+- synthetic observations and technical-demonstration indicators;
+- technical-demonstration lane assessments;
+- historical-validation events and their evidence;
+- demonstration scenarios;
+- historical expected evidence strength;
+- validation fixtures.
+
+With zero qualified evidence the package carries no indicators, no events, no
+drivers and no evidence records; every lane reads `insufficient_evidence`; and
+the data gaps lead with an explicit instruction that no current directional
+conclusion can be produced, that an empty result is a coverage gap rather than a
+finding of normality, and that substituting general knowledge for the missing
+evidence will be rejected on import.
+
+A demonstration package is available with `--surface technical_demo`. It records
+`package_purpose: engine_demonstration` and **can never be approved into the
+current AI Outlook** — the approval gate refuses it before any file is touched.
+
+### What the package records
+
+`dataset`, `package_purpose`, `source_cutoff`, a provenance summary of the
+evidence and events it carries, the excluded-record count, and its own
+`package_sha256`.
+
+### What the validator now checks
+
+`analysis/review_package.validate_output` inspects provenance, not only whether
+an evidence ID exists. It rejects fixture or historical evidence in a current
+package; evidence marked `not_retrieved` with no human review behind it being
+used as a verified current fact; a severity claim unsupported by eligible
+evidence; a current operational-condition claim resting only on demonstration
+data; a citation of evidence excluded from the current package's citable set;
+and a package whose dataset and purpose disagree.
+
+`has_operational_condition_evidence()` requires the item to be eligible for
+current publication, not merely to carry an official-looking `claim_type`. A
+historical notice is still a notice; it is not a notice about now.
+
+### Approval binding
+
+An approved assessment retains the input package's ID, SHA-256, dataset,
+purpose, data cutoff, source cutoff, evidence IDs, evidence-origin summary,
+validation status, supersession flag, approval time, reviewer and output hash.
+
+Approval is refused when the package is not `current_publication`, its dataset
+and purpose disagree, it holds fixture or historical evidence, the output cites
+evidence that is not current evidence in that package, the package has been
+edited since generation, the output was produced against a different package
+version, the cutoffs differ without explicit supersession, or the output makes
+current claims while the package holds nothing eligible to support one.
+
+Publication then re-checks all of it independently from the files on disk.
+Approval is a decision made at one moment by one person; publication happens
+later, and must not assume that whatever is in the approved directory earned its
+place.

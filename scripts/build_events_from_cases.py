@@ -161,6 +161,10 @@ def _expand_evidence(case: dict[str, Any]) -> list[dict[str, Any]]:
                 "retrieval_status": "not_retrieved",
                 "retrieved_at": None,
                 "evidence_origin": HISTORICAL_VALIDATION_FIXTURE,
+                # Carried on the evidence item itself, not only on the file:
+                # an evidence record cited by a current assessment must itself
+                # be able to say which surface it belongs to.
+                "dataset": HISTORICAL_VALIDATION,
                 "fixture_created_at": FIXTURE_CREATED_AT,
                 "revised_at": None,
                 "content_sha256": _evidence_hash(item),

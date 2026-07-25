@@ -43,7 +43,17 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.import_review import review  # noqa: E402
+from analysis.provenance import (  # noqa: E402
+    CURRENT_PUBLICATION,
+    is_fixture,
+    record_dataset,
+    record_origin,
+)
+from analysis.review_package import (  # noqa: E402
+    CURRENT_INTELLIGENCE,
+    package_provenance_problems,
+)
+from scripts.import_review import PACKAGE_DIR, load_registry, review  # noqa: E402
 
 INBOUND_DIR = ROOT / "data" / "review" / "inbound"
 APPROVED_DIR = ROOT / "data" / "assessments" / "approved"
@@ -187,6 +197,117 @@ def archive_existing(package_id: str, timestamp: str, transaction: FileTransacti
     return str(target.relative_to(ROOT))
 
 
+def package_hash(package: dict[str, Any]) -> str:
+    """Recompute the package's own hash the way the builder computed it.
+
+    The stored ``package_sha256`` is over the package with that field null, so
+    re-deriving it here detects an input package edited after the assessment
+    was produced -- an approval bound to a package that no longer exists is
+    not an approval of anything.
+    """
+    restated = {**package, "package_sha256": None}
+    return hashlib.sha256(json.dumps(restated, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def approval_provenance_problems(
+    package: dict[str, Any],
+    output: dict[str, Any],
+    registry: dict[str, Any],
+) -> list[str]:
+    """Reasons this assessment may not be approved into the current Dashboard.
+
+    Passing the rejection rules means the assessment is internally consistent
+    with its package. It does not mean the package was one the current view is
+    allowed to be built from, and that gap is what this closes: a reviewer
+    typing ``--decision approve`` on a demonstration package must not be able
+    to publish it as current intelligence.
+    """
+    problems: list[str] = []
+
+    dataset = package.get("dataset")
+    if dataset != CURRENT_PUBLICATION:
+        problems.append(
+            f"the input package belongs to the {dataset!r} dataset; only a "
+            f"{CURRENT_PUBLICATION!r} package may be approved into the current AI Outlook"
+        )
+    if package.get("package_purpose") != CURRENT_INTELLIGENCE:
+        problems.append(
+            f"the input package's purpose is {package.get('package_purpose')!r}, not "
+            f"{CURRENT_INTELLIGENCE!r}"
+        )
+
+    problems.extend(package_provenance_problems(package, registry=registry))
+
+    recomputed = package_hash(package)
+    if package.get("package_sha256") != recomputed:
+        problems.append(
+            "the input package has changed since it was generated: its recorded "
+            f"package_sha256 {package.get('package_sha256')!r} does not match the hash of "
+            f"its current contents {recomputed!r}"
+        )
+
+    declared = output.get("package_sha256")
+    if declared and declared != package.get("package_sha256"):
+        problems.append(
+            "the returned assessment was produced against a different version of this "
+            f"package (it cites {declared!r}, the package records "
+            f"{package.get('package_sha256')!r})"
+        )
+
+    output_cutoff = output.get("data_cutoff_at")
+    if output_cutoff and output_cutoff != package.get("data_cutoff_at"):
+        problems.append(
+            f"the assessment's data cutoff {output_cutoff!r} differs from the package's "
+            f"{package.get('data_cutoff_at')!r}; supersede the package explicitly rather "
+            "than approving an assessment against a different vintage"
+        )
+
+    citable = [
+        item
+        for item in package.get("evidence_records", [])
+        if not is_fixture(record_origin(item)) and record_dataset(item) == CURRENT_PUBLICATION
+    ]
+    referenced = set(output.get("evidence_references", []))
+    citable_ids = {str(item.get("evidence_id")) for item in citable}
+    fixture_cited = sorted(referenced - citable_ids)
+    if fixture_cited:
+        problems.append(
+            f"the returned assessment references {fixture_cited}, which are not current "
+            "evidence in this package"
+        )
+
+    if not citable:
+        severity = output.get("highest_severity_claimed")
+        if severity not in {None, "none"}:
+            problems.append(
+                f"the assessment claims {severity!r} severity while the package contains no "
+                "evidence eligible to support a current conclusion"
+            )
+        for group in ("verified_facts", "observed_impacts", "potential_impacts"):
+            if output.get(group):
+                problems.append(
+                    f"the assessment states {group} while the package contains zero qualified "
+                    "current evidence; nothing in it can be supported"
+                )
+
+    return problems
+
+
+def load_package(package_id: str) -> dict[str, Any]:
+    path = PACKAGE_DIR / f"{package_id}.json"
+    if not path.exists():
+        raise SystemExit(f"No input package found at {path}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def evidence_origin_summary(package: dict[str, Any]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in package.get("evidence_records", []):
+        origin = str(record_origin(item))
+        counts[origin] = counts.get(origin, 0) + 1
+    return dict(sorted(counts.items()))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--package-id", required=True)
@@ -201,6 +322,14 @@ def main() -> int:
 
     accepted, problems, needs_review = review(args.package_id)
 
+    output = json.loads((INBOUND_DIR / f"{args.package_id}.json").read_text(encoding="utf-8"))
+    package = load_package(args.package_id)
+    registry = load_registry()
+
+    if args.decision == "approve":
+        problems = list(problems) + approval_provenance_problems(package, output, registry)
+        accepted = not problems
+
     if args.decision == "approve" and not accepted:
         print(f"[BLOCKED] Cannot approve {args.package_id}: it fails validation.")
         for problem in problems:
@@ -209,7 +338,6 @@ def main() -> int:
         return 1
 
     timestamp = _now()
-    output = json.loads((INBOUND_DIR / f"{args.package_id}.json").read_text(encoding="utf-8"))
     approved_path = APPROVED_DIR / f"{args.package_id}.json"
     history = load_history()
 
@@ -235,6 +363,23 @@ def main() -> int:
                         "human_review_required": needs_review,
                         "human_review_status": "approved",
                         "supersedes_history_id": supersedes,
+                        # The approval is bound to the exact package it was
+                        # produced from. Publication re-checks every one of
+                        # these before the assessment reaches the Dashboard.
+                        "input_package_id": package.get("package_id"),
+                        "input_package_sha256": package.get("package_sha256"),
+                        "input_dataset": package.get("dataset"),
+                        "input_package_purpose": package.get("package_purpose"),
+                        "input_data_cutoff_at": package.get("data_cutoff_at"),
+                        "input_source_cutoff": package.get("source_cutoff"),
+                        "input_evidence_ids": sorted(
+                            str(item.get("evidence_id"))
+                            for item in package.get("evidence_records", [])
+                        ),
+                        "input_evidence_origin_summary": evidence_origin_summary(package),
+                        "validation_status": "passed",
+                        "superseded": False,
+                        "output_sha256": _digest(output),
                         "assessment": output,
                     },
                     indent=2,

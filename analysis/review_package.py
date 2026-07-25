@@ -26,6 +26,15 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .assessments import validate_preparedness_option, validate_scenario_outlook
+from .provenance import (
+    CURRENT_PUBLICATION,
+    PUBLISH_BOUNDED_CLAIM,
+    is_fixture,
+    provenance_summary,
+    qualifies_for_current_publication,
+    record_dataset,
+    record_origin,
+)
 
 #: Phrasing that asserts a real-time operational condition. Permitted only
 #: when the input package actually contained operational-condition evidence.
@@ -71,6 +80,22 @@ _QUANTITY = re.compile(r"\d")
 
 #: Evidence claim types that can support an operational-condition statement.
 _OPERATIONAL_CLAIM_TYPES = frozenset({"official_notice", "verified_fact"})
+
+#: What a package is for. A package built to demonstrate the engine can never
+#: be approved into the current Dashboard, and the purpose is what says so.
+CURRENT_INTELLIGENCE = "current_intelligence_assessment"
+ENGINE_DEMONSTRATION = "engine_demonstration"
+
+PACKAGE_PURPOSES = (CURRENT_INTELLIGENCE, ENGINE_DEMONSTRATION)
+
+#: Which purpose each dataset may carry. A current-publication package is for
+#: current intelligence and nothing else; a demo or historical package is a
+#: demonstration whatever it is labelled.
+PURPOSE_BY_DATASET = {
+    CURRENT_PUBLICATION: CURRENT_INTELLIGENCE,
+    "technical_demo": ENGINE_DEMONSTRATION,
+    "historical_validation": ENGINE_DEMONSTRATION,
+}
 
 #: The sections every returned assessment must contain, echoed into the
 #: package so the human's prompt and the validator cannot drift apart.
@@ -162,6 +187,9 @@ def build_input_package(
     evidence: Sequence[Mapping[str, Any]],
     previous_assessments: Sequence[Mapping[str, Any]],
     data_gaps: Sequence[str],
+    dataset: str = CURRENT_PUBLICATION,
+    source_cutoff: str | None = None,
+    excluded_fixture_record_count: int = 0,
 ) -> dict[str, Any]:
     """Assemble the bounded input package.
 
@@ -169,6 +197,11 @@ def build_input_package(
     than by the reader, so the distinction survives the hand-off. Discovery
     leads are carried inside ``external_drivers`` with their class intact and
     are never promoted.
+
+    The package records which surface it was built from, what it is for, and
+    how many fixture records the filter dropped. Those three facts are what
+    let the approval gate refuse a demonstration package without having to
+    re-derive where its contents came from.
     """
     operational = [event for event in events if event["event_class"] == "direct_operational_event"]
     drivers = [event for event in events if event["event_class"] != "direct_operational_event"]
@@ -182,8 +215,11 @@ def build_input_package(
     package = {
         "package_id": package_id,
         "methodology_version": "0.8",
+        "dataset": dataset,
+        "package_purpose": PURPOSE_BY_DATASET.get(dataset, ENGINE_DEMONSTRATION),
         "generated_at": generated_at,
         "data_cutoff_at": data_cutoff_at,
+        "source_cutoff": source_cutoff or data_cutoff_at,
         "source_health_summary": {
             "overall_status": source_health.get("overall_status", "insufficient"),
             "coverage_message": source_health.get("coverage_message", ""),
@@ -198,6 +234,11 @@ def build_input_package(
         "conflicting_evidence": conflicts,
         "previous_assessments": [dict(item) for item in previous_assessments],
         "data_gaps": list(data_gaps),
+        "provenance_summary": {
+            "evidence": provenance_summary(list(evidence)),
+            "events": provenance_summary(list(events)),
+            "excluded_fixture_record_count": excluded_fixture_record_count,
+        },
         "output_instructions": {
             "required_sections": list(REQUIRED_OUTPUT_SECTIONS),
             "prohibited_outputs": list(PROHIBITED_OUTPUTS),
@@ -226,20 +267,118 @@ def unavailable_series_ids(package: Mapping[str, Any]) -> set[str]:
     return unavailable
 
 
-def has_operational_condition_evidence(package: Mapping[str, Any]) -> bool:
-    """True when the package contains evidence that can support a claim about
-    an operational condition such as congestion or delay."""
-    return any(
-        item.get("claim_type") in _OPERATIONAL_CLAIM_TYPES
-        and item.get("evidence_role") == "confirming"
-        and item.get("scope_supported") in {"facility", "node", "route", "lane"}
-        for item in package.get("evidence_records", [])
-    )
+def has_operational_condition_evidence(
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> bool:
+    """True when the package holds evidence that can support an operational
+    condition claim such as congestion or delay.
+
+    WO-010-R2: an official-looking ``claim_type`` is not enough. In a current
+    package the item must itself be eligible for current publication --
+    otherwise a historical fixture that happens to be classed
+    ``official_notice`` silently licenses a congestion claim about today.
+    """
+    current = package.get("dataset") == CURRENT_PUBLICATION
+    for item in package.get("evidence_records", []):
+        if item.get("claim_type") not in _OPERATIONAL_CLAIM_TYPES:
+            continue
+        if item.get("evidence_role") != "confirming":
+            continue
+        if item.get("scope_supported") not in {"facility", "node", "route", "lane"}:
+            continue
+        if current and not qualifies_for_current_publication(
+            item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+        ):
+            continue
+        return True
+    return False
+
+
+def package_provenance_problems(
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Provenance checks on the package itself, before its output is read.
+
+    Validators used to inspect only whether an evidence ID existed. An ID that
+    exists is not an ID that may be cited as current fact, and that gap is how
+    a demonstration package could be walked through the approval gate.
+    """
+    problems: list[str] = []
+    dataset = package.get("dataset")
+    purpose = package.get("package_purpose")
+
+    if dataset not in PURPOSE_BY_DATASET:
+        problems.append(f"package dataset {dataset!r} is not a recognised publication surface")
+        return problems
+    if purpose != PURPOSE_BY_DATASET[dataset]:
+        problems.append(
+            f"package dataset {dataset!r} and package_purpose {purpose!r} disagree; a "
+            f"{dataset} package is a {PURPOSE_BY_DATASET[dataset]}"
+        )
+
+    if dataset != CURRENT_PUBLICATION:
+        return problems
+
+    for item in package.get("evidence_records", []):
+        evidence_id = item.get("evidence_id")
+        if is_fixture(record_origin(item)):
+            problems.append(
+                f"evidence {evidence_id!r}: a {record_origin(item)} record is present in a "
+                "current-intelligence package"
+            )
+            continue
+        if record_dataset(item) != CURRENT_PUBLICATION:
+            problems.append(
+                f"evidence {evidence_id!r}: belongs to the {record_dataset(item)!r} dataset "
+                "and cannot support a current assessment"
+            )
+            continue
+        if item.get("retrieval_status") == "not_retrieved" and record_origin(item) != (
+            "human_reviewed_manual"
+        ):
+            problems.append(
+                f"evidence {evidence_id!r}: retrieval_status is 'not_retrieved' with no human "
+                "review behind it, so it cannot be used as a verified current fact"
+            )
+            continue
+        decision = qualifies_for_current_publication(
+            item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+        )
+        if not decision:
+            problems.append(f"evidence {evidence_id!r}: {decision.reason}")
+
+    for group in ("active_operational_events", "external_drivers"):
+        for event in package.get(group, []):
+            if record_dataset(event) not in {None, CURRENT_PUBLICATION}:
+                problems.append(
+                    f"{group}: event {event.get('event_id')!r} belongs to the "
+                    f"{record_dataset(event)!r} dataset"
+                )
+
+    for indicator in package.get("key_indicators", []):
+        if is_fixture(indicator.get("evidence_origin")):
+            problems.append(
+                f"key_indicators: series {indicator.get('series_id')!r} is a "
+                f"{indicator.get('evidence_origin')} and cannot appear in a current package"
+            )
+        elif indicator.get("dataset") not in {None, CURRENT_PUBLICATION}:
+            problems.append(
+                f"key_indicators: series {indicator.get('series_id')!r} belongs to the "
+                f"{indicator.get('dataset')!r} dataset"
+            )
+
+    return problems
 
 
 def validate_output(
     output: Mapping[str, Any],
     package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
 ) -> list[str]:
     """Apply the Gate I rejection rules to a returned assessment.
 
@@ -248,6 +387,7 @@ def validate_output(
     approved. Approval is a separate, explicitly recorded human act.
     """
     problems: list[str] = []
+    problems.extend(package_provenance_problems(package, registry=registry))
 
     if output.get("package_id") != package.get("package_id"):
         problems.append(
@@ -256,10 +396,29 @@ def validate_output(
         )
 
     known_evidence = {str(item.get("evidence_id")) for item in package.get("evidence_records", [])}
+    is_current = package.get("dataset") == CURRENT_PUBLICATION
+    # In a current package, "present" and "citable" are different sets. An
+    # assessment may only cite evidence that could itself carry a current
+    # claim; anything else is excluded from the package's citable set even if
+    # it somehow reached the records list.
+    citable_evidence = {
+        str(item.get("evidence_id"))
+        for item in package.get("evidence_records", [])
+        if not is_current
+        or qualifies_for_current_publication(
+            item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+        )
+    }
     referenced = set(output.get("evidence_references", []))
     unknown = referenced - known_evidence
     if unknown:
         problems.append(f"references unknown evidence IDs {sorted(unknown)}")
+    ineligible = (referenced & known_evidence) - citable_evidence
+    if ineligible:
+        problems.append(
+            f"cites evidence {sorted(ineligible)} that is excluded from this current package's "
+            "citable set; fixture and historical evidence cannot support a current claim"
+        )
 
     for location, _text, evidence_ids in _text_fields(output):
         unknown_local = set(evidence_ids) - known_evidence
@@ -271,9 +430,15 @@ def validate_output(
                 f"{location}: cites evidence {sorted(undeclared)} that is not declared in "
                 "evidence_references"
             )
+        ineligible_local = (set(evidence_ids) & known_evidence) - citable_evidence
+        if ineligible_local:
+            problems.append(
+                f"{location}: cites evidence {sorted(ineligible_local)} that cannot support a "
+                "current claim"
+            )
 
     missing_series = unavailable_series_ids(package)
-    operational_evidence = has_operational_condition_evidence(package)
+    operational_evidence = has_operational_condition_evidence(package, registry=registry)
 
     for location, text, evidence_ids in _text_fields(output):
         lowered = text.lower()
@@ -339,6 +504,12 @@ def validate_output(
                 f"transmission_chains[{index}] ({chain.get('subject')}): incomplete chain, "
                 f"missing {', '.join(missing_links)}"
             )
+
+    if output.get("highest_severity_claimed") in {"high", "critical"} and not citable_evidence:
+        problems.append(
+            f"claims {output.get('highest_severity_claimed')} severity while the package "
+            "contains no evidence eligible to support a current conclusion"
+        )
 
     for outlook in output.get("scenarios", []):
         problems.extend(validate_scenario_outlook(outlook))

@@ -31,6 +31,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Literal
 
+from analysis.provenance import TECHNICAL_DEMO
+
 from ..http_client import validate_content_type
 from ..observations import build_observation, content_hash, deduplicate_observations
 
@@ -185,6 +187,7 @@ def parse_csv_series(
     fixture_created_at: str | None = None,
     retrieval_status: str = "not_retrieved",
     content_hash_scope: str = "local_fixture_payload",
+    dataset: str = TECHNICAL_DEMO,
     content_type: str | None = "text/csv",
     max_bytes: int = MAX_BYTES,
     max_rows: int = MAX_ROWS,
@@ -289,6 +292,7 @@ def parse_csv_series(
                     retrieved_at=retrieved_at,
                     retrieval_status=retrieval_status,
                     content_hash_scope=content_hash_scope,
+                    dataset=dataset,
                     evidence_origin=spec.evidence_origin,
                     intended_source_id=spec.intended_source_id,
                     fixture_created_at=fixture_created_at,

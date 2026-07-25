@@ -64,6 +64,7 @@
         "record_id",
         "source_id",
         "source_record_id",
+        "dataset",
         "evidence_origin",
         "retrieval_status",
         "content_hash_scope",
@@ -191,6 +192,10 @@
           ],
           "format": "date-time",
           "description": "When the fixture was generated. Recorded instead of, never as, a publication or retrieval time."
+        },
+        "dataset": {
+          "$ref": "#/$defs/dataset",
+          "description": "The publication surface this record belongs to, carried at record level so a record copied into a package takes its surface with it rather than inheriting one from whatever file it lands in."
         }
       }
     },

@@ -97,6 +97,16 @@ separately labelled Technical demonstration and Historical validation panels, ea
 its own card rather than by a page banner alone. See
 [`docs/evidence_provenance_and_datasets.md`](docs/evidence_provenance_and_datasets.md).
 
+**The current path is a real derivation, and the ChatGPT package is isolated
+(WO-010-R2).** Qualification is one decision about the whole record — dataset,
+origin, retrieval status, registry membership, source-to-series compatibility
+and what the source's terms permit publishing — and every current Dashboard list
+is produced by that filter rather than written as an empty literal. The review
+package a human hands to ChatGPT is built from the current view only, excluded
+records are counted, and every approval is bound to its input package by
+SHA-256, with publication re-checking that binding independently. A
+demonstration package can never be approved as current.
+
 Key WO-010 documents: [`bundle1_architecture`](docs/bundle1_architecture.md),
 [`data_model_and_persistence`](docs/data_model_and_persistence.md),
 [`evidence_provenance_and_datasets`](docs/evidence_provenance_and_datasets.md),

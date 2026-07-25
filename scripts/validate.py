@@ -37,10 +37,12 @@ from analysis.events import (  # noqa: E402
 from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
     LIVE_FRESHNESS_STATUSES,
+    PUBLISH_DERIVED_VALUE,
     SYNTHETIC_SOURCE_ID,
     dataset_of,
     is_fixture,
     provenance_problems,
+    publication_use_problems,
     qualifies_for_current_publication,
     record_intended_source_id,
     record_origin,
@@ -144,6 +146,25 @@ def semantic_checks(event: dict[str, Any]) -> list[str]:
         "negative_operational_evidence"
     ):
         problems.append("no-material-impact status requires negative operational evidence")
+    return problems
+
+
+def source_publication_use_checks(registry: dict[str, Any]) -> list[str]:
+    """Every source's publication_use must be compatible with its own terms.
+
+    WO-010-R2. ``reuse_status`` answered "may we read this"; the platform was
+    acting on "may we republish this", which is a different permission. The
+    disposition is checked for every source, disabled or not, so an
+    incompatible pairing is caught long before somebody flips ``enabled``.
+
+    TMD_CAP and GDACS are governed by their own prior records and are
+    deliberately left untouched, as they were under R1.
+    """
+    problems: list[str] = []
+    for source in registry.get("sources", []):
+        if source.get("id") in _PRE_EXISTING_SOURCES:
+            continue
+        problems.extend(publication_use_problems(source))
     return problems
 
 
@@ -583,6 +604,7 @@ def current_publication_checks(
     events: list[dict[str, Any]],
     evidence_by_id: dict[str, dict[str, Any]],
     observations: dict[str, list[dict[str, Any]]],
+    registry: dict[str, Any],
 ) -> list[str]:
     """The current view must never rest on a fixture.
 
@@ -598,13 +620,17 @@ def current_publication_checks(
         record
         for records in observations.values()
         for record in records
-        if qualifies_for_current_publication(record_origin(record))
+        if qualifies_for_current_publication(
+            record, registry=registry, publication_use=PUBLISH_DERIVED_VALUE
+        )
     ]
     # An event carries no origin of its own; it qualifies through its dataset
     # and the evidence behind it. Reading `record_origin` on an event would
     # always return None and quietly classify every event as non-fixture.
     qualified_events = [
-        event for event in events if event_qualifies_for_current_publication(event, evidence_by_id)
+        event
+        for event in events
+        if event_qualifies_for_current_publication(event, evidence_by_id, registry=registry)
     ]
     has_qualified_evidence = bool(qualified_observations) or bool(qualified_events)
 
@@ -617,7 +643,7 @@ def current_publication_checks(
     fixture_event_ids = {
         event["event_id"]
         for event in events
-        if not event_qualifies_for_current_publication(event, evidence_by_id)
+        if not event_qualifies_for_current_publication(event, evidence_by_id, registry=registry)
     }
     fixture_evidence_ids = {
         item["evidence_id"] for item in evidence_by_id.values() if is_fixture(record_origin(item))
@@ -703,13 +729,14 @@ def event_dataset_checks(
     events: list[dict[str, Any]],
     evidence_by_id: dict[str, dict[str, Any]],
     cutoff: datetime,
+    registry: dict[str, Any],
 ) -> list[str]:
     """No fixture-backed event may be publishable as currently active."""
     problems: list[str] = []
     for event in events:
-        decision = is_active_at(event, evidence_by_id, cutoff=cutoff)
+        decision = is_active_at(event, evidence_by_id, cutoff=cutoff, registry=registry)
         if decision.is_active and not event_qualifies_for_current_publication(
-            event, evidence_by_id
+            event, evidence_by_id, registry=registry
         ):
             problems.append(
                 f"{event['event_id']}: a fixture-origin event was judged currently active"
@@ -739,6 +766,7 @@ def main() -> int:
     registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
     ok &= validate_item(registry, "source_contract.schema.json", "source_contract_registry")
     ok &= report("source_contract_registry semantics", source_contract_checks(registry))
+    ok &= report("source publication use", source_publication_use_checks(registry))
 
     source_status = load_json(ROOT / "data/source_status/latest.json")
     ok &= validate_item(source_status, "source_status.schema.json", "source_status")
@@ -809,7 +837,7 @@ def main() -> int:
     )
     ok &= report(
         "event dataset semantics",
-        event_dataset_checks(events, evidence_by_id, datetime(2026, 7, 24, tzinfo=UTC)),
+        event_dataset_checks(events, evidence_by_id, datetime(2026, 7, 24, tzinfo=UTC), registry),
     )
 
     events_ok = True
@@ -855,7 +883,9 @@ def main() -> int:
     thailand = load_json(ROOT / "data/assessments/thailand_assessment.json")
     ok &= report(
         "current publication boundary",
-        current_publication_checks(thailand, assessments, events, evidence_by_id, all_observations),
+        current_publication_checks(
+            thailand, assessments, events, evidence_by_id, all_observations, registry
+        ),
     )
 
     demo_path = ROOT / "data/assessments/demo_lane_assessments.json"

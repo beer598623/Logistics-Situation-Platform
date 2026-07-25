@@ -3,6 +3,7 @@
   "demo_label": "Technical demonstration \u2014 every series below is a synthetic fixture standing in for a production candidate. No fuel, FX or freight figure has been retrieved.",
   "generated_at": "2026-07-24T00:00:00Z",
   "current_statement": "No qualified cost observation exists, so no current cost or freight pressure reading is published.",
+  "current_cost_series": [],
   "cost_series": [
     {
       "series_id": "thailand_diesel_retail_price",

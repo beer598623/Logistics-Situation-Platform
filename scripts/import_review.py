@@ -32,6 +32,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import yaml  # noqa: E402
+
 from analysis.contracts import schema_errors  # noqa: E402
 from analysis.review_package import requires_human_review, validate_output  # noqa: E402
 
@@ -55,15 +57,24 @@ def load_pair(package_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
     )
 
 
+def load_registry() -> dict[str, Any]:
+    return yaml.safe_load((ROOT / "config" / "sources.yaml").read_text(encoding="utf-8"))
+
+
 def review(package_id: str) -> tuple[bool, list[str], bool]:
-    """Return ``(accepted, problems, needs_human_review)``."""
+    """Return ``(accepted, problems, needs_human_review)``.
+
+    The registry is loaded and passed through so the rejection rules can ask
+    whether a cited evidence item was actually eligible to be cited, rather
+    than only whether its identifier appeared in the package.
+    """
     package, output = load_pair(package_id)
 
     problems = [
         f"schema: {message}"
         for message in schema_errors(output, "review_package_output.schema.json")
     ]
-    problems.extend(validate_output(output, package))
+    problems.extend(validate_output(output, package, registry=load_registry()))
     return not problems, problems, requires_human_review(output)
 
 

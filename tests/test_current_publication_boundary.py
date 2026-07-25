@@ -83,13 +83,13 @@ def test_every_observation_declares_a_recognised_origin(observations):
             assert not provenance_problems(record, label=family)
 
 
-def test_the_whole_observation_set_is_currently_fixture_backed(observations):
+def test_the_whole_observation_set_is_currently_fixture_backed(observations, registry):
     """Stated as a test so the day a real source is enabled, this fails and
     forces every current-publication expectation below to be revisited."""
     origins = {record_origin(record) for records in observations.values() for record in records}
     assert origins <= FIXTURE_ORIGINS
     assert not any(
-        qualifies_for_current_publication(record_origin(record))
+        qualifies_for_current_publication(record, registry=registry)
         for records in observations.values()
         for record in records
     )

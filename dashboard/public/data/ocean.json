@@ -1,6 +1,7 @@
 {
   "dataset": "current_publication",
   "generated_at": "2026-07-24T00:00:00Z",
+  "current_port_series": [],
   "demo_port_series": [
     {
       "series_id": "laem_chabang_container_throughput",
@@ -1068,7 +1069,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1080,14 +1081,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1099,14 +1099,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1118,14 +1117,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1137,14 +1135,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1156,14 +1153,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1175,14 +1171,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1194,14 +1189,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1213,14 +1207,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1232,8 +1225,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -1713,7 +1705,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1725,14 +1717,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1744,14 +1735,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1763,14 +1753,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1782,14 +1771,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1801,14 +1789,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1820,14 +1807,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1839,14 +1825,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1858,14 +1843,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -1877,8 +1861,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -2411,7 +2394,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2423,14 +2406,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2442,14 +2424,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2461,14 +2442,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2480,14 +2460,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2499,14 +2478,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2518,14 +2496,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2537,14 +2514,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2556,14 +2532,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -2575,8 +2550,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -2586,12 +2560,12 @@
           {
             "chokepoint_id": "CHK-MALACCA",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           },
           {
             "chokepoint_id": "CHK-SINGAPORE",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           }
         ],
         "data_gaps": [
@@ -3109,7 +3083,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3121,14 +3095,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3140,14 +3113,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3159,14 +3131,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3178,14 +3149,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3197,14 +3167,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3216,14 +3185,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3235,14 +3203,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3254,14 +3221,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3273,8 +3239,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -3284,7 +3249,7 @@
           {
             "chokepoint_id": "CHK-MALACCA",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           }
         ],
         "data_gaps": [
@@ -3798,7 +3763,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3810,14 +3775,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3829,14 +3793,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3848,14 +3811,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3867,14 +3829,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3886,14 +3847,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3905,14 +3865,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3924,14 +3883,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3943,14 +3901,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -3962,8 +3919,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -3973,12 +3929,12 @@
           {
             "chokepoint_id": "CHK-MALACCA",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           },
           {
             "chokepoint_id": "CHK-HORMUZ",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           }
         ],
         "data_gaps": [
@@ -4536,7 +4492,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4548,14 +4504,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4567,14 +4522,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4586,14 +4540,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4605,14 +4558,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4624,14 +4576,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4643,14 +4594,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4662,14 +4612,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4681,14 +4630,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -4700,8 +4648,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -4711,17 +4658,17 @@
           {
             "chokepoint_id": "CHK-MALACCA",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           },
           {
             "chokepoint_id": "CHK-BABELMANDEB",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           },
           {
             "chokepoint_id": "CHK-SUEZ",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           }
         ],
         "data_gaps": [
@@ -5275,7 +5222,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5287,14 +5234,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5306,14 +5252,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5325,14 +5270,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5344,14 +5288,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5363,14 +5306,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5382,14 +5324,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5401,14 +5342,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5420,14 +5360,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5439,8 +5378,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -5450,17 +5388,17 @@
           {
             "chokepoint_id": "CHK-MALACCA",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           },
           {
             "chokepoint_id": "CHK-BABELMANDEB",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           },
           {
             "chokepoint_id": "CHK-SUEZ",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           }
         ],
         "data_gaps": [
@@ -5976,7 +5914,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -5988,14 +5926,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6007,14 +5944,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6026,14 +5962,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6045,14 +5980,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6064,14 +5998,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6083,14 +6016,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6102,14 +6034,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6121,14 +6052,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6140,8 +6070,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -6707,7 +6636,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6719,14 +6648,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6738,14 +6666,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6757,14 +6684,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6776,14 +6702,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6795,14 +6720,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6814,14 +6738,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6833,14 +6756,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6852,14 +6774,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -6871,8 +6792,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -6882,17 +6802,17 @@
           {
             "chokepoint_id": "CHK-PANAMA",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           },
           {
             "chokepoint_id": "CHK-MALACCA",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           },
           {
             "chokepoint_id": "CHK-SUEZ",
             "status": "insufficient_evidence",
-            "basis": "No notice channel is monitored and no qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+            "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
           }
         ],
         "data_gaps": [
@@ -7383,7 +7303,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7395,14 +7315,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7414,14 +7333,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7433,14 +7351,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7452,14 +7369,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7471,14 +7387,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7490,14 +7405,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7509,14 +7423,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7528,14 +7441,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -7547,8 +7459,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],
@@ -8029,7 +7940,7 @@
           {
             "domain": "thailand_trade_flow",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified Thailand trade observation is recorded for this lane.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8041,14 +7952,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "port_maritime_activity",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_port_calls.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8060,14 +7970,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "freight_benchmark_direction",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series container_freight_benchmark.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8079,14 +7988,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fuel_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8098,14 +8006,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "fx_pressure",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "No qualified observation exists for series usd_thb_reference_rate.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8117,14 +8024,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
               "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
             ]
           },
           {
             "domain": "operational_event_status",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8136,14 +8042,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "capacity_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8155,14 +8060,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "transit_time_or_service_evidence",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "Derived from qualified events recorded against this lane: none.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8174,14 +8078,13 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
             ]
           },
           {
             "domain": "source_freshness_and_coverage",
             "direction": "insufficient_evidence",
-            "basis": "Derived from qualified (retrieved or human-reviewed) records only. 0 such observations exist.",
+            "basis": "One or more required capabilities lack sufficient source coverage.",
             "threshold_rule_id": null,
             "indicator_ids": [],
             "evidence_ids": [],
@@ -8193,8 +8096,7 @@
             },
             "revision_status": "unknown",
             "known_limitations": [
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
-              "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+              "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
             ]
           }
         ],

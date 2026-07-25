@@ -3,6 +3,7 @@
   "demo_label": "Technical demonstration \u2014 every series below is a synthetic fixture standing in for a production candidate. No Thailand trade statistic has been retrieved.",
   "generated_at": "2026-07-24T00:00:00Z",
   "current_statement": "No qualified Thailand trade observation exists, so no current trade reading is published.",
+  "current_lane_flows": [],
   "lane_flows": [
     {
       "lane_id": "LANE-OCEAN-TH-EASIA-CN",

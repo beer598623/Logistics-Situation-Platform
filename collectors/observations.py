@@ -18,7 +18,12 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from analysis.provenance import FIXTURE_ORIGINS, SYNTHETIC_SOURCE_ID
+from analysis.provenance import (
+    CURRENT_PUBLICATION,
+    DATASETS,
+    FIXTURE_ORIGINS,
+    SYNTHETIC_SOURCE_ID,
+)
 
 #: Statuses that permit a non-null value. Exactly one, deliberately.
 _AVAILABLE = "available"
@@ -70,6 +75,7 @@ def build_observation(
     evidence_origin: str,
     retrieval_status: str,
     content_hash_scope: str,
+    dataset: str,
     retrieved_at: str | None = None,
     intended_source_id: str | None = None,
     fixture_created_at: str | None = None,
@@ -94,8 +100,9 @@ def build_observation(
     publish has a bug, and quietly rewriting either field would hide it.
 
     Provenance is held to the same standard. A record whose origin is a
-    fixture may not claim a real publisher as its source, and a record that
-    retrieved nothing may not carry a retrieval time.
+    fixture may not claim a real publisher as its source, may not claim the
+    current-publication dataset, and may not carry a retrieval time if it
+    retrieved nothing.
     """
     if value_status == _AVAILABLE and value is None:
         raise ObservationContractError(
@@ -122,7 +129,17 @@ def build_observation(
             f"{series_id}/{period_key}: retrieval_status is 'retrieved' but no retrieved_at "
             "was supplied"
         )
+    if dataset not in DATASETS:
+        raise ObservationContractError(
+            f"{series_id}/{period_key}: dataset {dataset!r} is not a recognised publication surface"
+        )
     if evidence_origin in FIXTURE_ORIGINS:
+        if dataset == CURRENT_PUBLICATION:
+            raise ObservationContractError(
+                f"{series_id}/{period_key}: a {evidence_origin} record cannot claim the "
+                "current-publication dataset; a fixture is not current intelligence whatever "
+                "surface it is assigned to"
+            )
         if source_id != SYNTHETIC_SOURCE_ID:
             raise ObservationContractError(
                 f"{series_id}/{period_key}: a {evidence_origin} record must record source_id "
@@ -148,6 +165,7 @@ def build_observation(
         "evidence_origin": evidence_origin,
         "retrieval_status": retrieval_status,
         "content_hash_scope": content_hash_scope,
+        "dataset": dataset,
         "intended_source_id": intended_source_id,
         "fixture_created_at": fixture_created_at,
         "period_start": period_start,

@@ -27,6 +27,7 @@ BASE = {
     "retrieval_status": "not_retrieved",
     "evidence_origin": "synthetic_test_fixture",
     "content_hash_scope": "local_fixture_payload",
+    "dataset": "technical_demo",
     "fixture_created_at": "2026-07-24T00:00:00Z",
     "parser_version": "thai_customs_v1",
     "evidence_class": "synthetic_test_fixture",
@@ -42,6 +43,7 @@ LIVE = {
     "retrieval_status": "retrieved",
     "evidence_origin": "live_retrieved",
     "content_hash_scope": "source_response",
+    "dataset": "current_publication",
     "fixture_created_at": None,
     "evidence_class": "official_statistic",
 }

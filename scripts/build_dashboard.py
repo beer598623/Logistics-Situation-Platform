@@ -24,16 +24,17 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from analysis.events import (  # noqa: E402
-    active_events,
-    event_qualifies_for_current_publication,
-)
+from analysis.events import active_events  # noqa: E402
 from analysis.indicators import derive_series  # noqa: E402
 from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
     HISTORICAL_VALIDATION,
+    PUBLISH_BOUNDED_CLAIM,
+    PUBLISH_DERIVED_VALUE,
     TECHNICAL_DEMO,
     is_fixture,
+    qualified_records,
+    qualifies_for_current_publication,
     record_origin,
 )
 
@@ -97,6 +98,86 @@ def _records_for(
     return result
 
 
+_CURRENT_SERIES = (
+    "thailand_port_calls",
+    "laem_chabang_container_throughput",
+    "bangkok_port_container_throughput",
+    "thailand_diesel_retail_price",
+    "brent_crude_price",
+    "container_freight_benchmark",
+    "usd_thb_reference_rate",
+)
+
+
+def _contract_bounds(registry: dict[str, Any], source_id: str | None) -> tuple[int, int | None]:
+    for source in registry.get("sources", []):
+        if source["id"] == source_id:
+            return int(source["max_stale_minutes"]), source.get("expected_cadence_minutes")
+    return 52560, None
+
+
+def _current_series_payload(
+    series_id: str,
+    records: list[dict[str, Any]],
+    registry: dict[str, Any],
+) -> dict[str, Any] | None:
+    """A current-publication series payload, or ``None`` when nothing qualifies.
+
+    The demonstration panels and the current panels never share a derivation:
+    each is built from its own set of records, so a fixture cannot contribute
+    a period, a freshness label or a direction to a current reading.
+    """
+    if not records:
+        return None
+    source_id = records[0]["provenance"]["source_id"]
+    max_stale, cadence = _contract_bounds(registry, source_id)
+    derivation = derive_series(
+        series_id,
+        records,
+        max_stale_minutes=max_stale,
+        expected_cadence_minutes=cadence,
+        now=DATA_CUTOFF,
+        origin=record_origin(records[0]),
+    )
+    return {
+        **derivation.to_dict(),
+        "dataset": CURRENT_PUBLICATION,
+        "source_id": source_id,
+        "evidence_origin": record_origin(records[0]),
+        "source_limitations": list(records[0]["provenance"]["known_limitations"]),
+        "points": _series_points(records),
+    }
+
+
+def publishable_assessment_problems(record: dict[str, Any]) -> list[str]:
+    """Whether an approved assessment may actually be published.
+
+    Deliberately independent of the approval script. Approval is a decision
+    recorded at one moment by one person; publication happens later, from
+    files on disk, and must not assume that whatever is sitting in the
+    approved directory earned its place. Each condition is re-checked here.
+    """
+    problems: list[str] = []
+    if record.get("input_dataset") != CURRENT_PUBLICATION:
+        problems.append(
+            f"bound to a {record.get('input_dataset')!r} package, not a current-publication one"
+        )
+    if not record.get("input_package_sha256"):
+        problems.append("records no input package hash, so it is bound to nothing")
+    if record.get("validation_status") != "passed":
+        problems.append(f"validation_status is {record.get('validation_status')!r}, not 'passed'")
+    if record.get("superseded"):
+        problems.append("has been superseded by a later approval")
+    fixture_origins = {
+        origin
+        for origin in (record.get("input_evidence_origin_summary") or {})
+        if is_fixture(origin)
+    }
+    if fixture_origins:
+        problems.append("rests on evidence of fixture origin " + ", ".join(sorted(fixture_origins)))
+    return problems
+
+
 def build_payloads() -> dict[str, Any]:
     registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
     dimensions = _load(ROOT / "data/reference/dimensions.json")
@@ -126,6 +207,38 @@ def build_payloads() -> dict[str, Any]:
         )
     }
 
+    # ---- Current events, derived once and reused ---------------------------
+    # Both the Ocean and the Events payloads read these. Deriving them here
+    # keeps one filter in charge of what "current" means across the page.
+    current_active = active_events(events, evidence_by_id, cutoff=DATA_CUTOFF, registry=registry)
+    current_active_ids = {event["event_id"] for event in current_active}
+    current_notice_evidence = [
+        item
+        for item in evidence
+        if item["claim_type"] == "official_notice"
+        and item["event_id"] in current_active_ids
+        and qualifies_for_current_publication(
+            item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+        )
+    ]
+    qualified_observations = {
+        family: qualified_records(records, registry=registry, publication_use=PUBLISH_DERIVED_VALUE)
+        for family, records in observations.items()
+    }
+    current_series = [
+        payload
+        for series_id in _CURRENT_SERIES
+        if (
+            payload := _current_series_payload(
+                series_id,
+                _records_for(qualified_observations, series_id=series_id),
+                registry,
+            )
+        )
+        is not None
+    ]
+    current_series_by_id = {item["series_id"]: item for item in current_series}
+
     # ---- Thailand Logistics Situation ------------------------------------
     situation = {
         "dataset": CURRENT_PUBLICATION,
@@ -144,15 +257,13 @@ def build_payloads() -> dict[str, Any]:
             "shown only in the separately labelled Technical demonstration panels and never "
             "contribute to a current reading."
         ),
-        "qualified_observation_count": sum(
-            1
-            for records in observations.values()
-            for record in records
-            if not is_fixture(record_origin(record))
-        ),
-        "qualified_event_count": sum(
-            1 for event in events if event_qualifies_for_current_publication(event, evidence_by_id)
-        ),
+        # Every count is carried through from the analysis build, which computes
+        # it from the filtered records. None of them is a literal.
+        "qualified_observation_count": thailand["qualified_observation_count"],
+        "current_indicator_count": thailand["current_indicator_count"],
+        "qualified_event_count": thailand["qualified_event_count"],
+        "current_lane_coverage": thailand["current_lane_coverage"],
+        "current_capability_coverage": thailand["current_capability_coverage"],
         "key_changes": thailand["key_changes"],
         "lanes_requiring_attention": [
             {
@@ -173,6 +284,26 @@ def build_payloads() -> dict[str, Any]:
             "overall_direction": demo_thailand["overall_direction"],
             "lanes_requiring_attention": len(demo_thailand["lanes_requiring_attention"]),
         },
+        "current_cost_pressure": [
+            {
+                "dataset": CURRENT_PUBLICATION,
+                "series_id": item["series_id"],
+                "source_id": item["source_id"],
+                "evidence_origin": item["evidence_origin"],
+                "current_value": item["current_value"],
+                "current_period": item["current_period"],
+                "unit": item["unit"],
+                "month_over_month_pct": item["month_over_month_pct"],
+                "freshness": item["freshness"],
+            }
+            for key, item in sorted(current_series_by_id.items())
+            if key
+            in {
+                "thailand_diesel_retail_price",
+                "usd_thb_reference_rate",
+                "container_freight_benchmark",
+            }
+        ],
         "cost_pressure": [
             {
                 "dataset": TECHNICAL_DEMO,
@@ -232,6 +363,16 @@ def build_payloads() -> dict[str, Any]:
     ocean = {
         "dataset": CURRENT_PUBLICATION,
         "generated_at": DATA_CUTOFF_ISO,
+        "current_port_series": [
+            item
+            for key, item in sorted(current_series_by_id.items())
+            if key
+            in {
+                "thailand_port_calls",
+                "laem_chabang_container_throughput",
+                "bangkok_port_container_throughput",
+            }
+        ],
         "demo_port_series": port_series,
         "demo_label": (
             "Technical demonstration — derived from synthetic fixtures. These panels "
@@ -301,7 +442,29 @@ def build_payloads() -> dict[str, Any]:
         ],
         "chokepoints": dimensions["chokepoints"],
         "nodes": dimensions["logistics_nodes"],
-        "current_operational_notices": [],
+        # Derived by filtering, not written as an empty list. A qualified
+        # notice on a currently active event appears here the moment one
+        # exists; today the filter matches nothing.
+        "current_operational_notices": [
+            {
+                "dataset": CURRENT_PUBLICATION,
+                "evidence_id": item["evidence_id"],
+                "evidence_origin": item["evidence_origin"],
+                "retrieval_status": item["retrieval_status"],
+                "event_id": item["event_id"],
+                "source_id": item["source_id"],
+                "source_name": item["source_name"],
+                "source_class": item["source_class"],
+                "source_url": item.get("source_url"),
+                "underlying_publisher": item.get("underlying_publisher"),
+                "claim": item["claim"],
+                "publication_date": item.get("publication_date"),
+                "retrieved_at": item.get("retrieved_at"),
+                "licence_status": item["licence_status"],
+                "known_limitations": item["known_limitations"],
+            }
+            for item in current_notice_evidence
+        ],
         "current_notice_statement": (
             "No qualified operational notice is recorded. No notice channel is monitored "
             "live and no human-reviewed notice has been entered, so this is an absence of "
@@ -329,7 +492,37 @@ def build_payloads() -> dict[str, Any]:
             for item in evidence
             if item["claim_type"] == "official_notice"
         ],
-        "current_capacity_and_service_evidence": [],
+        # Same rule: populated only from qualified impacts on currently active
+        # events. Zero qualified evidence produces an empty list through the
+        # filter rather than through a literal.
+        "current_capacity_and_service_evidence": [
+            {
+                "dataset": CURRENT_PUBLICATION,
+                "event_id": event["event_id"],
+                "title": event["title"],
+                "area": impact["area"],
+                "status": impact["status"],
+                "severity": impact["severity"],
+                "evidence_strength": impact["evidence_strength"],
+                "confidence": impact["confidence"],
+                "active_as_of": event.get("active_as_of"),
+                "known_limitations": impact["known_limitations"],
+            }
+            for event in current_active
+            for impact in event["impact_assessments"]
+            if impact["area"] in {"capacity", "service"}
+            and impact["status"] in {"observed", "potential"}
+            and impact["severity"] != "none"
+            and any(
+                qualifies_for_current_publication(
+                    evidence_by_id[eid],
+                    registry=registry,
+                    publication_use=PUBLISH_BOUNDED_CLAIM,
+                )
+                for eid in impact.get("evidence_ids", [])
+                if eid in evidence_by_id
+            )
+        ],
         "demo_capacity_and_service_evidence": [
             {
                 "dataset": HISTORICAL_VALIDATION,
@@ -394,6 +587,24 @@ def build_payloads() -> dict[str, Any]:
             )
         trade_lanes.append(entry)
 
+    current_trade_lanes = []
+    for lane in lanes:
+        slug = _LANE_SLUGS[lane["lane_id"]]
+        flows = []
+        for direction in ("export", "import"):
+            series_id = f"th_{direction}_value_{slug}"
+            payload = _current_series_payload(
+                series_id,
+                _records_for(qualified_observations, series_id=series_id, lane_id=lane["lane_id"]),
+                registry,
+            )
+            if payload is not None:
+                flows.append({**payload, "flow_direction": direction})
+        if flows:
+            current_trade_lanes.append(
+                {"lane_id": lane["lane_id"], "name": lane["name"], "flows": flows}
+            )
+
     trade = {
         "dataset": TECHNICAL_DEMO,
         "demo_label": (
@@ -405,6 +616,7 @@ def build_payloads() -> dict[str, Any]:
             "No qualified Thailand trade observation exists, so no current trade reading is "
             "published."
         ),
+        "current_lane_flows": current_trade_lanes,
         "lane_flows": trade_lanes,
         "revision_note": (
             "Published trade statistics can be revised. Every observation carries a revision "
@@ -472,6 +684,17 @@ def build_payloads() -> dict[str, Any]:
             "No qualified cost observation exists, so no current cost or freight pressure "
             "reading is published."
         ),
+        "current_cost_series": [
+            item
+            for key, item in sorted(current_series_by_id.items())
+            if key
+            in {
+                "thailand_diesel_retail_price",
+                "brent_crude_price",
+                "container_freight_benchmark",
+                "usd_thb_reference_rate",
+            }
+        ],
         "cost_series": cost_series,
         "fx": {
             **fx.to_dict(),
@@ -556,7 +779,6 @@ def build_payloads() -> dict[str, Any]:
             ],
         }
 
-    current_active = active_events(events, evidence_by_id, cutoff=DATA_CUTOFF)
     event_payload = {
         "dataset": CURRENT_PUBLICATION,
         "generated_at": DATA_CUTOFF_ISO,
@@ -608,10 +830,32 @@ def build_payloads() -> dict[str, Any]:
 
     # ---- AI Outlook and Preparedness --------------------------------------
     approved_dir = ROOT / "data/assessments/approved"
-    approved = [_load(path) for path in sorted(approved_dir.glob("*.json"))]
+    all_approved = [_load(path) for path in sorted(approved_dir.glob("*.json"))]
+    approved: list[dict[str, Any]] = []
+    withheld: list[dict[str, Any]] = []
+    for record in all_approved:
+        reasons = publishable_assessment_problems(record)
+        if reasons:
+            withheld.append(
+                {
+                    "package_id": record.get("package_id"),
+                    "input_dataset": record.get("input_dataset"),
+                    "reasons": reasons,
+                }
+            )
+        else:
+            approved.append(record)
     ai_outlook = {
         "generated_at": DATA_CUTOFF_ISO,
         "approved_assessments": approved,
+        "withheld_assessments": withheld,
+        "publication_gate_note": (
+            "Publication re-checks every approved assessment independently of the approval "
+            "step: it must be bound to a current-publication package, cite that package's "
+            "hash, record that it passed validation, not be superseded, and make no current "
+            "claim resting on fixture-origin evidence. An assessment failing any of those is "
+            "withheld and listed rather than published."
+        ),
         "review_status": "no_approved_assessment" if not approved else "approved",
         "status_message": (
             "No human-approved AI assessment exists. The human-triggered ChatGPT workflow, "
@@ -625,6 +869,15 @@ def build_payloads() -> dict[str, Any]:
         "boundary_note": (
             "This repository calls no AI API. High or Critical conclusions can never be "
             "published without an explicit human-review record."
+        ),
+        "package_boundary_note": (
+            "The review package a human hands to ChatGPT is built from the current view only. "
+            "Synthetic observations, technical-demonstration indicators and lane assessments, "
+            "historical-validation events and their evidence are filtered out and counted, and "
+            "every approval is bound to the exact package it was produced from by that "
+            "package's SHA-256. A demonstration package can be generated for exercising the "
+            "workflow, but it records its own purpose and can never be approved into this "
+            "section."
         ),
         "dataset": CURRENT_PUBLICATION,
         "current_outlooks": [

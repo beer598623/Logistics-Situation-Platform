@@ -29,9 +29,9 @@ from collectors.url_redaction import redact_url_userinfo
 
 from .provenance import (
     CURRENT_PUBLICATION,
+    PUBLISH_BOUNDED_CLAIM,
     dataset_of,
     qualifies_for_current_publication,
-    record_origin,
 )
 
 #: Query parameters stripped when canonicalizing a URL for clustering. These
@@ -312,6 +312,8 @@ def has_non_discovery_evidence(evidence_items: Sequence[Mapping[str, Any]]) -> b
 def validate_event(
     event: Mapping[str, Any],
     evidence_by_id: Mapping[str, Mapping[str, Any]],
+    *,
+    registry: Mapping[str, Any] | None = None,
 ) -> list[str]:
     """Semantic checks for one event, beyond JSON Schema validity.
 
@@ -422,7 +424,10 @@ def validate_event(
     # WO-010-R1: a fixture cannot become current intelligence by carrying a
     # confident-looking lifecycle status.
     fixture_backed = evidence_items and not any(
-        qualifies_for_current_publication(record_origin(item)) for item in evidence_items
+        qualifies_for_current_publication(
+            item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+        )
+        for item in evidence_items
     )
     if dataset_of(event) == CURRENT_PUBLICATION and fixture_backed:
         problems.append(
@@ -520,6 +525,7 @@ def is_active_at(
     evidence_by_id: Mapping[str, Mapping[str, Any]],
     *,
     cutoff: datetime,
+    registry: Mapping[str, Any] | None = None,
     window_days: int = ACTIVE_CONFIRMATION_WINDOW_DAYS,
 ) -> ActivityDecision:
     """Decide whether an event counts as active at ``cutoff``.
@@ -551,11 +557,16 @@ def is_active_at(
     supporting = [
         evidence_by_id[eid] for eid in event.get("evidence_ids", []) if eid in evidence_by_id
     ]
-    if not any(qualifies_for_current_publication(record_origin(item)) for item in supporting):
+    if not any(
+        qualifies_for_current_publication(
+            item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+        )
+        for item in supporting
+    ):
         return ActivityDecision(
             False,
-            "no retrieved or human-reviewed evidence supports this event; fixture evidence "
-            "cannot establish a current condition",
+            "no qualified current-publication evidence supports this event; fixture or "
+            "demonstration evidence cannot establish a current condition",
         )
 
     active_as_of = _as_datetime(event.get("active_as_of"))
@@ -584,6 +595,8 @@ def is_active_at(
 def event_qualifies_for_current_publication(
     event: Mapping[str, Any],
     evidence_by_id: Mapping[str, Mapping[str, Any]],
+    *,
+    registry: Mapping[str, Any] | None = None,
 ) -> bool:
     """Whether an event may appear in the current view at all.
 
@@ -599,7 +612,9 @@ def event_qualifies_for_current_publication(
     if dataset_of(event) != CURRENT_PUBLICATION:
         return False
     return any(
-        qualifies_for_current_publication(record_origin(evidence_by_id[eid]))
+        qualifies_for_current_publication(
+            evidence_by_id[eid], registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+        )
         for eid in event.get("evidence_ids", [])
         if eid in evidence_by_id
     )
@@ -610,12 +625,18 @@ def active_events(
     evidence_by_id: Mapping[str, Mapping[str, Any]],
     *,
     cutoff: datetime,
+    registry: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Every event that may be published as active at ``cutoff``."""
+    """Every event that may be published as active at ``cutoff``.
+
+    Nothing here special-cases the empty case. With no qualified evidence the
+    filter simply matches nothing and the result is empty, which is why the
+    current lists cannot be quietly hard-coded to `[]`.
+    """
     return [
         dict(event)
         for event in events
-        if is_active_at(event, evidence_by_id, cutoff=cutoff).is_active
+        if is_active_at(event, evidence_by_id, cutoff=cutoff, registry=registry).is_active
     ]
 
 
