@@ -166,3 +166,148 @@ def test_latest_timestamp_ignores_undated_records():
 
 def test_latest_timestamp_of_nothing_is_none():
     assert latest_timestamp([], timestamp_of=lambda r: None) is None
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R5 §8: source_cutoff and generated_at semantics
+# ---------------------------------------------------------------------------
+
+
+def test_source_cutoff_is_null_when_not_given():
+    context = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=datetime(2026, 8, 1, tzinfo=UTC),
+        generated_at=datetime(2026, 8, 1, tzinfo=UTC),
+    )
+    assert context["source_cutoff"] is None
+    assert schema_errors(context, "build_context.schema.json") == []
+
+
+def test_generated_at_defaults_to_as_of_not_the_wall_clock():
+    """Never observed 'now' implicitly: with no explicit generated_at, the
+    record uses as_of_time itself rather than a fresh datetime.now() call,
+    which would make the committed artifact non-reproducible."""
+    as_of = datetime(2026, 8, 1, tzinfo=UTC)
+    first = build_context_record(dataset=CURRENT_PUBLICATION, as_of=as_of)
+    second = build_context_record(dataset=CURRENT_PUBLICATION, as_of=as_of)
+    assert first == second
+    assert first["generated_at"] == first["as_of_time"]
+
+
+def test_a_non_null_source_cutoff_with_zero_included_evidence_is_rejected():
+    context = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=datetime(2026, 8, 1, tzinfo=UTC),
+        generated_at=datetime(2026, 8, 1, tzinfo=UTC),
+        source_cutoff=datetime(2026, 7, 30, tzinfo=UTC),
+        # Neither latest_collection_run_at nor latest_manual_review_at set.
+    )
+    problems = context_problems(context)
+    assert any("source_cutoff is set but neither" in item for item in problems), problems
+
+
+def test_source_cutoff_later_than_as_of_is_rejected():
+    context = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=datetime(2026, 8, 1, tzinfo=UTC),
+        generated_at=datetime(2026, 8, 2, tzinfo=UTC),
+        source_cutoff=datetime(2026, 8, 2, tzinfo=UTC),
+        latest_collection_run_at=datetime(2026, 8, 2, tzinfo=UTC),
+    )
+    problems = context_problems(context)
+    assert any("source_cutoff is later than as_of_time" in item for item in problems), problems
+
+
+def test_a_latest_included_run_after_as_of_is_rejected():
+    context = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=datetime(2026, 8, 1, tzinfo=UTC),
+        generated_at=datetime(2026, 8, 5, tzinfo=UTC),
+        latest_collection_run_at=datetime(2026, 8, 3, tzinfo=UTC),
+    )
+    problems = context_problems(context)
+    assert any(
+        "latest_included_collection_run_at is later than as_of_time" in item for item in problems
+    ), problems
+
+
+def test_generated_at_before_the_latest_included_run_is_rejected():
+    context = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=datetime(2026, 8, 5, tzinfo=UTC),
+        generated_at=datetime(2026, 8, 1, tzinfo=UTC),
+        latest_collection_run_at=datetime(2026, 8, 3, tzinfo=UTC),
+    )
+    problems = context_problems(context)
+    assert any(
+        "generated_at is earlier than latest_included_collection_run_at" in item
+        for item in problems
+    ), problems
+
+
+def test_a_reused_context_id_with_changed_input_hashes_is_rejected():
+    as_of = datetime(2026, 8, 1, tzinfo=UTC)
+    previous = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=as_of,
+        generated_at=as_of,
+        input_hashes={"trade_observations": "a" * 64},
+    )
+    rebuilt = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=as_of,
+        generated_at=as_of,
+        input_hashes={"trade_observations": "b" * 64},
+    )
+    problems = context_problems(rebuilt, previous_context=previous)
+    assert any("input_hashes differ" in item for item in problems), problems
+
+
+def test_a_reused_context_id_with_identical_input_hashes_is_not_a_regression():
+    as_of = datetime(2026, 8, 1, tzinfo=UTC)
+    hashes = {"trade_observations": "a" * 64}
+    previous = build_context_record(
+        dataset=CURRENT_PUBLICATION, as_of=as_of, generated_at=as_of, input_hashes=hashes
+    )
+    rebuilt = build_context_record(
+        dataset=CURRENT_PUBLICATION, as_of=as_of, generated_at=as_of, input_hashes=hashes
+    )
+    assert context_problems(rebuilt, previous_context=previous) == []
+
+
+def test_a_rebuild_with_identical_inputs_reuses_the_persisted_generated_at():
+    """WO-010-R5 §8 positive path: scripts/build_analysis.py's own logic
+    (reproduced here at the level this module actually controls) -- reusing
+    a previously-committed context's generated_at when the build_context_id
+    and input_hashes are unchanged, rather than overwriting it with a new
+    instant, is what keeps a bare rebuild byte-identical without pretending
+    the record was generated at its own as-of time."""
+    as_of = datetime(2026, 8, 1, tzinfo=UTC)
+    original_generated_at = datetime(2026, 8, 1, 3, 30, tzinfo=UTC)
+    hashes = {"trade_observations": "a" * 64}
+    previous = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=as_of,
+        generated_at=original_generated_at,
+        input_hashes=hashes,
+    )
+
+    prospective_id = f"BCTX-{CURRENT_PUBLICATION.upper()}-{as_of:%Y%m%dT%H%M%SZ}"
+    if (
+        previous.get("build_context_id") == prospective_id
+        and previous.get("input_hashes") == hashes
+    ):
+        reused_generated_at = datetime.fromisoformat(
+            previous["generated_at"].replace("Z", "+00:00")
+        )
+    else:
+        reused_generated_at = datetime(2099, 1, 1, tzinfo=UTC)  # would prove the reuse failed
+
+    rebuilt = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=as_of,
+        generated_at=reused_generated_at,
+        input_hashes=hashes,
+    )
+    assert rebuilt == previous
+    assert rebuilt["generated_at"] == "2026-08-01T03:30:00Z"

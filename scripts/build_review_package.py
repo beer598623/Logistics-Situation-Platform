@@ -39,11 +39,14 @@ from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
     PUBLISH_BOUNDED_CLAIM,
     TECHNICAL_DEMO,
+    acquisition_binding_problems,
+    build_acquisition_summary,
     qualified_records,
     qualifies_for_current_publication,
     record_dataset,
 )
 from analysis.review_package import build_input_package  # noqa: E402
+from collectors.collection_runs import load_collection_runs, load_manual_review_events  # noqa: E402
 
 PACKAGE_DIR = ROOT / "data" / "review" / "packages"
 
@@ -154,6 +157,11 @@ def _bounded_evidence(item: dict[str, Any]) -> dict[str, Any]:
         "publication_date": item.get("publication_date"),
         "retrieved_at": item["retrieved_at"],
         "licence_status": item["licence_status"],
+        # WO-010-R5 §9: carried so a reviewer or the approval gate can
+        # independently trace this evidence item back to the acquisition
+        # event that actually stands behind it.
+        "collection_run_id": item.get("collection_run_id"),
+        "manual_review_event_id": item.get("manual_review_event_id"),
         "known_limitations": item.get("known_limitations", []),
     }
 
@@ -255,10 +263,48 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         lanes = _load(ROOT / "data/assessments/lane_assessments.json")["assessments"]
         thailand = _load(ROOT / "data/assessments/thailand_assessment.json")
 
-        qualified_evidence = qualified_records(
+        # WO-010-R5 §1/§9: the same acquisition-binding requirement
+        # scripts/build_analysis.py applies to the current view, applied
+        # here to the evidence this package independently re-selects from
+        # the raw event_evidence.json rather than from build_analysis.py's
+        # already-filtered evidence_by_id.
+        collection_runs = load_collection_runs()
+        manual_events = load_manual_review_events(registry=registry, now=_cutoff())
+        observations = {
+            family: _load(ROOT / f"data/observations/{family}_observations.json")["records"]
+            for family in ("indicator", "trade", "port", "cost")
+        }
+        qualified_observations_for_summary = {
+            family: qualified_records(
+                records, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+            )
+            for family, records in observations.items()
+        }
+
+        qualified_evidence_before_binding = qualified_records(
             evidence, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
         )
+        acquisition_summary = build_acquisition_summary(
+            observations=qualified_observations_for_summary,
+            evidence=qualified_evidence_before_binding,
+            collection_runs_by_source=collection_runs,
+            manual_events_by_source=manual_events,
+            as_of=_cutoff(),
+        )
+        qualified_evidence = [
+            item
+            for item in qualified_evidence_before_binding
+            if not acquisition_binding_problems(
+                item,
+                collection_runs_by_source=collection_runs,
+                manual_events_by_source=manual_events,
+                as_of=_cutoff(),
+            )
+        ]
         qualified_evidence_ids = {item["evidence_id"] for item in qualified_evidence}
+        evidence_by_id = {
+            eid: item for eid, item in evidence_by_id.items() if eid in qualified_evidence_ids
+        }
 
         selected_events = active_events(events, evidence_by_id, cutoff=_cutoff(), registry=registry)
         # An external driver only reaches the package once a transmission
@@ -304,13 +350,22 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         data_gaps = list(thailand["major_data_gaps"])
         if not indicators and not selected and not package_evidence:
             data_gaps.insert(0, ZERO_COVERAGE_INSTRUCTIONS)
-        # WO-010-R4 §6: the current package's own generated/source cutoffs
-        # come from the same Build Context the analysis build and the
-        # Dashboard both read -- never a separate constant that could drift
-        # from what the current view it was built from actually used.
-        context_as_of = _current_context()["as_of_time"]
+        # WO-010-R4 §6: package_generated_at comes from the same Build
+        # Context the analysis build and the Dashboard both read -- never a
+        # separate constant that could drift from what the current view it
+        # was built from actually used.
+        build_context = _current_context()
+        context_as_of = build_context["as_of_time"]
         package_generated_at = context_as_of
-        package_source_cutoff = context_as_of
+        # WO-010-R5 §8: the package's own source_cutoff is never later than
+        # the latest source evidence the Build Context actually found --
+        # inherited directly from the Build Context's own (possibly null)
+        # source_cutoff, not silently reset to the analytical as-of time.
+        # The package's schema field stays a required date-time, so a null
+        # Build Context source_cutoff (zero included evidence) falls back
+        # to data_cutoff_at, which is what "as of this cutoff, nothing
+        # qualified" already means for a zero-coverage package.
+        package_source_cutoff = build_context.get("source_cutoff") or context_as_of
     else:
         indicators = _load(ROOT / "data/indicators/latest.json")["indicators"]
         lanes = _load(ROOT / "data/assessments/demo_lane_assessments.json")["assessments"]
@@ -322,6 +377,10 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         data_gaps = list(thailand["major_data_gaps"])
         package_generated_at = DATA_CUTOFF_DEFAULT
         package_source_cutoff = DATA_CUTOFF_DEFAULT
+        # A technical_demo package's evidence is all fixture-origin, which
+        # never claims a real acquisition (acquisition_binding_problems is a
+        # no-op for it) -- an honest empty summary, not a re-derived one.
+        acquisition_summary = None
 
     package = build_input_package(
         package_id=package_id,
@@ -347,6 +406,7 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         dataset=surface,
         source_cutoff=package_source_cutoff,
         excluded_fixture_record_count=max(excluded, 0),
+        acquisition_summary=acquisition_summary,
     )
     return package
 

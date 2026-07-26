@@ -51,6 +51,10 @@
         "disposition": {
           "enum": ["assessed", "coverage_only"],
           "description": "WO-010-R4 §3. Optional so the platform's own scenario production (which predates this field) is unaffected. A returned ChatGPT assessment's zero-evidence coverage-only cases must set this to 'coverage_only' on all three cases -- identical narratives alone are not enough, since two arbitrary but matching sentences are not a structural signal."
+        },
+        "aggregation_basis": {
+          "type": ["string", "null"],
+          "description": "WO-010-R5 §6. Optional. Required only when a thailand_ocean/thailand_overall-subject case cites evidence whose own scope_supported is narrower than country/region/global (e.g. a single facility's notice) -- an explicit statement of why that narrower evidence is being generalised to a Thailand-wide case, since a facility notice does not aggregate to a Thailand-wide claim on its own."
         }
       }
     }

@@ -31,14 +31,14 @@
       "description": "The operationally valid 'now' this build treats every freshness, activity and inclusion decision as being measured against. Not the wall clock and not a permanent constant -- resolved once per build, from an explicit --as-of, a carried-forward prior context, or a committed reproducible default."
     },
     "source_cutoff": {
-      "type": "string",
+      "type": ["string", "null"],
       "format": "date-time",
-      "description": "The cutoff communicated to evidence sources / the review package. Equal to as_of_time unless a build explicitly supersedes it."
+      "description": "WO-010-R5 §8: the latest timestamp actually found among the current build's included evidence -- the latest qualified observation, event, collection run or manual review, whichever is most recent. Not as_of_time: as_of_time is the analytical cutoff this build was told to describe; source_cutoff is what evidence the build actually found dated at or before it. Null when the current build includes zero qualified evidence -- a null source_cutoff is the honest 'nothing to cite a cutoff from', never silently defaulted to as_of_time."
     },
     "generated_at": {
       "type": "string",
       "format": "date-time",
-      "description": "When this context record itself was written. Never earlier than as_of_time."
+      "description": "WO-010-R5 §8: the true wall-clock instant this context record was written, never copied from as_of_time. A rebuild with identical inputs and the same as-of time reuses the originally persisted generated_at rather than overwriting it with a new instant, which is what keeps python scripts/build_analysis.py reproducible without pretending the record was generated at its own analytical cutoff."
     },
     "latest_included_collection_run_at": {
       "type": ["string", "null"],

@@ -46,8 +46,10 @@ sys.path.insert(0, str(ROOT))
 from analysis.provenance import CURRENT_PUBLICATION, record_origin  # noqa: E402
 from analysis.review_package import (  # noqa: E402
     CURRENT_INTELLIGENCE,
+    acquisition_currency_problems,
     package_provenance_problems,
 )
+from collectors.collection_runs import load_collection_runs, load_manual_review_events  # noqa: E402
 from scripts.import_review import PACKAGE_DIR, load_registry, review  # noqa: E402
 
 INBOUND_DIR = ROOT / "data" / "review" / "inbound"
@@ -210,6 +212,16 @@ def approval_provenance_problems(
     pair can be perfectly internally consistent and still both be a
     demonstration. That is approval-specific policy, not a general
     reviewing rule, so it lives here rather than in ``validate_output``.
+
+    WO-010-R5 §9: nor does passing those checks establish that the
+    acquisition events the package's own ``acquisition_summary`` cites are
+    still there. ``package_provenance_problems`` re-hashes the package's
+    bytes, which catches an edited package; it says nothing about a
+    collection-run manifest or manual-review event that has since been
+    corrected, removed or superseded out from under an untouched package.
+    That is checked here, against acquisition state read fresh from disk at
+    the moment of approval -- deliberately not at import/review time, since
+    only an approval actually publishes the assessment.
     """
     problems: list[str] = []
 
@@ -226,6 +238,18 @@ def approval_provenance_problems(
         )
 
     problems.extend(package_provenance_problems(package, registry=registry))
+
+    if dataset == CURRENT_PUBLICATION:
+        collection_runs = load_collection_runs()
+        manual_events = load_manual_review_events(registry=registry)
+        problems.extend(
+            acquisition_currency_problems(
+                package,
+                collection_runs_by_source=collection_runs,
+                manual_events_by_source=manual_events,
+            )
+        )
+
     return problems
 
 

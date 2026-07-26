@@ -39,6 +39,7 @@ from analysis.build_context import (  # noqa: E402
     context_problems,
     exclude_future_dated,
     latest_timestamp,
+    parse_timestamp,
     resolve_current_as_of,
     to_iso,
 )
@@ -57,12 +58,16 @@ from analysis.provenance import (  # noqa: E402
     PUBLISH_RAW_VALUE,
     RAW_VALUES_PERMITTED,
     TECHNICAL_DEMO,
+    SeriesHomogeneityError,
+    acquisition_binding_problems,
+    build_record_index,
     effective_source_id,
     qualified_records,
     qualifies_for_current_publication,
     record_origin,
     record_source_id,
     series_homogeneity_problems,
+    source_health_publication_consistency_problems,
 )
 from analysis.reference import load_dimensions, load_lanes  # noqa: E402
 from analysis.scenarios import build_lane_outlook, build_preparedness_options  # noqa: E402
@@ -261,7 +266,21 @@ def derive_current_series(
     current build's as-of time (WO-010-R4 §6), defaulting to the pinned
     ``DATA_CUTOFF`` only when a caller supplies nothing, so every existing
     direct call keeps behaving exactly as before.
+
+    WO-010-R5 §4: guards itself against a mixed record set rather than
+    trusting every caller to pre-check. No current analytical path may call
+    this on unchecked records any more, because there is no path into this
+    function that skips the check -- raises :class:`SeriesHomogeneityError`
+    (not a plain ``ValueError``) so a caller that wants to convert a mixed
+    series into ``insufficient_evidence`` plus a recorded limitation, rather
+    than letting the build fail, can catch exactly this and nothing broader.
     """
+    homogeneity_problems = series_homogeneity_problems(records, registry=registry)
+    if homogeneity_problems:
+        raise SeriesHomogeneityError(
+            f"series {series_id!r} cannot be derived from a mixed record set: "
+            + "; ".join(homogeneity_problems)
+        )
     source_id = record_source_id(records[0])
     max_stale, cadence = contract_freshness_bounds(registry, source_id or "")
     baseline_definition = records[0].get("baseline_definition")
@@ -298,6 +317,14 @@ def current_series_domain(
 
     A domain is only ever populated by the series that domain reads, so one
     qualified series cannot make an unrelated domain look sufficient.
+
+    WO-010-R5 §4: a mixed record set is not a build failure here -- it is a
+    coverage gap. ``derive_current_series`` raises ``SeriesHomogeneityError``
+    rather than silently combining or silently dropping the records; this is
+    the one place that converts that refusal into what a Lane-domain
+    assessment must say: no direction, no indicator support ID, and the
+    homogeneity problem recorded as an explicit limitation rather than
+    disappearing.
     """
     if not records:
         return build_domain_assessment(
@@ -307,7 +334,19 @@ def current_series_domain(
             known_limitations=[NO_QUALIFIED_EVIDENCE],
         )
 
-    derivation = derive_current_series(records, series_id, registry, now=now)
+    try:
+        derivation = derive_current_series(records, series_id, registry, now=now)
+    except SeriesHomogeneityError as error:
+        return build_domain_assessment(
+            domain,
+            direction="insufficient_evidence",
+            basis=(
+                f"The qualified records for series {series_id} disagree on source, unit, "
+                "geography, lane or publication-use disposition and cannot be safely combined "
+                "into one reading."
+            ),
+            known_limitations=[str(error)],
+        )
     direction, _ = direction_for_derivation(derivation, rule_id)
     source_id = record_source_id(records[0])
     return build_domain_assessment(
@@ -1277,13 +1316,19 @@ def main() -> int:
     observations = load_observations()
     events = _load(EVENTS_PATH)["events"]
     evidence_records = _load(ROOT / "data/events/event_evidence.json")["evidence"]
-    evidence_by_id = {item["evidence_id"]: item for item in evidence_records}
     lanes = load_lanes()["lanes"]
     load_dimensions()
 
     previous_context = _load(BUILD_CONTEXT_PATH) if BUILD_CONTEXT_PATH.exists() else None
     current_as_of = resolve_current_as_of(args.as_of, previous_context=previous_context)
     current_as_of_iso = to_iso(current_as_of)
+
+    # WO-010-R5 §2: every current observation and evidence record, indexed
+    # once and handed to the manual-review loader below so it can check a
+    # review event's related_record_ids against records that actually exist
+    # -- reversing WO-010-R4's accepted behaviour of loading an event that
+    # named a record nobody could find.
+    record_index = build_record_index(observations=observations, evidence=evidence_records)
 
     # Loaded from persisted, schema-validated manifests -- never an empty
     # literal standing in for "we checked". No source has ever completed a
@@ -1295,13 +1340,33 @@ def main() -> int:
     # time can never be treated as the latest one (collectors/source_health.py)
     # or even load at all (a future-dated manual event fails closed here).
     collection_runs = load_collection_runs()
-    manual_events = load_manual_review_events(registry=registry, now=current_as_of)
+    manual_events = load_manual_review_events(
+        registry=registry, now=current_as_of, record_index=record_index
+    )
     source_status = evaluate_registry_health(
         registry,
         collection_runs,
         now=current_as_of,
         manual_events_by_source=manual_events,
     )
+
+    # WO-010-R5 §1/§3: an evidence item claiming a live_retrieved or
+    # human_reviewed_manual origin must be bound to a persisted, verifiable
+    # acquisition event before it may back any current conclusion --
+    # filtered here, before evidence_by_id exists, so every downstream
+    # consumer (event activity, notices, chokepoint exposure) inherits the
+    # same guarantee rather than each having to re-check it.
+    bound_evidence_records = [
+        item
+        for item in evidence_records
+        if not acquisition_binding_problems(
+            item,
+            collection_runs_by_source=collection_runs,
+            manual_events_by_source=manual_events,
+            as_of=current_as_of,
+        )
+    ]
+    evidence_by_id = {item["evidence_id"]: item for item in bound_evidence_records}
 
     # --- current publication: qualified evidence only ----------------------
     # The filter is the whole mechanism. Nothing downstream knows or cares that
@@ -1340,6 +1405,46 @@ def main() -> int:
     qualified_events, _ = exclude_future_dated(
         qualified_events, as_of=current_as_of, timestamp_of=_event_timestamp
     )
+
+    # WO-010-R5 §1/§3: the same acquisition-binding requirement applied to
+    # evidence above, applied to observations. A record with no matching
+    # persisted collection run or manual review event does not qualify for
+    # current publication, whatever its origin label claims -- excluded here
+    # so build_current_indicators / build_current_lane_assessments never see
+    # it, rather than trusting each derivation site to re-check it.
+    def _acquisition_bound(records: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            record
+            for record in records
+            if not acquisition_binding_problems(
+                record,
+                collection_runs_by_source=collection_runs,
+                manual_events_by_source=manual_events,
+                as_of=current_as_of,
+            )
+        ]
+
+    qualified_observations = {
+        family: _acquisition_bound(records) for family, records in qualified_observations.items()
+    }
+    raw_publishable_records = {
+        family: _acquisition_bound(records) for family, records in raw_publishable_records.items()
+    }
+
+    # WO-010-R5 §3: a second, independent check over the records actually
+    # about to be published -- not only over the filters that built this
+    # set -- that Source Health and current publication cannot disagree
+    # about whether a source has any data.
+    consistency_problems = source_health_publication_consistency_problems(
+        source_status, [record for records in qualified_observations.values() for record in records]
+    )
+    consistency_problems += source_health_publication_consistency_problems(
+        source_status, list(evidence_by_id.values())
+    )
+    if consistency_problems:
+        raise RuntimeError(
+            "Source Health and current publication disagree: " + "; ".join(consistency_problems)
+        )
 
     current_lane_assessments = build_current_lane_assessments(
         lanes,
@@ -1410,17 +1515,30 @@ def main() -> int:
         "indicators": current_indicators,
     }
 
-    # --- Build Context (WO-010-R4 §6) --------------------------------------
+    # --- Build Context (WO-010-R4 §6, timestamp semantics corrected R5 §8) -
     # The single record scripts/build_dashboard.py and scripts/
     # build_review_package.py both read, so every current output in one
     # build shares exactly this as-of time -- never a separately pinned one.
-    latest_run_at = latest_timestamp(
+    # WO-010-R5 §8: filtered to runs/events at or before current_as_of before
+    # taking the latest -- a future-dated run must not leak into
+    # latest_included_collection_run_at just because collectors/
+    # source_health.py already (separately) excludes it from making a
+    # source's health read as fresh.
+    included_runs, _ = exclude_future_dated(
         [run for runs in collection_runs.values() for run in runs],
+        as_of=current_as_of,
         timestamp_of=lambda run: run.get("completed_at"),
     )
-    latest_manual_at = latest_timestamp(
+    latest_run_at = latest_timestamp(
+        included_runs, timestamp_of=lambda run: run.get("completed_at")
+    )
+    included_manual, _ = exclude_future_dated(
         [event for events_ in manual_events.values() for event in events_],
+        as_of=current_as_of,
         timestamp_of=lambda event: event.get("reviewed_at"),
+    )
+    latest_manual_at = latest_timestamp(
+        included_manual, timestamp_of=lambda event: event.get("reviewed_at")
     )
     input_hashes = {
         name: digest
@@ -1435,10 +1553,48 @@ def main() -> int:
         )
         if (digest := _file_sha256(path)) is not None
     }
+
+    # WO-010-R5 §8: source_cutoff is the latest timestamp this build actually
+    # found among its included evidence -- never as_of_time, and never a
+    # non-null value when nothing qualified. Drawn from qualified
+    # observations, qualified events, the latest included collection run and
+    # the latest included manual review, whichever is most recent.
+    source_cutoff_candidates: list[datetime] = []
+    for records in qualified_observations.values():
+        observation_latest = latest_timestamp(records, timestamp_of=_observation_timestamp)
+        if observation_latest is not None:
+            source_cutoff_candidates.append(observation_latest)
+    event_latest = latest_timestamp(qualified_events, timestamp_of=_event_timestamp)
+    if event_latest is not None:
+        source_cutoff_candidates.append(event_latest)
+    if latest_run_at is not None:
+        source_cutoff_candidates.append(latest_run_at)
+    if latest_manual_at is not None:
+        source_cutoff_candidates.append(latest_manual_at)
+    source_cutoff = max(source_cutoff_candidates) if source_cutoff_candidates else None
+
+    # WO-010-R5 §8: generated_at must be the true instant this record was
+    # written, not as_of_time -- but a rebuild with the same build_context_id
+    # and identical input_hashes is the same context, and must reuse the
+    # originally persisted generated_at rather than overwrite it, which is
+    # what keeps a bare rebuild byte-identical. Only a genuinely new context
+    # (a different as-of time, or the same as-of time over changed inputs)
+    # gets a freshly observed generated_at.
+    prospective_id = f"BCTX-{CURRENT_PUBLICATION.upper()}-{current_as_of:%Y%m%dT%H%M%SZ}"
+    if (
+        previous_context is not None
+        and previous_context.get("build_context_id") == prospective_id
+        and previous_context.get("input_hashes") == input_hashes
+    ):
+        generated_at = parse_timestamp(previous_context["generated_at"])
+    else:
+        generated_at = datetime.now(UTC)
+
     build_context = build_context_record(
         dataset=CURRENT_PUBLICATION,
         as_of=current_as_of,
-        generated_at=current_as_of,
+        source_cutoff=source_cutoff,
+        generated_at=generated_at,
         latest_collection_run_at=latest_run_at,
         latest_manual_review_at=latest_manual_at,
         input_hashes=input_hashes,

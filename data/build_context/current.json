@@ -2,7 +2,7 @@
   "build_context_id": "BCTX-CURRENT_PUBLICATION-20260724T000000Z",
   "dataset": "current_publication",
   "as_of_time": "2026-07-24T00:00:00Z",
-  "source_cutoff": "2026-07-24T00:00:00Z",
+  "source_cutoff": null,
   "generated_at": "2026-07-24T00:00:00Z",
   "latest_included_collection_run_at": null,
   "latest_included_manual_review_at": null,

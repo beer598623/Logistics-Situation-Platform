@@ -185,6 +185,7 @@ def live_trade_observation(
     evidence_origin: str = "live_retrieved",
     retrieval_status: str = "retrieved",
     retrieved_at: str | None = RETRIEVED_AT,
+    collection_run_id: str | None = None,
 ) -> dict[str, Any]:
     """One live-retrieved current trade observation.
 
@@ -192,6 +193,14 @@ def live_trade_observation(
     timestamp, a real source identifier rather than the reserved synthetic
     one, and no ``intended_source_id`` -- it stands in for nothing because it
     is the thing itself.
+
+    ``collection_run_id`` defaults to ``None``, matching every caller before
+    WO-010-R5 -- most tests exercise ``qualifies_for_current_publication``
+    or a direct derivation function, neither of which the acquisition-
+    binding gate touches. A caller driving the real production build path
+    (``scripts.build_analysis.main`` / ``scripts.build_review_package.build``)
+    must pass the collection run's own ``run_id`` here, or the record is
+    correctly excluded for having no acquisition binding (WO-010-R5 §1).
     """
     year, month = (int(part) for part in period_key.split("-"))
     last_day = _MONTH_END[month]
@@ -214,6 +223,8 @@ def live_trade_observation(
             "content_hash_scope": "source_response",
             "intended_source_id": None,
             "fixture_created_at": None,
+            "collection_run_id": collection_run_id,
+            "manual_review_event_id": None,
             "period_start": f"{year:04d}-{month:02d}-01",
             "period_end": f"{year:04d}-{month:02d}-{last_day:02d}",
             "period_type": "month",
@@ -283,6 +294,7 @@ def manual_notice_evidence(
     evidence_origin: str = "human_reviewed_manual",
     retrieval_status: str = "not_applicable",
     claim_type: str = "official_notice",
+    manual_review_event_id: str | None = None,
 ) -> dict[str, Any]:
     """A human-reviewed official notice, transcribed rather than fetched.
 
@@ -290,6 +302,11 @@ def manual_notice_evidence(
     a person read the publisher's page, the platform fetched nothing, and
     claiming a retrieval would be false. The underlying publisher is named so
     the claim stays independently checkable.
+
+    ``manual_review_event_id`` defaults to ``None`` for the same reason
+    ``live_trade_observation``'s ``collection_run_id`` does: only a caller
+    driving the real production build path needs to set it, to the matching
+    manual review event's own ``event_id`` (WO-010-R5 §1).
     """
     return {
         "evidence_id": evidence_id,
@@ -316,6 +333,8 @@ def manual_notice_evidence(
         "retrieved_at": None,
         "evidence_origin": evidence_origin,
         "fixture_created_at": None,
+        "collection_run_id": None,
+        "manual_review_event_id": manual_review_event_id,
         "revised_at": None,
         "content_sha256": "b" * 64,
         "content_hash_scope": "authored_claim_record",

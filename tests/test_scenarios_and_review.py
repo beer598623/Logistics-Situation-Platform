@@ -1144,7 +1144,12 @@ def test_a_differentiated_scenario_with_every_case_supported_passes():
                     narrative="Conditions stay as they are.", indicator_ids=["thailand_lsci"]
                 ),
                 deterioration_case=case(
-                    narrative="Conditions worsen materially.", evidence_ids=["EVD-1"]
+                    narrative="Conditions worsen materially.",
+                    evidence_ids=["EVD-1"],
+                    aggregation_basis=(
+                        "This node's notice is treated as representative of Thailand-wide "
+                        "conditions for this case."
+                    ),
                 ),
                 improvement_case=case(
                     narrative="Conditions improve.", indicator_ids=["thailand_lsci"]
@@ -1509,3 +1514,270 @@ def test_a_supported_operational_preparedness_option_passes():
     )
     problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
     assert not any("conditional_preparedness_options[0]" in item for item in problems), problems
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R5 §5/§6/§7: evidence relevance beyond ID eligibility
+# ---------------------------------------------------------------------------
+
+
+def _lane_status_entry(lane_id, **overrides):
+    entry = {
+        "lane_id": lane_id,
+        "dataset": "current_publication",
+        "overall_direction": "insufficient_evidence",
+        "attention_level": "insufficient_evidence",
+        "domain_directions": {},
+        "domain_indicator_ids": {},
+        "indicator_ids": [],
+        "active_event_ids": [],
+        "external_driver_event_ids": [],
+        "chokepoint_exposure": [],
+        "data_gaps": [],
+    }
+    entry.update(overrides)
+    return entry
+
+
+def _two_lane_package(*, evidence_scope="facility"):
+    """A package with two lanes: LANE-OCEAN-TH-NEUR (no linked evidence) and
+    LANE-OCEAN-TH-JPKR (whose active_event_ids link it to EVT-1, the event
+    EVD-1 is attached to)."""
+    return build_input_package(
+        package_id="PKG-20260724-001",
+        generated_at="2026-07-24T00:00:00Z",
+        data_cutoff_at="2026-07-24T00:00:00Z",
+        source_health={"overall_status": "insufficient", "coverage_message": "x"},
+        key_indicators=[],
+        lane_status=[
+            _lane_status_entry("LANE-OCEAN-TH-NEUR"),
+            _lane_status_entry("LANE-OCEAN-TH-JPKR", active_event_ids=["EVT-1"]),
+        ],
+        events=[],
+        evidence=[
+            {
+                **manual_notice_evidence(evidence_id="EVD-1", event_id="EVT-1"),
+                "scope_supported": evidence_scope,
+            }
+        ],
+        previous_assessments=[],
+        data_gaps=[],
+    )
+
+
+def test_a_lane_assessment_cannot_cite_evidence_for_another_lane():
+    package = _two_lane_package()
+    output = base_output(
+        evidence_references=["EVD-1"],
+        lane_assessments=[
+            {
+                "lane_id": "LANE-OCEAN-TH-NEUR",
+                "direction": "deteriorating",
+                "summary": "x",
+                "evidence_ids": ["EVD-1"],
+                "indicator_ids": [],
+                "confidence": "low",
+                "data_gaps": [],
+            }
+        ],
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any(
+        "lane_assessments[0]" in item and "does not link to this lane" in item for item in problems
+    ), problems
+
+
+def test_a_node_scoped_notice_can_support_the_lane_the_reference_model_links_it_to():
+    package = _two_lane_package(evidence_scope="node")
+    output = base_output(
+        evidence_references=["EVD-1"],
+        lane_assessments=[
+            {
+                "lane_id": "LANE-OCEAN-TH-JPKR",
+                "direction": "deteriorating",
+                "summary": "x",
+                "evidence_ids": ["EVD-1"],
+                "indicator_ids": [],
+                "confidence": "low",
+                "data_gaps": [],
+            }
+        ],
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert not any("lane_assessments[0]" in item for item in problems), problems
+
+
+def test_thailand_wide_evidence_can_support_multiple_lanes():
+    package = _two_lane_package(evidence_scope="country")
+    output = base_output(
+        evidence_references=["EVD-1"],
+        lane_assessments=[
+            {
+                "lane_id": "LANE-OCEAN-TH-NEUR",
+                "direction": "deteriorating",
+                "summary": "x",
+                "evidence_ids": ["EVD-1"],
+                "indicator_ids": [],
+                "confidence": "low",
+                "data_gaps": [],
+            },
+            {
+                "lane_id": "LANE-OCEAN-TH-JPKR",
+                "direction": "deteriorating",
+                "summary": "x",
+                "evidence_ids": ["EVD-1"],
+                "indicator_ids": [],
+                "confidence": "low",
+                "data_gaps": [],
+            },
+        ],
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert not any("lane_assessments" in item and "does not link" in item for item in problems), (
+        problems
+    )
+
+
+def test_a_scenario_cannot_cite_evidence_for_another_lane():
+    package = _two_lane_package()
+    output = base_output(
+        scenarios=[
+            outlook(
+                subject_type="lane",
+                subject_id="LANE-OCEAN-TH-NEUR",
+                base_case=case(narrative="Conditions stay as they are.", evidence_ids=["EVD-1"]),
+                deterioration_case=case(
+                    narrative="Conditions worsen materially.", evidence_ids=["EVD-1"]
+                ),
+            )
+        ]
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any(
+        "scenarios[0]" in item and "does not link to this lane" in item for item in problems
+    ), problems
+
+
+def test_a_thailand_wide_scenario_relying_on_a_facility_notice_needs_an_aggregation_basis():
+    package = _two_lane_package()
+    output = base_output(
+        scenarios=[
+            outlook(
+                subject_type="thailand_ocean",
+                subject_id="THAILAND",
+                base_case=case(narrative="Conditions stay as they are.", evidence_ids=["EVD-1"]),
+                deterioration_case=case(
+                    narrative="Conditions worsen materially.", evidence_ids=["EVD-1"]
+                ),
+            )
+        ]
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any("scenarios[0]" in item and "aggregation_basis" in item for item in problems), (
+        problems
+    )
+
+
+def test_a_preparedness_option_citing_geographically_unrelated_evidence_is_rejected():
+    package = _two_lane_package()
+    output = base_output(
+        evidence_references=["EVD-1"],
+        conditional_preparedness_options=[
+            option(evidence_ids=["EVD-1"], applicable_lane_ids=["LANE-OCEAN-TH-NEUR"])
+        ],
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any(
+        "conditional_preparedness_options[0]" in item and "relates to none of them" in item
+        for item in problems
+    ), problems
+
+
+def test_a_lane_and_domain_compatible_preparedness_option_passes():
+    package = build_input_package(
+        package_id="PKG-20260724-001",
+        generated_at="2026-07-24T00:00:00Z",
+        data_cutoff_at="2026-07-24T00:00:00Z",
+        source_health={"overall_status": "insufficient", "coverage_message": "x"},
+        key_indicators=[
+            {
+                "series_id": "container_freight_benchmark",
+                "current_value": 1.0,
+                "dataset": "current_publication",
+                "evidence_origin": "live_retrieved",
+            }
+        ],
+        lane_status=[
+            _lane_status_entry("LANE-OCEAN-TH-NEUR", indicator_ids=["container_freight_benchmark"])
+        ],
+        events=[],
+        evidence=[],
+        previous_assessments=[],
+        data_gaps=[],
+    )
+    output = base_output(
+        conditional_preparedness_options=[
+            option(
+                indicator_ids=["container_freight_benchmark"],
+                applicable_lane_ids=["LANE-OCEAN-TH-NEUR"],
+                applicable_domain_ids=["fuel_pressure"],
+                support_basis="Freight benchmark trend supports monitoring this lane.",
+            )
+        ]
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert not any("conditional_preparedness_options[0]" in item for item in problems), problems
+
+
+def test_a_cost_monitoring_option_citing_an_incompatible_indicator_is_rejected():
+    package = build_input_package(
+        package_id="PKG-20260724-001",
+        generated_at="2026-07-24T00:00:00Z",
+        data_cutoff_at="2026-07-24T00:00:00Z",
+        source_health={"overall_status": "insufficient", "coverage_message": "x"},
+        key_indicators=[
+            {
+                "series_id": "thailand_lsci",
+                "current_value": 1.0,
+                "dataset": "current_publication",
+                "evidence_origin": "live_retrieved",
+            }
+        ],
+        lane_status=[],
+        events=[],
+        evidence=[],
+        previous_assessments=[],
+        data_gaps=[],
+    )
+    output = base_output(
+        conditional_preparedness_options=[
+            option(
+                indicator_ids=["thailand_lsci"],
+                applicable_domain_ids=["fuel_pressure"],
+                support_basis="thailand_lsci trend.",
+            )
+        ]
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any(
+        "conditional_preparedness_options[0]" in item and "no compatible indicator" in item
+        for item in problems
+    ), problems
+
+
+def test_an_operational_contingency_option_needs_evidence_not_only_an_indicator():
+    output = base_output(
+        conditional_preparedness_options=[
+            option(
+                option_type="contingency",
+                indicator_ids=["thailand_lsci"],
+                support_basis="thailand_lsci trend.",
+            )
+        ]
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any(
+        "conditional_preparedness_options[0]" in item
+        and "cannot establish an operational condition" in item
+        for item in problems
+    ), problems

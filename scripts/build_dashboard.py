@@ -171,6 +171,7 @@ def _current_series_payload(
     *,
     raw_record_ids: frozenset[str] = frozenset(),
     now: datetime | None = None,
+    mixed_series_gaps: list[str] | None = None,
 ) -> dict[str, Any] | None:
     """A current-publication series payload, or ``None`` when nothing qualifies.
 
@@ -198,7 +199,18 @@ def _current_series_payload(
     """
     if not records:
         return None
-    if series_homogeneity_problems(records, registry=registry):
+    homogeneity_problems = series_homogeneity_problems(records, registry=registry)
+    if homogeneity_problems:
+        # WO-010-R5 §4: a mixed series is a data gap, not a silent omission
+        # -- recorded when the caller gives somewhere to record it, so it
+        # can reach thailand_situation.json's major_data_gaps rather than
+        # simply not appearing in the chart with no trace of why.
+        if mixed_series_gaps is not None:
+            mixed_series_gaps.append(
+                f"Series {series_id!r} was excluded: its qualified records disagree on "
+                "source, unit, geography, lane or publication-use disposition and cannot be "
+                "safely combined into one reading (" + "; ".join(homogeneity_problems) + ")."
+            )
         return None
     source_id = records[0]["provenance"]["source_id"]
     max_stale, cadence = _contract_bounds(registry, source_id)
@@ -433,6 +445,10 @@ def _events_current_statement(
 
 def build_payloads() -> dict[str, Any]:
     current_as_of, current_as_of_iso = _current_as_of()
+    # WO-010-R5 §4: every series this build excludes for being a mixed
+    # record set is recorded here and folded into thailand_situation.json's
+    # major_data_gaps, rather than simply not appearing in a chart.
+    mixed_series_gaps: list[str] = []
     registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
     dimensions = _load(ROOT / "data/reference/dimensions.json")
     lanes = _load(ROOT / "data/reference/lanes.json")["lanes"]
@@ -518,6 +534,7 @@ def build_payloads() -> dict[str, Any]:
                 registry,
                 raw_record_ids=raw_record_ids,
                 now=current_as_of,
+                mixed_series_gaps=mixed_series_gaps,
             )
         )
         is not None
@@ -881,6 +898,7 @@ def build_payloads() -> dict[str, Any]:
                 registry,
                 raw_record_ids=raw_record_ids,
                 now=current_as_of,
+                mixed_series_gaps=mixed_series_gaps,
             )
             if payload is not None:
                 flows.append({**payload, "flow_direction": direction})
@@ -1270,6 +1288,11 @@ def build_payloads() -> dict[str, Any]:
         "validation_summary": validation["metrics"],
         "validation_overall": validation["overall"],
     }
+
+    # WO-010-R5 §4: folded in only now, after every _current_series_payload
+    # call site (both the situation-panel series above and the trade/cost
+    # series built below) has had the chance to append to it.
+    situation["major_data_gaps"] = situation["major_data_gaps"] + mixed_series_gaps
 
     return {
         "thailand_situation.json": situation,

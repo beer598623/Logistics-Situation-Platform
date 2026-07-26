@@ -116,15 +116,26 @@ def build_context_record(
     dataset must always produce the same ID, or a build artifact whose own
     identity changes on every rebuild would defeat the "diff and see nothing
     moved" property the rest of this platform relies on.
+
+    WO-010-R5 §8: ``source_cutoff`` is taken exactly as given -- ``None``
+    stays ``None`` in the record rather than silently defaulting to
+    ``as_of``. ``as_of_time`` is the analytical cutoff this build was told to
+    describe; ``source_cutoff`` is the latest evidence this build actually
+    found, and a caller with zero included evidence must be able to say so
+    honestly rather than being forced into a value that overstates what was
+    found. ``generated_at`` is likewise taken exactly as given -- the caller
+    (never this function) decides whether that is a freshly observed instant
+    or a reused, previously persisted one; ``datetime.now(UTC)`` here would
+    silently reintroduce the wall-clock dependency the caller is responsible
+    for avoiding.
     """
-    moment = generated_at or datetime.now(UTC)
     stamp = as_of.strftime("%Y%m%dT%H%M%SZ")
     return {
         "build_context_id": f"BCTX-{dataset.upper()}-{stamp}",
         "dataset": dataset,
         "as_of_time": to_iso(as_of),
-        "source_cutoff": to_iso(source_cutoff or as_of),
-        "generated_at": to_iso(moment),
+        "source_cutoff": to_iso(source_cutoff) if source_cutoff is not None else None,
+        "generated_at": to_iso(generated_at) if generated_at is not None else to_iso(as_of),
         "latest_included_collection_run_at": (
             to_iso(latest_collection_run_at) if latest_collection_run_at else None
         ),
@@ -155,6 +166,24 @@ def context_problems(
       included current evidence" and is refused rather than silently
       accepted. Passing an explicit ``--as-of`` at or after the previous
       value supersedes it intentionally and is not a regression.
+
+    WO-010-R5 §8 adds:
+
+    * ``source_cutoff`` later than ``as_of_time`` -- evidence cannot be
+      known to exist after the analytical moment it is being cited to
+      support.
+    * ``generated_at`` earlier than ``latest_included_collection_run_at`` or
+      ``latest_included_manual_review_at`` -- a context cannot have been
+      written before the acquisition event it includes happened.
+    * either latest-included timestamp later than ``as_of_time`` -- would
+      mean a run or review this build treated as included was, in fact,
+      from after the moment it is being included "as of".
+    * a non-null ``source_cutoff`` when neither latest-included timestamp is
+      set -- a source cutoff must trace back to at least one included
+      acquisition event; one that does not is not honestly derived.
+    * the same ``build_context_id`` as ``previous_context`` but different
+      ``input_hashes`` -- an identity implying "the same, reproducible
+      context" while the underlying data actually changed.
     """
     problems: list[str] = []
     dataset = context.get("dataset")
@@ -169,6 +198,32 @@ def context_problems(
     if as_of > generated_at:
         problems.append("as_of_time is later than generated_at, which is not yet possible")
 
+    source_cutoff_raw = context.get("source_cutoff")
+    source_cutoff = parse_timestamp(source_cutoff_raw) if source_cutoff_raw else None
+    if source_cutoff is not None and source_cutoff > as_of:
+        problems.append("source_cutoff is later than as_of_time, which cannot be honestly cited")
+
+    latest_run_raw = context.get("latest_included_collection_run_at")
+    latest_run = parse_timestamp(latest_run_raw) if latest_run_raw else None
+    latest_review_raw = context.get("latest_included_manual_review_at")
+    latest_review = parse_timestamp(latest_review_raw) if latest_review_raw else None
+
+    for label, value in (
+        ("latest_included_collection_run_at", latest_run),
+        ("latest_included_manual_review_at", latest_review),
+    ):
+        if value is not None and value > as_of:
+            problems.append(f"{label} is later than as_of_time")
+        if value is not None and value > generated_at:
+            problems.append(f"generated_at is earlier than {label}, which is not yet possible")
+
+    if source_cutoff is not None and latest_run is None and latest_review is None:
+        problems.append(
+            "source_cutoff is set but neither latest_included_collection_run_at nor "
+            "latest_included_manual_review_at is; a source cutoff must trace back to at "
+            "least one included acquisition event"
+        )
+
     if (
         dataset == CURRENT_PUBLICATION
         and previous_context is not None
@@ -181,6 +236,17 @@ def context_problems(
                 f"committed context's as_of_time {previous_context['as_of_time']!r}; pass an "
                 "explicit --as-of at or after the previous value to supersede it intentionally"
             )
+
+    if (
+        previous_context is not None
+        and previous_context.get("build_context_id") == context.get("build_context_id")
+        and previous_context.get("input_hashes") != context.get("input_hashes")
+    ):
+        problems.append(
+            f"build_context_id {context.get('build_context_id')!r} is unchanged from the "
+            "previous context but input_hashes differ; the same context ID must not describe "
+            "two different sets of underlying data"
+        )
 
     return problems
 

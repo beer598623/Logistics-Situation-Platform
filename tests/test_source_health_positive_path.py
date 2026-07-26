@@ -33,7 +33,7 @@ sys.path.insert(0, str(ROOT))
 import collectors.collection_runs as collection_runs_module  # noqa: E402
 import scripts.build_analysis as build_analysis  # noqa: E402
 import scripts.build_dashboard as build_dashboard  # noqa: E402
-from tests.positive_path import live_trade_series  # noqa: E402
+from tests.positive_path import live_trade_series, manual_notice_evidence  # noqa: E402
 
 E2E_SOURCE = "TEST_E2E_TRADE_SOURCE"
 AS_OF = "2026-07-24T00:00:00Z"
@@ -94,7 +94,11 @@ def _run(*, completed_at: str, status: str = "success", records_emitted=26, run_
         "completed_at": completed_at,
         "status": status,
         "workflow_sha": "a" * 40,
-        "adapter_version": "e2e_test_v1",
+        # Matches live_trade_observation's own default parser_version
+        # (tests/positive_path.py), so WO-010-R5 §1's acquisition-binding
+        # check does not reject an otherwise-correctly-bound record over an
+        # incidental version-string mismatch between two independent fixtures.
+        "adapter_version": "test_v1",
         "request_url": "https://example.org/e2e.csv",
         "response_url": "https://example.org/e2e.csv",
         "content_type": "text/csv",
@@ -121,6 +125,12 @@ def _copy_repo(tmp_path) -> Path:
     shutil.copytree(ROOT / "data", temp_root / "data")
     shutil.copytree(ROOT / "innovation", temp_root / "innovation")
     (temp_root / "config").mkdir()
+    # WO-010-R5 §8: each of these tests builds a fresh repository injecting
+    # its own data at the committed default as-of time; without removing the
+    # real committed Build Context copied above, that would collide with the
+    # new "reused build_context_id with changed input_hashes" check -- these
+    # tests are simulating a first build, not a rebuild of the real one.
+    shutil.rmtree(temp_root / "data" / "build_context", ignore_errors=True)
     return temp_root
 
 
@@ -174,14 +184,19 @@ def e2e_repo(tmp_path, monkeypatch):
     registry = _e2e_registry()
     (temp_root / "config" / "sources.yaml").write_text(yaml.safe_dump(registry), encoding="utf-8")
 
+    run = _run(completed_at="2026-07-20T00:00:00Z")
+
     trade_path = temp_root / "data" / "observations" / "trade_observations.json"
     trade_payload = json.loads(trade_path.read_text(encoding="utf-8"))
     trade_payload["records"] = trade_payload["records"] + live_trade_series(
-        periods=26, growth=0.02, series_id="th_export_value_neur", source_id=E2E_SOURCE
+        periods=26,
+        growth=0.02,
+        series_id="th_export_value_neur",
+        source_id=E2E_SOURCE,
+        collection_run_id=run["run_id"],
     )
     _write_json(trade_path, trade_payload)
 
-    run = _run(completed_at="2026-07-20T00:00:00Z")
     _write_json(
         temp_root / "data" / "collection_runs" / f"{E2E_SOURCE}.json",
         {"version": "0.8", "source_id": E2E_SOURCE, "runs": [run]},
@@ -279,17 +294,32 @@ def test_a_successful_run_with_no_qualifying_observations_reports_no_data(tmp_pa
 def test_a_qualifying_observation_with_no_run_manifest_is_not_silently_fresh(tmp_path, monkeypatch):
     """Qualifying data exists, but no collection-run manifest was ever
     written for its source -- WO-010-R4 §7/§8: a qualified observation
-    cannot make Source Health fresh without its own recorded run."""
+    cannot make Source Health fresh without its own recorded run.
+
+    WO-010-R5 §1 goes further: the record itself is now excluded from
+    current publication, not merely disconnected from a fresh Source Health
+    reading. Before R5, this test asserted the opposite -- that the
+    observation "still qualifies and is still counted" because "Source
+    Health and the qualification filter are independent questions". That
+    statement is superseded: a live_retrieved record with no matching
+    persisted collection run does not qualify, full stop, because there is
+    nothing that actually establishes the record was ever acquired.
+    """
     temp_root = _copy_repo(tmp_path)
     registry = _e2e_registry()
     (temp_root / "config" / "sources.yaml").write_text(yaml.safe_dump(registry), encoding="utf-8")
     trade_path = temp_root / "data" / "observations" / "trade_observations.json"
     trade_payload = json.loads(trade_path.read_text(encoding="utf-8"))
     trade_payload["records"] = trade_payload["records"] + live_trade_series(
-        periods=26, growth=0.02, series_id="th_export_value_neur", source_id=E2E_SOURCE
+        periods=26,
+        growth=0.02,
+        series_id="th_export_value_neur",
+        source_id=E2E_SOURCE,
+        collection_run_id="COL-20260720T000000Z-TEST_E2E_TRADE_SOURCE",
     )
     _write_json(trade_path, trade_payload)
-    # Deliberately no collection-run manifest written.
+    # Deliberately no collection-run manifest written -- the collection_run_id
+    # above names a run that will never resolve.
     _patch_build_scripts(monkeypatch, temp_root, registry=registry)
 
     assert _run_build_analysis(monkeypatch) == 0
@@ -303,10 +333,7 @@ def test_a_qualifying_observation_with_no_run_manifest_is_not_silently_fresh(tmp
             encoding="utf-8"
         )
     )
-    # The observation still qualifies and is still counted -- Source Health
-    # and the qualification filter are independent questions -- but Source
-    # Health itself must not read as fresh from evidence alone.
-    assert thailand["qualified_observation_count"] == 26
+    assert thailand["qualified_observation_count"] == 0
 
 
 def test_a_latest_run_error_retains_the_earlier_success(tmp_path, monkeypatch):
@@ -432,6 +459,16 @@ def _manual_event(**overrides):
     return event
 
 
+def _manual_evidence_record(**overrides):
+    return manual_notice_evidence(
+        evidence_id="EVD-E2E-1",
+        event_id="EVT-20260720-900",
+        source_id="TEST_E2E_MANUAL_SOURCE",
+        manual_review_event_id="MAN-20260720T000000Z-TEST_E2E_MANUAL_SOURCE",
+        **overrides,
+    )
+
+
 def test_a_valid_manual_review_event_makes_the_source_fresh(tmp_path, monkeypatch):
     temp_root = _copy_repo(tmp_path)
     registry = {
@@ -445,6 +482,15 @@ def test_a_valid_manual_review_event_makes_the_source_fresh(tmp_path, monkeypatc
         temp_root / "data" / "collection_runs" / "manual" / "TEST_E2E_MANUAL_SOURCE.json",
         {"version": "0.8", "source_id": "TEST_E2E_MANUAL_SOURCE", "events": [_manual_event()]},
     )
+    # WO-010-R5 §1: a manual review event now needs a real, matching,
+    # non-fixture, same-source evidence record actually listed in its own
+    # related_record_ids -- both for the event to load at all (§2's
+    # record-index check) and for the record it is the basis for to qualify
+    # for current publication (§1's acquisition-binding check).
+    evidence_path = temp_root / "data" / "events" / "event_evidence.json"
+    evidence_payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence_payload["evidence"] = evidence_payload["evidence"] + [_manual_evidence_record()]
+    _write_json(evidence_path, evidence_payload)
     _patch_build_scripts(monkeypatch, temp_root, registry=registry)
 
     assert _run_build_analysis(monkeypatch) == 0
@@ -478,14 +524,17 @@ def test_a_malformed_manual_review_event_fails_the_build_closed(tmp_path, monkey
         _run_build_analysis(monkeypatch)
 
 
-def test_a_manual_event_referencing_missing_evidence_still_loads(tmp_path, monkeypatch):
-    """The manual-review loader validates the event itself, not whether its
-    ``related_record_ids`` resolve to a real evidence record in the current
-    package -- that cross-check belongs to analysis.review_package, which
-    inspects the package the event's records actually ended up in, not the
-    health event alone. This is documented, not a silent gap: the loader
-    still accepts a well-formed event naming a record ID nothing else in
-    this test's repository defines."""
+def test_a_manual_event_referencing_missing_evidence_fails_closed(tmp_path, monkeypatch):
+    """WO-010-R5 §2 reverses the WO-010-R4 behaviour this test used to
+    assert: a manual review event naming a record nobody can find no longer
+    loads. The previous version of this test's docstring claimed that
+    "the loader still accepts a well-formed event naming a record ID
+    nothing else in this test's repository defines" and that this was
+    "documented, not a silent gap" because cross-referencing belonged to
+    ``analysis.review_package`` alone. That statement is superseded: the
+    loader itself now receives the current record index
+    (``collectors.collection_runs.load_manual_review_events``'s
+    ``record_index`` parameter) and fails closed on exactly this case."""
     temp_root = _copy_repo(tmp_path)
     registry = {
         "version": "0.8",
@@ -501,11 +550,5 @@ def test_a_manual_event_referencing_missing_evidence_still_loads(tmp_path, monke
     )
     _patch_build_scripts(monkeypatch, temp_root, registry=registry)
 
-    assert _run_build_analysis(monkeypatch) == 0
-    source_status = json.loads(
-        (temp_root / "data" / "source_status" / "latest.json").read_text(encoding="utf-8")
-    )
-    health = {item["source_id"]: item for item in source_status["sources"]}[
-        "TEST_E2E_MANUAL_SOURCE"
-    ]
-    assert health["status"] == "fresh"
+    with pytest.raises(ValueError, match="does not exist in this build's record index"):
+        _run_build_analysis(monkeypatch)

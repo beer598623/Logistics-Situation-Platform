@@ -25,7 +25,8 @@
     "dataset",
     "package_purpose",
     "source_cutoff",
-    "provenance_summary"
+    "provenance_summary",
+    "acquisition_summary"
   ],
   "properties": {
     "package_id": {
@@ -256,6 +257,42 @@
         "excluded_fixture_record_count": {
           "type": "integer",
           "minimum": 0
+        }
+      }
+    },
+    "acquisition_summary": {
+      "description": "WO-010-R5 §9. What actually stands behind this package's current evidence: which collection runs and manual-review events it drew on, how many otherwise-qualified records were excluded for having no acquisition binding, and the latest source cutoff those bindings support. Present on every package (technical_demo packages report empty/zero values honestly rather than omitting the section) so a reviewer or the approval gate can independently confirm the package's evidence is not merely labelled live/reviewed but is actually traceable to a persisted acquisition event.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qualifying_collection_run_ids",
+        "qualifying_manual_review_event_ids",
+        "excluded_unbound_record_count",
+        "latest_source_cutoff",
+        "acquisition_health_limitations"
+      ],
+      "properties": {
+        "qualifying_collection_run_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "qualifying_manual_review_event_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "excluded_unbound_record_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many otherwise-qualified live_retrieved/human_reviewed_manual records were excluded from this package specifically because they carried no matching, valid acquisition binding."
+        },
+        "latest_source_cutoff": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "The latest timestamp among this package's own qualifying acquisition bindings. Null when the package includes no acquisition-bound evidence."
+        },
+        "acquisition_health_limitations": {
+          "type": "array",
+          "items": {"type": "string"}
         }
       }
     }

@@ -35,6 +35,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .assessments import validate_preparedness_option, validate_scenario_outlook
+from .build_context import parse_timestamp
 from .provenance import (
     CURRENT_PUBLICATION,
     PUBLISH_BOUNDED_CLAIM,
@@ -44,6 +45,19 @@ from .provenance import (
     record_dataset,
     record_origin,
 )
+
+
+def parse_optional_timestamp(value: Any) -> Any:
+    """``analysis.build_context.parse_timestamp``, tolerant of ``None`` and
+    date-only strings, for comparing package/case cutoffs against evidence
+    ``data_period`` values that may be either a date or a date-time."""
+    if not value:
+        return None
+    try:
+        return parse_timestamp(value)
+    except ValueError:
+        return None
+
 
 #: Phrasing that asserts a real-time operational condition. Permitted only
 #: when the input package actually contained operational-condition evidence.
@@ -301,6 +315,7 @@ def build_input_package(
     dataset: str = CURRENT_PUBLICATION,
     source_cutoff: str | None = None,
     excluded_fixture_record_count: int = 0,
+    acquisition_summary: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble the bounded input package.
 
@@ -315,7 +330,26 @@ def build_input_package(
     re-derive where its contents came from. ``required_output_binding``
     restates the same five values the output must echo, so the instruction
     and the ground truth cannot drift apart.
+
+    ``acquisition_summary`` (WO-010-R5 §9) is required in practice -- every
+    production caller passes ``analysis.provenance.build_acquisition_summary``'s
+    result -- but defaults to an honest empty summary so a caller exercising
+    this function in isolation (e.g. a unit test of an unrelated rejection
+    rule) is not forced to construct one. Included before the hash is
+    computed, so ``package_sha256`` covers it like everything else here: an
+    edited acquisition summary is a package integrity failure, the same as
+    an edited evidence record.
     """
+    acquisition_summary = dict(
+        acquisition_summary
+        or {
+            "qualifying_collection_run_ids": [],
+            "qualifying_manual_review_event_ids": [],
+            "excluded_unbound_record_count": 0,
+            "latest_source_cutoff": None,
+            "acquisition_health_limitations": [],
+        }
+    )
     operational = [event for event in events if event["event_class"] == "direct_operational_event"]
     drivers = [event for event in events if event["event_class"] != "direct_operational_event"]
 
@@ -353,6 +387,7 @@ def build_input_package(
             "events": provenance_summary(list(events)),
             "excluded_fixture_record_count": excluded_fixture_record_count,
         },
+        "acquisition_summary": acquisition_summary,
         "output_instructions": {
             "required_sections": list(REQUIRED_OUTPUT_SECTIONS),
             "prohibited_outputs": list(PROHIBITED_OUTPUTS),
@@ -539,6 +574,76 @@ def package_provenance_problems(
     return problems
 
 
+def acquisition_currency_problems(
+    package: Mapping[str, Any],
+    *,
+    collection_runs_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    manual_events_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+) -> list[str]:
+    """Whether the acquisition events a current package cited still exist,
+    unchanged, at the moment of approval (WO-010-R5 §9).
+
+    ``package_provenance_problems`` already re-checks the package's own
+    hash against its current on-disk bytes, which catches an *edited*
+    package. It cannot catch the different failure this function exists
+    for: the package's bytes are untouched, but a collection run or manual
+    review event it cited in ``acquisition_summary`` has since disappeared
+    (its manifest was corrected or removed), changed status (a run
+    originally recorded as ``success`` is now recorded ``error`` after a
+    correction, or a manual event moved from ``reviewed`` to
+    ``superseded``), or been superseded. An assessment approved against
+    acquisition evidence that no longer stands behind it would be published
+    as though it still did, unless this is checked again with fresh state
+    at the moment of approval -- not only against the state that existed
+    when the package was built.
+
+    Intentionally never called from :func:`validate_output`: it needs the
+    caller to pass acquisition state read fresh from disk, immediately
+    before an approval decision, which is approval-specific policy in the
+    same sense the dataset/purpose checks in ``scripts.review_decision.
+    approval_provenance_problems`` already are.
+    """
+    problems: list[str] = []
+    summary = package.get("acquisition_summary") or {}
+
+    runs_by_id = {
+        run.get("run_id"): run
+        for runs in (collection_runs_by_source or {}).values()
+        for run in runs
+    }
+    for run_id in summary.get("qualifying_collection_run_ids", []):
+        current = runs_by_id.get(run_id)
+        if current is None:
+            problems.append(
+                f"acquisition_summary cites collection_run_id {run_id!r}, which no longer exists"
+            )
+        elif current.get("status") not in {"success", "not_modified"}:
+            problems.append(
+                f"acquisition_summary cites collection_run_id {run_id!r}, whose status has "
+                f"changed to {current.get('status')!r} since the package was built"
+            )
+
+    events_by_id = {
+        event.get("event_id"): event
+        for events in (manual_events_by_source or {}).values()
+        for event in events
+    }
+    for event_id in summary.get("qualifying_manual_review_event_ids", []):
+        current = events_by_id.get(event_id)
+        if current is None:
+            problems.append(
+                f"acquisition_summary cites manual_review_event_id {event_id!r}, which no "
+                "longer exists"
+            )
+        elif current.get("status") != "reviewed":
+            problems.append(
+                f"acquisition_summary cites manual_review_event_id {event_id!r}, whose status "
+                f"has changed to {current.get('status')!r} since the package was built"
+            )
+
+    return problems
+
+
 def citable_evidence_ids(
     package: Mapping[str, Any],
     *,
@@ -661,9 +766,23 @@ def build_support_index(
         ):
             lane_ids_by_event.setdefault(event_id, set()).add(lane.get("lane_id"))
 
+    # WO-010-R5 §5: which event backs each evidence item, and whether that
+    # event is an external driver with an admitted (complete) transmission
+    # chain -- an external driver whose chain is still incomplete has not
+    # established a mechanism into any Lane yet, so its evidence cannot
+    # support one.
+    events_by_id = {
+        event.get("event_id"): event
+        for event in (
+            *package.get("active_operational_events", []),
+            *package.get("external_drivers", []),
+        )
+    }
+
     for item in package.get("evidence_records", []):
         evidence_id = str(item.get("evidence_id"))
         event_id = item.get("event_id")
+        event = events_by_id.get(event_id) or {}
         index[evidence_id] = {
             "support_id": evidence_id,
             "support_type": "evidence",
@@ -680,6 +799,10 @@ def build_support_index(
             "publication_use_applied": None,
             "data_period": item.get("publication_date"),
             "freshness": None,
+            "event_class": event.get("event_class"),
+            "transmission_chain_admitted": (
+                (event.get("transmission_chain") or {}).get("completeness") == "complete"
+            ),
         }
 
     return index
@@ -724,14 +847,21 @@ def duplicate_or_ambiguous_support_id_problems(package: Mapping[str, Any]) -> li
     return problems
 
 
+#: Evidence scope values broad enough to support any Lane without an
+#: explicit event-to-lane link. Narrower than this, evidence must be tied to
+#: the specific Lane it is cited for through the reference model (the
+#: event's own lane_relevance, carried into the support index's lane_ids).
+_BROAD_EVIDENCE_SCOPES = frozenset({"country", "region", "global"})
+
+
 def lane_support_relevance_problems(
     output: Mapping[str, Any],
     package: Mapping[str, Any],
     *,
     registry: Mapping[str, Any] | None = None,
 ) -> list[str]:
-    """Whether a lane assessment's cited indicators actually relate to that
-    lane (WO-010-R4 §2).
+    """Whether a lane assessment's cited evidence and indicators actually
+    relate to that lane (WO-010-R4 §2, extended WO-010-R5 §5).
 
     The package's own ``lane_status`` already records, per lane, exactly
     which indicator_ids the platform's own domain math used
@@ -741,9 +871,23 @@ def lane_support_relevance_problems(
     is not support for a claim about it, and citing it anyway is rejected --
     "one eligible indicator supports every claim" is exactly the shortcut
     this check exists to close.
+
+    WO-010-R5 §5 applies the same discipline to ``evidence_ids``: a
+    node-, facility-, asset- or route-scoped evidence item may support a
+    lane only when the reference model (the event it is attached to, via
+    that event's own ``lane_relevance``) actually links it to that lane.
+    Country/region/global-scoped evidence may support any lane -- that
+    breadth is what its own recorded ``scope_supported`` explicitly claims.
+    Evidence attached to an ``external_driver`` event additionally needs
+    that event's transmission chain to be admitted (complete); a driver
+    whose chain is still incomplete has not established a mechanism into
+    any lane yet, so citing it for one is rejected the same as citing
+    unrelated evidence.
     """
     problems: list[str] = []
     eligible = eligible_indicator_ids(package, registry=registry)
+    citable_evidence = citable_evidence_ids(package, registry=registry)
+    support_index = build_support_index(package, registry=registry)
     lane_indicator_ids = {
         lane.get("lane_id"): set(lane.get("indicator_ids", []))
         for lane in package.get("lane_status", [])
@@ -752,12 +896,35 @@ def lane_support_relevance_problems(
     for index, lane in enumerate(output.get("lane_assessments", [])):
         lane_id = lane.get("lane_id")
         relevant = lane_indicator_ids.get(lane_id, set())
-        cited = set(lane.get("indicator_ids", []))
-        irrelevant = (cited & eligible) - relevant
+        cited_indicators = set(lane.get("indicator_ids", []))
+        irrelevant = (cited_indicators & eligible) - relevant
         if irrelevant:
             problems.append(
                 f"lane_assessments[{index}] ({lane_id}): cites indicator(s) {sorted(irrelevant)} "
                 "that this lane's own data in the package does not associate with it"
+            )
+
+        for evidence_id in sorted(set(lane.get("evidence_ids", [])) & citable_evidence):
+            entry = support_index.get(evidence_id)
+            if entry is None:
+                continue
+            if entry.get("event_class") == "external_driver" and not entry.get(
+                "transmission_chain_admitted"
+            ):
+                problems.append(
+                    f"lane_assessments[{index}] ({lane_id}): cites evidence {evidence_id!r} "
+                    "from an external driver whose transmission chain is not admitted, which "
+                    "cannot support a lane direction"
+                )
+                continue
+            if entry.get("geography") in _BROAD_EVIDENCE_SCOPES:
+                continue
+            if lane_id in (entry.get("lane_ids") or []):
+                continue
+            problems.append(
+                f"lane_assessments[{index}] ({lane_id}): cites evidence {evidence_id!r} "
+                f"(scope_supported={entry.get('geography')!r}) that the reference model does "
+                "not link to this lane"
             )
 
     return problems
@@ -1137,13 +1304,19 @@ def support_reference_problems(
     return problems
 
 
+#: Scenario subject types that describe Thailand as a whole rather than one
+#: lane, node or event -- a case here needs either broad-scope evidence or an
+#: explicit aggregation_basis before it may rely on narrower evidence.
+_THAILAND_WIDE_SUBJECT_TYPES = frozenset({"thailand_ocean", "thailand_overall"})
+
+
 def scenario_support_problems(
     output: Mapping[str, Any],
     package: Mapping[str, Any],
     *,
     registry: Mapping[str, Any] | None = None,
 ) -> list[str]:
-    """Scenario support validation (WO-010-R4 §3).
+    """Scenario support validation (WO-010-R4 §3, extended WO-010-R5 §6).
 
     Every ``base_case`` / ``deterioration_case`` / ``improvement_case``
     ``evidence_ids`` and ``indicator_ids`` is checked against the package the
@@ -1159,9 +1332,21 @@ def scenario_support_problems(
     support -- one case borrowing what another case's evidence established
     is exactly the "one eligible indicator supports every claim" shortcut
     this module exists to close. And for a lane-scoped outlook, a cited
-    indicator must be one this package's own ``lane_status`` data for that
-    lane actually associates with it, the same relevance rule
-    :func:`lane_support_relevance_problems` applies to ``lane_assessments``.
+    indicator or evidence item must be one this package's own reference
+    model actually associates with that lane, the same relevance rule
+    :func:`lane_support_relevance_problems` applies to ``lane_assessments``
+    -- so one lane's notice cannot support another lane's scenario.
+
+    WO-010-R5 §6 adds: evidence from an unadmitted external driver cannot
+    support any case (mirroring the lane check); evidence dated after the
+    outlook's own ``data_cutoff_at`` (or, absent one, the package's) falls
+    outside the scenario's analytical cutoff and is rejected; discovery-only
+    evidence cannot support a scenario outcome, the same as it cannot
+    support a lane direction or a preparedness option; and a Thailand-wide
+    outlook (``subject_type`` in ``thailand_ocean``/``thailand_overall``)
+    relying solely on narrow-scope (facility/node/asset/route) evidence must
+    set that case's ``aggregation_basis`` -- a fact this narrow, generalised
+    to all of Thailand, needs its own stated reason, not just a citation.
     """
     problems: list[str] = []
     known_evidence = {str(item.get("evidence_id")) for item in package.get("evidence_records", [])}
@@ -1175,6 +1360,13 @@ def scenario_support_problems(
         lane.get("lane_id"): set(lane.get("indicator_ids", []))
         for lane in package.get("lane_status", [])
     }
+    support_index = build_support_index(package, registry=registry)
+    discovery_only_ids = {
+        str(item.get("evidence_id"))
+        for item in package.get("evidence_records", [])
+        if item.get("evidence_role") == "discovery_only"
+    }
+    package_cutoff = parse_optional_timestamp(package.get("data_cutoff_at"))
     case_names = ("base_case", "deterioration_case", "improvement_case")
 
     for index, outlook in enumerate(output.get("scenarios", [])):
@@ -1183,6 +1375,9 @@ def scenario_support_problems(
             continue
         label = f"scenarios[{index}] ({outlook.get('outlook_id')})"
         differentiated = len({case.get("narrative") for case in cases.values()}) > 1
+        subject_type = outlook.get("subject_type")
+        subject_id = outlook.get("subject_id")
+        case_cutoff = parse_optional_timestamp(outlook.get("data_cutoff_at")) or package_cutoff
 
         for name, case in cases.items():
             evidence_ids = set(case.get("evidence_ids", []))
@@ -1198,6 +1393,12 @@ def scenario_support_problems(
                 problems.append(
                     f"{label}/{name}: cites evidence {sorted(ineligible_evidence)} that cannot "
                     "support a current claim"
+                )
+            cited_discovery = evidence_ids & discovery_only_ids
+            if cited_discovery:
+                problems.append(
+                    f"{label}/{name}: rests on discovery-only evidence {sorted(cited_discovery)}, "
+                    "which cannot support a scenario outcome"
                 )
 
             unknown_indicators = indicator_ids - known_indicators
@@ -1216,6 +1417,50 @@ def scenario_support_problems(
                 problems.append(
                     f"{label}/{name}: this outlook differentiates its cases but {name} cites no "
                     "evidence_id or indicator_id to support its own narrative"
+                )
+
+            valid_cited_evidence = evidence_ids & citable_evidence
+            narrow_evidence_scopes: set[str] = set()
+            for evidence_id in sorted(valid_cited_evidence):
+                entry = support_index.get(evidence_id)
+                if entry is None:
+                    continue
+                if case_cutoff is not None:
+                    entry_period = parse_optional_timestamp(entry.get("data_period"))
+                    if entry_period is not None and entry_period > case_cutoff:
+                        problems.append(
+                            f"{label}/{name}: cites evidence {evidence_id!r} dated after this "
+                            "scenario's own analytical cutoff"
+                        )
+                        continue
+                if entry.get("event_class") == "external_driver" and not entry.get(
+                    "transmission_chain_admitted"
+                ):
+                    problems.append(
+                        f"{label}/{name}: cites evidence {evidence_id!r} from an external "
+                        "driver whose transmission chain is not admitted"
+                    )
+                    continue
+                if entry.get("geography") not in _BROAD_EVIDENCE_SCOPES:
+                    narrow_evidence_scopes.add(evidence_id)
+                if subject_type == "lane" and entry.get("geography") not in _BROAD_EVIDENCE_SCOPES:
+                    if subject_id not in (entry.get("lane_ids") or []):
+                        problems.append(
+                            f"{label}/{name}: cites evidence {evidence_id!r} "
+                            f"(scope_supported={entry.get('geography')!r}) that the reference "
+                            "model does not link to this lane"
+                        )
+
+            if (
+                subject_type in _THAILAND_WIDE_SUBJECT_TYPES
+                and narrow_evidence_scopes
+                and not (indicator_ids & eligible_indicators)
+                and not case.get("aggregation_basis")
+            ):
+                problems.append(
+                    f"{label}/{name}: relies solely on facility/node/asset/route-scoped "
+                    f"evidence {sorted(narrow_evidence_scopes)} for a Thailand-wide subject "
+                    "without stating an aggregation_basis"
                 )
 
             if outlook.get("subject_type") == "lane":
@@ -1303,6 +1548,147 @@ def preparedness_support_problems(
     return problems
 
 
+#: Indicator series_id values compatible with a cost/freight/fuel/FX
+#: preparedness applicability declaration (WO-010-R5 §7).
+_COST_DOMAIN_INDICATOR_FAMILIES = frozenset(
+    {
+        "container_freight_benchmark",
+        "thailand_diesel_retail_price",
+        "usd_thb_reference_rate",
+        "brent_crude_price",
+        "gscpi_index",
+    }
+)
+
+#: applicable_domain_ids values that mean "this is a cost/freight/fuel/FX
+#: monitoring option" for the purposes of the compatible-indicator check.
+_COST_DOMAIN_IDS = frozenset(
+    {
+        "cost_context",
+        "fuel_pressure",
+        "fx_pressure",
+        "freight_benchmark",
+        "freight_market_benchmark_or_proxy",
+    }
+)
+
+
+def preparedness_applicability_problems(
+    output: Mapping[str, Any],
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Whether a preparedness option's cited support actually overlaps its
+    declared applicability (WO-010-R5 §7).
+
+    ``applicable_geography_ids``, ``applicable_lane_ids`` and
+    ``applicable_domain_ids`` are optional, so an option that sets none of
+    them is not checked here at all -- this function only holds an option to
+    the applicability it itself declared. Free-text ``applicable_to`` and
+    ``support_basis`` remain explanatory only, exactly as
+    :func:`preparedness_support_problems` already treats ``evidence_basis``.
+
+    * A lane-specific option (``applicable_lane_ids`` set) needs at least
+      one cited support record the reference model associates with one of
+      those lanes.
+    * A chokepoint option (an ``applicable_geography_ids`` entry shaped like
+      a chokepoint ID, ``CHK-...``) needs support relevant to that
+      chokepoint's own exposed lane(s), read from the package's own
+      ``lane_status[i].chokepoint_exposure``.
+    * A cost/freight/fuel/FX-monitoring option (``applicable_domain_ids``
+      naming one of those domains) needs a compatible indicator, not just
+      any indicator.
+    * An operational-contingency option (``option_type: "contingency"`` or
+      an ``operational_contingency`` domain) needs at least one evidence_id
+      -- a numeric indicator alone cannot establish an operational
+      condition, the same rule :func:`support_adequacy_problems` already
+      applies to ``observed_impacts``/``potential_impacts``.
+    * A Thailand-wide option (an ``applicable_geography_ids`` entry that is
+      neither a chokepoint nor a Lane ID) needs support whose own scope is
+      Thailand-wide or broader, unless the option is explicitly a data
+      coverage action.
+
+    Discovery-only evidence is not re-checked here: :func:`preparedness_
+    support_problems` already rejects it for every operational option,
+    applicability declared or not.
+    """
+    problems: list[str] = []
+    support_index = build_support_index(package, registry=registry)
+
+    lanes_by_chokepoint: dict[str, set[str]] = {}
+    for lane in package.get("lane_status", []):
+        for exposure in lane.get("chokepoint_exposure", []):
+            chokepoint_id = exposure.get("chokepoint_id")
+            if chokepoint_id:
+                lanes_by_chokepoint.setdefault(chokepoint_id, set()).add(lane.get("lane_id"))
+
+    for index, option in enumerate(output.get("conditional_preparedness_options", [])):
+        label = f"conditional_preparedness_options[{index}]"
+        support_ids = set(option.get("evidence_ids", [])) | set(option.get("indicator_ids", []))
+        entries = [support_index[sid] for sid in support_ids if sid in support_index]
+        applicable_lane_ids = set(option.get("applicable_lane_ids") or [])
+        applicable_geography_ids = set(option.get("applicable_geography_ids") or [])
+        applicable_domain_ids = set(option.get("applicable_domain_ids") or [])
+        is_coverage = bool(option.get("is_data_coverage_action"))
+        support_lane_ids = {
+            lane_id for entry in entries for lane_id in (entry.get("lane_ids") or [])
+        }
+
+        if applicable_lane_ids and not is_coverage and not (support_lane_ids & applicable_lane_ids):
+            problems.append(
+                f"{label}: declares applicable_lane_ids {sorted(applicable_lane_ids)} but "
+                "cited support relates to none of them"
+            )
+
+        chokepoint_ids = {g for g in applicable_geography_ids if g.startswith("CHK-")}
+        if chokepoint_ids and not is_coverage:
+            relevant_lanes: set[str] = set()
+            for chokepoint_id in chokepoint_ids:
+                relevant_lanes |= lanes_by_chokepoint.get(chokepoint_id, set())
+            if not (support_lane_ids & relevant_lanes):
+                problems.append(
+                    f"{label}: declares chokepoint applicability {sorted(chokepoint_ids)} but "
+                    "cited support is not relevant to that chokepoint's exposed lane(s)"
+                )
+
+        if applicable_domain_ids & _COST_DOMAIN_IDS and not is_coverage:
+            indicator_families = {
+                entry.get("indicator_family")
+                for entry in entries
+                if entry.get("support_type") == "indicator"
+            }
+            if not (indicator_families & _COST_DOMAIN_INDICATOR_FAMILIES):
+                problems.append(
+                    f"{label}: declares a cost/freight/fuel/FX applicable_domain_id but cites "
+                    "no compatible indicator"
+                )
+
+        if (
+            "operational_contingency" in applicable_domain_ids
+            or option.get("option_type") == "contingency"
+        ) and not is_coverage:
+            if not any(entry.get("support_type") == "evidence" for entry in entries):
+                problems.append(
+                    f"{label}: is an operational contingency option but cites no evidence_id; "
+                    "a numeric indicator alone cannot establish an operational condition"
+                )
+
+        thailand_wide_geography = applicable_geography_ids - chokepoint_ids - applicable_lane_ids
+        if thailand_wide_geography and not is_coverage:
+            compatible = any(
+                entry.get("geography") in _BROAD_EVIDENCE_SCOPES | {"thailand"} for entry in entries
+            )
+            if not compatible:
+                problems.append(
+                    f"{label}: declares Thailand-wide applicable_geography_ids "
+                    f"{sorted(thailand_wide_geography)} but cited support does not establish "
+                    "Thailand-wide relevance"
+                )
+
+    return problems
+
+
 def validate_output(
     output: Mapping[str, Any],
     package: Mapping[str, Any],
@@ -1365,6 +1751,7 @@ def validate_output(
     problems.extend(lane_support_relevance_problems(output, package, registry=registry))
     problems.extend(scenario_support_problems(output, package, registry=registry))
     problems.extend(preparedness_support_problems(output, package, registry=registry))
+    problems.extend(preparedness_applicability_problems(output, package, registry=registry))
     problems.extend(zero_evidence_disposition_problems(output, package, registry=registry))
     if support:
         problems.extend(support_adequacy_problems(output, package, registry=registry))

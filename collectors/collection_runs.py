@@ -36,6 +36,7 @@ from typing import Any
 
 from analysis.build_context import parse_timestamp
 from analysis.contracts import schema_errors
+from analysis.provenance import HISTORICAL_VALIDATION
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -75,11 +76,103 @@ def load_collection_runs(
     return runs_by_source
 
 
+def _related_record_problems(
+    event: dict[str, Any],
+    *,
+    record_index: dict[str, dict[str, Any]],
+    now: datetime | None,
+) -> list[str]:
+    """WO-010-R5 §2: whether a manual review event's ``related_record_ids``
+    actually resolve to records this build knows about.
+
+    Reverses WO-010-R4's accepted behaviour, where a reference to a missing
+    record loaded without complaint on the theory that cross-referencing
+    belonged to ``analysis.review_package`` alone. It does not: an event
+    naming a record nobody can find, a record from a different source, a
+    fixture, or a record dated after the review itself, is not a basis for
+    anything, and treating it as one let ``record_count`` assert an
+    unverifiable number. Every problem is collected (not just the first) so
+    one bad event reports everything wrong with it at once.
+    """
+    problems: list[str] = []
+    related = event.get("related_record_ids") or []
+
+    if event.get("status") == "reviewed" and not related:
+        problems.append(
+            f"event {event['event_id']!r} has status 'reviewed' but related_record_ids is "
+            "empty; a reviewed event must be the basis for at least one record"
+        )
+
+    seen: set[str] = set()
+    valid_count = 0
+    reviewed_at = parse_timestamp(event["reviewed_at"])
+    for record_id in related:
+        if record_id in seen:
+            problems.append(
+                f"event {event['event_id']!r} references duplicate record ID {record_id!r}"
+            )
+            continue
+        seen.add(record_id)
+
+        record = record_index.get(record_id)
+        if record is None:
+            problems.append(
+                f"event {event['event_id']!r} references related_record_id {record_id!r}, "
+                "which does not exist in this build's record index"
+            )
+            continue
+        if record["source_id"] != event["source_id"]:
+            problems.append(
+                f"event {event['event_id']!r} references related_record_id {record_id!r}, "
+                f"which belongs to source {record['source_id']!r}, not {event['source_id']!r}"
+            )
+            continue
+        if record["is_fixture"]:
+            problems.append(
+                f"event {event['event_id']!r} references related_record_id {record_id!r}, "
+                "which is a fixture record and cannot be the basis for a manual review"
+            )
+            continue
+        if record["dataset"] == HISTORICAL_VALIDATION:
+            problems.append(
+                f"event {event['event_id']!r} references related_record_id {record_id!r}, "
+                "which is a historical-validation record and cannot be the basis for a manual "
+                "review"
+            )
+            continue
+        record_ts = record["timestamp"]
+        if record_ts is not None:
+            parsed = parse_timestamp(record_ts)
+            if parsed > reviewed_at:
+                problems.append(
+                    f"event {event['event_id']!r} references related_record_id {record_id!r}, "
+                    "which is dated later than the review event itself"
+                )
+                continue
+            if now is not None and parsed > now:
+                problems.append(
+                    f"event {event['event_id']!r} references related_record_id {record_id!r}, "
+                    "which is dated later than this build's as-of time"
+                )
+                continue
+        valid_count += 1
+
+    if event.get("record_count") != valid_count:
+        problems.append(
+            f"event {event['event_id']!r} records record_count "
+            f"{event.get('record_count')}, which disagrees with the "
+            f"{valid_count} valid referenced record(s) actually found"
+        )
+
+    return problems
+
+
 def load_manual_review_events(
     directory: Path | None = None,
     *,
     registry: dict[str, Any] | None = None,
     now: datetime | None = None,
+    record_index: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Every recorded manual-intake review event, grouped by ``source_id``.
 
@@ -94,15 +187,22 @@ def load_manual_review_events(
       in ``registry`` that is an allowed manual-intake contract;
     * its ``event_id`` must be unique across every file in this directory;
     * it must not name a publisher-required source without recording one;
-    * it must not be dated later than ``now`` (the build's as-of time).
+    * it must not be dated later than ``now`` (the build's as-of time);
+    * (WO-010-R5 §2, when ``record_index`` is given) every
+      ``related_record_id`` must resolve to a real, same-source, non-fixture,
+      current-dataset record dated at or before the review, its
+      ``record_count`` must agree with how many actually do, no ID may be
+      referenced twice, and a ``reviewed`` event may not reference an empty
+      set.
 
     Any violation raises rather than silently dropping the event or the
     whole file -- a malformed manual-review event is a build failure, the
     same way an invalid collection-run manifest already is.
 
-    ``registry`` and ``now`` are optional so the loader can still be
-    exercised (e.g. in isolated schema tests) without a full registry or
-    Build Context; every production call site passes both.
+    ``registry``, ``now`` and ``record_index`` are optional so the loader can
+    still be exercised (e.g. in isolated schema tests) without a full
+    registry, Build Context or record index; every production call site
+    passes all three.
     """
     target = directory if directory is not None else MANUAL_REVIEW_EVENTS_DIR
     events_by_source: dict[str, list[dict[str, Any]]] = {}
@@ -165,6 +265,13 @@ def load_manual_review_events(
                         f"{path}: event {event_id!r} has reviewed_at {event['reviewed_at']!r}, "
                         "which is later than this build's as-of time"
                     )
+
+            if record_index is not None:
+                related_problems = _related_record_problems(
+                    event, record_index=record_index, now=now
+                )
+                if related_problems:
+                    raise ValueError(f"{path}: " + "; ".join(related_problems))
 
             events_by_source.setdefault(source_id, []).append(event)
     return events_by_source

@@ -239,6 +239,16 @@
         "technical_demo",
         "historical_validation"
       ]
+    },
+    "collection_run_id": {
+      "type": ["string", "null"],
+      "pattern": "^COL-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$",
+      "description": "WO-010-R5 §1. Optional. Required (non-null) in practice when evidence_origin is 'live_retrieved': the persisted collection-run manifest this evidence item was actually emitted from. Enforcement lives in analysis.provenance.acquisition_binding_problems, not the schema, so a fixture record is unaffected."
+    },
+    "manual_review_event_id": {
+      "type": ["string", "null"],
+      "pattern": "^MAN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$",
+      "description": "WO-010-R5 §1. Optional. Required (non-null) in practice when evidence_origin is 'human_reviewed_manual': the persisted manual-review event this evidence item's transcription is the basis for."
     }
   }
 }

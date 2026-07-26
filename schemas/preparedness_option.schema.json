@@ -75,6 +75,21 @@
     "support_basis": {
       "type": ["string", "null"],
       "description": "WO-010-R4 §4. Free-text explanation of why the cited evidence_ids/indicator_ids justify this option. Explanation only -- it may never substitute for the validated support IDs themselves."
+    },
+    "applicable_geography_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "WO-010-R5 §7. Optional. Country, region or Thailand-wide geography IDs this option applies to. When set, cited support must be relevant to at least one of them; free-text applicable_to remains explanatory only, never authoritative."
+    },
+    "applicable_lane_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^LANE-[A-Z0-9-]+$"},
+      "description": "WO-010-R5 §7. Optional. Lane IDs this option applies to. When set, at least one cited evidence_id or indicator_id must be one the package associates with one of these lanes."
+    },
+    "applicable_domain_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "WO-010-R5 §7. Optional. Assessment domains (e.g. 'cost_context', 'fuel_pressure', 'fx_pressure', 'operational_contingency') this option applies to, used to check that a cost/freight/fuel/FX-monitoring option cites a compatible indicator and that an operational-contingency option cites operational evidence rather than a numeric proxy alone."
     }
   }
 }

@@ -514,6 +514,19 @@ def record_publication_use(
     return (source.get("qualification") or {}).get("publication_use")
 
 
+class SeriesHomogeneityError(ValueError):
+    """Raised when a series derivation is attempted on a record set
+    :func:`series_homogeneity_problems` rejects (WO-010-R5 §4).
+
+    Raised by :func:`analysis.indicators.derive_series`-wrapping callers that
+    guard themselves with it (``scripts.build_analysis.derive_current_series``,
+    ``scripts.build_dashboard._current_series_payload``), so that a mixed
+    series can never reach a derivation no matter which analytical path
+    calls it -- the guard lives at the one place every current derivation
+    passes through, not only at each caller's own pre-check.
+    """
+
+
 def series_homogeneity_problems(
     records: Sequence[Mapping[str, Any]],
     *,
@@ -566,6 +579,319 @@ def series_homogeneity_problems(
         [(record.get("placement") or {}).get("lane_id") for record in records],
     )
 
+    return problems
+
+
+def acquisition_binding_problems(
+    record: Mapping[str, Any],
+    *,
+    collection_runs_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    manual_events_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    as_of: Any = None,
+) -> list[str]:
+    """Whether a ``live_retrieved`` or ``human_reviewed_manual`` record is
+    actually bound to a persisted acquisition event, not merely labelled as
+    though it were (WO-010-R5 §1).
+
+    A fixture claims no acquisition and is exempt (``[]``) -- this check
+    exists only for the two origins that claim a real acquisition actually
+    happened. For those, the record must carry the matching binding ID
+    (``collection_run_id`` for ``live_retrieved``, ``manual_review_event_id``
+    for ``human_reviewed_manual``), and that ID must resolve to a persisted
+    run/event that: belongs to the same source, succeeded (or, for a manual
+    event, was actually reviewed), completed at or before ``as_of``, and
+    -- for a live record -- whose ``adapter_version`` is not positively
+    contradicted by the record's own ``parser_version``.
+
+    Fails closed by construction: a record whose origin claims acquisition
+    but whose caller supplies no index at all (``collection_runs_by_source``/
+    ``manual_events_by_source`` both ``None``) gets exactly the same rejection
+    as one that supplies an index the ID does not appear in. There is no
+    "skip this check" path for a publishable origin -- only "no index was
+    given" as one particular way for the lookup to fail.
+    """
+    origin = record_origin(record)
+    if origin not in PUBLISHABLE_ORIGINS:
+        return []
+
+    # Imported locally: analysis.build_context imports from this module, so a
+    # module-level import here would be circular.
+    from analysis.build_context import parse_timestamp
+
+    label = _record_label(record)
+    provenance = _provenance(record)
+    source_id = record_source_id(record)
+
+    if origin == LIVE_RETRIEVED:
+        run_id = provenance.get("collection_run_id")
+        if not run_id:
+            return [f"{label}: live_retrieved record carries no collection_run_id"]
+        runs = (collection_runs_by_source or {}).get(source_id or "", ())
+        run = next((candidate for candidate in runs if candidate.get("run_id") == run_id), None)
+        if run is None:
+            return [
+                f"{label}: collection_run_id {run_id!r} matches no persisted collection run "
+                f"for source {source_id!r}"
+            ]
+        if run.get("source_id") != source_id:
+            return [
+                f"{label}: collection_run_id {run_id!r} belongs to source "
+                f"{run.get('source_id')!r}, not {source_id!r}"
+            ]
+        if run.get("status") not in {"success", "not_modified"}:
+            return [
+                f"{label}: collection run {run_id!r} has status {run.get('status')!r}, not "
+                "'success' or 'not_modified'"
+            ]
+        completed_at = run.get("completed_at")
+        if as_of is not None and completed_at and parse_timestamp(completed_at) > as_of:
+            return [f"{label}: collection run {run_id!r} completed after this build's as-of time"]
+        retrieved_at = provenance.get("retrieved_at")
+        if as_of is not None and retrieved_at and parse_timestamp(retrieved_at) > as_of:
+            return [f"{label}: retrieved_at is after this build's as-of time"]
+        parser_version = provenance.get("parser_version")
+        adapter_version = run.get("adapter_version")
+        if parser_version and adapter_version and parser_version != adapter_version:
+            return [
+                f"{label}: parser_version {parser_version!r} disagrees with collection run "
+                f"{run_id!r}'s adapter_version {adapter_version!r}"
+            ]
+        return []
+
+    if origin == HUMAN_REVIEWED_MANUAL:
+        event_id = provenance.get("manual_review_event_id")
+        if not event_id:
+            return [f"{label}: human_reviewed_manual record carries no manual_review_event_id"]
+        events = (manual_events_by_source or {}).get(source_id or "", ())
+        event = next(
+            (candidate for candidate in events if candidate.get("event_id") == event_id), None
+        )
+        if event is None:
+            return [
+                f"{label}: manual_review_event_id {event_id!r} matches no persisted manual "
+                f"review event for source {source_id!r}"
+            ]
+        if event.get("source_id") != source_id:
+            return [
+                f"{label}: manual_review_event_id {event_id!r} belongs to source "
+                f"{event.get('source_id')!r}, not {source_id!r}"
+            ]
+        if event.get("status") != "reviewed":
+            return [
+                f"{label}: manual review event {event_id!r} has status "
+                f"{event.get('status')!r}, not 'reviewed'"
+            ]
+        record_id = provenance.get("record_id") or record.get("evidence_id")
+        if record_id not in (event.get("related_record_ids") or []):
+            return [
+                f"{label}: record ID {record_id!r} is not listed in manual review event "
+                f"{event_id!r}'s related_record_ids"
+            ]
+        if not event.get("bounded_content_confirmed"):
+            return [f"{label}: manual review event {event_id!r} does not confirm bounded content"]
+        reviewed_at = event.get("reviewed_at")
+        if as_of is not None and reviewed_at and parse_timestamp(reviewed_at) > as_of:
+            return [
+                f"{label}: manual review event {event_id!r} was reviewed after this build's "
+                "as-of time"
+            ]
+        return []
+
+    return []
+
+
+def _record_timestamp(record: Mapping[str, Any]) -> str | None:
+    """The best available dating for a record of either observation or
+    evidence shape, for comparison against a manual review event's own date.
+    """
+    provenance = _provenance(record)
+    return (
+        provenance.get("retrieved_at")
+        or provenance.get("published_at")
+        or record.get("retrieved_at")
+        or record.get("publication_date")
+    )
+
+
+def build_record_index(
+    *,
+    observations: Mapping[str, Sequence[Mapping[str, Any]]] = {},
+    evidence: Sequence[Mapping[str, Any]] = (),
+) -> dict[str, dict[str, Any]]:
+    """A normalized ``record_id`` -> summary index spanning every observation
+    family and every event-evidence item (WO-010-R5 §2).
+
+    Built once and handed to :func:`collectors.collection_runs.
+    load_manual_review_events`, which uses it to check a manual review
+    event's ``related_record_ids`` against records that actually exist,
+    rather than trusting the list on its own say-so. Each entry carries only
+    what that check needs: the record's own ID, its source, whether it is a
+    fixture, its dataset, and its best available timestamp.
+    """
+    index: dict[str, dict[str, Any]] = {}
+    for records in observations.values():
+        for record in records:
+            record_id = _provenance(record).get("record_id")
+            if not record_id:
+                continue
+            index[str(record_id)] = {
+                "record_id": str(record_id),
+                "source_id": record_source_id(record),
+                "is_fixture": is_fixture(record_origin(record)),
+                "dataset": record_dataset(record),
+                "timestamp": _record_timestamp(record),
+            }
+    for item in evidence:
+        evidence_id = item.get("evidence_id")
+        if not evidence_id:
+            continue
+        index[str(evidence_id)] = {
+            "record_id": str(evidence_id),
+            "source_id": record_source_id(item),
+            "is_fixture": is_fixture(record_origin(item)),
+            "dataset": record_dataset(item),
+            "timestamp": _record_timestamp(item),
+        }
+    return index
+
+
+def build_acquisition_summary(
+    *,
+    observations: Mapping[str, Sequence[Mapping[str, Any]]] = {},
+    evidence: Sequence[Mapping[str, Any]] = (),
+    collection_runs_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    manual_events_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    as_of: Any = None,
+) -> dict[str, Any]:
+    """What acquisition evidence actually backs a set of current records
+    (WO-010-R5 §9).
+
+    ``observations`` and ``evidence`` should already be qualified for
+    current publication (:func:`qualified_records` / ``qualifies_for_
+    current_publication``) -- this function only asks the acquisition
+    question, not the publication-use question, so it can be layered onto
+    any already-qualified set. Every ``live_retrieved`` or ``human_reviewed_
+    manual`` record among them is checked against :func:`acquisition_binding_
+    problems`; a record that fails is counted as excluded rather than
+    silently omitted, and a record that passes contributes its binding ID
+    and timestamp to the summary. Records of any other origin (a fixture
+    that slipped through an upstream filter) are ignored rather than
+    miscounted as excluded, since they were never claiming an acquisition to
+    begin with.
+    """
+    # Imported locally: analysis.build_context imports from this module, so a
+    # module-level import here would be circular.
+    from analysis.build_context import parse_timestamp, to_iso
+
+    run_ids: set[str] = set()
+    event_ids: set[str] = set()
+    timestamps: list[Any] = []
+    excluded = 0
+
+    runs_by_id = {
+        run.get("run_id"): run
+        for runs in (collection_runs_by_source or {}).values()
+        for run in runs
+    }
+    events_by_id = {
+        event.get("event_id"): event
+        for events in (manual_events_by_source or {}).values()
+        for event in events
+    }
+
+    def _consider(record: Mapping[str, Any]) -> None:
+        nonlocal excluded
+        origin = record_origin(record)
+        if origin not in PUBLISHABLE_ORIGINS:
+            return
+        problems = acquisition_binding_problems(
+            record,
+            collection_runs_by_source=collection_runs_by_source,
+            manual_events_by_source=manual_events_by_source,
+            as_of=as_of,
+        )
+        if problems:
+            excluded += 1
+            return
+        provenance = _provenance(record)
+
+        if origin == LIVE_RETRIEVED:
+            run_id = provenance.get("collection_run_id")
+            run_ids.add(str(run_id))
+            run = runs_by_id.get(run_id)
+            if run and run.get("completed_at"):
+                timestamps.append(parse_timestamp(run["completed_at"]))
+        elif origin == HUMAN_REVIEWED_MANUAL:
+            event_id = provenance.get("manual_review_event_id")
+            event_ids.add(str(event_id))
+            event = events_by_id.get(event_id)
+            if event and event.get("reviewed_at"):
+                timestamps.append(parse_timestamp(event["reviewed_at"]))
+
+    for records in observations.values():
+        for record in records:
+            _consider(record)
+    for item in evidence:
+        _consider(item)
+
+    limitations: list[str] = []
+    if excluded:
+        limitations.append(
+            f"{excluded} otherwise-qualified record(s) were excluded from this package "
+            "because they carried no matching, valid acquisition binding."
+        )
+
+    return {
+        "qualifying_collection_run_ids": sorted(run_ids),
+        "qualifying_manual_review_event_ids": sorted(event_ids),
+        "excluded_unbound_record_count": excluded,
+        "latest_source_cutoff": to_iso(max(timestamps)) if timestamps else None,
+        "acquisition_health_limitations": limitations,
+    }
+
+
+#: Source Health statuses incompatible with a current live_retrieved record
+#: actually being published from that source (WO-010-R5 §3).
+_NON_PUBLISHING_HEALTH_STATUSES = frozenset({"no_data", "disabled"})
+
+
+def source_health_publication_consistency_problems(
+    source_status: Mapping[str, Any],
+    records: Sequence[Mapping[str, Any]],
+) -> list[str]:
+    """Whether Source Health and current publication agree (WO-010-R5 §3).
+
+    A ``live_retrieved`` record must never be published while Source
+    Health's own snapshot reports that record's source as ``no_data`` or
+    ``disabled`` -- that combination asserts, in the same build, both "this
+    source has no data" and "here is a value from it", and no honest build
+    can say both. ``qualifies_for_current_publication`` already refuses a
+    disabled source for a non-manual origin, and :func:`acquisition_binding_
+    problems` already refuses a record whose collection run does not match
+    Source Health's own view of what succeeded -- this is the second,
+    independent check over the *final* set of records actually being
+    published, in case those upstream filters and this build's Source
+    Health snapshot were ever computed from data that had drifted apart.
+    A ``no_data``/``disabled`` mismatch specifically for a
+    ``human_reviewed_manual`` record is not checked here: a manual intake's
+    own health already comes only from its recorded review event
+    (``collectors.source_health._evaluate_manual_source_health``), so the
+    same contradiction cannot arise for it the way it can for an automated
+    collection.
+    """
+    problems: list[str] = []
+    health_by_id = {str(item.get("source_id")): item for item in source_status.get("sources", [])}
+    for record in records:
+        if record_origin(record) != LIVE_RETRIEVED:
+            continue
+        source_id = record_source_id(record)
+        health = health_by_id.get(str(source_id))
+        status = health.get("status") if health else None
+        if status in _NON_PUBLISHING_HEALTH_STATUSES:
+            problems.append(
+                f"{_record_label(record)}: published as live_retrieved from source "
+                f"{source_id!r}, whose Source Health status is {status!r}"
+            )
     return problems
 
 

@@ -830,3 +830,29 @@ def test_a_mixed_series_produces_no_dashboard_payload_either():
         )
         is None
     )
+
+
+def test_a_mixed_series_produces_an_insufficient_evidence_lane_domain_not_a_crash():
+    """WO-010-R5 §4: a mixed record set feeding a Lane-domain calculation
+    comes out insufficient_evidence, with the homogeneity problem recorded
+    as an explicit limitation -- neither combined under one record's terms
+    nor a build failure."""
+    raw_permitted = live_trade_observation(period_key="2026-06", value=1.0)
+    derived_only = live_trade_observation(
+        period_key="2026-07", value=1.1, source_id=TEST_DERIVED_ONLY_SOURCE
+    )
+    mixed = {
+        "trade_observations": [raw_permitted, derived_only],
+        "indicator_observations": [],
+        "port_observations": [],
+        "cost_observations": [],
+    }
+    assessments = build_current_lane_assessments(
+        _lanes(), mixed, [], {}, _source_status(), TEST_REGISTRY
+    )
+    lane = next(item for item in assessments if item["lane_id"] == LANE_ID)
+    trade = _domain(lane, "thailand_trade_flow")
+    assert trade["direction"] == "insufficient_evidence"
+    assert trade["threshold_rule_id"] is None
+    assert not trade["indicator_ids"]
+    assert any("mixed record set" in limitation for limitation in trade["known_limitations"])

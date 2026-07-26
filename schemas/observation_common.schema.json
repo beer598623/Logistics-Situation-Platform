@@ -196,6 +196,16 @@
         "dataset": {
           "$ref": "#/$defs/dataset",
           "description": "The publication surface this record belongs to, carried at record level so a record copied into a package takes its surface with it rather than inheriting one from whatever file it lands in."
+        },
+        "collection_run_id": {
+          "type": ["string", "null"],
+          "pattern": "^COL-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$",
+          "description": "WO-010-R5 §1. Required (non-null) when evidence_origin is 'live_retrieved': the persisted collection-run manifest this record was actually emitted from. Optional so fixture records, which carry no acquisition event, are unaffected; enforcement that a live_retrieved record without one cannot reach current publication happens in analysis.provenance.acquisition_binding_problems, not here."
+        },
+        "manual_review_event_id": {
+          "type": ["string", "null"],
+          "pattern": "^MAN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$",
+          "description": "WO-010-R5 §1. Required (non-null) when evidence_origin is 'human_reviewed_manual': the persisted manual-review event this record's transcription is the basis for. Optional for the same reason as collection_run_id."
         }
       }
     },

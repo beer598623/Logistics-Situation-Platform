@@ -163,3 +163,123 @@ def test_without_a_registry_or_now_only_schema_validity_is_checked(tmp_path):
     )
     loaded = load_manual_review_events(tmp_path)
     assert loaded[TEST_NOTICE_SOURCE]
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R5 §2: the record index reverses the accepted-orphan-reference
+# behaviour -- every related_record_id must resolve to a real record.
+# ---------------------------------------------------------------------------
+
+
+def _record(record_id="EVD-1", **overrides):
+    entry = {
+        "record_id": record_id,
+        "source_id": TEST_NOTICE_SOURCE,
+        "is_fixture": False,
+        "dataset": "current_publication",
+        "timestamp": "2026-01-01T00:00:00Z",
+    }
+    entry.update(overrides)
+    return entry
+
+
+def test_a_related_record_id_that_does_not_exist_is_rejected(tmp_path):
+    _write(tmp_path, f"{TEST_NOTICE_SOURCE}.json", TEST_NOTICE_SOURCE, [_event()])
+    with pytest.raises(ValueError, match="does not exist in this build's record index"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index={})
+
+
+def test_a_related_record_from_another_source_is_rejected(tmp_path):
+    _write(tmp_path, f"{TEST_NOTICE_SOURCE}.json", TEST_NOTICE_SOURCE, [_event()])
+    index = {"EVD-1": _record(source_id="SOME_OTHER_SOURCE")}
+    with pytest.raises(ValueError, match="belongs to source 'SOME_OTHER_SOURCE'"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index)
+
+
+def test_a_related_record_that_is_a_fixture_is_rejected(tmp_path):
+    _write(tmp_path, f"{TEST_NOTICE_SOURCE}.json", TEST_NOTICE_SOURCE, [_event()])
+    index = {"EVD-1": _record(is_fixture=True)}
+    with pytest.raises(ValueError, match="is a fixture record"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index)
+
+
+def test_a_related_record_that_is_historical_validation_is_rejected(tmp_path):
+    _write(tmp_path, f"{TEST_NOTICE_SOURCE}.json", TEST_NOTICE_SOURCE, [_event()])
+    index = {"EVD-1": _record(dataset="historical_validation")}
+    with pytest.raises(ValueError, match="historical-validation record"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index)
+
+
+def test_a_related_record_dated_after_the_review_is_rejected(tmp_path):
+    _write(tmp_path, f"{TEST_NOTICE_SOURCE}.json", TEST_NOTICE_SOURCE, [_event()])
+    index = {"EVD-1": _record(timestamp="2026-06-01T00:00:00Z")}
+    with pytest.raises(ValueError, match="dated later than the review event"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index)
+
+
+def test_duplicate_related_record_ids_are_rejected(tmp_path):
+    _write(
+        tmp_path,
+        f"{TEST_NOTICE_SOURCE}.json",
+        TEST_NOTICE_SOURCE,
+        [_event(related_record_ids=["EVD-1", "EVD-1"])],
+    )
+    index = {"EVD-1": _record()}
+    with pytest.raises(ValueError, match="duplicate record ID"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index)
+
+
+def test_a_record_count_that_disagrees_with_valid_records_is_rejected(tmp_path):
+    _write(
+        tmp_path,
+        f"{TEST_NOTICE_SOURCE}.json",
+        TEST_NOTICE_SOURCE,
+        [_event(record_count=2, related_record_ids=["EVD-1"])],
+    )
+    index = {"EVD-1": _record()}
+    with pytest.raises(ValueError, match="disagrees with the 1 valid referenced record"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index)
+
+
+def test_a_reviewed_event_with_an_empty_record_set_is_rejected(tmp_path):
+    _write(
+        tmp_path,
+        f"{TEST_NOTICE_SOURCE}.json",
+        TEST_NOTICE_SOURCE,
+        [_event(record_count=0, related_record_ids=[])],
+    )
+    with pytest.raises(ValueError, match="related_record_ids is empty"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index={})
+
+
+def test_a_valid_related_record_loads_cleanly(tmp_path):
+    _write(tmp_path, f"{TEST_NOTICE_SOURCE}.json", TEST_NOTICE_SOURCE, [_event()])
+    index = {"EVD-1": _record()}
+    loaded = load_manual_review_events(
+        tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index
+    )
+    assert loaded[TEST_NOTICE_SOURCE]
+
+
+def test_a_superseded_event_is_not_the_latest_reviewed_event(tmp_path):
+    """WO-010-R5 §2/§1: a superseded event does not make Source Health
+    fresh. ``load_manual_review_events`` still loads a superseded event (its
+    status is a fact about it, not a schema violation), but
+    ``collectors.source_health._latest_reviewed_event`` only ever considers
+    events with status 'reviewed' when computing freshness -- so a source
+    whose only event is 'superseded' reports the same as one with none."""
+    from collectors.source_health import evaluate_source_health
+
+    _write(
+        tmp_path,
+        f"{TEST_NOTICE_SOURCE}.json",
+        TEST_NOTICE_SOURCE,
+        [_event(status="superseded", related_record_ids=[], record_count=0)],
+    )
+    loaded = load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index={})
+    contract = next(s for s in TEST_REGISTRY["sources"] if s["id"] == TEST_NOTICE_SOURCE)
+    health = evaluate_source_health(
+        contract, [], now=NOW, manual_review_events=loaded[TEST_NOTICE_SOURCE]
+    )
+    assert health.status == "disabled"
+    assert health.last_success_at is None
