@@ -35,9 +35,14 @@ from analysis.assessments import (  # noqa: E402
     direction_for_derivation,
 )
 from analysis.build_context import (  # noqa: E402
+    LEGACY_MIGRATED,
+    METHODOLOGY_VERSION,
+    OBSERVED_BUILD_TIME,
+    PERSISTED_REBUILD_TIME,
     build_context_record,
     context_problems,
     exclude_future_dated,
+    hash_directory,
     latest_timestamp,
     parse_timestamp,
     resolve_current_as_of,
@@ -60,7 +65,7 @@ from analysis.provenance import (  # noqa: E402
     TECHNICAL_DEMO,
     SeriesHomogeneityError,
     acquisition_binding_problems,
-    build_record_index,
+    build_acquisition_summary,
     effective_source_id,
     qualified_records,
     qualifies_for_current_publication,
@@ -72,10 +77,7 @@ from analysis.provenance import (  # noqa: E402
 from analysis.reference import load_dimensions, load_lanes  # noqa: E402
 from analysis.scenarios import build_lane_outlook, build_preparedness_options  # noqa: E402
 from analysis.thresholds import combine_directions  # noqa: E402
-from collectors.collection_runs import (  # noqa: E402
-    load_collection_runs,
-    load_manual_review_events,
-)
+from collectors.collection_runs import load_validated_acquisition_state  # noqa: E402
 from collectors.registry import load_registry  # noqa: E402
 from collectors.source_health import evaluate_registry_health  # noqa: E402
 
@@ -1323,26 +1325,22 @@ def main() -> int:
     current_as_of = resolve_current_as_of(args.as_of, previous_context=previous_context)
     current_as_of_iso = to_iso(current_as_of)
 
-    # WO-010-R5 §2: every current observation and evidence record, indexed
-    # once and handed to the manual-review loader below so it can check a
-    # review event's related_record_ids against records that actually exist
-    # -- reversing WO-010-R4's accepted behaviour of loading an event that
-    # named a record nobody could find.
-    record_index = build_record_index(observations=observations, evidence=evidence_records)
-
-    # Loaded from persisted, schema-validated manifests -- never an empty
-    # literal standing in for "we checked". No source has ever completed a
-    # live run and no manual notice has ever been reviewed, so both loaders
-    # return empty mappings today, which is the honest, checkable answer.
-    #
-    # Both loaders are given ``current_as_of``: WO-010-R4 §6 requires that a
-    # collection run or manual review dated later than this build's as-of
-    # time can never be treated as the latest one (collectors/source_health.py)
-    # or even load at all (a future-dated manual event fails closed here).
-    collection_runs = load_collection_runs()
-    manual_events = load_manual_review_events(
-        registry=registry, now=current_as_of, record_index=record_index
+    # WO-010-R6 §3: the one shared acquisition-state loader. It builds the
+    # record index (WO-010-R5 §2), loads and validates every collection-run
+    # manifest and manual-review event against it -- there is no path here
+    # that can call the manual-events loader without the current record
+    # index -- and computes one acquisition-state hash covering all of it.
+    # No source has ever completed a live run and no manual notice has ever
+    # been reviewed, so this returns empty mappings today, which is the
+    # honest, checkable answer.
+    acquisition_state = load_validated_acquisition_state(
+        registry=registry,
+        as_of=current_as_of,
+        observations=observations,
+        evidence=evidence_records,
     )
+    collection_runs = acquisition_state["collection_runs_by_source"]
+    manual_events = acquisition_state["manual_events_by_source"]
     source_status = evaluate_registry_health(
         registry,
         collection_runs,
@@ -1515,80 +1513,118 @@ def main() -> int:
         "indicators": current_indicators,
     }
 
-    # --- Build Context (WO-010-R4 §6, timestamp semantics corrected R5 §8) -
+    # --- Build Context (WO-010-R4 §6, timestamp semantics corrected R5 §8,
+    # source-cutoff derivation corrected R6 §6) ------------------------------
     # The single record scripts/build_dashboard.py and scripts/
     # build_review_package.py both read, so every current output in one
     # build shares exactly this as-of time -- never a separately pinned one.
-    # WO-010-R5 §8: filtered to runs/events at or before current_as_of before
-    # taking the latest -- a future-dated run must not leak into
-    # latest_included_collection_run_at just because collectors/
-    # source_health.py already (separately) excludes it from making a
-    # source's health read as fresh.
-    included_runs, _ = exclude_future_dated(
-        [run for runs in collection_runs.values() for run in runs],
+    #
+    # WO-010-R6 §6: latest_run_at/latest_manual_at (and therefore
+    # source_cutoff) must be derived only from acquisition-bound records
+    # actually included in current intelligence -- never from a failed,
+    # disabled or dry-run collection run, a successful run backing no
+    # included record, or a rejected/superseded manual review. Filtering by
+    # future-dating alone (the R5 behaviour) let a run/event through as long
+    # as its own timestamp was not in the future, whatever its status or
+    # whether anything it produced actually qualified. build_acquisition_
+    # summary re-derives this correctly: it only counts a run or event whose
+    # binding actually passes acquisition_binding_problems for a record in
+    # the build's own final qualified sets.
+    final_acquisition_summary = build_acquisition_summary(
+        observations=qualified_observations,
+        evidence=list(evidence_by_id.values()),
+        collection_runs_by_source=collection_runs,
+        manual_events_by_source=manual_events,
         as_of=current_as_of,
+    )
+    runs_by_id = {run.get("run_id"): run for runs in collection_runs.values() for run in runs}
+    events_by_id = {
+        event.get("event_id"): event for events_ in manual_events.values() for event in events_
+    }
+    latest_run_at = latest_timestamp(
+        [
+            runs_by_id[run_id]
+            for run_id in final_acquisition_summary["qualifying_collection_run_ids"]
+            if run_id in runs_by_id
+        ],
         timestamp_of=lambda run: run.get("completed_at"),
     )
-    latest_run_at = latest_timestamp(
-        included_runs, timestamp_of=lambda run: run.get("completed_at")
-    )
-    included_manual, _ = exclude_future_dated(
-        [event for events_ in manual_events.values() for event in events_],
-        as_of=current_as_of,
+    latest_manual_at = latest_timestamp(
+        [
+            events_by_id[event_id]
+            for event_id in final_acquisition_summary["qualifying_manual_review_event_ids"]
+            if event_id in events_by_id
+        ],
         timestamp_of=lambda event: event.get("reviewed_at"),
     )
-    latest_manual_at = latest_timestamp(
-        included_manual, timestamp_of=lambda event: event.get("reviewed_at")
+    source_cutoff = (
+        parse_timestamp(final_acquisition_summary["latest_source_cutoff"])
+        if final_acquisition_summary["latest_source_cutoff"]
+        else None
     )
-    input_hashes = {
-        name: digest
-        for name, path in (
-            ("trade_observations", OBSERVATION_DIR / "trade_observations.json"),
-            ("port_observations", OBSERVATION_DIR / "port_observations.json"),
-            ("cost_observations", OBSERVATION_DIR / "cost_observations.json"),
-            ("indicator_observations", OBSERVATION_DIR / "indicator_observations.json"),
-            ("events", EVENTS_PATH),
-            ("event_evidence", ROOT / "data/events/event_evidence.json"),
-            ("sources_registry", ROOT / "config/sources.yaml"),
-        )
-        if (digest := _file_sha256(path)) is not None
-    }
 
-    # WO-010-R5 §8: source_cutoff is the latest timestamp this build actually
-    # found among its included evidence -- never as_of_time, and never a
-    # non-null value when nothing qualified. Drawn from qualified
-    # observations, qualified events, the latest included collection run and
-    # the latest included manual review, whichever is most recent.
-    source_cutoff_candidates: list[datetime] = []
-    for records in qualified_observations.values():
-        observation_latest = latest_timestamp(records, timestamp_of=_observation_timestamp)
-        if observation_latest is not None:
-            source_cutoff_candidates.append(observation_latest)
-    event_latest = latest_timestamp(qualified_events, timestamp_of=_event_timestamp)
-    if event_latest is not None:
-        source_cutoff_candidates.append(event_latest)
-    if latest_run_at is not None:
-        source_cutoff_candidates.append(latest_run_at)
-    if latest_manual_at is not None:
-        source_cutoff_candidates.append(latest_manual_at)
-    source_cutoff = max(source_cutoff_candidates) if source_cutoff_candidates else None
+    # WO-010-R6 §5: every file or deterministic directory digest the build
+    # actually used, so a changed acquisition manifest, a changed manual
+    # review event, a changed Lane/reference dimension file or a changed
+    # analytical methodology version always changes an input hash --
+    # analysis.build_context.context_problems already refuses the same
+    # build_context_id describing two different input_hashes.
+    methodology_digest = hashlib.sha256(METHODOLOGY_VERSION.encode("utf-8")).hexdigest()
+    _single_file_inputs = (
+        ("trade_observations", OBSERVATION_DIR / "trade_observations.json"),
+        ("port_observations", OBSERVATION_DIR / "port_observations.json"),
+        ("cost_observations", OBSERVATION_DIR / "cost_observations.json"),
+        ("indicator_observations", OBSERVATION_DIR / "indicator_observations.json"),
+        ("events", EVENTS_PATH),
+        ("event_evidence", ROOT / "data/events/event_evidence.json"),
+        ("sources_registry", ROOT / "config/sources.yaml"),
+        ("lanes", ROOT / "data/reference/lanes.json"),
+    )
+    _directory_inputs = (
+        ("reference_dimensions", ROOT / "data/reference"),
+        ("collection_run_manifests", ROOT / "data/collection_runs"),
+        ("manual_review_events", ROOT / "data/collection_runs/manual"),
+    )
+    input_hashes = {"methodology_version": methodology_digest}
+    for name, file_path in _single_file_inputs:
+        digest = _file_sha256(file_path)
+        if digest is not None:
+            input_hashes[name] = digest
+    for name, dir_path in _directory_inputs:
+        digest = hash_directory(dir_path)
+        if digest is not None:
+            input_hashes[name] = digest
 
-    # WO-010-R5 §8: generated_at must be the true instant this record was
+    # WO-010-R6 §7: generated_at must be the true instant this record was
     # written, not as_of_time -- but a rebuild with the same build_context_id
     # and identical input_hashes is the same context, and must reuse the
     # originally persisted generated_at rather than overwrite it, which is
-    # what keeps a bare rebuild byte-identical. Only a genuinely new context
-    # (a different as-of time, or the same as-of time over changed inputs)
-    # gets a freshly observed generated_at.
+    # what keeps a bare rebuild byte-identical. A previously committed
+    # context with no generation_time_basis at all predates this field --
+    # its generated_at was produced under the former (incorrect)
+    # generated_at = as_of_time rule, and is migrated exactly once: a
+    # truthful wall-clock instant is observed now and persisted as the new
+    # generated_at, tagged 'legacy_migrated' rather than being read back as
+    # though it were a genuinely observed or reused instant.
     prospective_id = f"BCTX-{CURRENT_PUBLICATION.upper()}-{current_as_of:%Y%m%dT%H%M%SZ}"
-    if (
-        previous_context is not None
-        and previous_context.get("build_context_id") == prospective_id
+    is_same_context_id = (
+        previous_context is not None and previous_context.get("build_context_id") == prospective_id
+    )
+    is_legacy_migration = is_same_context_id and "generation_time_basis" not in previous_context
+    is_unchanged_rebuild = (
+        is_same_context_id
+        and not is_legacy_migration
         and previous_context.get("input_hashes") == input_hashes
-    ):
+    )
+    if is_legacy_migration:
+        generated_at = datetime.now(UTC)
+        generation_time_basis = LEGACY_MIGRATED
+    elif is_unchanged_rebuild:
         generated_at = parse_timestamp(previous_context["generated_at"])
+        generation_time_basis = PERSISTED_REBUILD_TIME
     else:
         generated_at = datetime.now(UTC)
+        generation_time_basis = OBSERVED_BUILD_TIME
 
     build_context = build_context_record(
         dataset=CURRENT_PUBLICATION,
@@ -1598,12 +1634,19 @@ def main() -> int:
         latest_collection_run_at=latest_run_at,
         latest_manual_review_at=latest_manual_at,
         input_hashes=input_hashes,
+        generation_time_basis=generation_time_basis,
     )
     context_errors = [
         f"schema: {message}"
         for message in schema_errors(build_context, "build_context.schema.json")
     ]
-    context_errors.extend(context_problems(build_context, previous_context=previous_context))
+    context_errors.extend(
+        context_problems(
+            build_context,
+            previous_context=previous_context,
+            legacy_migration=is_legacy_migration,
+        )
+    )
     if context_errors:
         print("[BLOCKED] The current Build Context fails validation:")
         for problem in context_errors:

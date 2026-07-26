@@ -49,8 +49,10 @@ from analysis.review_package import (  # noqa: E402
     acquisition_currency_problems,
     package_provenance_problems,
 )
-from collectors.collection_runs import load_collection_runs, load_manual_review_events  # noqa: E402
+from collectors.collection_runs import load_validated_acquisition_state  # noqa: E402
 from scripts.import_review import PACKAGE_DIR, load_registry, review  # noqa: E402
+
+DATA_DIR = ROOT / "data"
 
 INBOUND_DIR = ROOT / "data" / "review" / "inbound"
 APPROVED_DIR = ROOT / "data" / "assessments" / "approved"
@@ -240,13 +242,43 @@ def approval_provenance_problems(
     problems.extend(package_provenance_problems(package, registry=registry))
 
     if dataset == CURRENT_PUBLICATION:
-        collection_runs = load_collection_runs()
-        manual_events = load_manual_review_events(registry=registry)
+        # WO-010-R6 §3/§4: the same shared acquisition-state loader Analysis
+        # and the Review Package build use, reloaded fresh from disk at the
+        # moment of approval -- never against the state that existed when
+        # the package was built. Observations and evidence are re-read from
+        # disk here for the same reason: the record index the manual-events
+        # loader checks against, and the reviewed_record_set_sha256 it
+        # recomputes, must reflect what is on disk right now, not what was
+        # true when the package was generated.
+        observations = {
+            family: json.loads(
+                (DATA_DIR / "observations" / f"{family}_observations.json").read_text(
+                    encoding="utf-8"
+                )
+            )["records"]
+            for family in ("indicator", "trade", "port", "cost")
+        }
+        evidence = json.loads(
+            (DATA_DIR / "events" / "event_evidence.json").read_text(encoding="utf-8")
+        )["evidence"]
+        # as_of=None: this reload exists purely to detect drift via the
+        # acquisition-state hash, not to re-enforce future-dating -- an
+        # unrelated collection run or manual review added after the
+        # package's own cutoff must not crash approval with a future-dated
+        # rejection; it is still caught, correctly, by the hash comparison
+        # below if it changes what this build now knows.
+        acquisition_state = load_validated_acquisition_state(
+            registry=registry,
+            as_of=None,
+            observations=observations,
+            evidence=evidence,
+        )
         problems.extend(
             acquisition_currency_problems(
                 package,
-                collection_runs_by_source=collection_runs,
-                manual_events_by_source=manual_events,
+                collection_runs_by_source=acquisition_state["collection_runs_by_source"],
+                manual_events_by_source=acquisition_state["manual_events_by_source"],
+                current_acquisition_state_sha256=acquisition_state["acquisition_state_sha256"],
             )
         )
 

@@ -213,7 +213,7 @@
           "format": "date-time"
         },
         "input_source_cutoff": {
-          "type": "string",
+          "type": ["string", "null"],
           "format": "date-time"
         }
       }
@@ -234,8 +234,8 @@
       ]
     },
     "source_cutoff": {
-      "description": "The instant the underlying source records were selected against. Recorded separately from data_cutoff_at so an approval can detect an assessment produced against a different vintage of the same package.",
-      "type": "string",
+      "description": "The instant the underlying source records were selected against. Recorded separately from data_cutoff_at so an approval can detect an assessment produced against a different vintage of the same package. WO-010-R6 §6: null when the package includes zero acquisition-bound evidence -- never silently replaced with as_of_time/data_cutoff_at.",
+      "type": ["string", "null"],
       "format": "date-time"
     },
     "provenance_summary": {
@@ -269,7 +269,11 @@
         "qualifying_manual_review_event_ids",
         "excluded_unbound_record_count",
         "latest_source_cutoff",
-        "acquisition_health_limitations"
+        "acquisition_health_limitations",
+        "collection_run_manifest_hashes",
+        "manual_review_record_set_hashes",
+        "included_current_record_ids",
+        "acquisition_state_sha256"
       ],
       "properties": {
         "qualifying_collection_run_ids": {
@@ -293,6 +297,26 @@
         "acquisition_health_limitations": {
           "type": "array",
           "items": {"type": "string"}
+        },
+        "collection_run_manifest_hashes": {
+          "description": "WO-010-R6 §4. output_manifest_sha256 of each qualifying collection run, keyed by run_id.",
+          "type": "object",
+          "additionalProperties": {"type": ["string", "null"]}
+        },
+        "manual_review_record_set_hashes": {
+          "description": "WO-010-R6 §4. reviewed_record_set_sha256 of each qualifying manual review event, keyed by event_id.",
+          "type": "object",
+          "additionalProperties": {"type": ["string", "null"]}
+        },
+        "included_current_record_ids": {
+          "description": "WO-010-R6 §4. record_id/evidence_id of every record this package's acquisition summary actually included.",
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "acquisition_state_sha256": {
+          "description": "WO-010-R6 §4. One hash covering every collection run and manual review event this build loaded -- not only the ones this package cites -- so approval-time revalidation can require an exact match against acquisition state read fresh from disk.",
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
         }
       }
     }

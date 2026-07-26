@@ -33,7 +33,38 @@ sys.path.insert(0, str(ROOT))
 import collectors.collection_runs as collection_runs_module  # noqa: E402
 import scripts.build_analysis as build_analysis  # noqa: E402
 import scripts.build_dashboard as build_dashboard  # noqa: E402
+from analysis.provenance import (  # noqa: E402
+    build_record_index,
+    compute_output_manifest_hash,
+    compute_reviewed_record_set_hash,
+)
 from tests.positive_path import live_trade_series, manual_notice_evidence  # noqa: E402
+
+#: Valid for any event whose related_record_ids fails to resolve (the hash
+#: check is never reached) -- only a positive load needs a real computed
+#: hash (WO-010-R6 §2).
+_PLACEHOLDER_HASH = "0" * 64
+
+
+def _reviewed_hash(temp_root: Path, related_record_ids: list[str]) -> str | None:
+    """The real reviewed_record_set_sha256 for a manual event referencing
+    ``related_record_ids``, computed the same way the production build does
+    -- from the observations and evidence actually on disk in this test's
+    temporary repository."""
+    observations = {
+        family: json.loads(
+            (temp_root / "data" / "observations" / f"{family}_observations.json").read_text(
+                encoding="utf-8"
+            )
+        )["records"]
+        for family in ("indicator", "trade", "port", "cost")
+    }
+    evidence = json.loads(
+        (temp_root / "data" / "events" / "event_evidence.json").read_text(encoding="utf-8")
+    )["evidence"]
+    index = build_record_index(observations=observations, evidence=evidence)
+    return compute_reviewed_record_set_hash(related_record_ids, record_index=index)
+
 
 E2E_SOURCE = "TEST_E2E_TRADE_SOURCE"
 AS_OF = "2026-07-24T00:00:00Z"
@@ -186,17 +217,32 @@ def e2e_repo(tmp_path, monkeypatch):
 
     run = _run(completed_at="2026-07-20T00:00:00Z")
 
-    trade_path = temp_root / "data" / "observations" / "trade_observations.json"
-    trade_payload = json.loads(trade_path.read_text(encoding="utf-8"))
-    trade_payload["records"] = trade_payload["records"] + live_trade_series(
+    new_records = live_trade_series(
         periods=26,
         growth=0.02,
         series_id="th_export_value_neur",
         source_id=E2E_SOURCE,
         collection_run_id=run["run_id"],
     )
+    trade_path = temp_root / "data" / "observations" / "trade_observations.json"
+    trade_payload = json.loads(trade_path.read_text(encoding="utf-8"))
+    trade_payload["records"] = trade_payload["records"] + new_records
     _write_json(trade_path, trade_payload)
 
+    # WO-010-R6 §1: the run's own output manifest must actually list every
+    # record it is cited as backing, or acquisition_binding_problems excludes
+    # them -- a record must not qualify merely because the source has some
+    # successful run.
+    run["emitted_records"] = [
+        {
+            "record_id": record["provenance"]["record_id"],
+            "source_record_id": record["provenance"]["source_record_id"],
+            "content_sha256": record["provenance"]["content_sha256"],
+        }
+        for record in new_records
+    ]
+    run["output_manifest_sha256"] = compute_output_manifest_hash(run["emitted_records"])
+    run["records_emitted"] = len(run["emitted_records"])
     _write_json(
         temp_root / "data" / "collection_runs" / f"{E2E_SOURCE}.json",
         {"version": "0.8", "source_id": E2E_SOURCE, "runs": [run]},
@@ -454,6 +500,7 @@ def _manual_event(**overrides):
         "underlying_publisher": "Example Port Authority",
         "content_sha256": None,
         "known_limitations": [],
+        "reviewed_record_set_sha256": _PLACEHOLDER_HASH,
     }
     event.update(overrides)
     return event
@@ -478,10 +525,6 @@ def test_a_valid_manual_review_event_makes_the_source_fresh(tmp_path, monkeypatc
         "sources": [_manual_source()],
     }
     (temp_root / "config" / "sources.yaml").write_text(yaml.safe_dump(registry), encoding="utf-8")
-    _write_json(
-        temp_root / "data" / "collection_runs" / "manual" / "TEST_E2E_MANUAL_SOURCE.json",
-        {"version": "0.8", "source_id": "TEST_E2E_MANUAL_SOURCE", "events": [_manual_event()]},
-    )
     # WO-010-R5 §1: a manual review event now needs a real, matching,
     # non-fixture, same-source evidence record actually listed in its own
     # related_record_ids -- both for the event to load at all (§2's
@@ -491,6 +534,17 @@ def test_a_valid_manual_review_event_makes_the_source_fresh(tmp_path, monkeypatc
     evidence_payload = json.loads(evidence_path.read_text(encoding="utf-8"))
     evidence_payload["evidence"] = evidence_payload["evidence"] + [_manual_evidence_record()]
     _write_json(evidence_path, evidence_payload)
+    # WO-010-R6 §2: reviewed_record_set_sha256 must match the record set this
+    # build actually resolves the event's related_record_ids to.
+    real_hash = _reviewed_hash(temp_root, ["EVD-E2E-1"])
+    _write_json(
+        temp_root / "data" / "collection_runs" / "manual" / "TEST_E2E_MANUAL_SOURCE.json",
+        {
+            "version": "0.8",
+            "source_id": "TEST_E2E_MANUAL_SOURCE",
+            "events": [_manual_event(reviewed_record_set_sha256=real_hash)],
+        },
+    )
     _patch_build_scripts(monkeypatch, temp_root, registry=registry)
 
     assert _run_build_analysis(monkeypatch) == 0

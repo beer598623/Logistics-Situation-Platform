@@ -41,6 +41,30 @@
     "records_rejected": {"type": ["integer", "null"], "minimum": 0},
     "data_cutoff_at": {"type": ["string", "null"], "format": "date-time"},
     "warnings": {"type": "array", "items": {"type": "string"}},
-    "errors": {"type": "array", "items": {"type": "string"}}
+    "errors": {"type": "array", "items": {"type": "string"}},
+    "emitted_records": {
+      "description": "WO-010-R6 §1. The deterministic output manifest: exactly the records this run actually emitted. A 'success' run's records_emitted count must equal the length of this list; a 'not_modified' run must leave this empty and instead set supersedes_run_id. Absent (null) only for runs persisted before WO-010-R6 or for statuses that never emit (disabled/error/dry_run).",
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["record_id", "source_record_id", "content_sha256"],
+        "properties": {
+          "record_id": {"type": "string"},
+          "source_record_id": {"type": ["string", "null"]},
+          "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    },
+    "output_manifest_sha256": {
+      "description": "WO-010-R6 §1. Deterministic hash over emitted_records (canonical: sorted by record_id, JSON-encoded with sort_keys). Null when emitted_records is null.",
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "supersedes_run_id": {
+      "description": "WO-010-R6 §1. For a 'not_modified' run: the prior successful run whose emitted_records remain current. A not_modified run never claims new records of its own; acquisition-binding checks follow this chain to find a record's membership in the prior run's output manifest.",
+      "type": ["string", "null"],
+      "pattern": "^COL-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$"
+    }
   }
 }

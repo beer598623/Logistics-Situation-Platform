@@ -14,7 +14,8 @@
     "latest_included_collection_run_at",
     "latest_included_manual_review_at",
     "methodology_version",
-    "input_hashes"
+    "input_hashes",
+    "generation_time_basis"
   ],
   "properties": {
     "build_context_id": {
@@ -55,6 +56,10 @@
       "type": "object",
       "description": "SHA-256 of each input file this build actually read, keyed by a short logical name -- lets a reviewer confirm which exact files a committed context was built from.",
       "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    },
+    "generation_time_basis": {
+      "description": "WO-010-R6 §7. Where generated_at actually came from: 'observed_build_time' -- a freshly observed wall-clock instant, this build genuinely ran now; 'persisted_rebuild_time' -- reused from an identical prior build (same build_context_id and input_hashes), which keeps a bare rebuild byte-identical; 'legacy_migrated' -- this context was carried forward from a pre-WO-010-R6 record whose generated_at was produced under the former (incorrect) generated_at = as_of_time rule, and has been given one truthful migration timestamp rather than continuing to be treated as a verified real generation time.",
+      "enum": ["observed_build_time", "persisted_rebuild_time", "legacy_migrated"]
     }
   }
 }

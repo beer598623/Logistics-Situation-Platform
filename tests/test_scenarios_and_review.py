@@ -1534,12 +1534,18 @@ def _lane_status_entry(lane_id, **overrides):
         "external_driver_event_ids": [],
         "chokepoint_exposure": [],
         "data_gaps": [],
+        # WO-010-R6 §8: real lanes.json reference geography for every Thai
+        # ocean lane used in these tests -- both test lanes genuinely
+        # include Thailand, matching the committed reference data.
+        "country_ids": ["TH"],
+        "node_ids": [],
+        "chokepoint_ids": [],
     }
     entry.update(overrides)
     return entry
 
 
-def _two_lane_package(*, evidence_scope="facility"):
+def _two_lane_package(*, evidence_scope="facility", event_country_ids=()):
     """A package with two lanes: LANE-OCEAN-TH-NEUR (no linked evidence) and
     LANE-OCEAN-TH-JPKR (whose active_event_ids link it to EVT-1, the event
     EVD-1 is attached to)."""
@@ -1553,7 +1559,18 @@ def _two_lane_package(*, evidence_scope="facility"):
             _lane_status_entry("LANE-OCEAN-TH-NEUR"),
             _lane_status_entry("LANE-OCEAN-TH-JPKR", active_event_ids=["EVT-1"]),
         ],
-        events=[],
+        events=[
+            {
+                "event_id": "EVT-1",
+                "event_class": "direct_operational_event",
+                "country_ids": list(event_country_ids),
+                "node_ids": [],
+                "chokepoint_ids": [],
+                "geography_ids": [],
+                "modes": [],
+                "lane_relevance": [],
+            }
+        ],
         evidence=[
             {
                 **manual_notice_evidence(evidence_id="EVD-1", event_id="EVT-1"),
@@ -1608,7 +1625,11 @@ def test_a_node_scoped_notice_can_support_the_lane_the_reference_model_links_it_
 
 
 def test_thailand_wide_evidence_can_support_multiple_lanes():
-    package = _two_lane_package(evidence_scope="country")
+    # WO-010-R6 §9: "country" scope is no longer an automatic pass -- this
+    # evidence supports both lanes because its event genuinely names
+    # Thailand and both test lanes' own reference geography includes
+    # Thailand, not merely because its scope_supported says "country".
+    package = _two_lane_package(evidence_scope="country", event_country_ids=["TH"])
     output = base_output(
         evidence_references=["EVD-1"],
         lane_assessments=[

@@ -17,7 +17,8 @@
     "bounded_content_confirmed",
     "underlying_publisher",
     "content_sha256",
-    "known_limitations"
+    "known_limitations",
+    "reviewed_record_set_sha256"
   ],
   "properties": {
     "event_id": {
@@ -73,6 +74,11 @@
     "known_limitations": {
       "type": "array",
       "items": {"type": "string"}
+    },
+    "reviewed_record_set_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "WO-010-R6 §2. Deterministic hash over canonical summaries (record_id, source_id, dataset, evidence_origin, content hash, timestamp, event_id) of every record in related_record_ids, sorted by record_id. The loader recomputes this from the current record index and rejects the event if it disagrees -- catching drift (a record's content, source or dataset changed) that an existence-only check of related_record_ids cannot."
     }
   }
 }

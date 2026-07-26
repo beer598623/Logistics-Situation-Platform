@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +47,7 @@ from analysis.provenance import (  # noqa: E402
     record_dataset,
 )
 from analysis.review_package import build_input_package  # noqa: E402
-from collectors.collection_runs import load_collection_runs, load_manual_review_events  # noqa: E402
+from collectors.collection_runs import load_validated_acquisition_state  # noqa: E402
 
 PACKAGE_DIR = ROOT / "data" / "review" / "packages"
 
@@ -107,6 +108,10 @@ def _bounded_event(event: dict[str, Any]) -> dict[str, Any]:
         "active_as_of": event.get("active_as_of"),
         "active_basis": event.get("active_basis"),
         "geography_ids": event["geography_ids"],
+        # WO-010-R6 §8: carried so the support index can check real
+        # geographic intersection against a Lane's own reference-model
+        # country_ids, rather than only the coarse scope_supported label.
+        "country_ids": event.get("country_ids", []),
         "chokepoint_ids": event.get("chokepoint_ids", []),
         "node_ids": event.get("node_ids", []),
         "modes": event["modes"],
@@ -166,12 +171,22 @@ def _bounded_evidence(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _bounded_lane(assessment: dict[str, Any]) -> dict[str, Any]:
+def _bounded_lane(
+    assessment: dict[str, Any], *, lane_geography_by_id: Mapping[str, Mapping[str, Any]] = {}
+) -> dict[str, Any]:
+    # WO-010-R6 §8: the Lane's own reference-model geography, carried into
+    # the package so evidence-relevance checks can intersect real IDs rather
+    # than relying on a coarse scope_supported label being one of
+    # {country, region, global}.
+    geo = lane_geography_by_id.get(assessment["lane_id"], {})
     return {
         "lane_id": assessment["lane_id"],
         "dataset": assessment.get("dataset"),
         "overall_direction": assessment["overall_direction"],
         "attention_level": assessment["attention_level"],
+        "country_ids": list(geo.get("country_ids", [])),
+        "node_ids": list(geo.get("node_ids", [])),
+        "chokepoint_ids": list(geo.get("chokepoint_ids", [])),
         "domain_directions": {
             item["domain"]: item["direction"] for item in assessment["domain_assessments"]
         },
@@ -257,6 +272,12 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
     evidence = _load(ROOT / "data/events/event_evidence.json")["evidence"]
     evidence_by_id = {item["evidence_id"]: item for item in evidence}
     history = _load(ROOT / "data/assessments/assessment_history.json")["entries"]
+    # WO-010-R6 §8: the Lane reference model's own geography, keyed by
+    # lane_id, so _bounded_lane can carry each lane's real country_ids/
+    # node_ids/chokepoint_ids into the package.
+    lane_geography_by_id = {
+        lane["lane_id"]: lane for lane in _load(ROOT / "data/reference/lanes.json")["lanes"]
+    }
 
     if surface == CURRENT_PUBLICATION:
         indicators = _load(ROOT / "data/indicators/current.json")["indicators"]
@@ -268,12 +289,21 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         # here to the evidence this package independently re-selects from
         # the raw event_evidence.json rather than from build_analysis.py's
         # already-filtered evidence_by_id.
-        collection_runs = load_collection_runs()
-        manual_events = load_manual_review_events(registry=registry, now=_cutoff())
+        #
+        # WO-010-R6 §3: the same shared acquisition-state loader
+        # scripts/build_analysis.py uses -- there is no call here to
+        # load_manual_review_events() that omits the current record index,
+        # and a package build fails closed exactly the way Analysis does if
+        # the acquisition files were modified into an invalid state.
         observations = {
             family: _load(ROOT / f"data/observations/{family}_observations.json")["records"]
             for family in ("indicator", "trade", "port", "cost")
         }
+        acquisition_state = load_validated_acquisition_state(
+            registry=registry, as_of=_cutoff(), observations=observations, evidence=evidence
+        )
+        collection_runs = acquisition_state["collection_runs_by_source"]
+        manual_events = acquisition_state["manual_events_by_source"]
         qualified_observations_for_summary = {
             family: qualified_records(
                 records, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
@@ -291,6 +321,14 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
             manual_events_by_source=manual_events,
             as_of=_cutoff(),
         )
+        # WO-010-R6 §4: bind the package to the acquisition state as a whole
+        # (every collection run and manual review event this build loaded,
+        # not only the ones this package's own records happen to cite), so
+        # approval-time revalidation can require an exact match rather than
+        # only checking that individually-cited IDs still resolve.
+        acquisition_summary["acquisition_state_sha256"] = acquisition_state[
+            "acquisition_state_sha256"
+        ]
         qualified_evidence = [
             item
             for item in qualified_evidence_before_binding
@@ -357,15 +395,12 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         build_context = _current_context()
         context_as_of = build_context["as_of_time"]
         package_generated_at = context_as_of
-        # WO-010-R5 §8: the package's own source_cutoff is never later than
-        # the latest source evidence the Build Context actually found --
-        # inherited directly from the Build Context's own (possibly null)
-        # source_cutoff, not silently reset to the analytical as-of time.
-        # The package's schema field stays a required date-time, so a null
-        # Build Context source_cutoff (zero included evidence) falls back
-        # to data_cutoff_at, which is what "as of this cutoff, nothing
-        # qualified" already means for a zero-coverage package.
-        package_source_cutoff = build_context.get("source_cutoff") or context_as_of
+        # WO-010-R6 §6: inherited exactly as the Build Context recorded it,
+        # including null. A null Build Context source_cutoff (zero included
+        # evidence) must produce a null package source_cutoff -- never
+        # silently replaced with as_of_time/data_cutoff_at, which would
+        # overstate what evidence this package actually found.
+        package_source_cutoff = build_context.get("source_cutoff")
     else:
         indicators = _load(ROOT / "data/indicators/latest.json")["indicators"]
         lanes = _load(ROOT / "data/assessments/demo_lane_assessments.json")["assessments"]
@@ -388,7 +423,9 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         data_cutoff_at=thailand.get("data_cutoff_at") or package_generated_at,
         source_health=source_status,
         key_indicators=[_bounded_indicator(item) for item in indicators],
-        lane_status=[_bounded_lane(item) for item in lanes],
+        lane_status=[
+            _bounded_lane(item, lane_geography_by_id=lane_geography_by_id) for item in lanes
+        ],
         events=[_bounded_event(item) for item in selected],
         evidence=[_bounded_evidence(item) for item in package_evidence],
         previous_assessments=[

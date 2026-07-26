@@ -29,6 +29,7 @@ is the correct, honest answer, not a placeholder for one.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
@@ -36,7 +37,12 @@ from typing import Any
 
 from analysis.build_context import parse_timestamp
 from analysis.contracts import schema_errors
-from analysis.provenance import HISTORICAL_VALIDATION
+from analysis.provenance import (
+    HISTORICAL_VALIDATION,
+    build_record_index,
+    collection_run_problems,
+    compute_reviewed_record_set_hash,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -72,6 +78,9 @@ def load_collection_runs(
                     f"{path}: invalid collection run manifest for "
                     f"{run.get('run_id', '<unknown>')}: {errors}"
                 )
+            manifest_problems = collection_run_problems(run)
+            if manifest_problems:
+                raise ValueError(f"{path}: " + "; ".join(manifest_problems))
             runs_by_source.setdefault(run["source_id"], []).append(run)
     return runs_by_source
 
@@ -165,6 +174,34 @@ def _related_record_problems(
         )
 
     return problems
+
+
+def _reviewed_record_set_problems(
+    event: dict[str, Any],
+    *,
+    record_index: dict[str, dict[str, Any]],
+) -> list[str]:
+    """WO-010-R6 §2: whether ``reviewed_record_set_sha256`` actually matches
+    the record set this event's ``related_record_ids`` resolve to right now.
+
+    Only meaningful once :func:`_related_record_problems` has already
+    confirmed every related_record_id resolves; called after it, and skipped
+    entirely for an empty related_record_ids (nothing to hash). Catches drift
+    an existence-only check cannot: a referenced record still exists, but its
+    content, source or dataset has changed since the event was recorded.
+    """
+    related = event.get("related_record_ids") or []
+    if not related:
+        return []
+    computed = compute_reviewed_record_set_hash(related, record_index=record_index)
+    declared = event.get("reviewed_record_set_sha256")
+    if computed is None or computed != declared:
+        return [
+            f"event {event['event_id']!r} declares reviewed_record_set_sha256 {declared!r}, "
+            f"which disagrees with the hash computed from its current record set "
+            f"({computed!r}); the record set has changed since this event was recorded"
+        ]
+    return []
 
 
 def load_manual_review_events(
@@ -272,6 +309,112 @@ def load_manual_review_events(
                 )
                 if related_problems:
                     raise ValueError(f"{path}: " + "; ".join(related_problems))
+                set_problems = _reviewed_record_set_problems(event, record_index=record_index)
+                if set_problems:
+                    raise ValueError(f"{path}: " + "; ".join(set_problems))
 
             events_by_source.setdefault(source_id, []).append(event)
     return events_by_source
+
+
+def _acquisition_state_hash(
+    collection_runs_by_source: dict[str, list[dict[str, Any]]],
+    manual_events_by_source: dict[str, list[dict[str, Any]]],
+) -> str:
+    """WO-010-R6 §4: one deterministic hash over the whole validated
+    acquisition state -- every run's identity, status and output-manifest
+    hash; every manual event's identity, status and reviewed-record-set
+    hash. Sorted so hashing is independent of file/dict iteration order.
+    Any change to a manifest, a status, a timestamp or a hash changes this
+    value.
+    """
+    runs = sorted(
+        (
+            {
+                "run_id": run.get("run_id"),
+                "source_id": run.get("source_id"),
+                "status": run.get("status"),
+                "completed_at": run.get("completed_at"),
+                "adapter_version": run.get("adapter_version"),
+                "output_manifest_sha256": run.get("output_manifest_sha256"),
+                "supersedes_run_id": run.get("supersedes_run_id"),
+            }
+            for runs in collection_runs_by_source.values()
+            for run in runs
+        ),
+        key=lambda entry: str(entry["run_id"]),
+    )
+    events = sorted(
+        (
+            {
+                "event_id": event.get("event_id"),
+                "source_id": event.get("source_id"),
+                "status": event.get("status"),
+                "reviewed_at": event.get("reviewed_at"),
+                "reviewed_record_set_sha256": event.get("reviewed_record_set_sha256"),
+            }
+            for events in manual_events_by_source.values()
+            for event in events
+        ),
+        key=lambda entry: str(entry["event_id"]),
+    )
+    encoded = json.dumps(
+        {"collection_runs": runs, "manual_review_events": events},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def load_validated_acquisition_state(
+    *,
+    registry: dict[str, Any] | None,
+    as_of: datetime | None,
+    observations: dict[str, list[dict[str, Any]]],
+    evidence: list[dict[str, Any]],
+    collection_runs_dir: Path | None = None,
+    manual_events_dir: Path | None = None,
+) -> dict[str, Any]:
+    """The one production entry point for acquisition state (WO-010-R6 §3).
+
+    Wraps :func:`load_collection_runs`, :func:`analysis.provenance.
+    build_record_index` and :func:`load_manual_review_events` -- always
+    passing the current record index to the manual-events loader, so there
+    is no production call site that can omit it and silently accept an
+    orphan or drifted reference. Every caller that needs acquisition state
+    (``scripts/build_analysis.py``, ``scripts/build_review_package.py``,
+    ``scripts/review_decision.py``, any warehouse/export or validation
+    script) should call this instead of assembling the three calls itself.
+
+    Because every check :func:`load_collection_runs` and
+    :func:`load_manual_review_events` perform raises rather than warns, a
+    build that reaches this function with acquisition files modified into an
+    invalid state fails here, the same way ``scripts/build_analysis.py``
+    would fail -- so a Review Package build or an Approval sees exactly the
+    same rejection Analysis would, not a looser one.
+
+    Returns a dict with ``collection_runs_by_source``,
+    ``manual_events_by_source``, ``record_index``, ``acquisition_state_sha256``
+    and ``validation_limitations`` (currently always empty: every problem
+    this loader can detect raises rather than degrading to a limitation, but
+    the field is carried so a future soft-fail case has somewhere to report
+    without changing the return shape).
+    """
+    collection_runs_by_source = load_collection_runs(collection_runs_dir)
+    record_index = build_record_index(observations=observations, evidence=evidence)
+    manual_events_by_source = load_manual_review_events(
+        manual_events_dir,
+        registry=registry,
+        now=as_of,
+        record_index=record_index,
+    )
+    acquisition_state_sha256 = _acquisition_state_hash(
+        collection_runs_by_source, manual_events_by_source
+    )
+    return {
+        "collection_runs_by_source": collection_runs_by_source,
+        "manual_events_by_source": manual_events_by_source,
+        "record_index": record_index,
+        "acquisition_state_sha256": acquisition_state_sha256,
+        "validation_limitations": [],
+    }

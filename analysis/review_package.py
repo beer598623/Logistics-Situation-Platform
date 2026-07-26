@@ -348,6 +348,10 @@ def build_input_package(
             "excluded_unbound_record_count": 0,
             "latest_source_cutoff": None,
             "acquisition_health_limitations": [],
+            "collection_run_manifest_hashes": {},
+            "manual_review_record_set_hashes": {},
+            "included_current_record_ids": [],
+            "acquisition_state_sha256": None,
         }
     )
     operational = [event for event in events if event["event_class"] == "direct_operational_event"]
@@ -359,7 +363,16 @@ def build_input_package(
         for conflict in event.get("conflicting_evidence", [])
     ]
 
-    resolved_source_cutoff = source_cutoff or data_cutoff_at
+    # WO-010-R6 §6: a current-publication package's source_cutoff is taken
+    # exactly as given -- null stays null rather than silently defaulting to
+    # data_cutoff_at, the same correction analysis.build_context.
+    # build_context_record already applies to the Build Context. The
+    # technical-demo/historical-validation surfaces are unaffected: they are
+    # permanently pinned to a fixed fixture cutoff and never claim a null
+    # acquisition-derived one.
+    resolved_source_cutoff = (
+        source_cutoff if dataset == CURRENT_PUBLICATION else (source_cutoff or data_cutoff_at)
+    )
     package = {
         "package_id": package_id,
         "methodology_version": "0.8",
@@ -579,6 +592,7 @@ def acquisition_currency_problems(
     *,
     collection_runs_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
     manual_events_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    current_acquisition_state_sha256: str | None = None,
 ) -> list[str]:
     """Whether the acquisition events a current package cited still exist,
     unchanged, at the moment of approval (WO-010-R5 §9).
@@ -602,9 +616,32 @@ def acquisition_currency_problems(
     before an approval decision, which is approval-specific policy in the
     same sense the dataset/purpose checks in ``scripts.review_decision.
     approval_provenance_problems`` already are.
+
+    WO-010-R6 §4: ``current_acquisition_state_sha256``, when given, is
+    compared against the package's own ``acquisition_summary.
+    acquisition_state_sha256`` -- a single hash covering every collection
+    run and manual review event this build knows about, not only the ones
+    the package happened to cite. This catches what per-ID existence and
+    status checks below cannot: a manifest's output list changed but its
+    status stayed 'success', a record-set hash changed on an event the
+    package never cited, a timestamp was corrected, or a source mapping
+    moved -- any of these changes the overall acquisition-state hash even
+    when every individually-cited ID still resolves and still shows an
+    acceptable status.
     """
     problems: list[str] = []
     summary = package.get("acquisition_summary") or {}
+
+    declared_state_hash = summary.get("acquisition_state_sha256")
+    if current_acquisition_state_sha256 is not None and declared_state_hash is not None:
+        if declared_state_hash != current_acquisition_state_sha256:
+            problems.append(
+                f"acquisition_summary.acquisition_state_sha256 {declared_state_hash!r} does "
+                f"not match the acquisition state read fresh from disk "
+                f"({current_acquisition_state_sha256!r}); some collection-run manifest, "
+                "manual-review record-set hash, timestamp or status has changed since this "
+                "package was built"
+            )
 
     runs_by_id = {
         run.get("run_id"): run
@@ -766,6 +803,20 @@ def build_support_index(
         ):
             lane_ids_by_event.setdefault(event_id, set()).add(lane.get("lane_id"))
 
+    # WO-010-R6 §8/§9: each Lane's own reference-model geography (carried
+    # into the package by scripts.build_review_package._bounded_lane), used
+    # below to find every Lane a piece of evidence actually intersects --
+    # not only the Lane(s) the platform's own current assessment happened to
+    # link the evidence's event to.
+    lane_geo_by_id: dict[str, dict[str, set[str]]] = {
+        lane.get("lane_id"): {
+            "country_ids": set(lane.get("country_ids") or []),
+            "node_ids": set(lane.get("node_ids") or []),
+            "chokepoint_ids": set(lane.get("chokepoint_ids") or []),
+        }
+        for lane in package.get("lane_status", [])
+    }
+
     # WO-010-R5 §5: which event backs each evidence item, and whether that
     # event is an external driver with an admitted (complete) transmission
     # chain -- an external driver whose chain is still incomplete has not
@@ -783,13 +834,61 @@ def build_support_index(
         evidence_id = str(item.get("evidence_id"))
         event_id = item.get("event_id")
         event = events_by_id.get(event_id) or {}
+        event_country_ids = set(event.get("country_ids") or [])
+        event_node_ids = set(event.get("node_ids") or [])
+        event_chokepoint_ids = set(event.get("chokepoint_ids") or [])
+
+        # WO-010-R6 §9: the event's own reviewed lane_relevance, scoped to
+        # entries that actually name this evidence_id -- an explicit
+        # reviewed Lane relevance link, not a blanket scope-based pass.
+        explicit_lane_ids = {
+            relevance.get("lane_id")
+            for relevance in (event.get("lane_relevance") or [])
+            if evidence_id in (relevance.get("evidence_ids") or [])
+        }
+
+        # Real geographic intersection against each Lane's own reference
+        # model -- gated by the evidence's *own* recorded scope_supported,
+        # not applied indiscriminately: a country/region notice may
+        # generalise by country, a node notice by node, a route notice
+        # (the shape a chokepoint notice takes) by chokepoint. A facility-
+        # or asset-scoped item makes no such claim about a whole country or
+        # node and must still rely on an explicit link -- otherwise a
+        # single-terminal notice sharing its event's country with a Lane
+        # would silently generalise into "Thailand-wide", which is exactly
+        # what WO-010-R6 §9 forbids.
+        scope_type = item.get("scope_supported")
+        geo_lane_ids: set[str] = set()
+        if scope_type in {"country", "region"}:
+            geo_lane_ids |= {
+                lane_id
+                for lane_id, geo in lane_geo_by_id.items()
+                if geo["country_ids"] & event_country_ids
+            }
+        if scope_type == "node":
+            geo_lane_ids |= {
+                lane_id
+                for lane_id, geo in lane_geo_by_id.items()
+                if geo["node_ids"] & event_node_ids
+            }
+        if scope_type == "route":
+            geo_lane_ids |= {
+                lane_id
+                for lane_id, geo in lane_geo_by_id.items()
+                if geo["chokepoint_ids"] & event_chokepoint_ids
+            }
+
+        relevant_lane_ids = (
+            lane_ids_by_event.get(event_id, set()) | explicit_lane_ids | geo_lane_ids
+        )
+
         index[evidence_id] = {
             "support_id": evidence_id,
             "support_type": "evidence",
             "dataset": item.get("dataset"),
             "source_id": item.get("source_id"),
             "geography": item.get("scope_supported"),
-            "lane_ids": sorted(lane_ids_by_event.get(event_id, set())),
+            "lane_ids": sorted(lid for lid in relevant_lane_ids if lid),
             "domain": None,
             "indicator_family": None,
             "evidence_role": item.get("evidence_role"),
@@ -803,6 +902,18 @@ def build_support_index(
             "transmission_chain_admitted": (
                 (event.get("transmission_chain") or {}).get("completeness") == "complete"
             ),
+            # WO-010-R6 §8: the event's own structured geography, carried
+            # through rather than collapsed into the coarse scope_supported
+            # label -- so a Thailand country-wide notice, a Panama
+            # country-wide notice, a Suez-related route notice, a single
+            # terminal notice and a global indicator all remain
+            # distinguishable at this index.
+            "country_ids": sorted(event_country_ids),
+            "geography_ids": sorted(event.get("geography_ids") or []),
+            "node_ids": sorted(event_node_ids),
+            "chokepoint_ids": sorted(event_chokepoint_ids),
+            "modes": sorted(event.get("modes") or []),
+            "scope_type": item.get("scope_supported"),
         }
 
     return index
@@ -847,11 +958,22 @@ def duplicate_or_ambiguous_support_id_problems(package: Mapping[str, Any]) -> li
     return problems
 
 
-#: Evidence scope values broad enough to support any Lane without an
-#: explicit event-to-lane link. Narrower than this, evidence must be tied to
-#: the specific Lane it is cited for through the reference model (the
-#: event's own lane_relevance, carried into the support index's lane_ids).
-_BROAD_EVIDENCE_SCOPES = frozenset({"country", "region", "global"})
+def _establishes_thailand_directly(entry: Mapping[str, Any]) -> bool:
+    """Whether one support-index entry, on its own, may establish a
+    Thailand-wide observed condition without a stated aggregation basis
+    (WO-010-R6 §9).
+
+    True only for evidence whose own recorded ``scope_supported`` is
+    ``country``/``region`` *and* whose event actually names Thailand
+    (``TH``) among its ``country_ids`` -- a genuine Thailand-wide notice.
+    Global-scoped evidence, and country/region evidence about somewhere
+    else, are deliberately excluded: global evidence "may support context or
+    inference, but cannot independently establish a Thailand- or
+    Lane-specific observed condition" on its own recorded scope alone.
+    """
+    return entry.get("geography") in {"country", "region"} and "TH" in (
+        entry.get("country_ids") or []
+    )
 
 
 def lane_support_relevance_problems(
@@ -872,17 +994,22 @@ def lane_support_relevance_problems(
     "one eligible indicator supports every claim" is exactly the shortcut
     this check exists to close.
 
-    WO-010-R5 §5 applies the same discipline to ``evidence_ids``: a
-    node-, facility-, asset- or route-scoped evidence item may support a
-    lane only when the reference model (the event it is attached to, via
-    that event's own ``lane_relevance``) actually links it to that lane.
-    Country/region/global-scoped evidence may support any lane -- that
-    breadth is what its own recorded ``scope_supported`` explicitly claims.
-    Evidence attached to an ``external_driver`` event additionally needs
-    that event's transmission chain to be admitted (complete); a driver
-    whose chain is still incomplete has not established a mechanism into
-    any lane yet, so citing it for one is rejected the same as citing
-    unrelated evidence.
+    WO-010-R5 §5 applies the same discipline to ``evidence_ids``, and
+    WO-010-R6 §9 removes the one exception that discipline used to carry: a
+    ``country``/``region``/``global`` ``scope_supported`` value is no longer
+    an automatic pass for every lane. Evidence may support a lane only when
+    :func:`build_support_index` actually links it there -- via the Lane
+    reference model's own ``country_ids``/``node_ids``/``chokepoint_ids``
+    intersecting the evidence's event geography, an explicit reviewed
+    ``lane_relevance`` entry naming this evidence_id, or the platform's own
+    current-assessment linkage (``active_event_ids``/
+    ``external_driver_event_ids``). Global-scoped evidence in particular
+    must still clear one of those three; it is never an automatic pass on
+    its scope value alone. Evidence attached to an ``external_driver`` event
+    additionally needs that event's transmission chain to be admitted
+    (complete); a driver whose chain is still incomplete has not established
+    a mechanism into any lane yet, so citing it for one is rejected the same
+    as citing unrelated evidence.
     """
     problems: list[str] = []
     eligible = eligible_indicator_ids(package, registry=registry)
@@ -916,8 +1043,6 @@ def lane_support_relevance_problems(
                     "from an external driver whose transmission chain is not admitted, which "
                     "cannot support a lane direction"
                 )
-                continue
-            if entry.get("geography") in _BROAD_EVIDENCE_SCOPES:
                 continue
             if lane_id in (entry.get("lane_ids") or []):
                 continue
@@ -962,11 +1087,16 @@ def binding_problems(
     """
     problems: list[str] = []
     for output_field, package_field in BINDING_FIELDS:
-        output_value = output.get(output_field)
-        package_value = package.get(package_field)
-        if not output_value:
+        if output_field not in output:
             problems.append(f"output is missing required binding field {output_field!r}")
             continue
+        output_value = output.get(output_field)
+        package_value = package.get(package_field)
+        # WO-010-R6 §6: a key that is *present* but null is a valid echo of
+        # a package field that is itself honestly null (source_cutoff with
+        # zero acquisition-bound evidence) -- only an absent key is a
+        # missing binding field. Checking truthiness here previously
+        # rejected a correct null echo as though the field were missing.
         if output_value != package_value:
             problems.append(
                 f"output's {output_field} ({output_value!r}) does not match the input "
@@ -1441,15 +1571,22 @@ def scenario_support_problems(
                         "driver whose transmission chain is not admitted"
                     )
                     continue
-                if entry.get("geography") not in _BROAD_EVIDENCE_SCOPES:
+                # WO-010-R6 §9: whether this evidence, on its own recorded
+                # scope, may independently establish a Thailand-wide
+                # condition. Facility/node/asset/route evidence never can;
+                # neither can global-scoped evidence or country/region
+                # evidence about somewhere other than Thailand -- only a
+                # genuine Thailand country/region notice can, and even then
+                # only for a Thailand-wide *subject*, never as a substitute
+                # for an actual Lane link below.
+                if not _establishes_thailand_directly(entry):
                     narrow_evidence_scopes.add(evidence_id)
-                if subject_type == "lane" and entry.get("geography") not in _BROAD_EVIDENCE_SCOPES:
-                    if subject_id not in (entry.get("lane_ids") or []):
-                        problems.append(
-                            f"{label}/{name}: cites evidence {evidence_id!r} "
-                            f"(scope_supported={entry.get('geography')!r}) that the reference "
-                            "model does not link to this lane"
-                        )
+                if subject_type == "lane" and subject_id not in (entry.get("lane_ids") or []):
+                    problems.append(
+                        f"{label}/{name}: cites evidence {evidence_id!r} "
+                        f"(scope_supported={entry.get('geography')!r}) that the reference "
+                        "model does not link to this lane"
+                    )
 
             if (
                 subject_type in _THAILAND_WIDE_SUBJECT_TYPES
@@ -1676,8 +1813,18 @@ def preparedness_applicability_problems(
 
         thailand_wide_geography = applicable_geography_ids - chokepoint_ids - applicable_lane_ids
         if thailand_wide_geography and not is_coverage:
+            # WO-010-R6 §9: an indicator's own geographic_scope of
+            # "thailand" is a real signal (set once, at the point the
+            # platform knows which source produced it); a global-scoped
+            # evidence item is not -- only a genuine Thailand country/region
+            # notice may independently establish Thailand-wide relevance.
             compatible = any(
-                entry.get("geography") in _BROAD_EVIDENCE_SCOPES | {"thailand"} for entry in entries
+                entry.get("geography") == "thailand"
+                or (
+                    entry.get("support_type") == "evidence"
+                    and _establishes_thailand_directly(entry)
+                )
+                for entry in entries
             )
             if not compatible:
                 problems.append(

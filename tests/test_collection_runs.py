@@ -13,10 +13,18 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from analysis.provenance import compute_reviewed_record_set_hash  # noqa: E402
 from collectors.collection_runs import load_collection_runs, load_manual_review_events  # noqa: E402
 from tests.positive_path import TEST_NOTICE_SOURCE, TEST_REGISTRY  # noqa: E402
 
 NOW = datetime(2026, 7, 24, tzinfo=UTC)
+
+#: A placeholder hash. Valid for every test whose event either has no
+#: related_record_ids (the hash check is skipped) or fails an earlier check
+#: (the hash check is never reached) -- only a test asserting a clean load
+#: with a non-empty related_record_ids needs to override it with a real
+#: computed hash (WO-010-R6 §2).
+_PLACEHOLDER_HASH = "0" * 64
 
 
 def _event(**overrides):
@@ -33,6 +41,7 @@ def _event(**overrides):
         "underlying_publisher": "Example Port Authority",
         "content_sha256": None,
         "known_limitations": [],
+        "reviewed_record_set_sha256": _PLACEHOLDER_HASH,
     }
     base.update(overrides)
     return base
@@ -48,6 +57,48 @@ def _write(directory: Path, filename: str, source_id: str, events: list[dict]) -
     return path
 
 
+from tests.positive_path import TEST_TRADE_SOURCE  # noqa: E402, F811
+
+
+def _run(**overrides):
+    base = {
+        "run_id": "COL-20260101T000000Z-" + TEST_TRADE_SOURCE,
+        "source_id": TEST_TRADE_SOURCE,
+        "started_at": "2026-01-01T00:00:00Z",
+        "completed_at": "2026-01-01T00:00:00Z",
+        "status": "success",
+        "workflow_sha": None,
+        "adapter_version": "test_v1",
+        "request_url": None,
+        "response_url": None,
+        "content_type": None,
+        "http_status": None,
+        "etag": None,
+        "last_modified": None,
+        "content_sha256": None,
+        "records_received": 1,
+        "records_emitted": 1,
+        "records_rejected": 0,
+        "data_cutoff_at": "2026-01-01T00:00:00Z",
+        "warnings": [],
+        "errors": [],
+        "emitted_records": [
+            {"record_id": "OBS-1", "source_record_id": None, "content_sha256": "a" * 64}
+        ],
+        "output_manifest_sha256": None,
+        "supersedes_run_id": None,
+    }
+    base.update(overrides)
+    return base
+
+
+def _write_runs(directory: Path, filename: str, runs: list[dict]) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / filename
+    path.write_text(json.dumps({"version": "0.8", "runs": runs}, indent=2), encoding="utf-8")
+    return path
+
+
 # ---------------------------------------------------------------------------
 # Collection runs: missing directory / basic pass-through
 # ---------------------------------------------------------------------------
@@ -55,6 +106,63 @@ def _write(directory: Path, filename: str, source_id: str, events: list[dict]) -
 
 def test_a_missing_collection_runs_directory_returns_empty(tmp_path):
     assert load_collection_runs(tmp_path / "does-not-exist") == {}
+
+
+def test_a_well_formed_run_with_a_matching_manifest_loads_cleanly(tmp_path):
+    _write_runs(tmp_path, f"{TEST_TRADE_SOURCE}.json", [_run()])
+    loaded = load_collection_runs(tmp_path)
+    assert loaded[TEST_TRADE_SOURCE][0]["run_id"] == "COL-20260101T000000Z-" + TEST_TRADE_SOURCE
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R6 §1: collection-run output-manifest internal consistency
+# ---------------------------------------------------------------------------
+
+
+def test_a_not_modified_run_that_claims_emitted_records_is_rejected(tmp_path):
+    _write_runs(
+        tmp_path,
+        f"{TEST_TRADE_SOURCE}.json",
+        [
+            _run(
+                status="not_modified", supersedes_run_id="COL-20251201T000000Z-" + TEST_TRADE_SOURCE
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="must not claim newly emitted records"):
+        load_collection_runs(tmp_path)
+
+
+def test_a_records_emitted_count_that_disagrees_with_the_manifest_is_rejected(tmp_path):
+    _write_runs(tmp_path, f"{TEST_TRADE_SOURCE}.json", [_run(records_emitted=5)])
+    with pytest.raises(ValueError, match="disagrees with the 1 entries"):
+        load_collection_runs(tmp_path)
+
+
+def test_a_declared_output_manifest_hash_that_disagrees_is_rejected(tmp_path):
+    _write_runs(tmp_path, f"{TEST_TRADE_SOURCE}.json", [_run(output_manifest_sha256="f" * 64)])
+    with pytest.raises(ValueError, match="disagrees with the computed hash"):
+        load_collection_runs(tmp_path)
+
+
+def test_a_correct_output_manifest_hash_loads_cleanly(tmp_path):
+    from analysis.provenance import compute_output_manifest_hash
+
+    emitted = [{"record_id": "OBS-1", "source_record_id": None, "content_sha256": "a" * 64}]
+    _write_runs(
+        tmp_path,
+        f"{TEST_TRADE_SOURCE}.json",
+        [
+            _run(
+                emitted_records=emitted,
+                output_manifest_sha256=compute_output_manifest_hash(emitted),
+            )
+        ],
+    )
+    loaded = load_collection_runs(tmp_path)
+    assert loaded[TEST_TRADE_SOURCE][0]["output_manifest_sha256"] == compute_output_manifest_hash(
+        emitted
+    )
 
 
 def test_a_missing_manual_events_directory_returns_empty(tmp_path):
@@ -178,6 +286,9 @@ def _record(record_id="EVD-1", **overrides):
         "is_fixture": False,
         "dataset": "current_publication",
         "timestamp": "2026-01-01T00:00:00Z",
+        "evidence_origin": "human_reviewed_manual",
+        "content_hash": "b" * 64,
+        "event_id": "EVT-20260101-001",
     }
     entry.update(overrides)
     return entry
@@ -253,12 +364,66 @@ def test_a_reviewed_event_with_an_empty_record_set_is_rejected(tmp_path):
 
 
 def test_a_valid_related_record_loads_cleanly(tmp_path):
-    _write(tmp_path, f"{TEST_NOTICE_SOURCE}.json", TEST_NOTICE_SOURCE, [_event()])
     index = {"EVD-1": _record()}
+    expected_hash = compute_reviewed_record_set_hash(["EVD-1"], record_index=index)
+    _write(
+        tmp_path,
+        f"{TEST_NOTICE_SOURCE}.json",
+        TEST_NOTICE_SOURCE,
+        [_event(reviewed_record_set_sha256=expected_hash)],
+    )
     loaded = load_manual_review_events(
         tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index
     )
     assert loaded[TEST_NOTICE_SOURCE]
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R6 §2: reviewed_record_set_sha256 recompute-and-compare
+# ---------------------------------------------------------------------------
+
+
+def test_a_reviewed_record_set_hash_that_disagrees_is_rejected(tmp_path):
+    """The record still exists and every existence check passes, but the
+    event's declared hash does not match what the current record set
+    actually hashes to -- the drift an existence-only check cannot catch."""
+    index = {"EVD-1": _record()}
+    _write(
+        tmp_path,
+        f"{TEST_NOTICE_SOURCE}.json",
+        TEST_NOTICE_SOURCE,
+        [_event(reviewed_record_set_sha256=_PLACEHOLDER_HASH)],
+    )
+    with pytest.raises(ValueError, match="reviewed_record_set_sha256"):
+        load_manual_review_events(tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=index)
+
+
+def test_a_reviewed_record_set_hash_changes_when_a_records_content_changes(tmp_path):
+    """Same record ID, source and dataset -- only the content hash differs --
+    is still caught, because the summary hashed includes content_hash."""
+    index = {"EVD-1": _record()}
+    expected_hash = compute_reviewed_record_set_hash(["EVD-1"], record_index=index)
+    _write(
+        tmp_path,
+        f"{TEST_NOTICE_SOURCE}.json",
+        TEST_NOTICE_SOURCE,
+        [_event(reviewed_record_set_sha256=expected_hash)],
+    )
+    drifted_index = {"EVD-1": _record(content_hash="c" * 64)}
+    with pytest.raises(ValueError, match="reviewed_record_set_sha256"):
+        load_manual_review_events(
+            tmp_path, registry=TEST_REGISTRY, now=NOW, record_index=drifted_index
+        )
+
+
+def test_reviewed_record_set_hash_is_order_independent(tmp_path):
+    """Canonical ordering: the same two records referenced in either order
+    hash identically."""
+    index = {"EVD-1": _record("EVD-1"), "EVD-2": _record("EVD-2")}
+    forward = compute_reviewed_record_set_hash(["EVD-1", "EVD-2"], record_index=index)
+    backward = compute_reviewed_record_set_hash(["EVD-2", "EVD-1"], record_index=index)
+    assert forward == backward
+    assert forward is not None
 
 
 def test_a_superseded_event_is_not_the_latest_reviewed_event(tmp_path):

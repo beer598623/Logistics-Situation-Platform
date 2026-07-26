@@ -107,7 +107,9 @@ def test_the_package_records_what_it_excluded(current_package):
 
 
 def test_the_package_records_its_cutoffs_and_hash(current_package):
-    assert current_package["source_cutoff"]
+    # WO-010-R6 §6: zero acquisition-bound evidence means source_cutoff is
+    # honestly null, never silently replaced with data_cutoff_at/as_of_time.
+    assert current_package["source_cutoff"] is None
     assert current_package["data_cutoff_at"]
     assert len(current_package["package_sha256"]) == 64
 

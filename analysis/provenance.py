@@ -31,6 +31,8 @@ obvious shortcut and the obvious way to end up with two answers that disagree.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -582,6 +584,157 @@ def series_homogeneity_problems(
     return problems
 
 
+def compute_output_manifest_hash(emitted_records: Sequence[Mapping[str, Any]] | None) -> str | None:
+    """Deterministic hash over a collection run's output manifest (WO-010-R6 §1).
+
+    ``None`` when there is no manifest to hash (a run persisted before
+    WO-010-R6, or a status that never emits). Otherwise a sha256 over the
+    manifest's entries sorted by ``record_id`` -- so two manifests that list
+    the same records in a different order hash identically, but any change to
+    which records were emitted, or to a record's ``source_record_id`` or
+    ``content_sha256``, changes the hash.
+    """
+    if emitted_records is None:
+        return None
+    canonical = sorted(
+        (
+            {
+                "record_id": str(entry.get("record_id")),
+                "source_record_id": entry.get("source_record_id"),
+                "content_sha256": entry.get("content_sha256"),
+            }
+            for entry in emitted_records
+        ),
+        key=lambda entry: entry["record_id"],
+    )
+    encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _reviewed_record_summary(record_id: str, entry: Mapping[str, Any]) -> dict[str, Any]:
+    """Canonical per-record summary hashed into ``reviewed_record_set_sha256``
+    (WO-010-R6 §2). Every field the work order names, read from a
+    :func:`build_record_index` entry.
+    """
+    return {
+        "record_id": record_id,
+        "source_id": entry.get("source_id"),
+        "dataset": entry.get("dataset"),
+        "evidence_origin": entry.get("evidence_origin"),
+        "content_hash": entry.get("content_hash"),
+        "timestamp": entry.get("timestamp"),
+        "event_id": entry.get("event_id"),
+    }
+
+
+def compute_reviewed_record_set_hash(
+    record_ids: Sequence[str],
+    *,
+    record_index: Mapping[str, Mapping[str, Any]],
+) -> str | None:
+    """Deterministic hash over the actual resolved record set a manual
+    review event names (WO-010-R6 §2).
+
+    ``None`` when any ``record_id`` does not resolve in ``record_index`` --
+    there is no honest hash to compute over a record set that includes a
+    reference to nothing. Otherwise a sha256 over each record's canonical
+    summary (:func:`_reviewed_record_summary`), sorted by ``record_id`` so
+    equivalent record sets in a different order hash identically, but any
+    change to a member record's content, source, dataset or the set's
+    membership itself changes the hash.
+    """
+    summaries = []
+    for record_id in record_ids:
+        entry = record_index.get(record_id)
+        if entry is None:
+            return None
+        summaries.append(_reviewed_record_summary(str(record_id), entry))
+    summaries.sort(key=lambda entry: entry["record_id"])
+    encoded = json.dumps(summaries, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def collection_run_problems(run: Mapping[str, Any]) -> list[str]:
+    """Internal consistency of one collection run's own output manifest
+    (WO-010-R6 §1).
+
+    Independent of any record: this checks the run document against itself
+    -- a ``not_modified`` run must never claim newly emitted records of its
+    own, a run that declares ``emitted_records`` must declare a matching
+    ``records_emitted`` count and a matching ``output_manifest_sha256``, and
+    a declared ``output_manifest_sha256`` must actually match what
+    :func:`compute_output_manifest_hash` returns for the declared records.
+    """
+    problems: list[str] = []
+    run_id = run.get("run_id", "<run>")
+    status = run.get("status")
+    emitted_records = run.get("emitted_records")
+
+    if status == "not_modified" and emitted_records:
+        problems.append(
+            f"collection run {run_id!r} has status 'not_modified' but declares "
+            f"{len(emitted_records)} emitted_records; a not_modified run must not claim "
+            "newly emitted records"
+        )
+
+    if emitted_records is not None:
+        records_emitted = run.get("records_emitted")
+        if records_emitted is not None and records_emitted != len(emitted_records):
+            problems.append(
+                f"collection run {run_id!r} records records_emitted={records_emitted}, which "
+                f"disagrees with the {len(emitted_records)} entries in emitted_records"
+            )
+        computed = compute_output_manifest_hash(emitted_records)
+        declared = run.get("output_manifest_sha256")
+        if declared is not None and declared != computed:
+            problems.append(
+                f"collection run {run_id!r} declares output_manifest_sha256 {declared!r}, "
+                f"which disagrees with the computed hash {computed!r} of its emitted_records"
+            )
+
+    return problems
+
+
+def _resolve_output_manifest(
+    run: Mapping[str, Any],
+    *,
+    runs_by_id: Mapping[str, Mapping[str, Any]],
+) -> tuple[Mapping[str, Any] | None, list[Mapping[str, Any]] | None]:
+    """The run whose output manifest actually governs membership for
+    ``run``, following a ``not_modified`` run's ``supersedes_run_id`` chain
+    back to the nearest run that actually declares ``emitted_records``
+    (WO-010-R6 §1).
+
+    Returns ``(governing_run, emitted_records)``. ``emitted_records`` is
+    ``None`` when the chain cannot resolve one -- a missing link, a cycle, or
+    a governing run with no manifest at all -- so the caller fails closed
+    rather than treating "we could not find the manifest" as "the manifest
+    permits this".
+    """
+    visited: set[str] = set()
+    current = run
+    while True:
+        current_id = current.get("run_id")
+        if current_id in visited:
+            return current, None
+        visited.add(str(current_id))
+        emitted_records = current.get("emitted_records")
+        if current.get("status") != "not_modified":
+            return current, emitted_records
+        if emitted_records:
+            # A not_modified run must not have its own records, but if one
+            # does, fall through and let collection_run_problems() catch it
+            # rather than silently trusting it here.
+            return current, emitted_records
+        supersedes_id = current.get("supersedes_run_id")
+        if not supersedes_id:
+            return current, None
+        prior = runs_by_id.get(supersedes_id)
+        if prior is None:
+            return current, None
+        current = prior
+
+
 def acquisition_binding_problems(
     record: Mapping[str, Any],
     *,
@@ -655,6 +808,45 @@ def acquisition_binding_problems(
             return [
                 f"{label}: parser_version {parser_version!r} disagrees with collection run "
                 f"{run_id!r}'s adapter_version {adapter_version!r}"
+            ]
+
+        # WO-010-R6 §1: the record must not merely cite a run that succeeded --
+        # it must actually appear in that run's own output manifest, following
+        # a not_modified run's supersedes_run_id chain back to the manifest
+        # that actually governs it.
+        runs_by_id = {candidate.get("run_id"): candidate for candidate in runs}
+        governing_run, emitted_records = _resolve_output_manifest(run, runs_by_id=runs_by_id)
+        if emitted_records is None:
+            return [
+                f"{label}: collection run {run_id!r} declares no output manifest "
+                "(emitted_records), so record-level membership cannot be verified"
+            ]
+        record_id = provenance.get("record_id") or record.get("evidence_id")
+        manifest_entry = next(
+            (entry for entry in emitted_records if entry.get("record_id") == record_id), None
+        )
+        if manifest_entry is None:
+            return [
+                f"{label}: record ID {record_id!r} does not appear in the output manifest of "
+                f"collection run {governing_run.get('run_id')!r}"
+            ]
+        record_content_hash = provenance.get("content_sha256")
+        manifest_content_hash = manifest_entry.get("content_sha256")
+        if (
+            record_content_hash
+            and manifest_content_hash
+            and record_content_hash != manifest_content_hash
+        ):
+            return [
+                f"{label}: content_sha256 {record_content_hash!r} disagrees with the output "
+                f"manifest's recorded hash {manifest_content_hash!r} for this record"
+            ]
+        record_source_record_id = provenance.get("source_record_id")
+        manifest_source_record_id = manifest_entry.get("source_record_id")
+        if record_source_record_id and record_source_record_id != manifest_source_record_id:
+            return [
+                f"{label}: source_record_id {record_source_record_id!r} disagrees with the "
+                f"output manifest's recorded source_record_id {manifest_source_record_id!r}"
             ]
         return []
 
@@ -731,7 +923,8 @@ def build_record_index(
     index: dict[str, dict[str, Any]] = {}
     for records in observations.values():
         for record in records:
-            record_id = _provenance(record).get("record_id")
+            provenance = _provenance(record)
+            record_id = provenance.get("record_id")
             if not record_id:
                 continue
             index[str(record_id)] = {
@@ -740,6 +933,9 @@ def build_record_index(
                 "is_fixture": is_fixture(record_origin(record)),
                 "dataset": record_dataset(record),
                 "timestamp": _record_timestamp(record),
+                "evidence_origin": record_origin(record),
+                "content_hash": provenance.get("content_sha256"),
+                "event_id": None,
             }
     for item in evidence:
         evidence_id = item.get("evidence_id")
@@ -751,6 +947,9 @@ def build_record_index(
             "is_fixture": is_fixture(record_origin(item)),
             "dataset": record_dataset(item),
             "timestamp": _record_timestamp(item),
+            "evidence_origin": record_origin(item),
+            "content_hash": item.get("content_sha256"),
+            "event_id": item.get("event_id"),
         }
     return index
 
@@ -787,6 +986,7 @@ def build_acquisition_summary(
     event_ids: set[str] = set()
     timestamps: list[Any] = []
     excluded = 0
+    included_record_ids: set[str] = set()
 
     runs_by_id = {
         run.get("run_id"): run
@@ -814,6 +1014,9 @@ def build_acquisition_summary(
             excluded += 1
             return
         provenance = _provenance(record)
+        record_id = provenance.get("record_id") or record.get("evidence_id")
+        if record_id:
+            included_record_ids.add(str(record_id))
 
         if origin == LIVE_RETRIEVED:
             run_id = provenance.get("collection_run_id")
@@ -841,12 +1044,31 @@ def build_acquisition_summary(
             "because they carried no matching, valid acquisition binding."
         )
 
+    # WO-010-R6 §4: per-run and per-event manifest/record-set hashes, so the
+    # package's own acquisition_summary carries not just which runs/events
+    # qualified but what they were bound to at the moment this summary was
+    # built -- what acquisition_currency_problems (analysis.review_package)
+    # and the approval-time acquisition-state hash both compare against.
+    collection_run_manifest_hashes = {
+        run_id: runs_by_id[run_id].get("output_manifest_sha256")
+        for run_id in sorted(run_ids)
+        if run_id in runs_by_id
+    }
+    manual_review_record_set_hashes = {
+        event_id: events_by_id[event_id].get("reviewed_record_set_sha256")
+        for event_id in sorted(event_ids)
+        if event_id in events_by_id
+    }
+
     return {
         "qualifying_collection_run_ids": sorted(run_ids),
         "qualifying_manual_review_event_ids": sorted(event_ids),
         "excluded_unbound_record_count": excluded,
         "latest_source_cutoff": to_iso(max(timestamps)) if timestamps else None,
         "acquisition_health_limitations": limitations,
+        "collection_run_manifest_hashes": collection_run_manifest_hashes,
+        "manual_review_record_set_hashes": manual_review_record_set_hashes,
+        "included_current_record_ids": sorted(included_record_ids),
     }
 
 

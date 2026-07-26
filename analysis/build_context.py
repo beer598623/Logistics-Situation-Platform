@@ -31,8 +31,10 @@ tests require) those two datasets to stay dated to a fixed point.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from .provenance import CURRENT_PUBLICATION, HISTORICAL_VALIDATION, TECHNICAL_DEMO
@@ -72,6 +74,45 @@ def to_iso(value: datetime) -> str:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
+#: File suffixes excluded from a directory hash: generated database and
+#: temporary files, never a genuine build input (WO-010-R6 §5).
+_EXCLUDED_DIRECTORY_SUFFIXES = frozenset({".duckdb", ".duckdb.wal", ".tmp"})
+
+
+def hash_directory(path: Path) -> str | None:
+    """One deterministic digest over every hashable file under ``path``
+    (WO-010-R6 §5).
+
+    Used where a Build Context input is a directory of files (collection-run
+    manifests, manual-review events, reference dimensions) rather than a
+    single file. Files are visited in sorted relative-path order so the
+    result never depends on filesystem iteration order; both the relative
+    path and the file's bytes feed the hash, so a rename and a content
+    change are both visible, and two directories with the same files in a
+    different layout still hash identically only if every relative path
+    matches too. Generated database files and temporary files are excluded
+    -- they are build *output*, not input. Returns ``None`` when the
+    directory does not exist or contains no hashable files, the same
+    "nothing to hash" signal a missing single input file already gives.
+    """
+    if not path.exists():
+        return None
+    files = sorted(
+        candidate
+        for candidate in path.rglob("*")
+        if candidate.is_file()
+        and "__pycache__" not in candidate.parts
+        and not any(candidate.name.endswith(suffix) for suffix in _EXCLUDED_DIRECTORY_SUFFIXES)
+    )
+    if not files:
+        return None
+    digest = hashlib.sha256()
+    for file_path in files:
+        digest.update(file_path.relative_to(path).as_posix().encode("utf-8"))
+        digest.update(file_path.read_bytes())
+    return digest.hexdigest()
+
+
 def resolve_current_as_of(
     cli_value: str | None,
     *,
@@ -98,6 +139,14 @@ def resolve_current_as_of(
     return parse_timestamp(DEFAULT_CURRENT_AS_OF_ISO)
 
 
+#: Valid values for ``generation_time_basis`` (WO-010-R6 §7).
+OBSERVED_BUILD_TIME = "observed_build_time"
+PERSISTED_REBUILD_TIME = "persisted_rebuild_time"
+LEGACY_MIGRATED = "legacy_migrated"
+
+GENERATION_TIME_BASES = (OBSERVED_BUILD_TIME, PERSISTED_REBUILD_TIME, LEGACY_MIGRATED)
+
+
 def build_context_record(
     *,
     dataset: str,
@@ -108,6 +157,7 @@ def build_context_record(
     latest_manual_review_at: datetime | None = None,
     methodology_version: str = METHODOLOGY_VERSION,
     input_hashes: Mapping[str, str] | None = None,
+    generation_time_basis: str = OBSERVED_BUILD_TIME,
 ) -> dict[str, Any]:
     """Assemble one Build Context record.
 
@@ -144,6 +194,7 @@ def build_context_record(
         ),
         "methodology_version": methodology_version,
         "input_hashes": dict(input_hashes or {}),
+        "generation_time_basis": generation_time_basis,
     }
 
 
@@ -151,6 +202,7 @@ def context_problems(
     context: Mapping[str, Any],
     *,
     previous_context: Mapping[str, Any] | None = None,
+    legacy_migration: bool = False,
 ) -> list[str]:
     """Fail-closed checks on a freshly built context, before it is trusted.
 
@@ -183,7 +235,13 @@ def context_problems(
       acquisition event; one that does not is not honestly derived.
     * the same ``build_context_id`` as ``previous_context`` but different
       ``input_hashes`` -- an identity implying "the same, reproducible
-      context" while the underlying data actually changed.
+      context" while the underlying data actually changed. Suppressed when
+      ``legacy_migration`` is true (WO-010-R6 §7): the one-time upgrade of a
+      pre-R6 context (no ``generation_time_basis`` at all) to hash
+      additional acquisition/reference inputs legitimately changes
+      ``input_hashes`` under an unchanged ``build_context_id``, without the
+      underlying data itself having changed -- that is the migration the
+      work order asks for, not the drift this rule otherwise catches.
     """
     problems: list[str] = []
     dataset = context.get("dataset")
@@ -197,6 +255,10 @@ def context_problems(
     generated_at = parse_timestamp(context["generated_at"])
     if as_of > generated_at:
         problems.append("as_of_time is later than generated_at, which is not yet possible")
+
+    basis = context.get("generation_time_basis")
+    if basis not in GENERATION_TIME_BASES:
+        problems.append(f"generation_time_basis {basis!r} is not a recognised value")
 
     source_cutoff_raw = context.get("source_cutoff")
     source_cutoff = parse_timestamp(source_cutoff_raw) if source_cutoff_raw else None
@@ -238,7 +300,8 @@ def context_problems(
             )
 
     if (
-        previous_context is not None
+        not legacy_migration
+        and previous_context is not None
         and previous_context.get("build_context_id") == context.get("build_context_id")
         and previous_context.get("input_hashes") != context.get("input_hashes")
     ):

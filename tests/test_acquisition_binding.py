@@ -34,6 +34,12 @@ AS_OF = datetime(2026, 7, 24, tzinfo=UTC)
 RUN_ID = "COL-20260720T000000Z-" + TEST_TRADE_SOURCE
 EVENT_ID = "MAN-20260720T000000Z-" + TEST_NOTICE_SOURCE
 
+#: Matches live_trade_observation(period_key="2026-07", value=100.0)'s own
+#: record_id/content_sha256, so a default _run() output manifest actually
+#: covers the record every positive test in this module builds (WO-010-R6 §1).
+RECORD_ID = f"OBS-{TEST_TRADE_SOURCE}-th_export_value_neur-2026-07"
+RECORD_CONTENT_HASH = "a" * 64
+
 
 def _run(**overrides):
     run = {
@@ -43,6 +49,14 @@ def _run(**overrides):
         "completed_at": "2026-07-20T00:00:00Z",
         "status": "success",
         "adapter_version": "test_v1",
+        "emitted_records": [
+            {
+                "record_id": RECORD_ID,
+                "source_record_id": None,
+                "content_sha256": RECORD_CONTENT_HASH,
+            }
+        ],
+        "supersedes_run_id": None,
     }
     run.update(overrides)
     return run
@@ -169,6 +183,117 @@ def test_a_run_completed_after_as_of_is_rejected():
 
 
 # ---------------------------------------------------------------------------
+# WO-010-R6 §1, §10: record-level output-manifest membership
+# ---------------------------------------------------------------------------
+
+
+def test_a_live_record_absent_from_its_runs_output_manifest_is_rejected():
+    """The run succeeded, but this record's ID is not among the records it
+    actually emitted -- a record must not qualify merely because the source
+    has some successful run."""
+    record = live_trade_observation(period_key="2026-07", value=100.0, collection_run_id=RUN_ID)
+    run = _run(
+        emitted_records=[
+            {
+                "record_id": "OBS-SOMETHING-ELSE",
+                "source_record_id": None,
+                "content_sha256": "z" * 64,
+            }
+        ]
+    )
+    problems = acquisition_binding_problems(
+        record, collection_runs_by_source={TEST_TRADE_SOURCE: [run]}, as_of=AS_OF
+    )
+    assert any("does not appear in the output manifest" in item for item in problems), problems
+
+
+def test_a_live_record_with_a_disagreeing_content_hash_is_rejected():
+    record = live_trade_observation(period_key="2026-07", value=100.0, collection_run_id=RUN_ID)
+    run = _run(
+        emitted_records=[
+            {"record_id": RECORD_ID, "source_record_id": None, "content_sha256": "f" * 64}
+        ]
+    )
+    problems = acquisition_binding_problems(
+        record, collection_runs_by_source={TEST_TRADE_SOURCE: [run]}, as_of=AS_OF
+    )
+    assert any("content_sha256" in item and "disagrees" in item for item in problems), problems
+
+
+def test_a_live_record_with_a_disagreeing_source_record_id_is_rejected():
+    record = live_trade_observation(period_key="2026-07", value=100.0, collection_run_id=RUN_ID)
+    record["provenance"]["source_record_id"] = "REAL-ID-1"
+    run = _run(
+        emitted_records=[
+            {
+                "record_id": RECORD_ID,
+                "source_record_id": "REAL-ID-2",
+                "content_sha256": RECORD_CONTENT_HASH,
+            }
+        ]
+    )
+    problems = acquisition_binding_problems(
+        record, collection_runs_by_source={TEST_TRADE_SOURCE: [run]}, as_of=AS_OF
+    )
+    assert any("source_record_id" in item and "disagrees" in item for item in problems), problems
+
+
+def test_a_run_with_no_output_manifest_fails_closed():
+    """A run that succeeded but declares no emitted_records at all (e.g. a
+    manifest persisted before WO-010-R6) cannot verify membership, so the
+    record is excluded rather than trusted on the source's say-so."""
+    record = live_trade_observation(period_key="2026-07", value=100.0, collection_run_id=RUN_ID)
+    run = _run(emitted_records=None)
+    problems = acquisition_binding_problems(
+        record, collection_runs_by_source={TEST_TRADE_SOURCE: [run]}, as_of=AS_OF
+    )
+    assert any("declares no output manifest" in item for item in problems), problems
+
+
+def test_a_record_bound_to_a_not_modified_run_follows_the_supersedes_chain():
+    """A not_modified run claims no records of its own; a record whose
+    collection_run_id points at it is verified against the prior successful
+    run's manifest instead, via supersedes_run_id."""
+    prior_run_id = "COL-20260701T000000Z-" + TEST_TRADE_SOURCE
+    not_modified_run_id = RUN_ID
+    prior_run = _run(
+        run_id=prior_run_id,
+        completed_at="2026-07-01T00:00:00Z",
+        emitted_records=[
+            {
+                "record_id": RECORD_ID,
+                "source_record_id": None,
+                "content_sha256": RECORD_CONTENT_HASH,
+            }
+        ],
+    )
+    not_modified_run = _run(
+        run_id=not_modified_run_id,
+        status="not_modified",
+        emitted_records=[],
+        supersedes_run_id=prior_run_id,
+    )
+    record = live_trade_observation(
+        period_key="2026-07", value=100.0, collection_run_id=not_modified_run_id
+    )
+    problems = acquisition_binding_problems(
+        record,
+        collection_runs_by_source={TEST_TRADE_SOURCE: [prior_run, not_modified_run]},
+        as_of=AS_OF,
+    )
+    assert problems == []
+
+
+def test_a_not_modified_run_with_no_supersedes_chain_fails_closed():
+    record = live_trade_observation(period_key="2026-07", value=100.0, collection_run_id=RUN_ID)
+    run = _run(status="not_modified", emitted_records=[], supersedes_run_id=None)
+    problems = acquisition_binding_problems(
+        record, collection_runs_by_source={TEST_TRADE_SOURCE: [run]}, as_of=AS_OF
+    )
+    assert any("declares no output manifest" in item for item in problems), problems
+
+
+# ---------------------------------------------------------------------------
 # Negative: manual records (WO-010-R5 §1, §10)
 # ---------------------------------------------------------------------------
 
@@ -266,6 +391,8 @@ def test_acquisition_summary_reports_a_qualifying_run_and_its_cutoff():
     assert summary["excluded_unbound_record_count"] == 0
     assert summary["latest_source_cutoff"] == "2026-07-20T00:00:00Z"
     assert summary["acquisition_health_limitations"] == []
+    assert summary["included_current_record_ids"] == [RECORD_ID]
+    assert set(summary["collection_run_manifest_hashes"]) == {RUN_ID}
 
 
 def test_acquisition_summary_counts_an_excluded_unbound_record():
@@ -281,6 +408,33 @@ def test_acquisition_summary_counts_an_excluded_unbound_record():
     assert summary["acquisition_health_limitations"] != []
 
 
+def test_acquisition_summary_ignores_a_failed_runs_completed_at_for_cutoff():
+    """WO-010-R6 §6: a live record citing a failed run is excluded entirely
+    -- the failed run's own completed_at must never leak into
+    latest_source_cutoff via any other path."""
+    record = live_trade_observation(period_key="2026-07", value=100.0, collection_run_id=RUN_ID)
+    summary = build_acquisition_summary(
+        observations={"trade_observations": [record]},
+        collection_runs_by_source={
+            TEST_TRADE_SOURCE: [_run(status="error", completed_at="2026-07-23T00:00:00Z")]
+        },
+        as_of=AS_OF,
+    )
+    assert summary["latest_source_cutoff"] is None
+    assert summary["qualifying_collection_run_ids"] == []
+    assert summary["excluded_unbound_record_count"] == 1
+
+
+def test_acquisition_summary_ignores_a_dry_run_for_cutoff():
+    record = live_trade_observation(period_key="2026-07", value=100.0, collection_run_id=RUN_ID)
+    summary = build_acquisition_summary(
+        observations={"trade_observations": [record]},
+        collection_runs_by_source={TEST_TRADE_SOURCE: [_run(status="dry_run")]},
+        as_of=AS_OF,
+    )
+    assert summary["latest_source_cutoff"] is None
+
+
 def test_acquisition_summary_of_nothing_is_an_honest_empty_summary():
     summary = build_acquisition_summary()
     assert summary == {
@@ -289,4 +443,7 @@ def test_acquisition_summary_of_nothing_is_an_honest_empty_summary():
         "excluded_unbound_record_count": 0,
         "latest_source_cutoff": None,
         "acquisition_health_limitations": [],
+        "collection_run_manifest_hashes": {},
+        "manual_review_record_set_hashes": {},
+        "included_current_record_ids": [],
     }

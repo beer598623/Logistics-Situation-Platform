@@ -63,9 +63,9 @@
       "description": "Copied verbatim from the input package's own data_cutoff_at. A mismatch means this output was produced against a different vintage of the package and cannot be approved without an explicit supersession."
     },
     "input_source_cutoff": {
-      "type": "string",
+      "type": ["string", "null"],
       "format": "date-time",
-      "description": "Copied verbatim from the input package's own source_cutoff."
+      "description": "Copied verbatim from the input package's own source_cutoff. WO-010-R6 §6: null when the input package included zero acquisition-bound evidence -- the binding must accept and echo that null honestly rather than a package or output ever substituting as_of_time/data_cutoff_at for it."
     },
     "current_situation": {
       "$ref": "#/$defs/currentDisposition",
