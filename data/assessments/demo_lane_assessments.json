@@ -181,7 +181,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -525,7 +525,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -872,7 +872,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -1262,7 +1262,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -1629,7 +1629,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -2007,7 +2007,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -2423,7 +2423,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -2838,7 +2838,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -3214,7 +3214,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -3646,7 +3646,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],
@@ -3990,7 +3990,7 @@
         {
           "domain": "source_freshness_and_coverage",
           "direction": "insufficient_evidence",
-          "basis": "One or more required capabilities lack sufficient source coverage.",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
           "threshold_rule_id": null,
           "indicator_ids": [],
           "evidence_ids": [],

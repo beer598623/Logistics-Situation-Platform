@@ -24,7 +24,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from analysis.events import active_events  # noqa: E402
+from analysis.build_context import parse_timestamp  # noqa: E402
+from analysis.events import active_events, event_qualifies_for_current_publication  # noqa: E402
 from analysis.indicators import derive_series  # noqa: E402
 from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
@@ -35,20 +36,54 @@ from analysis.provenance import (  # noqa: E402
     PUBLISH_RAW_VALUE,
     RAW_VALUES_PERMITTED,
     TECHNICAL_DEMO,
+    dataset_of,
     is_fixture,
     qualified_records,
     qualifies_for_current_publication,
     record_origin,
+    series_homogeneity_problems,
 )
 from scripts.build_analysis import GLOBAL_OR_PROXY_SERIES  # noqa: E402
 
 PUBLIC = ROOT / "dashboard/public"
 DATA = PUBLIC / "data"
 
-#: Same pinned cutoff the analysis build uses, so freshness shown on the
-#: Dashboard matches the freshness the assessments were computed against.
+#: The pinned as-of time technical-demo and historical-validation panels use.
+#: WO-010-R4 §6 keeps these fixed on purpose; only the current-publication
+#: panels advance, driven by the shared Build Context (see
+#: ``_current_as_of`` below) build_analysis.py wrote.
 DATA_CUTOFF = datetime(2026, 7, 24, tzinfo=UTC)
 DATA_CUTOFF_ISO = DATA_CUTOFF.isoformat().replace("+00:00", "Z")
+
+
+def _current_as_of() -> tuple[datetime, str]:
+    """The current build's as-of time, read from the shared Build Context.
+
+    ``scripts/build_analysis.py`` is the only writer of this file
+    (WO-010-R4 §6): reading it here, rather than resolving an independent
+    ``--as-of`` of its own, is what guarantees the Dashboard's current
+    panels and Source Health both describe the same moment as the analysis
+    build that produced ``data/assessments/thailand_assessment.json`` and
+    ``data/source_status/latest.json`` -- there is exactly one place that
+    decides what "now" means for a current build, and everything else reads
+    it from there.
+
+    Reads ``ROOT`` fresh on every call (a module global, not a constant
+    captured at import time) so a test that points ``ROOT`` at a temporary
+    copy of the data tree is honoured here too, the same way every other
+    path in this module already is.
+    """
+    context_path = ROOT / "data" / "build_context" / "current.json"
+    if not context_path.exists():
+        raise SystemExit(
+            f"No Build Context found at {context_path.relative_to(ROOT)}. Run "
+            "python scripts/build_analysis.py first -- it is the only writer of the "
+            "current build's as-of time."
+        )
+    context = json.loads(context_path.read_text(encoding="utf-8"))
+    as_of = parse_timestamp(context["as_of_time"])
+    return as_of, context["as_of_time"]
+
 
 METHODOLOGY_VERSION = "0.8"
 
@@ -135,6 +170,7 @@ def _current_series_payload(
     registry: dict[str, Any],
     *,
     raw_record_ids: frozenset[str] = frozenset(),
+    now: datetime | None = None,
 ) -> dict[str, Any] | None:
     """A current-publication series payload, or ``None`` when nothing qualifies.
 
@@ -148,8 +184,21 @@ def _current_series_payload(
     source's terms permit only a derived reading: ``current_value`` and the
     raw chart ``points`` are suppressed rather than published, whatever the
     derivation was able to compute them as.
+
+    ``now`` is the current build's as-of time (WO-010-R4 §6); it defaults to
+    the pinned ``DATA_CUTOFF`` so every existing direct call is unaffected.
+
+    WO-010-R4 §5: raw-publication permission is never read from ``records[0]``
+    alone. Every record here must first agree on source, unit, geography,
+    lane and publication-use disposition (``series_homogeneity_problems``); a
+    mixed series -- which cannot occur today, since every current record
+    still comes from exactly one source, but must never silently derive a
+    reading from an inconsistent set if it ever does -- is excluded rather
+    than combined under whichever record happened to be first.
     """
     if not records:
+        return None
+    if series_homogeneity_problems(records, registry=registry):
         return None
     source_id = records[0]["provenance"]["source_id"]
     max_stale, cadence = _contract_bounds(registry, source_id)
@@ -158,7 +207,7 @@ def _current_series_payload(
         records,
         max_stale_minutes=max_stale,
         expected_cadence_minutes=cadence,
-        now=DATA_CUTOFF,
+        now=now or DATA_CUTOFF,
         origin=record_origin(records[0]),
     )
     record_id = records[0]["provenance"]["record_id"]
@@ -178,6 +227,15 @@ def _current_series_payload(
     if not raw_permitted:
         for field_name in _RAW_ONLY_SERIES_FIELDS:
             payload[field_name] = None
+    # WO-010-R4 §5: a second, independent check over the final payload
+    # itself, not only over the pre-publication filter that built it -- a
+    # derived-only payload must never actually carry a raw field or a raw
+    # chart point.
+    if payload["publication_use_applied"] == DERIVED_VALUES_ONLY and (
+        payload["points"]
+        or any(payload.get(field_name) is not None for field_name in _RAW_ONLY_SERIES_FIELDS)
+    ):
+        raise RuntimeError(f"derived-only series payload {series_id!r} leaked a raw field or point")
     return payload
 
 
@@ -253,18 +311,43 @@ def _live_coverage_statement(
     )
 
 
-def _current_notice_statement(current_notice_evidence: list[dict[str, Any]]) -> str:
+def _current_notice_statement(
+    current_dataset_notices: list[dict[str, Any]],
+    qualified_notices: list[dict[str, Any]],
+    current_notice_evidence: list[dict[str, Any]],
+) -> str:
+    """WO-010-R4 §9: four distinct notice states, not a binary empty/non-empty
+    check. ``current_dataset_notices`` is every official-notice evidence item
+    tagged for the current-publication dataset, whether or not it qualifies;
+    ``qualified_notices`` narrows that to items that individually qualify for
+    current publication; ``current_notice_evidence`` narrows further still to
+    notices tied to an event that is itself currently active. Each stage can
+    be non-empty while the next is empty, and each of those states needs its
+    own sentence."""
+    if not current_dataset_notices:
+        return (
+            "No current notice record exists. No notice channel is monitored live and no "
+            "human-reviewed notice has been entered, so this is an absence of records rather "
+            "than evidence that no notice was published."
+        )
+    if not qualified_notices:
+        return (
+            f"{len(current_dataset_notices)} notice record(s) are held for the current "
+            "dataset, but none qualifies for current publication -- each fails licence, "
+            "retrieval, or reviewer confirmation. No qualified operational notice is "
+            "published below."
+        )
     if not current_notice_evidence:
         return (
-            "No qualified operational notice is recorded. No notice channel is monitored "
-            "live and no human-reviewed notice has been entered, so this is an absence of "
-            "records rather than evidence that no notice was published."
+            f"{len(qualified_notices)} qualified notice(s) exist, but the event(s) they "
+            "reference are not currently active, so no qualified notice is published against "
+            "an active event below."
         )
     return (
         f"{len(current_notice_evidence)} qualified operational notice(s) are recorded below, "
         "each either retrieved live from its publisher or transcribed by a named human "
-        "reviewer. An active event not covered by one of these still has no qualified notice "
-        "behind it."
+        "reviewer, against a currently active event. An active event not covered by one of "
+        "these still has no qualified notice behind it."
     )
 
 
@@ -292,21 +375,64 @@ def _cost_current_statement(current_cost_series: list[dict[str, Any]]) -> str:
     )
 
 
-def _events_current_statement(current_active: list[dict[str, Any]]) -> str:
-    if not current_active:
+def _events_current_statement(
+    current_dataset_events: list[dict[str, Any]],
+    qualified_current_events: list[dict[str, Any]],
+    current_active: list[dict[str, Any]],
+) -> str:
+    """WO-010-R4 §9: six distinct event-lifecycle states.
+
+    ``current_dataset_events`` is every event tagged for the current-publication
+    dataset, whether or not it individually qualifies. ``qualified_current_events``
+    narrows that to events that qualify for current publication (regardless of
+    whether they are still active). ``current_active`` narrows further still to
+    events confirmed active at this build's cutoff. A qualified-but-inactive
+    event (closed, superseded, or a discovery lead that structurally can never
+    confirm activity) must never be folded into "every stored event is
+    historical" -- that phrasing is reserved for the case where no current-
+    dataset event exists at all.
+    """
+    if not current_dataset_events:
         return (
-            "No qualified event is recorded. Every event the platform holds is a historical "
+            "No current event records exist. Every event the platform holds is a historical "
             "validation fixture with an assessment cutoff in the past; none is evidence of a "
             "current condition, and none appears above."
         )
+    if not qualified_current_events:
+        return (
+            f"{len(current_dataset_events)} current-dataset event record(s) exist, but none "
+            "qualifies for current publication -- none is backed by qualified current "
+            "evidence. No event is published above on that basis."
+        )
+    if not current_active:
+        if all(event["event_class"] == "discovery_lead" for event in qualified_current_events):
+            return (
+                f"{len(qualified_current_events)} qualified discovery lead(s) exist without "
+                "confirmation. A discovery lead may surface an item but can never itself "
+                "confirm an active condition, so none is published as active above."
+            )
+        return (
+            f"{len(qualified_current_events)} qualified current event(s) exist, but none is "
+            "confirmed active at this cutoff -- each lacks a current active-as-of "
+            "confirmation, or its confirmed activity window has closed. None is published as "
+            "active above."
+        )
+    if any(event["event_class"] == "direct_operational_event" for event in current_active):
+        return (
+            f"{len(current_active)} qualified, currently active event(s) are recorded above, "
+            "including at least one direct operational event, each re-confirmed as of its own "
+            "active_as_of date. An event not listed here is either not qualified for current "
+            "publication or is no longer active."
+        )
     return (
-        f"{len(current_active)} qualified, currently active event(s) are recorded above, each "
-        "re-confirmed as of its own active_as_of date. An event not listed here is either not "
-        "qualified for current publication or is no longer active."
+        f"{len(current_active)} currently active event(s) are recorded above, but only "
+        "contextual external drivers -- no direct operational event is currently active. An "
+        "external driver alone does not establish a direct operational impact."
     )
 
 
 def build_payloads() -> dict[str, Any]:
+    current_as_of, current_as_of_iso = _current_as_of()
     registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
     dimensions = _load(ROOT / "data/reference/dimensions.json")
     lanes = _load(ROOT / "data/reference/lanes.json")["lanes"]
@@ -338,16 +464,32 @@ def build_payloads() -> dict[str, Any]:
     # ---- Current events, derived once and reused ---------------------------
     # Both the Ocean and the Events payloads read these. Deriving them here
     # keeps one filter in charge of what "current" means across the page.
-    current_active = active_events(events, evidence_by_id, cutoff=DATA_CUTOFF, registry=registry)
+    current_active = active_events(events, evidence_by_id, cutoff=current_as_of, registry=registry)
     current_active_ids = {event["event_id"] for event in current_active}
-    current_notice_evidence = [
+    # WO-010-R4 §9: the three progressively narrower event stages the
+    # lifecycle-message state matrix distinguishes -- every current-dataset
+    # event record, the subset that individually qualifies for current
+    # publication, and the subset of those confirmed active at this cutoff.
+    current_dataset_events = [event for event in events if dataset_of(event) == CURRENT_PUBLICATION]
+    qualified_current_events = [
+        event
+        for event in current_dataset_events
+        if event_qualifies_for_current_publication(event, evidence_by_id, registry=registry)
+    ]
+    current_dataset_notices = [
         item
         for item in evidence
-        if item["claim_type"] == "official_notice"
-        and item["event_id"] in current_active_ids
-        and qualifies_for_current_publication(
+        if item.get("claim_type") == "official_notice" and dataset_of(item) == CURRENT_PUBLICATION
+    ]
+    qualified_notices = [
+        item
+        for item in current_dataset_notices
+        if qualifies_for_current_publication(
             item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
         )
+    ]
+    current_notice_evidence = [
+        item for item in qualified_notices if item["event_id"] in current_active_ids
     ]
     qualified_observations = {
         family: qualified_records(records, registry=registry, publication_use=PUBLISH_DERIVED_VALUE)
@@ -375,6 +517,7 @@ def build_payloads() -> dict[str, Any]:
                 _records_for(qualified_observations, series_id=series_id),
                 registry,
                 raw_record_ids=raw_record_ids,
+                now=current_as_of,
             )
         )
         is not None
@@ -384,7 +527,7 @@ def build_payloads() -> dict[str, Any]:
     # ---- Thailand Logistics Situation ------------------------------------
     situation = {
         "dataset": CURRENT_PUBLICATION,
-        "generated_at": DATA_CUTOFF_ISO,
+        "generated_at": current_as_of_iso,
         "data_cutoff_at": thailand["data_cutoff_at"],
         "methodology_version": METHODOLOGY_VERSION,
         "overall_direction": thailand["overall_direction"],
@@ -503,7 +646,7 @@ def build_payloads() -> dict[str, Any]:
 
     ocean = {
         "dataset": CURRENT_PUBLICATION,
-        "generated_at": DATA_CUTOFF_ISO,
+        "generated_at": current_as_of_iso,
         "current_port_series": [
             item
             for key, item in sorted(current_series_by_id.items())
@@ -606,7 +749,9 @@ def build_payloads() -> dict[str, Any]:
             }
             for item in current_notice_evidence
         ],
-        "current_notice_statement": _current_notice_statement(current_notice_evidence),
+        "current_notice_statement": _current_notice_statement(
+            current_dataset_notices, qualified_notices, current_notice_evidence
+        ),
         "demo_operational_notices": [
             {
                 "dataset": HISTORICAL_VALIDATION,
@@ -735,6 +880,7 @@ def build_payloads() -> dict[str, Any]:
                 _records_for(qualified_observations, series_id=series_id, lane_id=lane["lane_id"]),
                 registry,
                 raw_record_ids=raw_record_ids,
+                now=current_as_of,
             )
             if payload is not None:
                 flows.append({**payload, "flow_direction": direction})
@@ -915,7 +1061,7 @@ def build_payloads() -> dict[str, Any]:
 
     event_payload = {
         "dataset": CURRENT_PUBLICATION,
-        "generated_at": DATA_CUTOFF_ISO,
+        "generated_at": current_as_of_iso,
         "current_direct_operational_events": [
             _event_view(event)
             for event in current_active
@@ -926,7 +1072,9 @@ def build_payloads() -> dict[str, Any]:
             for event in current_active
             if event["event_class"] == "external_driver"
         ],
-        "current_statement": _events_current_statement(current_active),
+        "current_statement": _events_current_statement(
+            current_dataset_events, qualified_current_events, current_active
+        ),
         "demo_label": (
             "Historical validation — each case is assessed at its own cutoff, shown on the "
             "card. These exercise the event model and describe no current condition."
@@ -976,7 +1124,7 @@ def build_payloads() -> dict[str, Any]:
         else:
             approved.append(record)
     ai_outlook = {
-        "generated_at": DATA_CUTOFF_ISO,
+        "generated_at": current_as_of_iso,
         "approved_assessments": approved,
         "withheld_assessments": withheld,
         "publication_gate_note": (
@@ -1048,7 +1196,7 @@ def build_payloads() -> dict[str, Any]:
     # ---- Sources and Methodology ------------------------------------------
     health_by_id = {item["source_id"]: item for item in source_status["sources"]}
     sources_payload = {
-        "generated_at": DATA_CUTOFF_ISO,
+        "generated_at": current_as_of_iso,
         "policy": registry["policy"],
         "registry_version": registry["version"],
         "last_reviewed_at": registry["last_reviewed_at"],
@@ -1136,12 +1284,17 @@ def build_payloads() -> dict[str, Any]:
         "current_events.json": _load(ROOT / "data/reviewed/current_events.json"),
         "solutions.json": _load(ROOT / "innovation/solution_register.json"),
         "build_status.json": {
-            "built_at": DATA_CUTOFF_ISO,
+            "built_at": current_as_of_iso,
             "fixture_generated_at": DATA_CUTOFF_ISO,
-            "qualified_evidence": False,
+            # WO-010-R4 §9: computed from the same counts the situation panel
+            # reports, not a literal -- this must never disagree with
+            # situation.qualified_observation_count / .qualified_event_count.
+            "qualified_evidence": bool(
+                thailand.get("qualified_observation_count") or thailand.get("qualified_event_count")
+            ),
             "methodology_version": METHODOLOGY_VERSION,
-            "data_cutoff_at": DATA_CUTOFF_ISO,
-            "live_coverage": "insufficient",
+            "data_cutoff_at": current_as_of_iso,
+            "live_coverage": source_status["overall_status"],
             "paid_source_dependency": 0,
             "ai_api_used": False,
         },

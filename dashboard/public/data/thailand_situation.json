@@ -5,7 +5,7 @@
   "methodology_version": "0.8",
   "overall_direction": "insufficient_evidence",
   "evidence_coverage": "insufficient",
-  "coverage_message": "One or more required capabilities lack sufficient source coverage.",
+  "coverage_message": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
   "live_coverage_statement": "Live coverage is INSUFFICIENT. No source in the registry is enabled and none has completed a controlled live validation, so the platform holds no live-retrieved or human-reviewed evidence at all. Every current reading below is therefore 'insufficient evidence' -- which is a coverage gap, not a finding that conditions are normal. Synthetic and historical-validation fixtures are shown only in the separately labelled Technical demonstration panels and never contribute to a current reading.",
   "qualified_observation_count": 0,
   "current_indicator_count": 0,
@@ -56,7 +56,7 @@
   "contextual_external_drivers": [],
   "discovery_leads": [],
   "major_data_gaps": [
-    "Source Health reports overall current-publication coverage 'insufficient': One or more required capabilities lack sufficient source coverage.",
+    "Source Health reports overall current-publication coverage 'insufficient': Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
     "cost and freight context: No qualified current-publication record supports this capability.",
     "global baseline context: No qualified current-publication record supports this capability.",
     "operational event evidence: No qualified current-publication record supports this capability.",

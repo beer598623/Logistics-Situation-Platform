@@ -34,6 +34,15 @@ from analysis.assessments import (  # noqa: E402
     build_lane_assessment,
     direction_for_derivation,
 )
+from analysis.build_context import (  # noqa: E402
+    build_context_record,
+    context_problems,
+    exclude_future_dated,
+    latest_timestamp,
+    resolve_current_as_of,
+    to_iso,
+)
+from analysis.contracts import schema_errors  # noqa: E402
 from analysis.events import (  # noqa: E402
     active_events,
     event_domain_direction,
@@ -53,6 +62,7 @@ from analysis.provenance import (  # noqa: E402
     qualifies_for_current_publication,
     record_origin,
     record_source_id,
+    series_homogeneity_problems,
 )
 from analysis.reference import load_dimensions, load_lanes  # noqa: E402
 from analysis.scenarios import build_lane_outlook, build_preparedness_options  # noqa: E402
@@ -76,6 +86,12 @@ ASSESSMENT_DIR = ROOT / "data" / "assessments"
 INDICATOR_PATH = ROOT / "data" / "indicators" / "latest.json"
 CURRENT_INDICATOR_PATH = ROOT / "data" / "indicators" / "current.json"
 SOURCE_STATUS_PATH = ROOT / "data" / "source_status" / "latest.json"
+
+#: The current build's shared Build Context (WO-010-R4 §6). This is the only
+#: script that writes it; scripts/build_dashboard.py and scripts/
+#: build_review_package.py read it to guarantee they share the same as-of
+#: time this build resolved, rather than each independently pinning one.
+BUILD_CONTEXT_PATH = ROOT / "data" / "build_context" / "current.json"
 
 #: Lane-independent series used by every lane, with the rule that reads them.
 _SHARED_DOMAIN_SERIES = {
@@ -235,13 +251,16 @@ def derive_current_series(
     records: Sequence[Mapping[str, Any]],
     series_id: str,
     registry: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
 ) -> SeriesDerivation:
     """Derive one current series from qualified records.
 
     Source identity, and therefore the freshness contract applied, comes from
-    the records' own provenance. Freshness ages against the real data cutoff:
-    a qualified record is a claim about the world, so it gets a real-world
-    freshness label rather than a fixture one.
+    the records' own provenance. Freshness ages against ``now`` -- the
+    current build's as-of time (WO-010-R4 §6), defaulting to the pinned
+    ``DATA_CUTOFF`` only when a caller supplies nothing, so every existing
+    direct call keeps behaving exactly as before.
     """
     source_id = record_source_id(records[0])
     max_stale, cadence = contract_freshness_bounds(registry, source_id or "")
@@ -253,7 +272,7 @@ def derive_current_series(
         baseline_value=0.0 if baseline_definition else None,
         max_stale_minutes=max_stale,
         expected_cadence_minutes=cadence,
-        now=DATA_CUTOFF,
+        now=now or DATA_CUTOFF,
         origin=record_origin(records[0]),
     )
 
@@ -266,6 +285,7 @@ def current_series_domain(
     registry: Mapping[str, Any],
     *,
     absent_basis: str,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """One series-driven current domain assessment.
 
@@ -287,7 +307,7 @@ def current_series_domain(
             known_limitations=[NO_QUALIFIED_EVIDENCE],
         )
 
-    derivation = derive_current_series(records, series_id, registry)
+    derivation = derive_current_series(records, series_id, registry, now=now)
     direction, _ = direction_for_derivation(derivation, rule_id)
     source_id = record_source_id(records[0])
     return build_domain_assessment(
@@ -375,6 +395,8 @@ def build_current_lane_assessments(
     evidence_by_id: Mapping[str, Mapping[str, Any]],
     source_status: Mapping[str, Any],
     registry: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Lane assessments built from qualified evidence only.
 
@@ -384,8 +406,13 @@ def build_current_lane_assessments(
     reaches watch or elevated, and no chokepoint carries a notice. Both
     behaviours fall out of the same code, which is what makes the empty result
     trustworthy rather than merely asserted.
+
+    ``now`` is the current build's as-of time (WO-010-R4 §6); it defaults to
+    the pinned ``DATA_CUTOFF`` so every existing direct call is unaffected.
     """
-    active = active_events(qualified_events, evidence_by_id, cutoff=DATA_CUTOFF, registry=registry)
+    moment = now or DATA_CUTOFF
+    moment_iso = moment.isoformat().replace("+00:00", "Z")
+    active = active_events(qualified_events, evidence_by_id, cutoff=moment, registry=registry)
     assessments: list[dict[str, Any]] = []
     total_qualified = sum(len(records) for records in qualified_observations.values())
 
@@ -425,6 +452,7 @@ def build_current_lane_assessments(
                 qualified_series_records(qualified_observations, trade_series, lane_id=lane_id),
                 registry,
                 absent_basis=("No qualified Thailand trade observation is recorded for this lane."),
+                now=moment,
             )
         )
 
@@ -437,6 +465,7 @@ def build_current_lane_assessments(
                     qualified_series_records(qualified_observations, series_id),
                     registry,
                     absent_basis=f"No qualified observation exists for series {series_id}.",
+                    now=moment,
                 )
             )
 
@@ -483,9 +512,9 @@ def build_current_lane_assessments(
 
         assessment = build_lane_assessment(
             lane,
-            assessment_id=f"LAS-CUR-{lane_id.replace('LANE-', '')}-{DATA_CUTOFF:%Y%m%d}",
-            generated_at=DATA_CUTOFF_ISO,
-            data_cutoff_at=DATA_CUTOFF_ISO,
+            assessment_id=f"LAS-CUR-{lane_id.replace('LANE-', '')}-{moment:%Y%m%d}",
+            generated_at=moment_iso,
+            data_cutoff_at=moment_iso,
             domain_assessments=domain_assessments,
             active_event_ids=lane_active,
             external_driver_event_ids=lane_drivers,
@@ -497,10 +526,10 @@ def build_current_lane_assessments(
         )
         assessment["dataset"] = CURRENT_PUBLICATION
         assessment["scenarios"] = (
-            build_coverage_only_outlook(lane)
+            build_coverage_only_outlook(lane, generated_at=moment_iso, data_cutoff_at=moment_iso)
             if assessment["attention_level"] == "insufficient_evidence"
             else build_lane_outlook(
-                lane, assessment, generated_at=DATA_CUTOFF_ISO, data_cutoff_at=DATA_CUTOFF_ISO
+                lane, assessment, generated_at=moment_iso, data_cutoff_at=moment_iso
             )
         )
         assessment["preparedness_options"] = build_preparedness_options(lane, assessment)
@@ -538,6 +567,7 @@ def build_current_indicators(
     registry: Mapping[str, Any],
     *,
     raw_publishable_records: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Indicator payloads for the current view, from qualified records only.
 
@@ -567,7 +597,15 @@ def build_current_indicators(
         records = qualified_series_records(qualified_observations, str(series_id))
         if not records:
             continue
-        derivation = derive_current_series(records, str(series_id), registry)
+        # WO-010-R4 §5: never derive from records[0] alone. Every record in
+        # this series must agree on source, unit, geography, lane and
+        # publication-use disposition before one derivation may honestly
+        # speak for all of them; a mixed series is excluded rather than
+        # silently combined under one record's terms.
+        homogeneity_problems = series_homogeneity_problems(records, registry=registry)
+        if homogeneity_problems:
+            continue
+        derivation = derive_current_series(records, str(series_id), registry, now=now)
         payload = derivation.to_dict()
         payload["dataset"] = CURRENT_PUBLICATION
         payload["source_id"] = record_source_id(records[0])
@@ -583,6 +621,13 @@ def build_current_indicators(
             payload["publication_use_applied"] = DERIVED_VALUES_ONLY
             for field_name in _RAW_ONLY_INDICATOR_FIELDS:
                 payload[field_name] = None
+        # WO-010-R4 §5: a second, independent check over the final payload
+        # itself, not only over the pre-publication filter that built it --
+        # a derived-only payload must never actually carry a raw field.
+        if payload["publication_use_applied"] == DERIVED_VALUES_ONLY and any(
+            payload.get(field_name) is not None for field_name in _RAW_ONLY_INDICATOR_FIELDS
+        ):
+            raise RuntimeError(f"derived-only indicator payload {series_id!r} leaked a raw field")
         payloads.append(payload)
     return payloads
 
@@ -686,14 +731,21 @@ def build_current_thailand_assessment(
     source_status: Mapping[str, Any],
     registry: Mapping[str, Any],
     current_indicators: Sequence[Mapping[str, Any]],
+    *,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """The Thailand Ocean view built from qualified evidence only.
 
     Every count below is computed from the filtered records. WO-010-R1 wrote
     ``qualified_observation_count: 0`` as a literal, which happened to be true
     and would have stayed "true" after the first source was enabled.
+
+    ``now`` is the current build's as-of time (WO-010-R4 §6); it defaults to
+    the pinned ``DATA_CUTOFF`` so every existing direct call is unaffected.
     """
-    active = active_events(qualified_events, evidence_by_id, cutoff=DATA_CUTOFF, registry=registry)
+    moment = now or DATA_CUTOFF
+    moment_iso = moment.isoformat().replace("+00:00", "Z")
+    active = active_events(qualified_events, evidence_by_id, cutoff=moment, registry=registry)
     attention = [
         assessment
         for assessment in lane_assessments
@@ -733,11 +785,11 @@ def build_current_thailand_assessment(
     }
 
     return {
-        "assessment_id": f"THA-CUR-OCEAN-{DATA_CUTOFF:%Y%m%d}",
+        "assessment_id": f"THA-CUR-OCEAN-{moment:%Y%m%d}",
         "dataset": CURRENT_PUBLICATION,
         "subject": "thailand_ocean",
-        "generated_at": DATA_CUTOFF_ISO,
-        "data_cutoff_at": DATA_CUTOFF_ISO,
+        "generated_at": moment_iso,
+        "data_cutoff_at": moment_iso,
         "overall_direction": combine_directions(
             [assessment["overall_direction"] for assessment in lane_assessments]
         ),
@@ -783,7 +835,12 @@ def build_current_thailand_assessment(
     }
 
 
-def build_coverage_only_outlook(lane: Mapping[str, Any]) -> dict[str, Any]:
+def build_coverage_only_outlook(
+    lane: Mapping[str, Any],
+    *,
+    generated_at: str | None = None,
+    data_cutoff_at: str | None = None,
+) -> dict[str, Any]:
     """The only outlook publishable with no qualified evidence.
 
     All three cases say the same thing, because with nothing observed there is
@@ -824,8 +881,8 @@ def build_coverage_only_outlook(lane: Mapping[str, Any]) -> dict[str, Any]:
         "outlook_id": f"OUT-CUR-{lane['lane_id'].replace('LANE-', '')}",
         "subject_type": "lane",
         "subject_id": lane["lane_id"],
-        "generated_at": DATA_CUTOFF_ISO,
-        "data_cutoff_at": DATA_CUTOFF_ISO,
+        "generated_at": generated_at or DATA_CUTOFF_ISO,
+        "data_cutoff_at": data_cutoff_at or DATA_CUTOFF_ISO,
         "base_case": dict(case),
         "deterioration_case": dict(case),
         "improvement_case": dict(case),
@@ -1135,17 +1192,21 @@ def build_thailand_assessment(
 def build_history(
     lane_assessments: Sequence[Mapping[str, Any]],
     thailand: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
+    moment = now or DATA_CUTOFF
+    moment_iso = moment.isoformat().replace("+00:00", "Z")
     entries = []
     for index, assessment in enumerate(lane_assessments, start=1):
         digest = hashlib.sha256(json.dumps(assessment, sort_keys=True).encode("utf-8")).hexdigest()
         entries.append(
             {
-                "history_id": f"HIST-{DATA_CUTOFF:%Y%m%d}-{index:03d}",
+                "history_id": f"HIST-{moment:%Y%m%d}-{index:03d}",
                 "subject_type": "lane_assessment",
                 "subject_id": assessment["lane_id"],
                 "revision_number": 0,
-                "recorded_at": DATA_CUTOFF_ISO,
+                "recorded_at": moment_iso,
                 "action": "created",
                 "content_sha256": digest,
                 "supersedes_history_id": None,
@@ -1161,11 +1222,11 @@ def build_history(
         )
     entries.append(
         {
-            "history_id": f"HIST-{DATA_CUTOFF:%Y%m%d}-900",
+            "history_id": f"HIST-{moment:%Y%m%d}-900",
             "subject_type": "thailand_assessment",
             "subject_id": thailand["assessment_id"],
             "revision_number": 0,
-            "recorded_at": DATA_CUTOFF_ISO,
+            "recorded_at": moment_iso,
             "action": "created",
             "content_sha256": hashlib.sha256(
                 json.dumps(thailand, sort_keys=True).encode("utf-8")
@@ -1180,33 +1241,66 @@ def build_history(
             "archive_path": None,
         }
     )
-    return {"version": "0.8", "generated_at": DATA_CUTOFF_ISO, "entries": entries}
+    return {"version": "0.8", "generated_at": moment_iso, "entries": entries}
+
+
+def _observation_timestamp(record: Mapping[str, Any]) -> str | None:
+    provenance = record.get("provenance") or {}
+    return provenance.get("retrieved_at") or provenance.get("published_at")
+
+
+def _event_timestamp(event: Mapping[str, Any]) -> str | None:
+    return event.get("retrieval_date") or event.get("publication_date")
+
+
+def _file_sha256(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="Verify without writing.")
+    parser.add_argument(
+        "--as-of",
+        default=None,
+        help=(
+            "ISO-8601 as-of time the current build treats as 'now' (WO-010-R4 §6). Defaults "
+            "to the previously committed Build Context's own as-of time, or, if none exists "
+            "yet, to a fixed committed default -- never the wall clock."
+        ),
+    )
     args = parser.parse_args()
 
     registry = load_registry()
     observations = load_observations()
     events = _load(EVENTS_PATH)["events"]
-    evidence_by_id = {
-        item["evidence_id"]: item
-        for item in _load(ROOT / "data/events/event_evidence.json")["evidence"]
-    }
+    evidence_records = _load(ROOT / "data/events/event_evidence.json")["evidence"]
+    evidence_by_id = {item["evidence_id"]: item for item in evidence_records}
     lanes = load_lanes()["lanes"]
     load_dimensions()
+
+    previous_context = _load(BUILD_CONTEXT_PATH) if BUILD_CONTEXT_PATH.exists() else None
+    current_as_of = resolve_current_as_of(args.as_of, previous_context=previous_context)
+    current_as_of_iso = to_iso(current_as_of)
 
     # Loaded from persisted, schema-validated manifests -- never an empty
     # literal standing in for "we checked". No source has ever completed a
     # live run and no manual notice has ever been reviewed, so both loaders
     # return empty mappings today, which is the honest, checkable answer.
+    #
+    # Both loaders are given ``current_as_of``: WO-010-R4 §6 requires that a
+    # collection run or manual review dated later than this build's as-of
+    # time can never be treated as the latest one (collectors/source_health.py)
+    # or even load at all (a future-dated manual event fails closed here).
+    collection_runs = load_collection_runs()
+    manual_events = load_manual_review_events(registry=registry, now=current_as_of)
     source_status = evaluate_registry_health(
         registry,
-        load_collection_runs(),
-        now=DATA_CUTOFF,
-        manual_events_by_source=load_manual_review_events(),
+        collection_runs,
+        now=current_as_of,
+        manual_events_by_source=manual_events,
     )
 
     # --- current publication: qualified evidence only ----------------------
@@ -1232,11 +1326,35 @@ def main() -> int:
         for event in events
         if event_qualifies_for_current_publication(event, evidence_by_id, registry=registry)
     ]
+
+    # WO-010-R4 §6: a record later than the as-of time is excluded from the
+    # current view -- it is not yet known "as of" this build, whatever its
+    # eligibility otherwise. Zero committed observations or events are
+    # future-dated today, so this is a no-op against the committed repository.
+    qualified_observations = {
+        family: exclude_future_dated(
+            records, as_of=current_as_of, timestamp_of=_observation_timestamp
+        )[0]
+        for family, records in qualified_observations.items()
+    }
+    qualified_events, _ = exclude_future_dated(
+        qualified_events, as_of=current_as_of, timestamp_of=_event_timestamp
+    )
+
     current_lane_assessments = build_current_lane_assessments(
-        lanes, qualified_observations, qualified_events, evidence_by_id, source_status, registry
+        lanes,
+        qualified_observations,
+        qualified_events,
+        evidence_by_id,
+        source_status,
+        registry,
+        now=current_as_of,
     )
     current_indicators = build_current_indicators(
-        qualified_observations, registry, raw_publishable_records=raw_publishable_records
+        qualified_observations,
+        registry,
+        raw_publishable_records=raw_publishable_records,
+        now=current_as_of,
     )
     current_thailand = build_current_thailand_assessment(
         current_lane_assessments,
@@ -1246,9 +1364,14 @@ def main() -> int:
         source_status,
         registry,
         current_indicators,
+        now=current_as_of,
     )
 
     # --- technical demonstration: the engine exercised on fixtures ---------
+    # Permanently pinned to DATA_CUTOFF, never to current_as_of: WO-010-R4 §6
+    # explicitly permits the technical-demo and historical-validation datasets
+    # to keep a fixed context, and this platform's reproducibility tests rely
+    # on them never advancing with the current build's as-of time.
     derivations, indicator_payloads = derive_all_series(observations, registry)
     demo_lane_assessments = build_lane_records(
         observations, events, registry, source_status, derivations, dataset=TECHNICAL_DEMO
@@ -1257,7 +1380,7 @@ def main() -> int:
     demo_thailand["dataset"] = TECHNICAL_DEMO
     demo_thailand["assessment_id"] = f"THA-DEMO-OCEAN-{DATA_CUTOFF:%Y%m%d}"
 
-    history = build_history(current_lane_assessments, current_thailand)
+    history = build_history(current_lane_assessments, current_thailand, now=current_as_of)
 
     indicators = {
         "generated_at": DATA_CUTOFF_ISO,
@@ -1274,8 +1397,8 @@ def main() -> int:
     }
 
     current_indicator_payload = {
-        "generated_at": DATA_CUTOFF_ISO,
-        "data_cutoff_at": DATA_CUTOFF_ISO,
+        "generated_at": current_as_of_iso,
+        "data_cutoff_at": current_as_of_iso,
         "dataset": CURRENT_PUBLICATION,
         "note": (
             "Current-publication indicators, derived from qualified (live-retrieved or "
@@ -1287,16 +1410,61 @@ def main() -> int:
         "indicators": current_indicators,
     }
 
+    # --- Build Context (WO-010-R4 §6) --------------------------------------
+    # The single record scripts/build_dashboard.py and scripts/
+    # build_review_package.py both read, so every current output in one
+    # build shares exactly this as-of time -- never a separately pinned one.
+    latest_run_at = latest_timestamp(
+        [run for runs in collection_runs.values() for run in runs],
+        timestamp_of=lambda run: run.get("completed_at"),
+    )
+    latest_manual_at = latest_timestamp(
+        [event for events_ in manual_events.values() for event in events_],
+        timestamp_of=lambda event: event.get("reviewed_at"),
+    )
+    input_hashes = {
+        name: digest
+        for name, path in (
+            ("trade_observations", OBSERVATION_DIR / "trade_observations.json"),
+            ("port_observations", OBSERVATION_DIR / "port_observations.json"),
+            ("cost_observations", OBSERVATION_DIR / "cost_observations.json"),
+            ("indicator_observations", OBSERVATION_DIR / "indicator_observations.json"),
+            ("events", EVENTS_PATH),
+            ("event_evidence", ROOT / "data/events/event_evidence.json"),
+            ("sources_registry", ROOT / "config/sources.yaml"),
+        )
+        if (digest := _file_sha256(path)) is not None
+    }
+    build_context = build_context_record(
+        dataset=CURRENT_PUBLICATION,
+        as_of=current_as_of,
+        generated_at=current_as_of,
+        latest_collection_run_at=latest_run_at,
+        latest_manual_review_at=latest_manual_at,
+        input_hashes=input_hashes,
+    )
+    context_errors = [
+        f"schema: {message}"
+        for message in schema_errors(build_context, "build_context.schema.json")
+    ]
+    context_errors.extend(context_problems(build_context, previous_context=previous_context))
+    if context_errors:
+        print("[BLOCKED] The current Build Context fails validation:")
+        for problem in context_errors:
+            print(f"  - {problem}")
+        return 1
+
     outputs = [
         (INDICATOR_PATH, indicators),
         (CURRENT_INDICATOR_PATH, current_indicator_payload),
         (SOURCE_STATUS_PATH, source_status),
+        (BUILD_CONTEXT_PATH, build_context),
         (
             ASSESSMENT_DIR / "lane_assessments.json",
             {
                 "version": "0.8",
                 "dataset": CURRENT_PUBLICATION,
-                "generated_at": DATA_CUTOFF_ISO,
+                "generated_at": current_as_of_iso,
                 "note": (
                     "Current-publication lane assessments, built from qualified "
                     "(live-retrieved or human-reviewed) evidence only."

@@ -188,6 +188,15 @@ PROHIBITED_OUTPUTS = (
     "Do not present a global or route-proxy indicator as a Thailand-specific verified fact "
     "or observed impact.",
     "Do not claim high or critical severity on evidence weaker than A/B grade.",
+    "Do not give current_situation a current_direction other than 'insufficient_evidence' "
+    "without citing at least one eligible evidence_id or indicator_id of its own.",
+    "Do not give a key_changes entry any change_type other than 'coverage_change' without "
+    "citing at least one eligible evidence_id or indicator_id of its own.",
+    "Do not cite an indicator_id in a lane_assessments entry that this package's own "
+    "lane_status data for that lane does not associate with it, even if that indicator is "
+    "eligible elsewhere in the package.",
+    "Do not leave evidence_ids and indicator_ids both empty on a verified_facts, "
+    "reported_claims, analytical_inference, observed_impacts or potential_impacts entry.",
 )
 
 #: Copied into every package so the human operator and ChatGPT both see, in
@@ -219,12 +228,32 @@ EXCLUSIONS_APPLIED = (
 
 def _text_fields(output: Mapping[str, Any]) -> list[tuple[str, str, list[str], list[str]]]:
     """Collect every free-text assertion with its location, evidence IDs and
-    indicator IDs."""
+    indicator IDs.
+
+    ``current_situation`` (WO-010-R4 §1) is a structured
+    :data:`currentDisposition <schemas/review_package_output.schema.json>`
+    record, not a plain string; its own ``evidence_ids``/``indicator_ids``
+    are read here like any other claim-bearing field. Each ``key_changes``
+    entry is likewise a structured record now, not a plain string.
+    """
+    current_situation = output.get("current_situation") or {}
     collected: list[tuple[str, str, list[str], list[str]]] = [
-        ("current_situation", str(output.get("current_situation", "")), [], [])
+        (
+            "current_situation",
+            str(current_situation.get("statement", "")),
+            list(current_situation.get("evidence_ids", [])),
+            list(current_situation.get("indicator_ids", [])),
+        )
     ]
     for index, change in enumerate(output.get("key_changes", [])):
-        collected.append((f"key_changes[{index}]", str(change), [], []))
+        collected.append(
+            (
+                f"key_changes[{index}]",
+                str(change.get("statement", "")),
+                list(change.get("evidence_ids", [])),
+                list(change.get("indicator_ids", [])),
+            )
+        )
     for group in ("verified_facts", "reported_claims", "analytical_inference"):
         for index, item in enumerate(output.get(group, [])):
             collected.append(
@@ -443,6 +472,10 @@ def package_provenance_problems(
             f"its current contents {recomputed!r}"
         )
 
+    # WO-010-R4 §2: a duplicate or namespace-ambiguous ID makes every
+    # citation of it unanswerable, whatever dataset the package belongs to.
+    problems.extend(duplicate_or_ambiguous_support_id_problems(package))
+
     if dataset not in PURPOSE_BY_DATASET:
         problems.append(f"package dataset {dataset!r} is not a recognised publication surface")
         return problems
@@ -575,6 +608,161 @@ def eligible_support_ids(
     )
 
 
+def build_support_index(
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """A single normalized index of every support ID the package carries
+    (WO-010-R4 §2).
+
+    Keyed by support ID (an ``evidence_id`` or an indicator ``series_id``),
+    each entry records what a relevance check needs to answer "does this ID
+    actually support *this* claim" rather than only "does this ID exist":
+    its support type, dataset, source, geography, the lane(s) it is known to
+    relate to, its evidence role or claim type, its evidence strength, its
+    geographic scope, its publication-use disposition, its data period and
+    its freshness. Built once per validation pass and read by every
+    relevance check below, so two checks can never disagree about what one
+    ID actually is.
+    """
+    index: dict[str, dict[str, Any]] = {}
+
+    lane_ids_by_indicator: dict[str, set[str]] = {}
+    for lane in package.get("lane_status", []):
+        for indicator_id in lane.get("indicator_ids", []):
+            lane_ids_by_indicator.setdefault(indicator_id, set()).add(lane.get("lane_id"))
+
+    for indicator in package.get("key_indicators", []):
+        series_id = str(indicator.get("series_id") or indicator.get("indicator_id"))
+        index[series_id] = {
+            "support_id": series_id,
+            "support_type": "indicator",
+            "dataset": indicator.get("dataset"),
+            "source_id": indicator.get("source_id"),
+            "geography": indicator.get("geographic_scope"),
+            "lane_ids": sorted(lane_ids_by_indicator.get(series_id, set())),
+            "domain": None,
+            "indicator_family": series_id,
+            "evidence_role": None,
+            "claim_type": None,
+            "evidence_strength": None,
+            "geographic_scope": indicator.get("geographic_scope"),
+            "publication_use_applied": indicator.get("publication_use_applied"),
+            "data_period": indicator.get("current_period"),
+            "freshness": (indicator.get("freshness") or {}).get("status"),
+        }
+
+    lane_ids_by_event: dict[str, set[str]] = {}
+    for lane in package.get("lane_status", []):
+        for event_id in (
+            *lane.get("active_event_ids", []),
+            *lane.get("external_driver_event_ids", []),
+        ):
+            lane_ids_by_event.setdefault(event_id, set()).add(lane.get("lane_id"))
+
+    for item in package.get("evidence_records", []):
+        evidence_id = str(item.get("evidence_id"))
+        event_id = item.get("event_id")
+        index[evidence_id] = {
+            "support_id": evidence_id,
+            "support_type": "evidence",
+            "dataset": item.get("dataset"),
+            "source_id": item.get("source_id"),
+            "geography": item.get("scope_supported"),
+            "lane_ids": sorted(lane_ids_by_event.get(event_id, set())),
+            "domain": None,
+            "indicator_family": None,
+            "evidence_role": item.get("evidence_role"),
+            "claim_type": item.get("claim_type"),
+            "evidence_strength": item.get("strength"),
+            "geographic_scope": "thailand",
+            "publication_use_applied": None,
+            "data_period": item.get("publication_date"),
+            "freshness": None,
+        }
+
+    return index
+
+
+def duplicate_or_ambiguous_support_id_problems(package: Mapping[str, Any]) -> list[str]:
+    """Duplicate or namespace-ambiguous support IDs in the package itself
+    (WO-010-R4 §2).
+
+    A duplicate evidence_id or series_id makes "which record does this
+    citation actually mean" unanswerable; an ID reused across both
+    namespaces (an evidence_id that is also a key_indicators series_id) is
+    worse -- a citation could mean either, silently. Both fail validation
+    rather than being resolved by picking one arbitrarily.
+    """
+    problems: list[str] = []
+    evidence_ids = [str(item.get("evidence_id")) for item in package.get("evidence_records", [])]
+    indicator_ids = [
+        str(item.get("series_id") or item.get("indicator_id"))
+        for item in package.get("key_indicators", [])
+    ]
+
+    duplicate_evidence = sorted({eid for eid in evidence_ids if evidence_ids.count(eid) > 1})
+    if duplicate_evidence:
+        problems.append(
+            f"package evidence_records contains duplicate evidence_id(s): {duplicate_evidence}"
+        )
+
+    duplicate_indicators = sorted({sid for sid in indicator_ids if indicator_ids.count(sid) > 1})
+    if duplicate_indicators:
+        problems.append(
+            f"package key_indicators contains duplicate series_id(s): {duplicate_indicators}"
+        )
+
+    ambiguous = sorted(set(evidence_ids) & set(indicator_ids))
+    if ambiguous:
+        problems.append(
+            f"package uses the same ID(s) as both an evidence_id and an indicator series_id, "
+            f"which is ambiguous for any citation: {ambiguous}"
+        )
+
+    return problems
+
+
+def lane_support_relevance_problems(
+    output: Mapping[str, Any],
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Whether a lane assessment's cited indicators actually relate to that
+    lane (WO-010-R4 §2).
+
+    The package's own ``lane_status`` already records, per lane, exactly
+    which indicator_ids the platform's own domain math used
+    (``domain_indicator_ids`` / ``indicator_ids``). A returned lane
+    assessment may cite any of those; an indicator that is eligible
+    somewhere else in the package but was never associated with *this* lane
+    is not support for a claim about it, and citing it anyway is rejected --
+    "one eligible indicator supports every claim" is exactly the shortcut
+    this check exists to close.
+    """
+    problems: list[str] = []
+    eligible = eligible_indicator_ids(package, registry=registry)
+    lane_indicator_ids = {
+        lane.get("lane_id"): set(lane.get("indicator_ids", []))
+        for lane in package.get("lane_status", [])
+    }
+
+    for index, lane in enumerate(output.get("lane_assessments", [])):
+        lane_id = lane.get("lane_id")
+        relevant = lane_indicator_ids.get(lane_id, set())
+        cited = set(lane.get("indicator_ids", []))
+        irrelevant = (cited & eligible) - relevant
+        if irrelevant:
+            problems.append(
+                f"lane_assessments[{index}] ({lane_id}): cites indicator(s) {sorted(irrelevant)} "
+                "that this lane's own data in the package does not associate with it"
+            )
+
+    return problems
+
+
 def _global_or_proxy_indicator_ids(package: Mapping[str, Any]) -> set[str]:
     """Indicators the package itself marks as global or route-proxy scoped.
 
@@ -653,12 +841,49 @@ def zero_evidence_disposition_problems(
             "'none'"
         )
 
-    situation = str(output.get("current_situation", "")).lower()
-    if not any(phrase in situation for phrase in _COVERAGE_GAP_PHRASES):
+    # WO-010-R4 §1: current_situation is now structured, so the primary
+    # check reads its own current_direction/current_disposition/support
+    # fields rather than scanning its statement for coverage-gap phrasing.
+    # The phrase scan stays as a secondary signal against a statement that
+    # contradicts a structurally-correct disposition -- free text alone can
+    # never be what decides this, but it can still catch a lie.
+    current_situation = output.get("current_situation") or {}
+    current_direction = current_situation.get("current_direction")
+    if current_direction != "insufficient_evidence":
         problems.append(
-            "the package holds no eligible evidence or indicator, but current_situation "
-            "does not state an insufficient-coverage position"
+            "the package holds no eligible evidence or indicator, but "
+            f"current_situation.current_direction is {current_direction!r}, not "
+            "'insufficient_evidence'"
         )
+    if current_situation.get("current_disposition") != "insufficient_evidence":
+        problems.append(
+            "the package holds no eligible evidence or indicator, but "
+            f"current_situation.current_disposition is "
+            f"{current_situation.get('current_disposition')!r}, not 'insufficient_evidence'"
+        )
+    if current_situation.get("evidence_ids") or current_situation.get("indicator_ids"):
+        problems.append(
+            "current_situation: cites support references despite the package holding none eligible"
+        )
+    situation_text = str(current_situation.get("statement", "")).lower()
+    if not any(phrase in situation_text for phrase in _COVERAGE_GAP_PHRASES):
+        problems.append(
+            "the package holds no eligible evidence or indicator, but current_situation's "
+            "statement does not state an insufficient-coverage position"
+        )
+
+    for index, change in enumerate(output.get("key_changes", [])):
+        if change.get("change_type") != "coverage_change":
+            problems.append(
+                f"key_changes[{index}]: change_type {change.get('change_type')!r} asserts a "
+                "change the package holds no eligible evidence or indicator for; only "
+                "'coverage_change' is permitted with zero eligible support"
+            )
+        if change.get("evidence_ids") or change.get("indicator_ids"):
+            problems.append(
+                f"key_changes[{index}]: cites support references despite the package holding "
+                "none eligible"
+            )
 
     for index, lane in enumerate(output.get("lane_assessments", [])):
         if lane.get("direction") != "insufficient_evidence":
@@ -706,6 +931,16 @@ def zero_evidence_disposition_problems(
                     f"scenarios[{index}]/{name}: cites support references despite the "
                     "package holding none eligible"
                 )
+            # WO-010-R4 §3: identical narratives alone are not a structural
+            # signal -- two arbitrary but matching sentences would pass that
+            # check. Where a case states its own disposition, it must say
+            # coverage_only, not merely happen to read the same as the
+            # other two.
+            if case.get("disposition") is not None and case.get("disposition") != "coverage_only":
+                problems.append(
+                    f"scenarios[{index}]/{name}: disposition {case.get('disposition')!r} is not "
+                    "'coverage_only', but the package holds no eligible evidence or indicator"
+                )
 
     for index, option in enumerate(output.get("conditional_preparedness_options", [])):
         if option.get("option_type") != "monitor" or not option.get("is_data_coverage_action"):
@@ -742,6 +977,47 @@ def support_adequacy_problems(
         for item in package.get("evidence_records", [])
         if item.get("evidence_role") == "discovery_only"
     }
+
+    # WO-010-R4 §1: current_situation is a claim like any other. A direction
+    # other than insufficient_evidence needs its own citation -- the package
+    # holding eligible support *somewhere* is not support for *this* claim.
+    current_situation = output.get("current_situation") or {}
+    if current_situation.get("current_direction") != "insufficient_evidence" and not (
+        current_situation.get("evidence_ids") or current_situation.get("indicator_ids")
+    ):
+        problems.append(
+            f"current_situation: current_direction {current_situation.get('current_direction')!r} "
+            "cites no evidence_id or indicator_id to support it"
+        )
+
+    # WO-010-R4 §1: every key change that is not explicitly a coverage
+    # statement needs its own citation, for the same reason.
+    for index, change in enumerate(output.get("key_changes", [])):
+        if change.get("change_type") != "coverage_change" and not (
+            change.get("evidence_ids") or change.get("indicator_ids")
+        ):
+            problems.append(
+                f"key_changes[{index}]: change_type {change.get('change_type')!r} cites no "
+                "evidence_id or indicator_id to support it"
+            )
+
+    # WO-010-R4 §1/§2: a claim-bearing item with no support of its own is
+    # rejected even when the package holds eligible support elsewhere --
+    # one eligible indicator somewhere in the package is never support for
+    # every other claim. conflicting_evidence is excluded here: its own
+    # schema already requires at least two evidence_ids.
+    for group in (
+        "verified_facts",
+        "reported_claims",
+        "analytical_inference",
+        "observed_impacts",
+        "potential_impacts",
+    ):
+        for index, item in enumerate(output.get(group, [])):
+            if not (item.get("evidence_ids") or item.get("indicator_ids")):
+                problems.append(
+                    f"{group}[{index}]: cites no evidence_id or indicator_id to support it"
+                )
 
     for index, lane in enumerate(output.get("lane_assessments", [])):
         direction = lane.get("direction")
@@ -861,6 +1137,172 @@ def support_reference_problems(
     return problems
 
 
+def scenario_support_problems(
+    output: Mapping[str, Any],
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Scenario support validation (WO-010-R4 §3).
+
+    Every ``base_case`` / ``deterioration_case`` / ``improvement_case``
+    ``evidence_ids`` and ``indicator_ids`` is checked against the package the
+    same way any other claim-bearing field is -- unknown, fixture,
+    historical, excluded or otherwise ineligible IDs are rejected. Not
+    checked anywhere else: :func:`_text_fields` never reads scenario cases,
+    so before this a scenario's own support references passed through
+    entirely unvalidated.
+
+    Beyond reference validity: a differentiated outlook (its three cases do
+    not all read the same, i.e. it is actually asserting something rather
+    than stating a coverage gap) requires every case to cite its own
+    support -- one case borrowing what another case's evidence established
+    is exactly the "one eligible indicator supports every claim" shortcut
+    this module exists to close. And for a lane-scoped outlook, a cited
+    indicator must be one this package's own ``lane_status`` data for that
+    lane actually associates with it, the same relevance rule
+    :func:`lane_support_relevance_problems` applies to ``lane_assessments``.
+    """
+    problems: list[str] = []
+    known_evidence = {str(item.get("evidence_id")) for item in package.get("evidence_records", [])}
+    citable_evidence = citable_evidence_ids(package, registry=registry)
+    known_indicators = {
+        str(item.get("series_id") or item.get("indicator_id"))
+        for item in package.get("key_indicators", [])
+    }
+    eligible_indicators = eligible_indicator_ids(package, registry=registry)
+    lane_indicator_ids = {
+        lane.get("lane_id"): set(lane.get("indicator_ids", []))
+        for lane in package.get("lane_status", [])
+    }
+    case_names = ("base_case", "deterioration_case", "improvement_case")
+
+    for index, outlook in enumerate(output.get("scenarios", [])):
+        cases = {name: outlook.get(name) for name in case_names}
+        if any(case is None for case in cases.values()):
+            continue
+        label = f"scenarios[{index}] ({outlook.get('outlook_id')})"
+        differentiated = len({case.get("narrative") for case in cases.values()}) > 1
+
+        for name, case in cases.items():
+            evidence_ids = set(case.get("evidence_ids", []))
+            indicator_ids = set(case.get("indicator_ids", []))
+
+            unknown_evidence = evidence_ids - known_evidence
+            if unknown_evidence:
+                problems.append(
+                    f"{label}/{name}: references unknown evidence IDs {sorted(unknown_evidence)}"
+                )
+            ineligible_evidence = (evidence_ids & known_evidence) - citable_evidence
+            if ineligible_evidence:
+                problems.append(
+                    f"{label}/{name}: cites evidence {sorted(ineligible_evidence)} that cannot "
+                    "support a current claim"
+                )
+
+            unknown_indicators = indicator_ids - known_indicators
+            if unknown_indicators:
+                problems.append(
+                    f"{label}/{name}: references unknown indicator IDs {sorted(unknown_indicators)}"
+                )
+            ineligible_indicators = (indicator_ids & known_indicators) - eligible_indicators
+            if ineligible_indicators:
+                problems.append(
+                    f"{label}/{name}: cites indicator(s) {sorted(ineligible_indicators)} that "
+                    "cannot support a current claim"
+                )
+
+            if differentiated and not (evidence_ids or indicator_ids):
+                problems.append(
+                    f"{label}/{name}: this outlook differentiates its cases but {name} cites no "
+                    "evidence_id or indicator_id to support its own narrative"
+                )
+
+            if outlook.get("subject_type") == "lane":
+                relevant = lane_indicator_ids.get(outlook.get("subject_id"), set())
+                irrelevant = (indicator_ids & eligible_indicators) - relevant
+                if irrelevant:
+                    problems.append(
+                        f"{label}/{name}: cites indicator(s) {sorted(irrelevant)} that this "
+                        "lane's own data in the package does not associate with it"
+                    )
+
+    return problems
+
+
+def preparedness_support_problems(
+    output: Mapping[str, Any],
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Bind preparedness options to support (WO-010-R4 §4).
+
+    An operational option -- anything not explicitly marked
+    ``is_data_coverage_action`` -- must cite at least one eligible
+    ``evidence_id`` or ``indicator_id`` of its own, exactly like any other
+    material claim; ``evidence_basis`` free text is an explanation of that
+    citation, never a substitute for it. Every cited ID is checked against
+    the package the same way any other reference is: unknown, ineligible or
+    discovery-only support is rejected.
+    """
+    problems: list[str] = []
+    known_evidence = {str(item.get("evidence_id")) for item in package.get("evidence_records", [])}
+    citable_evidence = citable_evidence_ids(package, registry=registry)
+    known_indicators = {
+        str(item.get("series_id") or item.get("indicator_id"))
+        for item in package.get("key_indicators", [])
+    }
+    eligible_indicators = eligible_indicator_ids(package, registry=registry)
+    discovery_only_ids = {
+        str(item.get("evidence_id"))
+        for item in package.get("evidence_records", [])
+        if item.get("evidence_role") == "discovery_only"
+    }
+
+    for index, option in enumerate(output.get("conditional_preparedness_options", [])):
+        label = f"conditional_preparedness_options[{index}]"
+        evidence_ids = set(option.get("evidence_ids", []))
+        indicator_ids = set(option.get("indicator_ids", []))
+
+        unknown_evidence = evidence_ids - known_evidence
+        if unknown_evidence:
+            problems.append(f"{label}: references unknown evidence IDs {sorted(unknown_evidence)}")
+        ineligible_evidence = (evidence_ids & known_evidence) - citable_evidence
+        if ineligible_evidence:
+            problems.append(
+                f"{label}: cites evidence {sorted(ineligible_evidence)} that cannot support a "
+                "current claim"
+            )
+        cited_discovery = evidence_ids & discovery_only_ids
+        if cited_discovery:
+            problems.append(
+                f"{label}: rests on discovery-only evidence {sorted(cited_discovery)}, which "
+                "cannot support an operational preparedness option"
+            )
+
+        unknown_indicators = indicator_ids - known_indicators
+        if unknown_indicators:
+            problems.append(
+                f"{label}: references unknown indicator IDs {sorted(unknown_indicators)}"
+            )
+        ineligible_indicators = (indicator_ids & known_indicators) - eligible_indicators
+        if ineligible_indicators:
+            problems.append(
+                f"{label}: cites indicator(s) {sorted(ineligible_indicators)} that cannot "
+                "support a current claim"
+            )
+
+        if not option.get("is_data_coverage_action") and not (evidence_ids or indicator_ids):
+            problems.append(
+                f"{label}: is an operational option but cites no evidence_id or indicator_id "
+                "of its own; evidence_basis free text is an explanation, not a substitute for "
+                "a validated support ID"
+            )
+
+    return problems
+
+
 def validate_output(
     output: Mapping[str, Any],
     package: Mapping[str, Any],
@@ -920,6 +1362,9 @@ def validate_output(
             )
 
     problems.extend(support_reference_problems(output, package, registry=registry))
+    problems.extend(lane_support_relevance_problems(output, package, registry=registry))
+    problems.extend(scenario_support_problems(output, package, registry=registry))
+    problems.extend(preparedness_support_problems(output, package, registry=registry))
     problems.extend(zero_evidence_disposition_problems(output, package, registry=registry))
     if support:
         problems.extend(support_adequacy_problems(output, package, registry=registry))

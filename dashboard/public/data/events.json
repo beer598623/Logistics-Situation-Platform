@@ -3,7 +3,7 @@
   "generated_at": "2026-07-24T00:00:00Z",
   "current_direct_operational_events": [],
   "current_external_drivers": [],
-  "current_statement": "No qualified event is recorded. Every event the platform holds is a historical validation fixture with an assessment cutoff in the past; none is evidence of a current condition, and none appears above.",
+  "current_statement": "No current event records exist. Every event the platform holds is a historical validation fixture with an assessment cutoff in the past; none is evidence of a current condition, and none appears above.",
   "demo_label": "Historical validation \u2014 each case is assessed at its own cutoff, shown on the card. These exercise the event model and describe no current condition.",
   "demo_direct_operational_events": [
     {

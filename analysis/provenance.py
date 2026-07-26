@@ -493,6 +493,82 @@ def qualified_records(
     ]
 
 
+def record_publication_use(
+    record: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> str | None:
+    """The ``publication_use`` disposition recorded for one record's own
+    source, or ``None`` if it cannot be resolved.
+
+    A property of the *source*, not of the individual observation -- every
+    record from the same source shares the same disposition. Reading it per
+    record, rather than assuming "whatever the first record in the list
+    says applies to the whole series", is what makes
+    :func:`series_homogeneity_problems` possible (WO-010-R4 §5).
+    """
+    source_id = record_source_id(record)
+    source = _source_entry(registry, source_id)
+    if source is None:
+        return None
+    return (source.get("qualification") or {}).get("publication_use")
+
+
+def series_homogeneity_problems(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Whether every record in a proposed series derivation may honestly be
+    combined into one reading (WO-010-R4 §5).
+
+    A series derivation applies one freshness contract, one publication-use
+    disposition and one current value to every record handed to it. That is
+    only truthful when every record actually agrees on the source, the unit,
+    the geography, the lane and the publication-use disposition it carries --
+    otherwise "the current value" silently picks one record's answer while
+    quietly discarding what a *different* record (with different terms, a
+    different unit, or a different place) had to say. Never determined from
+    ``records[0]`` alone: every record is checked against every other one, so
+    a two-record series where only the second record disagrees is still
+    caught.
+
+    Returns an empty list when the records may be combined; otherwise a
+    fail-closed list of what disagreed. There is no combination rule here --
+    a caller seeing a non-empty list must exclude the series from that
+    derivation rather than derive it from an inconsistent set.
+    """
+    if len(records) <= 1:
+        return []
+
+    problems: list[str] = []
+
+    def _distinct(label: str, values: Sequence[Any]) -> None:
+        unique = {value for value in values if value is not None}
+        if len(unique) > 1:
+            problems.append(f"records disagree on {label}: {sorted(map(str, unique))}")
+
+    _distinct("source_id", [record_source_id(record) for record in records])
+    _distinct(
+        "publication_use",
+        [record_publication_use(record, registry=registry) for record in records],
+    )
+    _distinct(
+        "unit",
+        [(record.get("measurement") or {}).get("unit") for record in records],
+    )
+    _distinct(
+        "geography",
+        [(record.get("placement") or {}).get("country_id") for record in records],
+    )
+    _distinct(
+        "lane_id",
+        [(record.get("placement") or {}).get("lane_id") for record in records],
+    )
+
+    return problems
+
+
 def publication_use_problems(source: Mapping[str, Any]) -> list[str]:
     """Whether a source's publication_use is compatible with its own terms.
 

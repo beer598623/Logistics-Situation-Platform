@@ -20,6 +20,7 @@
     "previous_assessments",
     "data_gaps",
     "output_instructions",
+    "required_output_binding",
     "exclusions_applied",
     "dataset",
     "package_purpose",
@@ -131,7 +132,8 @@
       "required": [
         "required_sections",
         "prohibited_outputs",
-        "output_schema_path"
+        "output_schema_path",
+        "required_output_binding_instructions"
       ],
       "properties": {
         "required_sections": {
@@ -150,6 +152,11 @@
         },
         "output_schema_path": {
           "type": "string"
+        },
+        "required_output_binding_instructions": {
+          "type": "string",
+          "minLength": 1,
+          "description": "WO-010-R3 §1: tells whoever pastes this package which five fields the returned output must echo verbatim (see required_output_binding below), and that produced_at is not one of them."
         }
       }
     },
@@ -167,6 +174,48 @@
         "null"
       ],
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "required_output_binding": {
+      "description": "WO-010-R3 §1: the same five values as literals, restated here (not only as instructions) so a script diffing an output against its package has one well-known location to read, and a human pasting the package can copy them directly.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_package_sha256",
+        "input_dataset",
+        "input_package_purpose",
+        "input_data_cutoff_at",
+        "input_source_cutoff"
+      ],
+      "properties": {
+        "input_package_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "input_dataset": {
+          "enum": [
+            "current_publication",
+            "technical_demo",
+            "historical_validation"
+          ]
+        },
+        "input_package_purpose": {
+          "enum": [
+            "current_intelligence_assessment",
+            "engine_demonstration"
+          ]
+        },
+        "input_data_cutoff_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input_source_cutoff": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     },
     "dataset": {
       "description": "Which publication surface this package was built from. Only a current_publication package may be approved into the current AI Outlook.",

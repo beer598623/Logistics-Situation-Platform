@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "build_context.schema.json",
+  "title": "Build Context",
+  "description": "The single as-of time and provenance snapshot a current build resolves once and every downstream script (build_analysis.py, build_dashboard.py, build_review_package.py) reads from, rather than each independently pinning its own notion of 'now' (WO-010-R4 §6).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "build_context_id",
+    "dataset",
+    "as_of_time",
+    "source_cutoff",
+    "generated_at",
+    "latest_included_collection_run_at",
+    "latest_included_manual_review_at",
+    "methodology_version",
+    "input_hashes"
+  ],
+  "properties": {
+    "build_context_id": {
+      "type": "string",
+      "pattern": "^BCTX-[A-Z_]+-[0-9]{8}T[0-9]{6}Z$",
+      "description": "Deterministic from dataset and as_of_time, so rebuilding at the same as-of time for the same dataset reproduces the same ID."
+    },
+    "dataset": {
+      "enum": ["current_publication", "technical_demo", "historical_validation"]
+    },
+    "as_of_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The operationally valid 'now' this build treats every freshness, activity and inclusion decision as being measured against. Not the wall clock and not a permanent constant -- resolved once per build, from an explicit --as-of, a carried-forward prior context, or a committed reproducible default."
+    },
+    "source_cutoff": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The cutoff communicated to evidence sources / the review package. Equal to as_of_time unless a build explicitly supersedes it."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this context record itself was written. Never earlier than as_of_time."
+    },
+    "latest_included_collection_run_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "The completed_at of the most recent collection-run manifest this build actually treated as valid (i.e. not future-dated relative to as_of_time). Null when no run qualifies."
+    },
+    "latest_included_manual_review_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "The reviewed_at of the most recent manual-review event this build actually treated as valid. Null when no event qualifies."
+    },
+    "methodology_version": {"type": "string"},
+    "input_hashes": {
+      "type": "object",
+      "description": "SHA-256 of each input file this build actually read, keyed by a short logical name -- lets a reviewer confirm which exact files a committed context was built from.",
+      "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    }
+  }
+}

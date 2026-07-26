@@ -39,25 +39,51 @@ def _run_completed_at(run: Mapping[str, Any]) -> datetime | None:
     return _parse_timestamp(run.get("completed_at"))
 
 
-def _latest_run(runs: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:
+def _latest_run(
+    runs: Sequence[Mapping[str, Any]], *, now: datetime | None = None
+) -> Mapping[str, Any] | None:
+    """The most recent run, excluding any whose ``completed_at`` is later than
+    ``now``.
+
+    WO-010-R4 §6: without this exclusion, a future-dated run (a clock error,
+    a bad backfill, or an as-of time explicitly set earlier than a run's
+    timestamp) would make ``age_minutes`` negative in the freshness
+    computation below -- and a negative age is trivially "fresh", so the
+    source would be reported fresher than any real run could ever make it.
+    A run this build's as-of time has not reached yet is treated exactly
+    like a run that has not happened yet, because as of this build, it has
+    not: it simply is not counted as the latest run at all.
+    """
     dated = [(run, _run_completed_at(run)) for run in runs]
     dated = [pair for pair in dated if pair[1] is not None]
+    if now is not None:
+        dated = [pair for pair in dated if pair[1] <= now]
     if not dated:
         return None
     return max(dated, key=lambda pair: pair[1])[0]
 
 
-def _latest_success_run(runs: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:
+def _latest_success_run(
+    runs: Sequence[Mapping[str, Any]], *, now: datetime | None = None
+) -> Mapping[str, Any] | None:
     successes = [run for run in runs if run.get("status") in _SUCCESS_RUN_STATUSES]
-    return _latest_run(successes)
+    return _latest_run(successes, now=now)
 
 
 def _latest_reviewed_event(
-    events: Sequence[Mapping[str, Any]],
+    events: Sequence[Mapping[str, Any]], *, now: datetime | None = None
 ) -> Mapping[str, Any] | None:
+    """The most recently reviewed event, excluding any future-dated one.
+
+    Same reasoning as :func:`_latest_run`: a ``reviewed_at`` later than this
+    build's as-of time must not be able to produce a negative age and read
+    as fresher than any real review could make it.
+    """
     reviewed = [event for event in events if event.get("status") == "reviewed"]
     dated = [(event, _parse_timestamp(event.get("reviewed_at"))) for event in reviewed]
     dated = [pair for pair in dated if pair[1] is not None]
+    if now is not None:
+        dated = [pair for pair in dated if pair[1] <= now]
     if not dated:
         return None
     return max(dated, key=lambda pair: pair[1])[0]
@@ -100,7 +126,7 @@ def _evaluate_manual_source_health(
     max_stale_minutes = int(contract["max_stale_minutes"])
     required_for_publication = bool(contract.get("required_for_publication", False))
 
-    latest = _latest_reviewed_event(events)
+    latest = _latest_reviewed_event(events, now=now)
     if latest is None:
         return SourceHealth(
             source_id=source_id,
@@ -164,8 +190,8 @@ def evaluate_source_health(
     if contract.get("access_method") == "manual":
         return _evaluate_manual_source_health(contract, manual_review_events, now=moment)
 
-    latest = _latest_run(runs)
-    latest_success = _latest_success_run(runs)
+    latest = _latest_run(runs, now=moment)
+    latest_success = _latest_success_run(runs, now=moment)
 
     last_checked_at = _run_completed_at(latest) if latest else None
     last_success_at = _run_completed_at(latest_success) if latest_success else None
@@ -351,12 +377,30 @@ def evaluate_registry_health(
     ]
     overall_status = _overall_status(coverages, healths)
 
+    # WO-010-R4 §9: ``insufficient`` must not read as "zero evidence" when
+    # some source has actually collected records but a required capability
+    # is still uncovered -- those are different operational states, and
+    # collapsing them into one sentence hides whether anything has been
+    # collected at all.
     if overall_status == "sufficient":
-        coverage_message = "All tracked capabilities have fresh or stale source coverage."
+        coverage_message = (
+            "Sufficient coverage: all tracked capabilities have fresh or stale source coverage."
+        )
     elif overall_status == "limited":
-        coverage_message = "Some capabilities have degraded or incomplete source coverage."
+        coverage_message = (
+            "Limited coverage: some capabilities have degraded or incomplete source coverage."
+        )
+    elif any((health.item_count or 0) > 0 for health in healths):
+        coverage_message = (
+            "Partial evidence but insufficient required coverage: at least one source has "
+            "collected records, but one or more capabilities required for publication are "
+            "still not sufficiently covered."
+        )
     else:
-        coverage_message = "One or more required capabilities lack sufficient source coverage."
+        coverage_message = (
+            "Zero evidence: no source has collected any qualifying record, so one or more "
+            "capabilities required for publication have no coverage at all."
+        )
 
     return {
         "generated_at": _to_iso(moment),

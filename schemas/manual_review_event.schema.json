@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "manual_review_event.schema.json",
+  "title": "Manual Review Event",
+  "description": "One human-reviewed manual-intake transcription (WO-010-R4 §7). Deliberately not shaped like schemas/collection_run.schema.json -- nothing was fetched over a network, so there is no request URL, HTTP status or response content hash to record instead of these.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "source_id",
+    "reviewed_at",
+    "reviewer_record",
+    "status",
+    "record_count",
+    "related_record_ids",
+    "data_cutoff_at",
+    "bounded_content_confirmed",
+    "underlying_publisher",
+    "content_sha256",
+    "known_limitations"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^MAN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$"
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$",
+      "description": "Must equal both the containing file's source_id and the filename stem; the loader checks both."
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the human reviewer actually looked. Rejected by the loader if later than the build's as-of time."
+    },
+    "reviewer_record": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The named human accountable for this transcription. Never a role or team name alone."
+    },
+    "status": {
+      "enum": ["reviewed", "rejected", "superseded"]
+    },
+    "record_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many bounded records this review produced. Never negative -- schema-enforced, not just checked in code."
+    },
+    "related_record_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Evidence or observation record IDs this review event is the basis for. The loader does not itself confirm these exist in the current package -- that is analysis.review_package's job -- but a manual review event naming none is unusual enough that callers should treat an empty list here as a signal, not silently accept it as normal."
+    },
+    "data_cutoff_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The cutoff the reviewer was working from -- e.g. 'the publisher's page as it read on this date'."
+    },
+    "bounded_content_confirmed": {
+      "type": "boolean",
+      "description": "True only if the reviewer confirms the transcribed claim is bounded (a short claim and a link), not a republished article or full page."
+    },
+    "underlying_publisher": {
+      "type": ["string", "null"],
+      "description": "The named publisher of record. Null only permitted when the source contract's qualification.underlying_publisher_required is not true; the loader enforces this against the registry."
+    },
+    "content_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Hash of the authored claim record, in the same content_hash_scope sense event_evidence.schema.json uses -- never a hash standing in for a fetched publisher response."
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}

@@ -67,8 +67,15 @@
       "format": "date-time",
       "description": "Copied verbatim from the input package's own source_cutoff."
     },
-    "current_situation": {"type": "string", "minLength": 1},
-    "key_changes": {"type": "array", "items": {"type": "string"}},
+    "current_situation": {
+      "$ref": "#/$defs/currentDisposition",
+      "description": "WO-010-R4 §1: a structured disposition, not a free-text sentence. Free-text wording alone must never be what determines whether a current conclusion is supported."
+    },
+    "key_changes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/keyChange"},
+      "description": "WO-010-R4 §1: structured records, not plain strings. A key change must cite eligible support; with zero eligible support, this array must be empty or contain only change_type 'coverage_change' entries with no support references."
+    },
     "lane_assessments": {
       "type": "array",
       "items": {
@@ -144,6 +151,46 @@
     }
   },
   "$defs": {
+    "currentDisposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_direction", "current_disposition", "evidence_ids", "indicator_ids", "statement"],
+      "properties": {
+        "current_direction": {
+          "enum": ["improving", "stable", "deteriorating", "mixed", "insufficient_evidence"],
+          "description": "A direction other than insufficient_evidence must cite at least one eligible, relevant evidence_id or indicator_id."
+        },
+        "current_disposition": {
+          "enum": ["assessed", "insufficient_evidence"],
+          "description": "Whether this is a genuine assessment or a coverage-gap statement. Must be 'insufficient_evidence' whenever current_direction is, and whenever the package holds no eligible support at all."
+        },
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {"type": "array", "items": {"type": "string"}},
+        "statement": {"type": "string", "minLength": 1, "maxLength": 1200}
+      }
+    },
+    "keyChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statement", "change_type", "evidence_ids", "indicator_ids", "comparison_period",
+        "known_limitations"
+      ],
+      "properties": {
+        "statement": {"type": "string", "minLength": 1, "maxLength": 800},
+        "change_type": {
+          "enum": ["new_information", "direction_change", "magnitude_change", "coverage_change"],
+          "description": "'coverage_change' is the only type permitted with empty evidence_ids and indicator_ids -- it describes a change in what the platform can see, not a change in the world."
+        },
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {"type": "array", "items": {"type": "string"}},
+        "comparison_period": {
+          "type": ["string", "null"],
+          "description": "What this change is measured against, e.g. a prior data_cutoff_at. Null when change_type is coverage_change."
+        },
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
     "statement": {
       "type": "object",
       "additionalProperties": false,

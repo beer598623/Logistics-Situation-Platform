@@ -47,6 +47,10 @@
         "point_forecast_disclaimer": {
           "type": ["string", "null"],
           "description": "Optional statement of why no numeric point forecast is given. Never a place to put one."
+        },
+        "disposition": {
+          "enum": ["assessed", "coverage_only"],
+          "description": "WO-010-R4 §3. Optional so the platform's own scenario production (which predates this field) is unaffected. A returned ChatGPT assessment's zero-evidence coverage-only cases must set this to 'coverage_only' on all three cases -- identical narratives alone are not enough, since two arbitrary but matching sentences are not a structural signal."
         }
       }
     }

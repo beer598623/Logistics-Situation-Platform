@@ -46,6 +46,10 @@ from analysis.provenance import (  # noqa: E402
 from analysis.review_package import build_input_package  # noqa: E402
 
 PACKAGE_DIR = ROOT / "data" / "review" / "packages"
+
+#: Pinned as-of time for the technical-demo surface only. WO-010-R4 §6: the
+#: current surface no longer uses this -- it inherits its cutoff from the
+#: Build Context ``scripts/build_analysis.py`` wrote, via :func:`_current_context`.
 DATA_CUTOFF_DEFAULT = "2026-07-24T00:00:00Z"
 
 SURFACES = (CURRENT_PUBLICATION, TECHNICAL_DEMO)
@@ -55,10 +59,30 @@ def _load(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _cutoff() -> Any:
-    from datetime import UTC, datetime
+def _current_context() -> dict[str, Any]:
+    """The current build's shared Build Context, written by
+    ``scripts/build_analysis.py`` (WO-010-R4 §6).
 
-    return datetime(2026, 7, 24, tzinfo=UTC)
+    The review package's cutoff is never a separate constant here: it is
+    read from exactly the same context the analysis build and the Dashboard
+    both read, so a package built after re-running ``build_analysis.py``
+    with a new ``--as-of`` cannot silently disagree with what the current
+    view it was built from actually says its cutoff is.
+    """
+    path = ROOT / "data" / "build_context" / "current.json"
+    if not path.exists():
+        raise SystemExit(
+            f"No Build Context found at {path.relative_to(ROOT)}. Run "
+            "python scripts/build_analysis.py first -- it is the only writer of the "
+            "current build's as-of time."
+        )
+    return _load(path)
+
+
+def _cutoff() -> Any:
+    from analysis.build_context import parse_timestamp
+
+    return parse_timestamp(_current_context()["as_of_time"])
 
 
 def _bounded_event(event: dict[str, Any]) -> dict[str, Any]:
@@ -280,6 +304,13 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         data_gaps = list(thailand["major_data_gaps"])
         if not indicators and not selected and not package_evidence:
             data_gaps.insert(0, ZERO_COVERAGE_INSTRUCTIONS)
+        # WO-010-R4 §6: the current package's own generated/source cutoffs
+        # come from the same Build Context the analysis build and the
+        # Dashboard both read -- never a separate constant that could drift
+        # from what the current view it was built from actually used.
+        context_as_of = _current_context()["as_of_time"]
+        package_generated_at = context_as_of
+        package_source_cutoff = context_as_of
     else:
         indicators = _load(ROOT / "data/indicators/latest.json")["indicators"]
         lanes = _load(ROOT / "data/assessments/demo_lane_assessments.json")["assessments"]
@@ -289,11 +320,13 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         excluded = 0
         previous = list(history)
         data_gaps = list(thailand["major_data_gaps"])
+        package_generated_at = DATA_CUTOFF_DEFAULT
+        package_source_cutoff = DATA_CUTOFF_DEFAULT
 
     package = build_input_package(
         package_id=package_id,
-        generated_at=DATA_CUTOFF_DEFAULT,
-        data_cutoff_at=thailand.get("data_cutoff_at") or DATA_CUTOFF_DEFAULT,
+        generated_at=package_generated_at,
+        data_cutoff_at=thailand.get("data_cutoff_at") or package_generated_at,
         source_health=source_status,
         key_indicators=[_bounded_indicator(item) for item in indicators],
         lane_status=[_bounded_lane(item) for item in lanes],
@@ -312,7 +345,7 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         ],
         data_gaps=data_gaps,
         dataset=surface,
-        source_cutoff=DATA_CUTOFF_DEFAULT,
+        source_cutoff=package_source_cutoff,
         excluded_fixture_record_count=max(excluded, 0),
     )
     return package

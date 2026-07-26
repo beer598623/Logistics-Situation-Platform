@@ -61,6 +61,20 @@
     "is_data_coverage_action": {
       "type": "boolean",
       "description": "Optional. True marks an option that concerns obtaining or validating evidence itself (e.g. 'monitor for a source completing live validation'), as distinct from an operational preparedness action. Not required, so existing preparedness-option producers are unaffected; a returned ChatGPT assessment's zero-evidence preparedness options must set this true."
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "WO-010-R4 §4. Optional, so the platform's own preparedness-option production is unaffected. A returned ChatGPT assessment's operational (non is_data_coverage_action) option must cite at least one eligible evidence_id or indicator_id here or in indicator_ids."
+    },
+    "indicator_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "WO-010-R4 §4. series_id values supporting this option, on the same optional/enforced-when-returned-by-ChatGPT basis as evidence_ids."
+    },
+    "support_basis": {
+      "type": ["string", "null"],
+      "description": "WO-010-R4 §4. Free-text explanation of why the cited evidence_ids/indicator_ids justify this option. Explanation only -- it may never substitute for the validated support IDs themselves."
     }
   }
 }

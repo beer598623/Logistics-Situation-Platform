@@ -309,7 +309,13 @@ def base_output(**overrides):
         "input_package_purpose": bound_to["package_purpose"],
         "input_data_cutoff_at": bound_to["data_cutoff_at"],
         "input_source_cutoff": bound_to["source_cutoff"],
-        "current_situation": "Coverage is insufficient and no lane can be assessed live.",
+        "current_situation": {
+            "current_direction": "insufficient_evidence",
+            "current_disposition": "insufficient_evidence",
+            "evidence_ids": [],
+            "indicator_ids": [],
+            "statement": "Coverage is insufficient and no lane can be assessed live.",
+        },
         "key_changes": [],
         "lane_assessments": [],
         "verified_facts": [],
@@ -737,7 +743,13 @@ def _zero_support_output(**overrides):
         "input_package_purpose": package["package_purpose"],
         "input_data_cutoff_at": package["data_cutoff_at"],
         "input_source_cutoff": package["source_cutoff"],
-        "current_situation": "Coverage is insufficient; no qualified evidence or indicator exists.",
+        "current_situation": {
+            "current_direction": "insufficient_evidence",
+            "current_disposition": "insufficient_evidence",
+            "evidence_ids": [],
+            "indicator_ids": [],
+            "statement": "Coverage is insufficient; no qualified evidence or indicator exists.",
+        },
         "key_changes": [],
         "lane_assessments": [
             {
@@ -801,10 +813,74 @@ def test_zero_evidence_stable_lane_direction_is_also_rejected():
     assert any("asserted with zero eligible evidence" in item for item in problems), problems
 
 
-def test_zero_evidence_current_situation_without_a_coverage_gap_phrase_is_rejected():
-    output = _zero_support_output(current_situation="Trade is deteriorating across every lane.")
+def test_zero_evidence_current_situation_with_a_directional_claim_is_rejected():
+    output = _zero_support_output(
+        current_situation={
+            "current_direction": "deteriorating",
+            "current_disposition": "assessed",
+            "evidence_ids": [],
+            "indicator_ids": [],
+            "statement": "Trade is deteriorating across every lane.",
+        }
+    )
     problems = validate_output(output, _zero_support_package(), registry=TEST_REGISTRY)
-    assert any("does not state an insufficient-coverage position" in item for item in problems), (
+    assert any(
+        "current_direction" in item and "insufficient_evidence" in item for item in problems
+    ), problems
+    assert any("current_disposition" in item for item in problems), problems
+
+
+def test_zero_evidence_current_situation_without_a_coverage_gap_phrase_is_rejected():
+    """Structurally correct (insufficient_evidence/insufficient_evidence,
+    no refs) but the statement itself asserts something else -- the
+    secondary prose check catches the contradiction the structural fields
+    alone would miss."""
+    output = _zero_support_output(
+        current_situation={
+            "current_direction": "insufficient_evidence",
+            "current_disposition": "insufficient_evidence",
+            "evidence_ids": [],
+            "indicator_ids": [],
+            "statement": "Trade is deteriorating across every lane.",
+        }
+    )
+    problems = validate_output(output, _zero_support_package(), registry=TEST_REGISTRY)
+    assert any(
+        "statement does not state an insufficient-coverage position" in item for item in problems
+    ), problems
+
+
+def test_zero_evidence_current_situation_citing_support_is_rejected():
+    output = _zero_support_output(
+        current_situation={
+            "current_direction": "insufficient_evidence",
+            "current_disposition": "insufficient_evidence",
+            "evidence_ids": ["EVD-1"],
+            "indicator_ids": [],
+            "statement": "Coverage is insufficient.",
+        }
+    )
+    problems = validate_output(output, _zero_support_package(), registry=TEST_REGISTRY)
+    assert any(
+        "current_situation" in item and "cites support references" in item for item in problems
+    ), problems
+
+
+def test_zero_evidence_key_change_with_a_non_coverage_type_is_rejected():
+    output = _zero_support_output(
+        key_changes=[
+            {
+                "statement": "Congestion rose sharply.",
+                "change_type": "direction_change",
+                "evidence_ids": [],
+                "indicator_ids": [],
+                "comparison_period": None,
+                "known_limitations": [],
+            }
+        ]
+    )
+    problems = validate_output(output, _zero_support_package(), registry=TEST_REGISTRY)
+    assert any("key_changes[0]" in item and "coverage_change" in item for item in problems), (
         problems
     )
 
@@ -1020,3 +1096,416 @@ def test_a_populated_transmission_chain_link_needs_support():
     assert any(
         "populated links cite no evidence_id or indicator_id" in item for item in problems
     ), problems
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R4 §3 Scenario support validation
+# ---------------------------------------------------------------------------
+
+
+def test_a_scenario_citing_an_unknown_evidence_id_is_rejected():
+    output = base_output(scenarios=[outlook(base_case=case(evidence_ids=["EVD-NOPE"]))])
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any("scenarios[0]" in item and "unknown evidence IDs" in item for item in problems), (
+        problems
+    )
+
+
+def test_a_scenario_citing_an_unknown_indicator_id_is_rejected():
+    output = base_output(scenarios=[outlook(base_case=case(indicator_ids=["NOT_A_REAL_SERIES"]))])
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any("scenarios[0]" in item and "unknown indicator IDs" in item for item in problems), (
+        problems
+    )
+
+
+def test_a_differentiated_scenario_case_with_no_support_is_rejected():
+    output = base_output(
+        scenarios=[
+            outlook(
+                base_case=case(narrative="Conditions stay as they are."),
+                deterioration_case=case(narrative="Conditions worsen materially."),
+            )
+        ]
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any(
+        "base_case" in item and "cites no evidence_id or indicator_id" in item for item in problems
+    ), problems
+
+
+def test_a_differentiated_scenario_with_every_case_supported_passes():
+    output = base_output(
+        evidence_references=["EVD-1"],
+        scenarios=[
+            outlook(
+                subject_type="thailand_ocean",
+                base_case=case(
+                    narrative="Conditions stay as they are.", indicator_ids=["thailand_lsci"]
+                ),
+                deterioration_case=case(
+                    narrative="Conditions worsen materially.", evidence_ids=["EVD-1"]
+                ),
+                improvement_case=case(
+                    narrative="Conditions improve.", indicator_ids=["thailand_lsci"]
+                ),
+            )
+        ],
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert not any("scenarios[0]" in item for item in problems), problems
+
+
+def test_a_lane_scoped_scenario_cannot_cite_an_indicator_unrelated_to_that_lane():
+    package = build_input_package(
+        package_id="PKG-20260724-001",
+        generated_at="2026-07-24T00:00:00Z",
+        data_cutoff_at="2026-07-24T00:00:00Z",
+        source_health={"overall_status": "insufficient", "coverage_message": "x"},
+        key_indicators=[
+            {
+                "series_id": "container_freight_benchmark",
+                "current_value": 1.0,
+                "dataset": "current_publication",
+                "evidence_origin": "live_retrieved",
+            }
+        ],
+        lane_status=[
+            {
+                "lane_id": "LANE-OCEAN-TH-NEUR",
+                "dataset": "current_publication",
+                "overall_direction": "insufficient_evidence",
+                "attention_level": "insufficient_evidence",
+                "domain_directions": {},
+                "domain_indicator_ids": {},
+                "indicator_ids": [],
+                "active_event_ids": [],
+                "external_driver_event_ids": [],
+                "chokepoint_exposure": [],
+                "data_gaps": [],
+            }
+        ],
+        events=[],
+        evidence=[],
+        previous_assessments=[],
+        data_gaps=[],
+    )
+    output = base_output(
+        scenarios=[
+            outlook(
+                subject_type="lane",
+                subject_id="LANE-OCEAN-TH-NEUR",
+                base_case=case(
+                    narrative="Conditions stay as they are.",
+                    indicator_ids=["container_freight_benchmark"],
+                ),
+                deterioration_case=case(
+                    narrative="Conditions worsen materially.",
+                    indicator_ids=["container_freight_benchmark"],
+                ),
+            )
+        ]
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any(
+        "scenarios[0]" in item and "does not associate with it" in item for item in problems
+    ), problems
+
+
+def test_a_lane_assessment_cannot_cite_an_indicator_unrelated_to_that_lane():
+    """One eligible package indicator misused for an unrelated conclusion
+    (WO-010-R4 §10), at the ``lane_assessments`` level rather than the
+    scenario level -- ``container_freight_benchmark`` is eligible in the
+    package, but this lane's own ``lane_status`` entry never associated it,
+    so citing it here is rejected on the same basis."""
+    package = build_input_package(
+        package_id="PKG-20260724-001",
+        generated_at="2026-07-24T00:00:00Z",
+        data_cutoff_at="2026-07-24T00:00:00Z",
+        source_health={"overall_status": "insufficient", "coverage_message": "x"},
+        key_indicators=[
+            {
+                "series_id": "container_freight_benchmark",
+                "current_value": 1.0,
+                "dataset": "current_publication",
+                "evidence_origin": "live_retrieved",
+            }
+        ],
+        lane_status=[
+            {
+                "lane_id": "LANE-OCEAN-TH-NEUR",
+                "dataset": "current_publication",
+                "overall_direction": "insufficient_evidence",
+                "attention_level": "insufficient_evidence",
+                "domain_directions": {},
+                "domain_indicator_ids": {},
+                "indicator_ids": [],
+                "active_event_ids": [],
+                "external_driver_event_ids": [],
+                "chokepoint_exposure": [],
+                "data_gaps": [],
+            }
+        ],
+        events=[],
+        evidence=[],
+        previous_assessments=[],
+        data_gaps=[],
+    )
+    output = base_output(
+        lane_assessments=[
+            {
+                "lane_id": "LANE-OCEAN-TH-NEUR",
+                "direction": "stable",
+                "summary": "x",
+                "evidence_ids": [],
+                "indicator_ids": ["container_freight_benchmark"],
+                "confidence": "low",
+                "data_gaps": [],
+            }
+        ]
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any(
+        "lane_assessments[0]" in item and "does not associate with it" in item for item in problems
+    ), problems
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R4 §1 Support adequacy applies claim-by-claim, even when the package
+# holds real support -- eligible support elsewhere is never support for an
+# unrelated claim that cites none of its own.
+# ---------------------------------------------------------------------------
+
+
+def test_a_verified_fact_with_no_support_in_a_supported_package_is_rejected():
+    output = base_output(
+        verified_facts=[
+            {"statement": "Congestion is rising.", "evidence_ids": [], "indicator_ids": []}
+        ]
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any(
+        "verified_facts[0]" in item and "cites no evidence_id" in item for item in problems
+    ), problems
+
+
+def test_a_key_change_with_no_support_in_a_supported_package_is_rejected():
+    output = base_output(
+        key_changes=[
+            {
+                "statement": "Congestion rose sharply.",
+                "change_type": "direction_change",
+                "evidence_ids": [],
+                "indicator_ids": [],
+                "comparison_period": None,
+                "known_limitations": [],
+            }
+        ]
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any("key_changes[0]" in item and "cites no evidence_id" in item for item in problems), (
+        problems
+    )
+
+
+def test_a_directional_current_situation_with_no_support_in_a_supported_package_is_rejected():
+    output = base_output(
+        current_situation={
+            "current_direction": "deteriorating",
+            "current_disposition": "assessed",
+            "evidence_ids": [],
+            "indicator_ids": [],
+            "statement": "Trade is deteriorating.",
+        }
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any(
+        "current_situation" in item and "cites no evidence_id" in item for item in problems
+    ), problems
+
+
+def test_a_preparedness_option_citing_a_fixture_origin_indicator_is_rejected():
+    package = _package_with_indicators(
+        [
+            {
+                "series_id": "container_freight_benchmark",
+                "current_value": 1.0,
+                "dataset": "current_publication",
+                "evidence_origin": "synthetic_test_fixture",
+            }
+        ]
+    )
+    output = base_output(
+        conditional_preparedness_options=[
+            {
+                "option_type": "near_term",
+                "description": "Reroute cargo.",
+                "applicable_to": "all lanes",
+                "trigger_condition": "The benchmark crosses a threshold.",
+                "possible_benefit": "Avoids delay.",
+                "tradeoffs": ["Cost"],
+                "limitations": [],
+                "exit_condition": "The benchmark normalises.",
+                "evidence_basis": [],
+                "evidence_ids": [],
+                "indicator_ids": ["container_freight_benchmark"],
+            }
+        ]
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any(
+        "conditional_preparedness_options[0]" in item and "cannot support a current claim" in item
+        for item in problems
+    ), problems
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R4 §10 Positive tests
+# ---------------------------------------------------------------------------
+
+
+def test_an_indicator_backed_trend_statement_passes():
+    output = base_output(
+        verified_facts=[
+            {
+                "statement": "The container freight benchmark is at its current level.",
+                "evidence_ids": [],
+                "indicator_ids": ["container_freight_benchmark"],
+            }
+        ]
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert not any("verified_facts[0]" in item for item in problems), problems
+
+
+def test_an_evidence_backed_operational_claim_passes():
+    output = base_output(
+        evidence_references=["EVD-1"],
+        reported_claims=[
+            {
+                "statement": "A manual notice was recorded for this event.",
+                "evidence_ids": ["EVD-1"],
+                "indicator_ids": [],
+            }
+        ],
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert not any("reported_claims[0]" in item for item in problems), problems
+
+
+def test_a_mixed_evidence_and_indicator_inference_passes():
+    output = base_output(
+        evidence_references=["EVD-1"],
+        analytical_inference=[
+            {
+                "statement": "Both the notice and the benchmark point the same way.",
+                "evidence_ids": ["EVD-1"],
+                "indicator_ids": ["container_freight_benchmark"],
+            }
+        ],
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert not any("analytical_inference[0]" in item for item in problems), problems
+
+
+def test_a_coverage_only_current_output_passes():
+    assert (
+        validate_output(_zero_support_output(), _zero_support_package(), registry=TEST_REGISTRY)
+        == []
+    )
+
+
+def test_a_support_linked_preparedness_monitoring_option_passes():
+    output = base_output(
+        conditional_preparedness_options=[
+            {
+                "option_type": "monitor",
+                "description": "Watch the freight benchmark for a sustained move.",
+                "applicable_to": "all lanes",
+                "trigger_condition": "The benchmark moves materially from its current level.",
+                "possible_benefit": "Earlier awareness of a directional change.",
+                "tradeoffs": [],
+                "limitations": [],
+                "exit_condition": "The benchmark stabilises.",
+                "evidence_basis": [],
+                "evidence_ids": [],
+                "indicator_ids": ["container_freight_benchmark"],
+                "is_data_coverage_action": False,
+            }
+        ]
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert not any("conditional_preparedness_options[0]" in item for item in problems), problems
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R4 §4 Preparedness options bound to support
+# ---------------------------------------------------------------------------
+
+
+def test_an_operational_preparedness_option_with_no_support_is_rejected():
+    output = base_output(conditional_preparedness_options=[option()])
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any(
+        "conditional_preparedness_options[0]" in item
+        and "cites no evidence_id or indicator_id" in item
+        for item in problems
+    ), problems
+
+
+def test_a_monitor_data_coverage_option_needs_no_support():
+    output = base_output(
+        conditional_preparedness_options=[
+            option(option_type="monitor", is_data_coverage_action=True)
+        ]
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert not any("conditional_preparedness_options[0]" in item for item in problems), problems
+
+
+def test_a_preparedness_option_citing_an_unknown_evidence_id_is_rejected():
+    output = base_output(conditional_preparedness_options=[option(evidence_ids=["EVD-NOPE"])])
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert any(
+        "conditional_preparedness_options[0]" in item and "unknown evidence IDs" in item
+        for item in problems
+    ), problems
+
+
+def test_a_preparedness_option_citing_discovery_only_evidence_is_rejected():
+    package = build_input_package(
+        package_id="PKG-20260724-001",
+        generated_at="2026-07-24T00:00:00Z",
+        data_cutoff_at="2026-07-24T00:00:00Z",
+        source_health={"overall_status": "insufficient", "coverage_message": "x"},
+        key_indicators=[],
+        lane_status=[],
+        events=[],
+        evidence=[
+            {**manual_notice_evidence(evidence_id="EVD-1"), "evidence_role": "discovery_only"}
+        ],
+        previous_assessments=[],
+        data_gaps=[],
+    )
+    output = base_output(
+        evidence_references=["EVD-1"],
+        conditional_preparedness_options=[option(evidence_ids=["EVD-1"])],
+    )
+    problems = validate_output(output, package, registry=TEST_REGISTRY)
+    assert any(
+        "conditional_preparedness_options[0]" in item and "discovery-only evidence" in item
+        for item in problems
+    ), problems
+
+
+def test_a_supported_operational_preparedness_option_passes():
+    output = base_output(
+        conditional_preparedness_options=[
+            option(
+                indicator_ids=["thailand_lsci"],
+                support_basis="thailand_lsci shows sustained deterioration this period.",
+            )
+        ]
+    )
+    problems = validate_output(output, base_package(), registry=TEST_REGISTRY)
+    assert not any("conditional_preparedness_options[0]" in item for item in problems), problems

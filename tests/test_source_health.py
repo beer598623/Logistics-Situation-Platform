@@ -62,6 +62,39 @@ def test_disabled_source_stays_disabled_even_with_runs() -> None:
     assert health.status == "disabled"
 
 
+def test_a_future_dated_run_is_not_classified_as_fresh() -> None:
+    """WO-010-R4 §6: a run completed after this build's as-of time must not
+    produce a negative age and read as fresher than any real run could make
+    it -- it is excluded from being the latest run entirely."""
+    future = _run(-120)  # completed_at is 120 minutes after NOW
+    health = evaluate_source_health(_contract(), [future], now=NOW)
+    assert health.status == "no_data"
+    assert health.last_success_at is None
+    assert health.last_checked_at is None
+
+
+def test_a_future_dated_run_does_not_hide_an_earlier_real_success() -> None:
+    real_success = _run(10)
+    future = _run(-120)
+    health = evaluate_source_health(_contract(), [real_success, future], now=NOW)
+    assert health.status == "fresh"
+    assert health.last_success_at == real_success["completed_at"]
+
+
+def test_a_future_dated_manual_review_is_not_classified_as_fresh() -> None:
+    future_event = {
+        "source_id": "TEST_SRC",
+        "status": "reviewed",
+        "reviewed_at": (NOW + timedelta(minutes=120)).isoformat().replace("+00:00", "Z"),
+        "record_count": 1,
+    }
+    health = evaluate_source_health(
+        _contract(access_method="manual"), [], now=NOW, manual_review_events=[future_event]
+    )
+    assert health.status == "disabled"
+    assert health.last_success_at is None
+
+
 def test_error_is_distinguished_from_no_data() -> None:
     health = evaluate_source_health(
         _contract(), [_run(5, status="error", errors=["timeout"], records_emitted=None)], now=NOW
@@ -203,3 +236,50 @@ def test_all_disabled_sources_for_a_capability_is_insufficient() -> None:
     capability = next(c for c in snapshot["capabilities"] if c["capability"] == "cap")
     assert capability["status"] == "insufficient"
     assert "No enabled source" in capability["gap_reason"]
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R4 §9: coverage_message must distinguish "zero evidence" from
+# "partial evidence but insufficient required coverage" -- both currently
+# report overall_status: insufficient, but they are different operational
+# states and must not read as the same sentence.
+# ---------------------------------------------------------------------------
+
+
+def test_coverage_message_reports_zero_evidence_when_nothing_was_ever_collected() -> None:
+    registry = {"sources": [_contract(required_for_publication=True)]}
+    snapshot = evaluate_registry_health(registry, {}, now=NOW)
+    assert snapshot["overall_status"] == "insufficient"
+    assert snapshot["coverage_message"].startswith("Zero evidence")
+
+
+def test_coverage_message_reports_partial_evidence_when_a_required_source_is_still_down() -> None:
+    registry = {
+        "sources": [
+            _contract(
+                id="REQUIRED_DOWN", purposes=["hazard_detection"], required_for_publication=True
+            ),
+            _contract(
+                id="OPTIONAL_UP", purposes=["hazard_detection"], required_for_publication=False
+            ),
+        ]
+    }
+    snapshot = evaluate_registry_health(registry, {"OPTIONAL_UP": [_run(5)]}, now=NOW)
+    assert snapshot["overall_status"] == "insufficient"
+    assert snapshot["coverage_message"].startswith(
+        "Partial evidence but insufficient required coverage"
+    )
+
+
+def test_coverage_message_reports_limited_coverage() -> None:
+    registry = {"sources": [_contract()]}
+    snapshot = evaluate_registry_health(registry, {"TEST_SRC": [_run(400)]}, now=NOW)
+    assert snapshot["overall_status"] == "limited"
+    assert snapshot["coverage_message"].startswith("Limited coverage")
+
+
+def test_coverage_message_reports_sufficient_coverage() -> None:
+    registry = {"sources": [_contract()]}
+    snapshot = evaluate_registry_health(registry, {"TEST_SRC": [_run(10)]}, now=NOW)
+    assert snapshot["overall_status"] == "sufficient"
+    assert snapshot["coverage_message"].startswith("Sufficient coverage")

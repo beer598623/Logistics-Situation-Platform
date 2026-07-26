@@ -43,6 +43,8 @@ from analysis.provenance import (  # noqa: E402
     publication_use_problems,
     qualified_records,
     qualifies_for_current_publication,
+    record_publication_use,
+    series_homogeneity_problems,
 )
 from scripts.build_analysis import (  # noqa: E402
     build_current_indicators,
@@ -754,3 +756,77 @@ def test_build_current_indicators_sets_geographic_scope():
     }
     [indicator] = build_current_indicators(qualified, TEST_REGISTRY)
     assert indicator["geographic_scope"] == "thailand"
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R4 §5 Per-record publication-use enforcement: never records[0] alone
+# ---------------------------------------------------------------------------
+
+
+def test_homogeneous_records_from_one_source_raise_no_problem():
+    records = live_trade_series(periods=5, growth=0.0, series_id="th_export_value_neur")
+    assert series_homogeneity_problems(records, registry=TEST_REGISTRY) == []
+
+
+def test_records_from_two_different_sources_are_not_homogeneous():
+    raw_permitted = live_trade_observation(
+        period_key="2026-06", value=1.0, series_id="th_export_value_neur"
+    )
+    derived_only = live_trade_observation(
+        period_key="2026-07",
+        value=1.1,
+        series_id="th_export_value_neur",
+        source_id=TEST_DERIVED_ONLY_SOURCE,
+    )
+    problems = series_homogeneity_problems([raw_permitted, derived_only], registry=TEST_REGISTRY)
+    assert any("source_id" in item for item in problems), problems
+    assert any("publication_use" in item for item in problems), problems
+
+
+def test_record_publication_use_reads_the_records_own_source():
+    trade = live_trade_observation(period_key="2026-06", value=1.0)
+    derived = live_trade_observation(
+        period_key="2026-06", value=1.0, source_id=TEST_DERIVED_ONLY_SOURCE
+    )
+    assert record_publication_use(trade, registry=TEST_REGISTRY) == RAW_VALUES_PERMITTED
+    assert record_publication_use(derived, registry=TEST_REGISTRY) == DERIVED_VALUES_ONLY
+
+
+def test_a_mixed_series_is_excluded_from_current_indicators_not_combined():
+    """Two sources contributing to the same series_id, one raw-permitted and
+    one derived-only, must never be silently derived under records[0]'s
+    terms -- WO-010-R4 §5 requires the whole series be excluded instead."""
+    raw_permitted = live_trade_observation(
+        period_key="2026-06", value=1.0, series_id="th_export_value_neur"
+    )
+    derived_only = live_trade_observation(
+        period_key="2026-07",
+        value=1.1,
+        series_id="th_export_value_neur",
+        source_id=TEST_DERIVED_ONLY_SOURCE,
+    )
+    qualified = {
+        "trade_observations": [raw_permitted, derived_only],
+        "indicator_observations": [],
+        "port_observations": [],
+        "cost_observations": [],
+    }
+    assert build_current_indicators(qualified, TEST_REGISTRY) == []
+
+
+def test_a_mixed_series_produces_no_dashboard_payload_either():
+    raw_permitted = live_trade_observation(
+        period_key="2026-06", value=1.0, series_id="th_export_value_neur"
+    )
+    derived_only = live_trade_observation(
+        period_key="2026-07",
+        value=1.1,
+        series_id="th_export_value_neur",
+        source_id=TEST_DERIVED_ONLY_SOURCE,
+    )
+    assert (
+        _current_series_payload(
+            "th_export_value_neur", [raw_permitted, derived_only], TEST_REGISTRY
+        )
+        is None
+    )
