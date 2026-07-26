@@ -52,6 +52,17 @@ def _latest_success_run(runs: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] 
     return _latest_run(successes)
 
 
+def _latest_reviewed_event(
+    events: Sequence[Mapping[str, Any]],
+) -> Mapping[str, Any] | None:
+    reviewed = [event for event in events if event.get("status") == "reviewed"]
+    dated = [(event, _parse_timestamp(event.get("reviewed_at"))) for event in reviewed]
+    dated = [pair for pair in dated if pair[1] is not None]
+    if not dated:
+        return None
+    return max(dated, key=lambda pair: pair[1])[0]
+
+
 def _fresh_boundary_minutes(contract: Mapping[str, Any]) -> int:
     cadence = contract.get("expected_cadence_minutes")
     max_stale = int(contract["max_stale_minutes"])
@@ -60,11 +71,76 @@ def _fresh_boundary_minutes(contract: Mapping[str, Any]) -> int:
     return max(1, max_stale // 2)
 
 
+def _evaluate_manual_source_health(
+    contract: Mapping[str, Any],
+    events: Sequence[Mapping[str, Any]],
+    *,
+    now: datetime,
+) -> SourceHealth:
+    """Health for a manual-intake source, from recorded review events only.
+
+    A manual-intake contract has no automated collection to be ``enabled``
+    or ``disabled`` about; that flag exists in the registry to keep the
+    schema uniform, but health here never consults it. Instead:
+
+    * with no review event ever recorded, health matches the registry's own
+      ``enabled: false`` starting state (``disabled``) rather than the
+      generic ``no_data`` an automated source gets -- there is no automated
+      "not yet run" to describe, only "this path has never been used";
+    * the moment a human records a bounded transcription, health is
+      computed entirely from that event's ``reviewed_at`` timestamp against
+      this source's own freshness boundary, never from a collection-run
+      manifest (this source has none) and never from the registry flag.
+
+    This is what "manually reviewed intake receives health only through its
+    recorded manual review event" means in practice: collection runs for
+    this source_id, if any were ever mistakenly supplied, play no part.
+    """
+    source_id = str(contract["id"])
+    max_stale_minutes = int(contract["max_stale_minutes"])
+    required_for_publication = bool(contract.get("required_for_publication", False))
+
+    latest = _latest_reviewed_event(events)
+    if latest is None:
+        return SourceHealth(
+            source_id=source_id,
+            status=SourceStatus.DISABLED,
+            last_checked_at=None,
+            last_success_at=None,
+            last_error=None,
+            item_count=None,
+            required_for_publication=required_for_publication,
+            max_stale_minutes=max_stale_minutes,
+        )
+
+    reviewed_at = _parse_timestamp(latest.get("reviewed_at"))
+    age_minutes = (now - reviewed_at).total_seconds() / 60.0
+    fresh_boundary = _fresh_boundary_minutes(contract)
+    if age_minutes <= fresh_boundary:
+        status = SourceStatus.FRESH
+    elif age_minutes <= max_stale_minutes:
+        status = SourceStatus.STALE
+    else:
+        status = SourceStatus.VERY_STALE
+
+    return SourceHealth(
+        source_id=source_id,
+        status=status,
+        last_checked_at=_to_iso(reviewed_at),
+        last_success_at=_to_iso(reviewed_at),
+        last_error=None,
+        item_count=latest.get("record_count"),
+        required_for_publication=required_for_publication,
+        max_stale_minutes=max_stale_minutes,
+    )
+
+
 def evaluate_source_health(
     contract: Mapping[str, Any],
     runs: Sequence[Mapping[str, Any]],
     *,
     now: datetime | None = None,
+    manual_review_events: Sequence[Mapping[str, Any]] = (),
 ) -> SourceHealth:
     """Evaluate one source's health from its contract and known collection runs.
 
@@ -73,11 +149,20 @@ def evaluate_source_health(
     with no successful run ever recorded is reported as ``no_data``, and a
     source whose most recent run failed is reported as ``error`` even if it
     previously succeeded, preserving the earlier success time separately.
+
+    A manual-intake source (``access_method: manual``) is routed to
+    :func:`_evaluate_manual_source_health` instead: it has no automated runs
+    to evaluate, and evaluating it as though it did would either wrongly
+    treat "never enabled" the same as "never used" or require a fabricated
+    collection-run manifest for something that makes no network request.
     """
     moment = now or datetime.now(UTC)
     source_id = str(contract["id"])
     max_stale_minutes = int(contract["max_stale_minutes"])
     required_for_publication = bool(contract.get("required_for_publication", False))
+
+    if contract.get("access_method") == "manual":
+        return _evaluate_manual_source_health(contract, manual_review_events, now=moment)
 
     latest = _latest_run(runs)
     latest_success = _latest_success_run(runs)
@@ -225,6 +310,7 @@ def evaluate_registry_health(
     runs_by_source: Mapping[str, Sequence[Mapping[str, Any]]],
     *,
     now: datetime | None = None,
+    manual_events_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate every source in a registry and produce a coverage snapshot.
 
@@ -232,10 +318,23 @@ def evaluate_registry_health(
     health list plus a purpose-aware ``capabilities`` breakdown and an
     ``overall_status`` that can only be ``sufficient`` when every capability
     required for publication is actually covered.
+
+    ``runs_by_source`` and ``manual_events_by_source`` should come from
+    ``collectors.collection_runs.load_collection_runs`` /
+    ``load_manual_review_events`` in every production call -- an empty
+    mapping passed here is indistinguishable from "we checked and found
+    nothing" and from "nobody ever asked", and only the loader can tell
+    those apart from what is actually persisted on disk.
     """
     moment = now or datetime.now(UTC)
+    manual_events_by_source = manual_events_by_source or {}
     healths = [
-        evaluate_source_health(source, runs_by_source.get(source["id"], ()), now=moment)
+        evaluate_source_health(
+            source,
+            runs_by_source.get(source["id"], ()),
+            now=moment,
+            manual_review_events=manual_events_by_source.get(source["id"], ()),
+        )
         for source in registry.get("sources", [])
     ]
     health_by_id = {health.source_id: health for health in healths}

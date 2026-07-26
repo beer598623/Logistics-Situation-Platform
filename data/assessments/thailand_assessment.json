@@ -56,11 +56,14 @@
     "No current assessment can be produced: the platform holds no live-retrieved or human-reviewed evidence, so there is nothing to compare and nothing to report."
   ],
   "major_data_gaps": [
-    "No source in the registry is enabled and none has completed a controlled live validation, so live coverage is insufficient.",
-    "Every numeric series held by the platform is a synthetic test fixture and is excluded from this view.",
-    "Every event held by the platform is a historical validation fixture with an assessment cutoff in the past and is excluded from this view.",
-    "No Thailand-origin freight rate source is qualified, so no Thailand freight average is published anywhere in the platform.",
-    "No operational-condition source is registered, so no congestion, waiting-time or berth-delay statement is made anywhere in the platform."
+    "Source Health reports overall current-publication coverage 'insufficient': One or more required capabilities lack sufficient source coverage.",
+    "cost and freight context: No qualified current-publication record supports this capability.",
+    "global baseline context: No qualified current-publication record supports this capability.",
+    "operational event evidence: No qualified current-publication record supports this capability.",
+    "thailand port or maritime activity: No qualified current-publication record supports this capability.",
+    "thailand trade flow: No qualified current-publication record supports this capability.",
+    "11 of 11 Ocean lane(s) have no qualified domain at all; every domain in that lane reads insufficient_evidence.",
+    "No qualified operational event exists, so no congestion, waiting-time or berth-delay statement can be made anywhere in the platform."
   ],
   "methodology_version": "0.8"
 }

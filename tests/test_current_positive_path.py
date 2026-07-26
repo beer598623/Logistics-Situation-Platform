@@ -32,11 +32,13 @@ from analysis.events import (  # noqa: E402
 )
 from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
+    DERIVED_VALUES_ONLY,
     HISTORICAL_VALIDATION,
     PUBLISH_BOUNDED_CLAIM,
     PUBLISH_DERIVED_VALUE,
     PUBLISH_LINK_ONLY,
     PUBLISH_RAW_VALUE,
+    RAW_VALUES_PERMITTED,
     TECHNICAL_DEMO,
     publication_use_problems,
     qualified_records,
@@ -55,6 +57,7 @@ from scripts.build_dashboard import (  # noqa: E402
 )
 from tests.positive_path import (  # noqa: E402
     CUTOFF,
+    TEST_DERIVED_ONLY_SOURCE,
     TEST_LINK_ONLY_SOURCE,
     TEST_NOTICE_SOURCE,
     TEST_REGISTRY,
@@ -628,3 +631,126 @@ def test_a_well_formed_approval_is_publishable():
 def test_the_publication_gate_withholds_an_unsound_approval(overrides, expected):
     problems = publishable_assessment_problems(_approved(**overrides))
     assert any(expected in problem for problem in problems), problems
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R3 §5 Raw vs derived publication paths
+# ---------------------------------------------------------------------------
+
+
+def _raw_record_ids(records):
+    return frozenset(
+        record["provenance"]["record_id"]
+        for record in qualified_records(
+            records, registry=TEST_REGISTRY, publication_use=PUBLISH_RAW_VALUE
+        )
+    )
+
+
+def test_a_raw_permitted_source_publishes_its_current_value_and_points():
+    records = live_trade_series(periods=26, growth=0.02, series_id="th_export_value_neur")
+    payload = _current_series_payload(
+        "th_export_value_neur", records, TEST_REGISTRY, raw_record_ids=_raw_record_ids(records)
+    )
+    assert payload["publication_use_applied"] == RAW_VALUES_PERMITTED
+    assert payload["current_value"] is not None
+    assert payload["points"] != []
+
+
+def test_a_derived_only_source_drives_a_direction_but_publishes_no_raw_value():
+    records = live_trade_series(
+        periods=26,
+        growth=0.02,
+        series_id="th_export_value_neur",
+        source_id=TEST_DERIVED_ONLY_SOURCE,
+    )
+    payload = _current_series_payload(
+        "th_export_value_neur", records, TEST_REGISTRY, raw_record_ids=_raw_record_ids(records)
+    )
+    assert payload["publication_use_applied"] == DERIVED_VALUES_ONLY
+    # A derived-only source can still drive a direction ...
+    assert payload["year_over_year_pct"] is not None
+    # ... but never the raw reading or the raw points behind it.
+    assert payload["current_value"] is None
+    assert payload["previous_period_change"] is None
+    assert payload["points"] == []
+
+
+def test_omitting_raw_record_ids_defaults_every_series_to_derived_only():
+    """A caller that forgets to pass ``raw_record_ids`` gets the safe default:
+    nothing is treated as raw-permitted, rather than everything."""
+    records = live_trade_series(periods=26, growth=0.02, series_id="th_export_value_neur")
+    payload = _current_series_payload("th_export_value_neur", records, TEST_REGISTRY)
+    assert payload["publication_use_applied"] == DERIVED_VALUES_ONLY
+    assert payload["current_value"] is None
+    assert payload["points"] == []
+
+
+def test_changing_the_source_disposition_changes_the_payload_shape():
+    records = live_trade_series(periods=26, growth=0.02, series_id="th_export_value_neur")
+    raw_payload = _current_series_payload(
+        "th_export_value_neur", records, TEST_REGISTRY, raw_record_ids=_raw_record_ids(records)
+    )
+    derived_records = live_trade_series(
+        periods=26,
+        growth=0.02,
+        series_id="th_export_value_neur",
+        source_id=TEST_DERIVED_ONLY_SOURCE,
+    )
+    derived_payload = _current_series_payload(
+        "th_export_value_neur",
+        derived_records,
+        TEST_REGISTRY,
+        raw_record_ids=_raw_record_ids(derived_records),
+    )
+    assert raw_payload["current_value"] is not None
+    assert derived_payload["current_value"] is None
+    assert raw_payload["points"] != derived_payload["points"]
+
+
+def test_a_link_only_source_never_reaches_a_current_series_payload_at_all():
+    """A metadata-link-only numeric series is excluded upstream: it never
+    qualifies for even PUBLISH_DERIVED_VALUE, so it never becomes a payload
+    that could leak a numeric value under a 'link only' label."""
+    records = live_trade_series(
+        periods=26, growth=0.02, series_id="th_export_value_neur", source_id=TEST_LINK_ONLY_SOURCE
+    )
+    kept = qualified_records(records, registry=TEST_REGISTRY, publication_use=PUBLISH_DERIVED_VALUE)
+    assert kept == []
+
+
+def test_build_current_indicators_shapes_a_derived_only_series_the_same_way():
+    records = live_trade_series(
+        periods=26,
+        growth=0.02,
+        series_id="th_export_value_neur",
+        source_id=TEST_DERIVED_ONLY_SOURCE,
+    )
+    qualified = {
+        "trade_observations": records,
+        "indicator_observations": [],
+        "port_observations": [],
+        "cost_observations": [],
+    }
+    raw_publishable = {
+        family: qualified_records(items, registry=TEST_REGISTRY, publication_use=PUBLISH_RAW_VALUE)
+        for family, items in qualified.items()
+    }
+    [indicator] = build_current_indicators(
+        qualified, TEST_REGISTRY, raw_publishable_records=raw_publishable
+    )
+    assert indicator["publication_use_applied"] == DERIVED_VALUES_ONLY
+    assert indicator["current_value"] is None
+    assert indicator["year_over_year_pct"] is not None
+
+
+def test_build_current_indicators_sets_geographic_scope():
+    records = live_trade_series(periods=26, growth=0.02, series_id="th_export_value_neur")
+    qualified = {
+        "trade_observations": records,
+        "indicator_observations": [],
+        "port_observations": [],
+        "cost_observations": [],
+    }
+    [indicator] = build_current_indicators(qualified, TEST_REGISTRY)
+    assert indicator["geographic_scope"] == "thailand"

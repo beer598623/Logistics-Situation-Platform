@@ -37,6 +37,11 @@
           }
         },
         "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Optional: series_id values supporting this case. Not required, so the platform's own scenario production (which has no indicator-level support model) is unaffected; a returned ChatGPT assessment's scenarios are checked for this field where present."
+        },
         "confidence": {"enum": ["low", "medium", "high"]},
         "data_gaps": {"type": "array", "items": {"type": "string"}},
         "point_forecast_disclaimer": {

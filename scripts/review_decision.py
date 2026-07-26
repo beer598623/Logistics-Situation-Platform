@@ -43,12 +43,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from analysis.provenance import (  # noqa: E402
-    CURRENT_PUBLICATION,
-    is_fixture,
-    record_dataset,
-    record_origin,
-)
+from analysis.provenance import CURRENT_PUBLICATION, record_origin  # noqa: E402
 from analysis.review_package import (  # noqa: E402
     CURRENT_INTELLIGENCE,
     package_provenance_problems,
@@ -197,30 +192,24 @@ def archive_existing(package_id: str, timestamp: str, transaction: FileTransacti
     return str(target.relative_to(ROOT))
 
 
-def package_hash(package: dict[str, Any]) -> str:
-    """Recompute the package's own hash the way the builder computed it.
-
-    The stored ``package_sha256`` is over the package with that field null, so
-    re-deriving it here detects an input package edited after the assessment
-    was produced -- an approval bound to a package that no longer exists is
-    not an approval of anything.
-    """
-    restated = {**package, "package_sha256": None}
-    return hashlib.sha256(json.dumps(restated, sort_keys=True).encode("utf-8")).hexdigest()
-
-
 def approval_provenance_problems(
     package: dict[str, Any],
-    output: dict[str, Any],
     registry: dict[str, Any],
 ) -> list[str]:
-    """Reasons this assessment may not be approved into the current Dashboard.
+    """Reasons this package may not be approved into the current Dashboard.
 
-    Passing the rejection rules means the assessment is internally consistent
-    with its package. It does not mean the package was one the current view is
-    allowed to be built from, and that gap is what this closes: a reviewer
-    typing ``--decision approve`` on a demonstration package must not be able
-    to publish it as current intelligence.
+    ``review()`` (schema plus ``analysis.review_package.validate_output``)
+    already checked that the output is correctly bound to this exact
+    package, cites only eligible evidence and indicators, and is shaped
+    correctly for whatever coverage the package holds -- including the
+    package's own integrity, via ``package_provenance_problems``'s hash
+    recheck. None of that is repeated here.
+
+    What passing those checks does *not* establish is that the package
+    itself is one the current view may ever be built from: a package/output
+    pair can be perfectly internally consistent and still both be a
+    demonstration. That is approval-specific policy, not a general
+    reviewing rule, so it lives here rather than in ``validate_output``.
     """
     problems: list[str] = []
 
@@ -237,59 +226,6 @@ def approval_provenance_problems(
         )
 
     problems.extend(package_provenance_problems(package, registry=registry))
-
-    recomputed = package_hash(package)
-    if package.get("package_sha256") != recomputed:
-        problems.append(
-            "the input package has changed since it was generated: its recorded "
-            f"package_sha256 {package.get('package_sha256')!r} does not match the hash of "
-            f"its current contents {recomputed!r}"
-        )
-
-    declared = output.get("package_sha256")
-    if declared and declared != package.get("package_sha256"):
-        problems.append(
-            "the returned assessment was produced against a different version of this "
-            f"package (it cites {declared!r}, the package records "
-            f"{package.get('package_sha256')!r})"
-        )
-
-    output_cutoff = output.get("data_cutoff_at")
-    if output_cutoff and output_cutoff != package.get("data_cutoff_at"):
-        problems.append(
-            f"the assessment's data cutoff {output_cutoff!r} differs from the package's "
-            f"{package.get('data_cutoff_at')!r}; supersede the package explicitly rather "
-            "than approving an assessment against a different vintage"
-        )
-
-    citable = [
-        item
-        for item in package.get("evidence_records", [])
-        if not is_fixture(record_origin(item)) and record_dataset(item) == CURRENT_PUBLICATION
-    ]
-    referenced = set(output.get("evidence_references", []))
-    citable_ids = {str(item.get("evidence_id")) for item in citable}
-    fixture_cited = sorted(referenced - citable_ids)
-    if fixture_cited:
-        problems.append(
-            f"the returned assessment references {fixture_cited}, which are not current "
-            "evidence in this package"
-        )
-
-    if not citable:
-        severity = output.get("highest_severity_claimed")
-        if severity not in {None, "none"}:
-            problems.append(
-                f"the assessment claims {severity!r} severity while the package contains no "
-                "evidence eligible to support a current conclusion"
-            )
-        for group in ("verified_facts", "observed_impacts", "potential_impacts"):
-            if output.get(group):
-                problems.append(
-                    f"the assessment states {group} while the package contains zero qualified "
-                    "current evidence; nothing in it can be supported"
-                )
-
     return problems
 
 
@@ -327,7 +263,7 @@ def main() -> int:
     registry = load_registry()
 
     if args.decision == "approve":
-        problems = list(problems) + approval_provenance_problems(package, output, registry)
+        problems = list(problems) + approval_provenance_problems(package, registry)
         accepted = not problems
 
     if args.decision == "approve" and not accepted:
@@ -375,6 +311,10 @@ def main() -> int:
                         "input_evidence_ids": sorted(
                             str(item.get("evidence_id"))
                             for item in package.get("evidence_records", [])
+                        ),
+                        "input_indicator_ids": sorted(
+                            str(item.get("series_id") or item.get("indicator_id"))
+                            for item in package.get("key_indicators", [])
                         ),
                         "input_evidence_origin_summary": evidence_origin_summary(package),
                         "validation_status": "passed",

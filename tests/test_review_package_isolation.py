@@ -34,7 +34,9 @@ from analysis.review_package import (  # noqa: E402
     ENGINE_DEMONSTRATION,
     build_input_package,
     has_operational_condition_evidence,
+    package_hash,
     package_provenance_problems,
+    requires_human_review,
     validate_output,
 )
 from tests.positive_path import TEST_REGISTRY, manual_notice_evidence  # noqa: E402
@@ -111,12 +113,12 @@ def test_the_package_records_its_cutoffs_and_hash(current_package):
 
 
 def test_the_package_hash_covers_its_contents(current_package):
-    assert decision.package_hash(current_package) == current_package["package_sha256"]
+    assert package_hash(current_package) == current_package["package_sha256"]
     tampered = {
         **current_package,
         "data_gaps": [*current_package["data_gaps"], "an added line"],
     }
-    assert decision.package_hash(tampered) != current_package["package_sha256"]
+    assert package_hash(tampered) != current_package["package_sha256"]
 
 
 def test_the_demonstration_surface_is_a_separate_artifact(demo_package):
@@ -157,12 +159,25 @@ def _package(**overrides):
     return build_input_package(**kwargs)
 
 
-def _output(**overrides):
+def _output(*, package=None, **overrides):
+    """An output pre-bound to ``package`` (or a fresh default ``_package()``).
+
+    Binding it by default, rather than leaving the five ``input_*`` fields
+    absent, means a test only has to override what it is actually testing --
+    a mismatched hash, a stale cutoff -- instead of restating every binding
+    field by hand to get past ``binding_problems`` first.
+    """
+    bound_to = package if package is not None else _package()
     out = {
         "package_id": PACKAGE_ID,
         "methodology_version": "0.8",
         "produced_at": "2026-07-24T01:00:00Z",
         "model_reference": "human-run ChatGPT session",
+        "input_package_sha256": bound_to["package_sha256"],
+        "input_dataset": bound_to["dataset"],
+        "input_package_purpose": bound_to["package_purpose"],
+        "input_data_cutoff_at": bound_to["data_cutoff_at"],
+        "input_source_cutoff": bound_to["source_cutoff"],
         "current_situation": "Coverage is insufficient.",
         "key_changes": [],
         "lane_assessments": [],
@@ -293,7 +308,23 @@ def workspace(tmp_path, monkeypatch):
     monkeypatch.setattr(decision, "HISTORY_PATH", history)
     monkeypatch.setattr(decision, "ROOT", tmp_path)
     monkeypatch.setattr(decision, "load_registry", lambda: TEST_REGISTRY)
-    monkeypatch.setattr(decision, "review", lambda package_id: (True, [], False))
+
+    def _review(package_id):
+        """Stand in for ``scripts.import_review.review`` against ``TEST_REGISTRY``.
+
+        The real ``review()`` loads its own registry straight from
+        ``config/sources.yaml``, which knows nothing about the fictitious
+        sources these tests use, so it cannot be called as-is here. This
+        mirrors its second gate -- ``validate_output`` -- against the test
+        registry instead, and skips the first (JSON Schema) gate, which these
+        deliberately minimal fixtures were never meant to satisfy.
+        """
+        package = json.loads((packages / f"{package_id}.json").read_text(encoding="utf-8"))
+        output = json.loads((inbound / f"{package_id}.json").read_text(encoding="utf-8"))
+        problems = validate_output(output, package, registry=TEST_REGISTRY)
+        return not problems, problems, requires_human_review(output)
+
+    monkeypatch.setattr(decision, "review", _review)
 
     return {
         "root": tmp_path,
@@ -354,6 +385,7 @@ def test_a_valid_current_package_can_be_approved(workspace, monkeypatch):
     assert record["superseded"] is False
     assert record["output_sha256"]
     assert record["input_source_cutoff"] == "2026-07-24T00:00:00Z"
+    assert record["input_data_cutoff_at"] == "2026-07-24T00:00:00Z"
 
 
 def test_a_demonstration_package_cannot_be_approved_as_current(workspace, monkeypatch, capsys):
@@ -384,15 +416,21 @@ def test_a_package_edited_after_generation_cannot_be_approved(workspace, monkeyp
 def test_an_assessment_produced_against_another_package_version_is_refused(
     workspace, monkeypatch, capsys
 ):
-    _install(workspace, _package(), _output(package_sha256="d" * 64))
+    package = _package()
+    _install(workspace, package, _output(package=package, input_package_sha256="d" * 64))
     assert _approve(monkeypatch) == 1
-    assert "produced against a different version of this package" in capsys.readouterr().out
+    assert "does not match the input package's package_sha256" in capsys.readouterr().out
 
 
 def test_a_different_data_cutoff_requires_an_explicit_supersession(workspace, monkeypatch, capsys):
-    _install(workspace, _package(), _output(data_cutoff_at="2026-06-01T00:00:00Z"))
+    package = _package()
+    _install(
+        workspace,
+        package,
+        _output(package=package, input_data_cutoff_at="2026-06-01T00:00:00Z"),
+    )
     assert _approve(monkeypatch) == 1
-    assert "supersede the package explicitly" in capsys.readouterr().out
+    assert "does not match the input package's data_cutoff_at" in capsys.readouterr().out
 
 
 def test_an_output_citing_fixture_evidence_cannot_be_approved(workspace, monkeypatch, capsys):
@@ -406,21 +444,23 @@ def test_an_output_citing_fixture_evidence_cannot_be_approved(workspace, monkeyp
             ),
         ]
     )
-    _install(workspace, package, _output(evidence_references=["EVD-OLD"]))
+    _install(workspace, package, _output(package=package, evidence_references=["EVD-OLD"]))
     before = _snapshot(workspace["root"])
 
     assert _approve(monkeypatch) == 1
-    assert "not current evidence in this package" in capsys.readouterr().out
+    assert "excluded from this current package's citable set" in capsys.readouterr().out
     assert _snapshot(workspace["root"]) == before
 
 
 def test_current_claims_with_zero_qualified_evidence_cannot_be_approved(
     workspace, monkeypatch, capsys
 ):
+    package = _package(evidence=[])
     _install(
         workspace,
-        _package(evidence=[]),
+        package,
         _output(
+            package=package,
             highest_severity_claimed="moderate",
             verified_facts=[{"statement": "Congestion is elevated.", "evidence_ids": []}],
         ),
@@ -428,7 +468,7 @@ def test_current_claims_with_zero_qualified_evidence_cannot_be_approved(
     out_code = _approve(monkeypatch)
     printed = capsys.readouterr().out
     assert out_code == 1
-    assert "no evidence eligible to support a current conclusion" in printed
+    assert "the package holds no eligible evidence or indicator" in printed
     assert "verified_facts" in printed
 
 

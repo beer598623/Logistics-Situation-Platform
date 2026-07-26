@@ -28,15 +28,19 @@ from analysis.events import active_events  # noqa: E402
 from analysis.indicators import derive_series  # noqa: E402
 from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
+    DERIVED_VALUES_ONLY,
     HISTORICAL_VALIDATION,
     PUBLISH_BOUNDED_CLAIM,
     PUBLISH_DERIVED_VALUE,
+    PUBLISH_RAW_VALUE,
+    RAW_VALUES_PERMITTED,
     TECHNICAL_DEMO,
     is_fixture,
     qualified_records,
     qualifies_for_current_publication,
     record_origin,
 )
+from scripts.build_analysis import GLOBAL_OR_PROXY_SERIES  # noqa: E402
 
 PUBLIC = ROOT / "dashboard/public"
 DATA = PUBLIC / "data"
@@ -116,16 +120,34 @@ def _contract_bounds(registry: dict[str, Any], source_id: str | None) -> tuple[i
     return 52560, None
 
 
+#: Payload fields that describe a raw magnitude -- the current reading itself
+#: or a chartable point -- rather than a derived reading. A source qualified
+#: only for :data:`PUBLISH_DERIVED_VALUE` may not have any of these published
+#: (WO-010-R3 §5): its terms permit a percentage change, an indexed
+#: direction, a rolling value or a threshold result, never the raw series a
+#: chart would render from.
+_RAW_ONLY_SERIES_FIELDS = ("current_value", "previous_period_change", "deviation_from_baseline")
+
+
 def _current_series_payload(
     series_id: str,
     records: list[dict[str, Any]],
     registry: dict[str, Any],
+    *,
+    raw_record_ids: frozenset[str] = frozenset(),
 ) -> dict[str, Any] | None:
     """A current-publication series payload, or ``None`` when nothing qualifies.
 
     The demonstration panels and the current panels never share a derivation:
     each is built from its own set of records, so a fixture cannot contribute
     a period, a freshness label or a direction to a current reading.
+
+    ``raw_record_ids`` is the set of record IDs whose own source qualifies
+    for :data:`PUBLISH_RAW_VALUE` -- the narrower of the two publication-use
+    surfaces. When the record backing this series is not in that set, the
+    source's terms permit only a derived reading: ``current_value`` and the
+    raw chart ``points`` are suppressed rather than published, whatever the
+    derivation was able to compute them as.
     """
     if not records:
         return None
@@ -139,14 +161,24 @@ def _current_series_payload(
         now=DATA_CUTOFF,
         origin=record_origin(records[0]),
     )
-    return {
+    record_id = records[0]["provenance"]["record_id"]
+    raw_permitted = record_id in raw_record_ids
+    payload = {
         **derivation.to_dict(),
         "dataset": CURRENT_PUBLICATION,
         "source_id": source_id,
         "evidence_origin": record_origin(records[0]),
         "source_limitations": list(records[0]["provenance"]["known_limitations"]),
-        "points": _series_points(records),
+        "geographic_scope": (
+            "global_or_proxy" if series_id in GLOBAL_OR_PROXY_SERIES else "thailand"
+        ),
+        "points": _series_points(records) if raw_permitted else [],
+        "publication_use_applied": RAW_VALUES_PERMITTED if raw_permitted else DERIVED_VALUES_ONLY,
     }
+    if not raw_permitted:
+        for field_name in _RAW_ONLY_SERIES_FIELDS:
+            payload[field_name] = None
+    return payload
 
 
 def publishable_assessment_problems(record: dict[str, Any]) -> list[str]:
@@ -176,6 +208,102 @@ def publishable_assessment_problems(record: dict[str, Any]) -> list[str]:
     if fixture_origins:
         problems.append("rests on evidence of fixture origin " + ", ".join(sorted(fixture_origins)))
     return problems
+
+
+# ---------------------------------------------------------------------------
+# WO-010-R3 §7: current-view messages, computed from the actual payload
+# rather than written as a fixed statement that was only ever true while
+# every source was disabled.
+# ---------------------------------------------------------------------------
+
+
+def _live_coverage_statement(
+    evidence_coverage: str,
+    qualified_observation_count: int,
+    current_indicator_count: int,
+    qualified_event_count: int,
+) -> str:
+    if evidence_coverage == "insufficient":
+        return (
+            "Live coverage is INSUFFICIENT. No source in the registry is enabled and none "
+            "has completed a controlled live validation, so the platform holds no "
+            "live-retrieved or human-reviewed evidence at all. Every current reading below "
+            "is therefore 'insufficient evidence' -- which is a coverage gap, not a finding "
+            "that conditions are normal. Synthetic and historical-validation fixtures are "
+            "shown only in the separately labelled Technical demonstration panels and never "
+            "contribute to a current reading."
+        )
+    if evidence_coverage == "limited":
+        return (
+            f"Live coverage is PARTIAL. {qualified_observation_count} qualified observation(s), "
+            f"{current_indicator_count} current indicator(s) and {qualified_event_count} "
+            "qualified event(s) are in scope at this cutoff, but at least one required "
+            "capability still lacks sufficient source coverage. Every current reading not "
+            "backed by one of these remains 'insufficient evidence' -- a coverage gap, not a "
+            "finding that conditions are normal there. Synthetic and historical-validation "
+            "fixtures remain confined to the separately labelled Technical demonstration "
+            "panels and never contribute to a current reading."
+        )
+    return (
+        f"Live coverage is SUFFICIENT. {qualified_observation_count} qualified observation(s), "
+        f"{current_indicator_count} current indicator(s) and {qualified_event_count} qualified "
+        "event(s) are in scope at this cutoff, across every required capability. Synthetic and "
+        "historical-validation fixtures remain confined to the separately labelled Technical "
+        "demonstration panels and never contribute to a current reading."
+    )
+
+
+def _current_notice_statement(current_notice_evidence: list[dict[str, Any]]) -> str:
+    if not current_notice_evidence:
+        return (
+            "No qualified operational notice is recorded. No notice channel is monitored "
+            "live and no human-reviewed notice has been entered, so this is an absence of "
+            "records rather than evidence that no notice was published."
+        )
+    return (
+        f"{len(current_notice_evidence)} qualified operational notice(s) are recorded below, "
+        "each either retrieved live from its publisher or transcribed by a named human "
+        "reviewer. An active event not covered by one of these still has no qualified notice "
+        "behind it."
+    )
+
+
+def _trade_current_statement(current_trade_lanes: list[dict[str, Any]]) -> str:
+    if not current_trade_lanes:
+        return (
+            "No qualified Thailand trade observation exists, so no current trade reading is "
+            "published."
+        )
+    return (
+        f"{len(current_trade_lanes)} lane(s) below carry at least one qualified Thailand trade "
+        "flow reading. A lane not listed here still has no qualified trade observation."
+    )
+
+
+def _cost_current_statement(current_cost_series: list[dict[str, Any]]) -> str:
+    if not current_cost_series:
+        return (
+            "No qualified cost observation exists, so no current cost or freight pressure "
+            "reading is published."
+        )
+    return (
+        f"{len(current_cost_series)} qualified cost/FX series below carry a current reading. "
+        "A series not listed here still has no qualified observation."
+    )
+
+
+def _events_current_statement(current_active: list[dict[str, Any]]) -> str:
+    if not current_active:
+        return (
+            "No qualified event is recorded. Every event the platform holds is a historical "
+            "validation fixture with an assessment cutoff in the past; none is evidence of a "
+            "current condition, and none appears above."
+        )
+    return (
+        f"{len(current_active)} qualified, currently active event(s) are recorded above, each "
+        "re-confirmed as of its own active_as_of date. An event not listed here is either not "
+        "qualified for current publication or is no longer active."
+    )
 
 
 def build_payloads() -> dict[str, Any]:
@@ -225,6 +353,19 @@ def build_payloads() -> dict[str, Any]:
         family: qualified_records(records, registry=registry, publication_use=PUBLISH_DERIVED_VALUE)
         for family, records in observations.items()
     }
+    # WO-010-R3 §5: the narrower publish_raw_value surface. Only a record
+    # whose own ID appears here may have its raw current reading or raw
+    # chart points published; everything else in qualified_observations may
+    # still drive a derived reading.
+    raw_publishable_records = {
+        family: qualified_records(records, registry=registry, publication_use=PUBLISH_RAW_VALUE)
+        for family, records in observations.items()
+    }
+    raw_record_ids = frozenset(
+        record["provenance"]["record_id"]
+        for records in raw_publishable_records.values()
+        for record in records
+    )
     current_series = [
         payload
         for series_id in _CURRENT_SERIES
@@ -233,6 +374,7 @@ def build_payloads() -> dict[str, Any]:
                 series_id,
                 _records_for(qualified_observations, series_id=series_id),
                 registry,
+                raw_record_ids=raw_record_ids,
             )
         )
         is not None
@@ -248,14 +390,11 @@ def build_payloads() -> dict[str, Any]:
         "overall_direction": thailand["overall_direction"],
         "evidence_coverage": thailand["evidence_coverage"],
         "coverage_message": thailand["coverage_message"],
-        "live_coverage_statement": (
-            "Live coverage is INSUFFICIENT. No source in the registry is enabled and none "
-            "has completed a controlled live validation, so the platform holds no "
-            "live-retrieved or human-reviewed evidence at all. Every current reading below "
-            "is therefore 'insufficient evidence' -- which is a coverage gap, not a finding "
-            "that conditions are normal. Synthetic and historical-validation fixtures are "
-            "shown only in the separately labelled Technical demonstration panels and never "
-            "contribute to a current reading."
+        "live_coverage_statement": _live_coverage_statement(
+            thailand["evidence_coverage"],
+            thailand["qualified_observation_count"],
+            thailand["current_indicator_count"],
+            thailand["qualified_event_count"],
         ),
         # Every count is carried through from the analysis build, which computes
         # it from the filtered records. None of them is a literal.
@@ -290,6 +429,8 @@ def build_payloads() -> dict[str, Any]:
                 "series_id": item["series_id"],
                 "source_id": item["source_id"],
                 "evidence_origin": item["evidence_origin"],
+                "geographic_scope": item["geographic_scope"],
+                "publication_use_applied": item["publication_use_applied"],
                 "current_value": item["current_value"],
                 "current_period": item["current_period"],
                 "unit": item["unit"],
@@ -465,11 +606,7 @@ def build_payloads() -> dict[str, Any]:
             }
             for item in current_notice_evidence
         ],
-        "current_notice_statement": (
-            "No qualified operational notice is recorded. No notice channel is monitored "
-            "live and no human-reviewed notice has been entered, so this is an absence of "
-            "records rather than evidence that no notice was published."
-        ),
+        "current_notice_statement": _current_notice_statement(current_notice_evidence),
         "demo_operational_notices": [
             {
                 "dataset": HISTORICAL_VALIDATION,
@@ -597,6 +734,7 @@ def build_payloads() -> dict[str, Any]:
                 series_id,
                 _records_for(qualified_observations, series_id=series_id, lane_id=lane["lane_id"]),
                 registry,
+                raw_record_ids=raw_record_ids,
             )
             if payload is not None:
                 flows.append({**payload, "flow_direction": direction})
@@ -612,10 +750,7 @@ def build_payloads() -> dict[str, Any]:
             "for a production candidate. No Thailand trade statistic has been retrieved."
         ),
         "generated_at": DATA_CUTOFF_ISO,
-        "current_statement": (
-            "No qualified Thailand trade observation exists, so no current trade reading is "
-            "published."
-        ),
+        "current_statement": _trade_current_statement(current_trade_lanes),
         "current_lane_flows": current_trade_lanes,
         "lane_flows": trade_lanes,
         "revision_note": (
@@ -673,6 +808,18 @@ def build_payloads() -> dict[str, Any]:
         origin=record_origin(fx_records[0]),
     )
 
+    current_cost_series = [
+        item
+        for key, item in sorted(current_series_by_id.items())
+        if key
+        in {
+            "thailand_diesel_retail_price",
+            "brent_crude_price",
+            "container_freight_benchmark",
+            "usd_thb_reference_rate",
+        }
+    ]
+
     cost = {
         "dataset": TECHNICAL_DEMO,
         "demo_label": (
@@ -680,21 +827,8 @@ def build_payloads() -> dict[str, Any]:
             "for a production candidate. No fuel, FX or freight figure has been retrieved."
         ),
         "generated_at": DATA_CUTOFF_ISO,
-        "current_statement": (
-            "No qualified cost observation exists, so no current cost or freight pressure "
-            "reading is published."
-        ),
-        "current_cost_series": [
-            item
-            for key, item in sorted(current_series_by_id.items())
-            if key
-            in {
-                "thailand_diesel_retail_price",
-                "brent_crude_price",
-                "container_freight_benchmark",
-                "usd_thb_reference_rate",
-            }
-        ],
+        "current_statement": _cost_current_statement(current_cost_series),
+        "current_cost_series": current_cost_series,
         "cost_series": cost_series,
         "fx": {
             **fx.to_dict(),
@@ -792,11 +926,7 @@ def build_payloads() -> dict[str, Any]:
             for event in current_active
             if event["event_class"] == "external_driver"
         ],
-        "current_statement": (
-            "No qualified event is recorded. Every event the platform holds is a historical "
-            "validation fixture with an assessment cutoff in the past; none is evidence of a "
-            "current condition, and none appears above."
-        ),
+        "current_statement": _events_current_statement(current_active),
         "demo_label": (
             "Historical validation — each case is assessed at its own cutoff, shown on the "
             "card. These exercise the event model and describe no current condition."

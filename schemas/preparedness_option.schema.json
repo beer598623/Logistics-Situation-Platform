@@ -57,6 +57,10 @@
       "items": {
         "type": "string"
       }
+    },
+    "is_data_coverage_action": {
+      "type": "boolean",
+      "description": "Optional. True marks an option that concerns obtaining or validating evidence itself (e.g. 'monitor for a source completing live validation'), as distinct from an operational preparedness action. Not required, so existing preparedness-option producers are unaffected; a returned ChatGPT assessment's zero-evidence preparedness options must set this true."
     }
   }
 }

@@ -34,6 +34,7 @@ RETRIEVED_AT = "2026-07-20T06:00:00Z"
 TEST_TRADE_SOURCE = "TEST_TRADE_SOURCE"
 TEST_NOTICE_SOURCE = "TEST_MANUAL_NOTICE"
 TEST_LINK_ONLY_SOURCE = "TEST_LINK_ONLY"
+TEST_DERIVED_ONLY_SOURCE = "TEST_DERIVED_ONLY"
 
 TEST_REGISTRY: dict[str, Any] = {
     "version": "0.8",
@@ -50,6 +51,7 @@ TEST_REGISTRY: dict[str, Any] = {
             "machine_readable_status": "verified",
             "licence_status": "reviewed",
             "endpoint": "https://example.org/trade.csv",
+            "landing_url": "https://example.org/trade",
             "enabled": True,
             "required_for_publication": False,
             "max_stale_minutes": 105120,
@@ -81,6 +83,7 @@ TEST_REGISTRY: dict[str, Any] = {
             "machine_readable_status": "not_applicable",
             "licence_status": "reviewed",
             "endpoint": None,
+            "landing_url": "https://example.org/notices",
             "enabled": False,
             "required_for_publication": False,
             "max_stale_minutes": 20160,
@@ -114,6 +117,7 @@ TEST_REGISTRY: dict[str, Any] = {
             "machine_readable_status": "verified",
             "licence_status": "reviewed",
             "endpoint": "https://example.org/link.csv",
+            "landing_url": "https://example.org/link",
             "enabled": True,
             "required_for_publication": False,
             "max_stale_minutes": 105120,
@@ -125,6 +129,39 @@ TEST_REGISTRY: dict[str, Any] = {
                 "reuse_status": "permitted_with_attribution",
                 "redistribution_status": "link_only",
                 "publication_use": "metadata_link_only",
+                "publication_cadence": "monthly",
+                "observed_freshness": "2026-07-20",
+                "logistics_role": ["thailand_trade_flow"],
+                "prototype_eligibility": "eligible",
+                "rate_limit": "60 requests per hour",
+            },
+            "enablement": {"blockers": [], "schedule_justified": True},
+        },
+        {
+            # Enabled, and permitted to publish a derived reading -- but never
+            # the raw current value or the raw chart points it was computed
+            # from (WO-010-R3 §5).
+            "id": TEST_DERIVED_ONLY_SOURCE,
+            "name": "Test derived-only publisher",
+            "owner": "Test",
+            "source_class": "official",
+            "access_method": "download",
+            "format": "csv",
+            "machine_readable_status": "verified",
+            "licence_status": "reviewed",
+            "endpoint": "https://example.org/derived.csv",
+            "landing_url": "https://example.org/derived",
+            "enabled": True,
+            "required_for_publication": False,
+            "max_stale_minutes": 105120,
+            "expected_cadence_minutes": 44640,
+            "known_limitations": ["Derived values only."],
+            "qualification": {
+                "access_cost": "free",
+                "paywall_status": "none",
+                "reuse_status": "permitted_with_attribution",
+                "redistribution_status": "derived_only",
+                "publication_use": "derived_values_only",
                 "publication_cadence": "monthly",
                 "observed_freshness": "2026-07-20",
                 "logistics_role": ["thailand_trade_flow"],

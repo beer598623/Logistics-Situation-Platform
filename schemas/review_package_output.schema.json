@@ -10,6 +10,11 @@
     "methodology_version",
     "produced_at",
     "model_reference",
+    "input_package_sha256",
+    "input_dataset",
+    "input_package_purpose",
+    "input_data_cutoff_at",
+    "input_source_cutoff",
     "current_situation",
     "key_changes",
     "lane_assessments",
@@ -29,11 +34,38 @@
   "properties": {
     "package_id": {"type": "string", "pattern": "^PKG-[0-9]{8}-[0-9]{3,}$"},
     "methodology_version": {"const": "0.8"},
-    "produced_at": {"type": "string", "format": "date-time"},
+    "produced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this OUTPUT was produced. This is an output-generation timestamp, not a binding field -- it must never be read as, or confused with, input_data_cutoff_at or input_source_cutoff below, which describe the INPUT package instead."
+    },
     "model_reference": {
       "type": "string",
       "minLength": 1,
       "description": "Free-text record of which assistant produced the output, entered by the human reviewer. Provenance only -- the repository never calls an AI API."
+    },
+    "input_package_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Copied verbatim from the input package's own package_sha256. Binds this output to the exact package it was produced from; import is rejected if this does not match the package on disk."
+    },
+    "input_dataset": {
+      "enum": ["current_publication", "technical_demo", "historical_validation"],
+      "description": "Copied verbatim from the input package's own dataset. Must equal current_publication for this output to ever be approved into the current AI Outlook."
+    },
+    "input_package_purpose": {
+      "enum": ["current_intelligence_assessment", "engine_demonstration"],
+      "description": "Copied verbatim from the input package's own package_purpose. Must equal current_intelligence_assessment for this output to ever be approved into the current AI Outlook."
+    },
+    "input_data_cutoff_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Copied verbatim from the input package's own data_cutoff_at. A mismatch means this output was produced against a different vintage of the package and cannot be approved without an explicit supersession."
+    },
+    "input_source_cutoff": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Copied verbatim from the input package's own source_cutoff."
     },
     "current_situation": {"type": "string", "minLength": 1},
     "key_changes": {"type": "array", "items": {"type": "string"}},
@@ -42,12 +74,17 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["lane_id", "direction", "summary", "evidence_ids", "confidence", "data_gaps"],
+        "required": ["lane_id", "direction", "summary", "evidence_ids", "indicator_ids", "confidence", "data_gaps"],
         "properties": {
           "lane_id": {"type": "string", "pattern": "^LANE-[A-Z0-9-]+$"},
           "direction": {"enum": ["improving", "stable", "deteriorating", "mixed", "insufficient_evidence"]},
           "summary": {"type": "string", "minLength": 1},
           "evidence_ids": {"type": "array", "items": {"type": "string"}},
+          "indicator_ids": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "series_id values from the input package's key_indicators that support this lane's direction. A direction other than insufficient_evidence must cite at least one evidence_id or indicator_id."
+          },
           "confidence": {"enum": ["low", "medium", "high"]},
           "data_gaps": {"type": "array", "items": {"type": "string"}}
         }
@@ -74,7 +111,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["subject", "external_driver", "operational_change", "logistics_mechanism", "observable_indicator", "outcome", "evidence_ids"],
+        "required": ["subject", "external_driver", "operational_change", "logistics_mechanism", "observable_indicator", "outcome", "evidence_ids", "indicator_ids"],
         "properties": {
           "subject": {"type": "string", "minLength": 1},
           "external_driver": {"type": ["string", "null"]},
@@ -82,7 +119,12 @@
           "logistics_mechanism": {"type": ["string", "null"]},
           "observable_indicator": {"type": ["string", "null"]},
           "outcome": {"type": ["string", "null"]},
-          "evidence_ids": {"type": "array", "items": {"type": "string"}}
+          "evidence_ids": {"type": "array", "items": {"type": "string"}},
+          "indicator_ids": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "series_id values supporting whichever links above are populated. A chain with any populated link must cite at least one evidence_id or indicator_id."
+          }
         }
       }
     },
@@ -105,16 +147,21 @@
     "statement": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["statement", "evidence_ids"],
+      "required": ["statement", "evidence_ids", "indicator_ids"],
       "properties": {
         "statement": {"type": "string", "minLength": 1, "maxLength": 800},
-        "evidence_ids": {"type": "array", "items": {"type": "string"}}
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "series_id values from key_indicators supporting this statement, where an indicator supports it."
+        }
       }
     },
     "impactClaim": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["area", "status", "severity", "description", "transmission_mechanism", "evidence_ids", "evidence_strength", "confidence", "time_horizon", "known_limitations"],
+      "required": ["area", "status", "severity", "description", "transmission_mechanism", "evidence_ids", "indicator_ids", "evidence_strength", "confidence", "time_horizon", "known_limitations"],
       "properties": {
         "area": {
           "enum": ["warehouse", "logistics", "transport", "import_export", "inventory", "cost", "capacity", "service", "business_continuity"]
@@ -124,6 +171,11 @@
         "description": {"type": "string", "minLength": 1},
         "transmission_mechanism": {"type": "array", "items": {"type": "string"}},
         "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "series_id values supporting this impact claim. A numeric indicator alone can never establish an operational-condition impact (capacity, service, transport, logistics): those areas require at least one evidence_id."
+        },
         "evidence_strength": {"enum": ["A", "B", "C", "D"]},
         "confidence": {"enum": ["low", "medium", "high"]},
         "time_horizon": {"enum": ["0-7_days", "1-4_weeks", "1-3_months", "longer_term", "unknown"]},

@@ -143,6 +143,22 @@ def _bounded_lane(assessment: dict[str, Any]) -> dict[str, Any]:
         "domain_directions": {
             item["domain"]: item["direction"] for item in assessment["domain_assessments"]
         },
+        # Which indicator series actually drove each domain, so a returned
+        # lane_assessments entry can cite the exact indicator_ids the
+        # platform's own math used rather than any indicator merely present
+        # elsewhere in the package.
+        "domain_indicator_ids": {
+            item["domain"]: list(item.get("indicator_ids", []))
+            for item in assessment["domain_assessments"]
+            if item.get("indicator_ids")
+        },
+        "indicator_ids": sorted(
+            {
+                indicator_id
+                for item in assessment["domain_assessments"]
+                for indicator_id in item.get("indicator_ids", [])
+            }
+        ),
         "active_event_ids": assessment["active_event_ids"],
         "external_driver_event_ids": assessment["external_driver_event_ids"],
         "chokepoint_exposure": assessment.get("chokepoint_exposure", []),
@@ -156,6 +172,12 @@ def _bounded_indicator(indicator: dict[str, Any]) -> dict[str, Any]:
         "dataset": indicator.get("dataset"),
         "source_id": indicator.get("source_id"),
         "evidence_origin": indicator.get("evidence_origin"),
+        # Whether this series describes Thailand directly or a global/proxy
+        # benchmark. Set once, at the point the platform knows which source
+        # produced the record, so the validator never has to re-guess scope
+        # from a series name.
+        "geographic_scope": indicator.get("geographic_scope", "thailand"),
+        "publication_use_applied": indicator.get("publication_use_applied"),
         "current_value": indicator["current_value"],
         "current_period": indicator["current_period"],
         "unit": indicator["unit"],

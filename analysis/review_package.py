@@ -15,6 +15,15 @@ The rejection rules are deliberately mechanical. They cannot catch every bad
 assessment, and they are not meant to: they catch the specific failure modes
 the Work Order names, so that a reviewer's attention goes to the judgement
 calls instead of to the checklist.
+
+WO-010-R3 adds two things to that list. First, the output is now
+cryptographically bound to the exact input package it was produced from
+(:func:`binding_problems`): the returned assessment must echo the package's
+own hash, dataset, purpose and both cutoffs, and any mismatch is rejected
+before anything else is read. Second, a claim can now be supported either by
+evidence or by a qualified current indicator, and the two are validated
+against one combined eligible-support set (:func:`eligible_support_ids`)
+rather than evidence alone.
 """
 
 from __future__ import annotations
@@ -81,6 +90,40 @@ _QUANTITY = re.compile(r"\d")
 #: Evidence claim types that can support an operational-condition statement.
 _OPERATIONAL_CLAIM_TYPES = frozenset({"official_notice", "verified_fact"})
 
+#: Impact areas that describe a physical operating condition. A trend in a
+#: numeric indicator is context, not a sighting; establishing that congestion,
+#: a service disruption or another operational impact actually occurred
+#: requires at least one evidence_id, never indicator_ids alone.
+_OPERATIONAL_CONDITION_AREAS = frozenset({"capacity", "service", "transport", "logistics"})
+
+#: Severities that may never rest on evidence weaker than A/B grade. Mirrors
+#: the same rule the platform applies to its own events in
+#: ``analysis.events.validate_event``.
+_HUMAN_REVIEW_SEVERITIES = frozenset({"high", "critical"})
+_PRIMARY_GRADE_EVIDENCE = frozenset({"A", "B"})
+
+#: Coverage-gap phrasing expected in ``current_situation`` whenever the
+#: package holds no eligible support at all. One signal among several -- the
+#: structural checks below (every lane insufficient, every claim group empty)
+#: do the actual enforcing; this only catches prose that contradicts them.
+_COVERAGE_GAP_PHRASES = (
+    "insufficient",
+    "no qualified",
+    "no current",
+    "coverage gap",
+    "no eligible",
+)
+
+#: The links of a transmission chain. A chain with any of these populated is
+#: making a claim and must cite the support behind it.
+_CHAIN_LINKS = (
+    "external_driver",
+    "operational_change",
+    "logistics_mechanism",
+    "observable_indicator",
+    "outcome",
+)
+
 #: What a package is for. A package built to demonstrate the engine can never
 #: be approved into the current Dashboard, and the purpose is what says so.
 CURRENT_INTELLIGENCE = "current_intelligence_assessment"
@@ -96,6 +139,18 @@ PURPOSE_BY_DATASET = {
     "technical_demo": ENGINE_DEMONSTRATION,
     "historical_validation": ENGINE_DEMONSTRATION,
 }
+
+#: The output fields that bind an assessment to its exact input package, and
+#: the package field each must equal. Checked as a fixed list, not field by
+#: field ad hoc, so a sixth binding field added later cannot be forgotten in
+#: one of the two places that used to check these by hand.
+BINDING_FIELDS: tuple[tuple[str, str], ...] = (
+    ("input_package_sha256", "package_sha256"),
+    ("input_dataset", "dataset"),
+    ("input_package_purpose", "package_purpose"),
+    ("input_data_cutoff_at", "data_cutoff_at"),
+    ("input_source_cutoff", "source_cutoff"),
+)
 
 #: The sections every returned assessment must contain, echoed into the
 #: package so the human's prompt and the validator cannot drift apart.
@@ -118,6 +173,8 @@ REQUIRED_OUTPUT_SECTIONS = (
 
 PROHIBITED_OUTPUTS = (
     "Do not reference any evidence ID that is not present in this package.",
+    "Do not reference any indicator series_id that is not present in this package's "
+    "key_indicators.",
     "Do not state a material impact without a complete transmission mechanism.",
     "Do not treat a missing, suppressed or unpublished value as zero.",
     "Do not present a market benchmark or route proxy as a Thailand shipment quotation.",
@@ -125,6 +182,27 @@ PROHIBITED_OUTPUTS = (
     "Do not assert causation from timing overlap or correlation alone.",
     "Do not issue mandatory instructions to any specific organization.",
     "Do not present a numeric point forecast for freight, transit time, inventory or cost.",
+    "Do not use a numeric indicator alone to establish congestion, a service disruption or "
+    "any other operational-condition impact (areas: capacity, service, transport, "
+    "logistics) -- those require at least one evidence_id.",
+    "Do not present a global or route-proxy indicator as a Thailand-specific verified fact "
+    "or observed impact.",
+    "Do not claim high or critical severity on evidence weaker than A/B grade.",
+)
+
+#: Copied into every package so the human operator and ChatGPT both see, in
+#: one place, exactly which five values the output must echo back verbatim.
+#: The WO-010-R3 correction: previously the output carried no binding field at
+#: all, so an assessment produced from a stale or substituted package was
+#: indistinguishable from one produced from the package actually being
+#: approved.
+REQUIRED_OUTPUT_BINDING_INSTRUCTIONS = (
+    "Copy these five values into the corresponding output fields exactly as given, with no "
+    "reformatting: input_package_sha256, input_dataset, input_package_purpose, "
+    "input_data_cutoff_at, input_source_cutoff. These identify which package this output was "
+    "produced from and are checked before anything else in the output is read. "
+    "produced_at is a separate field you fill in yourself with when you wrote the output -- "
+    "it is not one of these five and must not be used in place of any of them."
 )
 
 EXCLUSIONS_APPLIED = (
@@ -139,13 +217,14 @@ EXCLUSIONS_APPLIED = (
 )
 
 
-def _text_fields(output: Mapping[str, Any]) -> list[tuple[str, str, list[str]]]:
-    """Collect every free-text assertion with its location and evidence IDs."""
-    collected: list[tuple[str, str, list[str]]] = [
-        ("current_situation", str(output.get("current_situation", "")), [])
+def _text_fields(output: Mapping[str, Any]) -> list[tuple[str, str, list[str], list[str]]]:
+    """Collect every free-text assertion with its location, evidence IDs and
+    indicator IDs."""
+    collected: list[tuple[str, str, list[str], list[str]]] = [
+        ("current_situation", str(output.get("current_situation", "")), [], [])
     ]
     for index, change in enumerate(output.get("key_changes", [])):
-        collected.append((f"key_changes[{index}]", str(change), []))
+        collected.append((f"key_changes[{index}]", str(change), [], []))
     for group in ("verified_facts", "reported_claims", "analytical_inference"):
         for index, item in enumerate(output.get(group, [])):
             collected.append(
@@ -153,6 +232,7 @@ def _text_fields(output: Mapping[str, Any]) -> list[tuple[str, str, list[str]]]:
                     f"{group}[{index}]",
                     str(item.get("statement", "")),
                     list(item.get("evidence_ids", [])),
+                    list(item.get("indicator_ids", [])),
                 )
             )
     for group in ("observed_impacts", "potential_impacts"):
@@ -162,6 +242,7 @@ def _text_fields(output: Mapping[str, Any]) -> list[tuple[str, str, list[str]]]:
                     f"{group}[{index}]",
                     str(item.get("description", "")),
                     list(item.get("evidence_ids", [])),
+                    list(item.get("indicator_ids", [])),
                 )
             )
     for index, assessment in enumerate(output.get("lane_assessments", [])):
@@ -170,6 +251,7 @@ def _text_fields(output: Mapping[str, Any]) -> list[tuple[str, str, list[str]]]:
                 f"lane_assessments[{index}]",
                 str(assessment.get("summary", "")),
                 list(assessment.get("evidence_ids", [])),
+                list(assessment.get("indicator_ids", [])),
             )
         )
     return collected
@@ -201,7 +283,9 @@ def build_input_package(
     The package records which surface it was built from, what it is for, and
     how many fixture records the filter dropped. Those three facts are what
     let the approval gate refuse a demonstration package without having to
-    re-derive where its contents came from.
+    re-derive where its contents came from. ``required_output_binding``
+    restates the same five values the output must echo, so the instruction
+    and the ground truth cannot drift apart.
     """
     operational = [event for event in events if event["event_class"] == "direct_operational_event"]
     drivers = [event for event in events if event["event_class"] != "direct_operational_event"]
@@ -212,6 +296,7 @@ def build_input_package(
         for conflict in event.get("conflicting_evidence", [])
     ]
 
+    resolved_source_cutoff = source_cutoff or data_cutoff_at
     package = {
         "package_id": package_id,
         "methodology_version": "0.8",
@@ -219,7 +304,7 @@ def build_input_package(
         "package_purpose": PURPOSE_BY_DATASET.get(dataset, ENGINE_DEMONSTRATION),
         "generated_at": generated_at,
         "data_cutoff_at": data_cutoff_at,
-        "source_cutoff": source_cutoff or data_cutoff_at,
+        "source_cutoff": resolved_source_cutoff,
         "source_health_summary": {
             "overall_status": source_health.get("overall_status", "insufficient"),
             "coverage_message": source_health.get("coverage_message", ""),
@@ -243,6 +328,18 @@ def build_input_package(
             "required_sections": list(REQUIRED_OUTPUT_SECTIONS),
             "prohibited_outputs": list(PROHIBITED_OUTPUTS),
             "output_schema_path": "schemas/review_package_output.schema.json",
+            "required_output_binding_instructions": REQUIRED_OUTPUT_BINDING_INSTRUCTIONS,
+        },
+        # Restated as literal values (not just instructions) so whoever pastes
+        # this package can copy them directly rather than hunting for the
+        # fields above -- and so a script diffing the two packages has a
+        # single well-known location to read.
+        "required_output_binding": {
+            "input_package_sha256": None,
+            "input_dataset": dataset,
+            "input_package_purpose": PURPOSE_BY_DATASET.get(dataset, ENGINE_DEMONSTRATION),
+            "input_data_cutoff_at": data_cutoff_at,
+            "input_source_cutoff": resolved_source_cutoff,
         },
         "exclusions_applied": list(EXCLUSIONS_APPLIED),
         "package_sha256": None,
@@ -250,7 +347,28 @@ def build_input_package(
     package["package_sha256"] = hashlib.sha256(
         json.dumps(package, sort_keys=True).encode("utf-8")
     ).hexdigest()
+    package["required_output_binding"]["input_package_sha256"] = package["package_sha256"]
     return package
+
+
+def package_hash(package: Mapping[str, Any]) -> str:
+    """Recompute a package's own hash the way :func:`build_input_package` did.
+
+    The stored ``package_sha256`` is over the package with that field (and
+    the nested ``required_output_binding.input_package_sha256`` echo of it)
+    null, so re-deriving it here detects a package edited after it was
+    generated -- an approval bound to a package that no longer exists on disk
+    is not an approval of anything.
+    """
+    restated = {
+        **package,
+        "package_sha256": None,
+        "required_output_binding": {
+            **(package.get("required_output_binding") or {}),
+            "input_package_sha256": None,
+        },
+    }
+    return hashlib.sha256(json.dumps(restated, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def unavailable_series_ids(package: Mapping[str, Any]) -> set[str]:
@@ -306,10 +424,24 @@ def package_provenance_problems(
     Validators used to inspect only whether an evidence ID existed. An ID that
     exists is not an ID that may be cited as current fact, and that gap is how
     a demonstration package could be walked through the approval gate.
+
+    Also checks the package's own integrity: a package edited on disk after
+    its ``package_sha256`` was computed no longer matches that hash, and an
+    approval bound to it would be bound to nothing. Checking this here, not
+    only at approval time, means a plain review also catches a tampered
+    package rather than waiting until someone tries to approve it.
     """
     problems: list[str] = []
     dataset = package.get("dataset")
     purpose = package.get("package_purpose")
+
+    recomputed = package_hash(package)
+    if package.get("package_sha256") != recomputed:
+        problems.append(
+            "the input package has changed since it was generated: its recorded "
+            f"package_sha256 {package.get('package_sha256')!r} does not match the hash of "
+            f"its current contents {recomputed!r}"
+        )
 
     if dataset not in PURPOSE_BY_DATASET:
         problems.append(f"package dataset {dataset!r} is not a recognised publication surface")
@@ -374,6 +506,361 @@ def package_provenance_problems(
     return problems
 
 
+def citable_evidence_ids(
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> set[str]:
+    """Evidence IDs present in the package that may actually be cited.
+
+    In a current package, "present" and "citable" are different sets. An
+    assessment may only cite evidence that could itself carry a current
+    claim; anything else is excluded from the citable set even if it somehow
+    reached the ``evidence_records`` list.
+    """
+    is_current = package.get("dataset") == CURRENT_PUBLICATION
+    return {
+        str(item.get("evidence_id"))
+        for item in package.get("evidence_records", [])
+        if not is_current
+        or qualifies_for_current_publication(
+            item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
+        )
+    }
+
+
+def eligible_indicator_ids(
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> set[str]:
+    """Indicator ``series_id`` values present in the package that may be cited.
+
+    A current package's ``key_indicators`` are already the output of
+    ``build_current_indicators`` -- qualified, current-publication records
+    only -- so this is primarily a defensive re-check: an indicator that is a
+    fixture, or that claims a non-current dataset despite sitting in a
+    current package, is excluded rather than trusted on sight.
+    """
+    is_current = package.get("dataset") == CURRENT_PUBLICATION
+    eligible: set[str] = set()
+    for indicator in package.get("key_indicators", []):
+        series_id = indicator.get("series_id") or indicator.get("indicator_id")
+        if not series_id:
+            continue
+        if is_current:
+            if is_fixture(indicator.get("evidence_origin")):
+                continue
+            if indicator.get("dataset") not in {None, CURRENT_PUBLICATION}:
+                continue
+        eligible.add(str(series_id))
+    return eligible
+
+
+def eligible_support_ids(
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> set[str]:
+    """The combined set an assessment may draw on: citable evidence plus
+    eligible indicators.
+
+    A current assessment may be supported by either kind of record. This is
+    the one set every support-adequacy check below is validated against, so
+    "may this claim cite that ID" always has one answer rather than two that
+    could disagree.
+    """
+    return citable_evidence_ids(package, registry=registry) | eligible_indicator_ids(
+        package, registry=registry
+    )
+
+
+def _global_or_proxy_indicator_ids(package: Mapping[str, Any]) -> set[str]:
+    """Indicators the package itself marks as global or route-proxy scoped.
+
+    Read from the indicator's own ``geographic_scope`` field
+    (``analysis``/``scripts.build_analysis.build_current_indicators`` and
+    ``scripts.build_dashboard`` both set it), never inferred from the series
+    name here -- the platform records the scope once, at the point it knows
+    which source produced the record, and every reader of the package trusts
+    that recorded value rather than re-guessing it.
+    """
+    return {
+        str(indicator.get("series_id"))
+        for indicator in package.get("key_indicators", [])
+        if indicator.get("geographic_scope") == "global_or_proxy"
+    }
+
+
+def binding_problems(
+    output: Mapping[str, Any],
+    package: Mapping[str, Any],
+) -> list[str]:
+    """Whether the output is bound to exactly this package.
+
+    Every one of :data:`BINDING_FIELDS` must be present on the output and
+    equal to the package's own value. This is checked unconditionally, field
+    by field, rather than only when a field happens to be present: a missing
+    binding field is exactly as disqualifying as a mismatched one, and an
+    output produced against a different package must never be readable as
+    current simply because most of its fields happen to still line up.
+    """
+    problems: list[str] = []
+    for output_field, package_field in BINDING_FIELDS:
+        output_value = output.get(output_field)
+        package_value = package.get(package_field)
+        if not output_value:
+            problems.append(f"output is missing required binding field {output_field!r}")
+            continue
+        if output_value != package_value:
+            problems.append(
+                f"output's {output_field} ({output_value!r}) does not match the input "
+                f"package's {package_field} ({package_value!r})"
+            )
+    return problems
+
+
+def zero_evidence_disposition_problems(
+    output: Mapping[str, Any],
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Enforce the coverage-only shape whenever the package has nothing to
+    cite from.
+
+    When neither eligible evidence nor an eligible indicator exists, the
+    output must be structurally incapable of stating a direction: every claim
+    group is empty, every lane reads ``insufficient_evidence`` with no
+    support references, no scenario differentiates its three cases, and any
+    preparedness option is a labelled data-coverage action rather than an
+    operational one. These are structural checks against the output's own
+    fields, not a scan for forbidden words -- a single, narrow prose check on
+    ``current_situation`` is the only place free text is read, and it is one
+    signal among the rest, never the only one.
+    """
+    if package.get("dataset") != CURRENT_PUBLICATION:
+        return []
+    if eligible_support_ids(package, registry=registry):
+        return []
+
+    problems: list[str] = []
+
+    if output.get("highest_severity_claimed") not in {None, "none"}:
+        problems.append(
+            "the package holds no eligible evidence or indicator, but "
+            f"highest_severity_claimed is {output.get('highest_severity_claimed')!r}, not "
+            "'none'"
+        )
+
+    situation = str(output.get("current_situation", "")).lower()
+    if not any(phrase in situation for phrase in _COVERAGE_GAP_PHRASES):
+        problems.append(
+            "the package holds no eligible evidence or indicator, but current_situation "
+            "does not state an insufficient-coverage position"
+        )
+
+    for index, lane in enumerate(output.get("lane_assessments", [])):
+        if lane.get("direction") != "insufficient_evidence":
+            problems.append(
+                f"lane_assessments[{index}] ({lane.get('lane_id')}): direction "
+                f"{lane.get('direction')!r} is asserted with zero eligible evidence or "
+                "indicators in the package"
+            )
+        if lane.get("evidence_ids") or lane.get("indicator_ids"):
+            problems.append(
+                f"lane_assessments[{index}] ({lane.get('lane_id')}): cites support "
+                "references despite the package holding none eligible"
+            )
+
+    for group in (
+        "verified_facts",
+        "reported_claims",
+        "analytical_inference",
+        "conflicting_evidence",
+        "transmission_chains",
+        "observed_impacts",
+        "potential_impacts",
+    ):
+        if output.get(group):
+            problems.append(
+                f"{group} is non-empty, but the package holds no eligible evidence or "
+                "indicator to support any entry in it"
+            )
+
+    case_names = ("base_case", "deterioration_case", "improvement_case")
+    for index, outlook in enumerate(output.get("scenarios", [])):
+        cases = [outlook.get(name) for name in case_names]
+        if any(case is None for case in cases):
+            continue
+        narratives = {case.get("narrative") for case in cases}
+        if len(narratives) != 1:
+            problems.append(
+                f"scenarios[{index}] ({outlook.get('outlook_id')}): base, deterioration and "
+                "improvement cases differ, which asserts a direction the package holds no "
+                "evidence or indicator for"
+            )
+        for name, case in zip(case_names, cases, strict=True):
+            if case.get("evidence_ids") or case.get("indicator_ids"):
+                problems.append(
+                    f"scenarios[{index}]/{name}: cites support references despite the "
+                    "package holding none eligible"
+                )
+
+    for index, option in enumerate(output.get("conditional_preparedness_options", [])):
+        if option.get("option_type") != "monitor" or not option.get("is_data_coverage_action"):
+            problems.append(
+                f"conditional_preparedness_options[{index}]: with zero eligible evidence or "
+                "indicators, only a 'monitor' option explicitly marked "
+                "is_data_coverage_action is permitted"
+            )
+
+    return problems
+
+
+def support_adequacy_problems(
+    output: Mapping[str, Any],
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Checks that apply whenever the package *does* hold eligible support.
+
+    Complementary to :func:`zero_evidence_disposition_problems`: these do not
+    require zero coverage to fire, and instead check that whatever support
+    exists is used honestly -- a direction needs some citation, an
+    operational-condition impact needs evidence rather than an indicator
+    trend, a global or proxy indicator cannot be laundered into a
+    Thailand-specific verified fact, severity cannot outrun evidence
+    strength, and a populated transmission-chain link needs support behind
+    it.
+    """
+    problems: list[str] = []
+    global_or_proxy = _global_or_proxy_indicator_ids(package)
+    discovery_only_ids = {
+        str(item.get("evidence_id"))
+        for item in package.get("evidence_records", [])
+        if item.get("evidence_role") == "discovery_only"
+    }
+
+    for index, lane in enumerate(output.get("lane_assessments", [])):
+        direction = lane.get("direction")
+        if direction != "insufficient_evidence" and not (
+            lane.get("evidence_ids") or lane.get("indicator_ids")
+        ):
+            problems.append(
+                f"lane_assessments[{index}] ({lane.get('lane_id')}): direction {direction!r} "
+                "cites no evidence_id or indicator_id to support it"
+            )
+        cited_discovery = set(lane.get("evidence_ids", [])) & discovery_only_ids
+        if direction != "insufficient_evidence" and cited_discovery:
+            problems.append(
+                f"lane_assessments[{index}] ({lane.get('lane_id')}): direction {direction!r} "
+                f"rests on discovery-only evidence {sorted(cited_discovery)}, which cannot "
+                "support a material current conclusion"
+            )
+
+    for group in ("verified_facts", "observed_impacts"):
+        for index, item in enumerate(output.get(group, [])):
+            cited_discovery = set(item.get("evidence_ids", [])) & discovery_only_ids
+            if cited_discovery:
+                problems.append(
+                    f"{group}[{index}]: rests on discovery-only evidence "
+                    f"{sorted(cited_discovery)}, which cannot support a material current "
+                    "conclusion"
+                )
+
+    for group in ("verified_facts", "observed_impacts"):
+        for index, item in enumerate(output.get(group, [])):
+            cited_proxy = set(item.get("indicator_ids", [])) & global_or_proxy
+            if cited_proxy:
+                problems.append(
+                    f"{group}[{index}]: cites global or route-proxy indicator(s) "
+                    f"{sorted(cited_proxy)} as a Thailand-specific {group.rstrip('s')}; a "
+                    "proxy indicator can support reported_claims/analytical_inference/"
+                    "potential_impacts but not a verified or observed fact"
+                )
+
+    for group in ("observed_impacts", "potential_impacts"):
+        for index, impact in enumerate(output.get(group, [])):
+            area = impact.get("area")
+            status = impact.get("status")
+            severity = impact.get("severity", "none")
+            if (
+                area in _OPERATIONAL_CONDITION_AREAS
+                and status in {"observed", "potential"}
+                and severity != "none"
+                and not impact.get("evidence_ids")
+            ):
+                problems.append(
+                    f"{group}[{index}] ({area}): an operational-condition impact is "
+                    "supported only by indicator_ids; a numeric indicator alone cannot "
+                    "establish congestion, a service disruption or another operational "
+                    "impact"
+                )
+            if (
+                severity in _HUMAN_REVIEW_SEVERITIES
+                and impact.get("evidence_strength") not in _PRIMARY_GRADE_EVIDENCE
+            ):
+                problems.append(
+                    f"{group}[{index}] ({area}): {severity} severity requires primary-grade "
+                    f"evidence (A or B), not {impact.get('evidence_strength')!r}"
+                )
+
+    for index, chain in enumerate(output.get("transmission_chains", [])):
+        if any(chain.get(link) for link in _CHAIN_LINKS):
+            if not (chain.get("evidence_ids") or chain.get("indicator_ids")):
+                problems.append(
+                    f"transmission_chains[{index}] ({chain.get('subject')}): populated "
+                    "links cite no evidence_id or indicator_id to support them"
+                )
+
+    return problems
+
+
+def support_reference_problems(
+    output: Mapping[str, Any],
+    package: Mapping[str, Any],
+    *,
+    registry: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Unknown or ineligible ``indicator_ids`` references, mirroring the
+    existing evidence-reference checks."""
+    problems: list[str] = []
+    known_indicators = {
+        str(item.get("series_id") or item.get("indicator_id"))
+        for item in package.get("key_indicators", [])
+    }
+    eligible_indicators = eligible_indicator_ids(package, registry=registry)
+
+    for location, _text, _evidence_ids, indicator_ids in _text_fields(output):
+        unknown = set(indicator_ids) - known_indicators
+        if unknown:
+            problems.append(f"{location}: references unknown indicator IDs {sorted(unknown)}")
+        ineligible = (set(indicator_ids) & known_indicators) - eligible_indicators
+        if ineligible:
+            problems.append(
+                f"{location}: cites indicator(s) {sorted(ineligible)} that cannot support a "
+                "current claim"
+            )
+
+    for index, chain in enumerate(output.get("transmission_chains", [])):
+        indicator_ids = list(chain.get("indicator_ids", []))
+        unknown = set(indicator_ids) - known_indicators
+        if unknown:
+            problems.append(
+                f"transmission_chains[{index}]: references unknown indicator IDs {sorted(unknown)}"
+            )
+        ineligible = (set(indicator_ids) & known_indicators) - eligible_indicators
+        if ineligible:
+            problems.append(
+                f"transmission_chains[{index}]: cites indicator(s) {sorted(ineligible)} that "
+                "cannot support a current claim"
+            )
+
+    return problems
+
+
 def validate_output(
     output: Mapping[str, Any],
     package: Mapping[str, Any],
@@ -385,9 +872,14 @@ def validate_output(
     Returns a list of reasons the assessment must be rejected. An empty list
     means the mechanical checks passed -- it does not mean the assessment is
     approved. Approval is a separate, explicitly recorded human act.
+
+    Binding is checked first and unconditionally: if the output is not
+    provably about this exact package, nothing else about it is worth
+    validating yet.
     """
     problems: list[str] = []
     problems.extend(package_provenance_problems(package, registry=registry))
+    problems.extend(binding_problems(output, package))
 
     if output.get("package_id") != package.get("package_id"):
         problems.append(
@@ -396,19 +888,9 @@ def validate_output(
         )
 
     known_evidence = {str(item.get("evidence_id")) for item in package.get("evidence_records", [])}
-    is_current = package.get("dataset") == CURRENT_PUBLICATION
-    # In a current package, "present" and "citable" are different sets. An
-    # assessment may only cite evidence that could itself carry a current
-    # claim; anything else is excluded from the package's citable set even if
-    # it somehow reached the records list.
-    citable_evidence = {
-        str(item.get("evidence_id"))
-        for item in package.get("evidence_records", [])
-        if not is_current
-        or qualifies_for_current_publication(
-            item, registry=registry, publication_use=PUBLISH_BOUNDED_CLAIM
-        )
-    }
+    citable_evidence = citable_evidence_ids(package, registry=registry)
+    support = eligible_support_ids(package, registry=registry)
+
     referenced = set(output.get("evidence_references", []))
     unknown = referenced - known_evidence
     if unknown:
@@ -420,7 +902,7 @@ def validate_output(
             "citable set; fixture and historical evidence cannot support a current claim"
         )
 
-    for location, _text, evidence_ids in _text_fields(output):
+    for location, _text, evidence_ids, _indicator_ids in _text_fields(output):
         unknown_local = set(evidence_ids) - known_evidence
         if unknown_local:
             problems.append(f"{location}: references unknown evidence IDs {sorted(unknown_local)}")
@@ -437,10 +919,15 @@ def validate_output(
                 "current claim"
             )
 
+    problems.extend(support_reference_problems(output, package, registry=registry))
+    problems.extend(zero_evidence_disposition_problems(output, package, registry=registry))
+    if support:
+        problems.extend(support_adequacy_problems(output, package, registry=registry))
+
     missing_series = unavailable_series_ids(package)
     operational_evidence = has_operational_condition_evidence(package, registry=registry)
 
-    for location, text, evidence_ids in _text_fields(output):
+    for location, text, evidence_ids, _indicator_ids in _text_fields(output):
         lowered = text.lower()
 
         for series_id in missing_series:

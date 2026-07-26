@@ -42,8 +42,11 @@ from analysis.events import (  # noqa: E402
 from analysis.indicators import SeriesDerivation, derive_series  # noqa: E402
 from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
+    DERIVED_VALUES_ONLY,
     PUBLISH_BOUNDED_CLAIM,
     PUBLISH_DERIVED_VALUE,
+    PUBLISH_RAW_VALUE,
+    RAW_VALUES_PERMITTED,
     TECHNICAL_DEMO,
     effective_source_id,
     qualified_records,
@@ -54,6 +57,10 @@ from analysis.provenance import (  # noqa: E402
 from analysis.reference import load_dimensions, load_lanes  # noqa: E402
 from analysis.scenarios import build_lane_outlook, build_preparedness_options  # noqa: E402
 from analysis.thresholds import combine_directions  # noqa: E402
+from collectors.collection_runs import (  # noqa: E402
+    load_collection_runs,
+    load_manual_review_events,
+)
 from collectors.registry import load_registry  # noqa: E402
 from collectors.source_health import evaluate_registry_health  # noqa: E402
 
@@ -502,11 +509,46 @@ def build_current_lane_assessments(
     return assessments
 
 
+#: Series whose value describes a global or route-level benchmark rather than
+#: Thailand-specific activity, read here as a fixed mapping rather than
+#: inferred from a source's ``logistics_role`` at validation time -- a single
+#: source can carry both kinds of series (UNCTAD_MARITIME publishes the
+#: Thailand LSCI and also contributes to a global baseline), so the source
+#: alone cannot answer what one specific series is scoped to. Producer-set
+#: once, here, and carried through the package rather than re-guessed by
+#: whoever reads it (WO-010-R3 §4).
+GLOBAL_OR_PROXY_SERIES = frozenset(
+    {
+        "gscpi_index",
+        "brent_crude_price",
+        "container_freight_benchmark",
+    }
+)
+
+#: Indicator-payload fields that describe a raw magnitude rather than a
+#: derived reading. A source qualified only for :data:`PUBLISH_DERIVED_VALUE`
+#: may not have any of these published -- its terms permit a percentage
+#: change, a rolling value or a threshold result, never the raw current
+#: reading (WO-010-R3 §5).
+_RAW_ONLY_INDICATOR_FIELDS = ("current_value", "previous_period_change", "deviation_from_baseline")
+
+
 def build_current_indicators(
     qualified_observations: Mapping[str, Sequence[Mapping[str, Any]]],
     registry: Mapping[str, Any],
+    *,
+    raw_publishable_records: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Indicator payloads for the current view, from qualified records only."""
+    """Indicator payloads for the current view, from qualified records only.
+
+    ``qualified_observations`` is the broader, derived-publishable set -- a
+    record whose source permits at least a derived value. Whether this
+    payload may also carry ``current_value`` and the other raw-magnitude
+    fields is a narrower question, answered by whether the record's own ID
+    also appears in ``raw_publishable_records``: the source-qualified
+    ``publish_raw_value`` set. A derived-only source drives a direction; it
+    never leaks the raw reading that direction was computed from.
+    """
     payloads: list[dict[str, Any]] = []
     series_ids = sorted(
         {
@@ -516,6 +558,11 @@ def build_current_indicators(
         }
         - {None}
     )
+    raw_record_ids = {
+        record["provenance"]["record_id"]
+        for records in (raw_publishable_records or {}).values()
+        for record in records
+    }
     for series_id in series_ids:
         records = qualified_series_records(qualified_observations, str(series_id))
         if not records:
@@ -527,6 +574,15 @@ def build_current_indicators(
         payload["intended_source_id"] = None
         payload["evidence_origin"] = record_origin(records[0])
         payload["source_limitations"] = list(records[0]["provenance"]["known_limitations"])
+        payload["geographic_scope"] = (
+            "global_or_proxy" if str(series_id) in GLOBAL_OR_PROXY_SERIES else "thailand"
+        )
+        if records[0]["provenance"]["record_id"] in raw_record_ids:
+            payload["publication_use_applied"] = RAW_VALUES_PERMITTED
+        else:
+            payload["publication_use_applied"] = DERIVED_VALUES_ONLY
+            for field_name in _RAW_ONLY_INDICATOR_FIELDS:
+                payload[field_name] = None
         payloads.append(payload)
     return payloads
 
@@ -560,6 +616,66 @@ def current_capability_coverage(
         }
         for capability, count in sorted(families.items())
     ]
+
+
+def _current_major_data_gaps(
+    *,
+    source_status: Mapping[str, Any],
+    capability_coverage: Sequence[Mapping[str, Any]],
+    current_lane_coverage: Mapping[str, Any],
+    registry: Mapping[str, Any],
+    qualified_events: Sequence[Mapping[str, Any]],
+) -> list[str]:
+    """The current view's own data gaps, computed from what is actually
+    missing at this cutoff (WO-010-R3 §7).
+
+    Each entry names one concrete, checkable absence -- an insufficient
+    capability, Source Health's own overall status, an unqualified
+    required-for-publication source, a lane with no qualified domain, or the
+    absence of any qualified operational event. The list shrinks the moment
+    real coverage exists rather than restating a fixed description of the
+    day every source happened to be disabled.
+    """
+    gaps: list[str] = []
+
+    overall_status = source_status.get("overall_status")
+    if overall_status not in {"sufficient", "fresh"}:
+        gaps.append(
+            f"Source Health reports overall current-publication coverage "
+            f"{overall_status!r}: {source_status.get('coverage_message', '')}"
+        )
+
+    for capability in capability_coverage:
+        if capability["status"] != "sufficient":
+            gaps.append(f"{capability['capability'].replace('_', ' ')}: {capability['gap_reason']}")
+
+    required_not_enabled = sorted(
+        source["id"]
+        for source in registry.get("sources", [])
+        if source.get("required_for_publication") and not source.get("enabled")
+    )
+    if required_not_enabled:
+        gaps.append(
+            "Required-for-publication source(s) not yet enabled: "
+            + ", ".join(required_not_enabled)
+            + "."
+        )
+
+    total_lanes = current_lane_coverage.get("lanes_total", 0)
+    covered_lanes = current_lane_coverage.get("lanes_with_any_qualified_domain", 0)
+    if covered_lanes < total_lanes:
+        gaps.append(
+            f"{total_lanes - covered_lanes} of {total_lanes} Ocean lane(s) have no qualified "
+            "domain at all; every domain in that lane reads insufficient_evidence."
+        )
+
+    if not qualified_events:
+        gaps.append(
+            "No qualified operational event exists, so no congestion, waiting-time or "
+            "berth-delay statement can be made anywhere in the platform."
+        )
+
+    return gaps
 
 
 def build_current_thailand_assessment(
@@ -607,6 +723,14 @@ def build_current_thailand_assessment(
     leads = [
         event["event_id"] for event in qualified_events if event["event_class"] == "discovery_lead"
     ]
+    capability_coverage = current_capability_coverage(qualified_observations, qualified_events)
+    current_lane_coverage = {
+        "lanes_total": len(lane_assessments),
+        "lanes_with_any_qualified_domain": len(lanes_with_evidence),
+        "lane_ids_with_any_qualified_domain": sorted(
+            assessment["lane_id"] for assessment in lanes_with_evidence
+        ),
+    }
 
     return {
         "assessment_id": f"THA-CUR-OCEAN-{DATA_CUTOFF:%Y%m%d}",
@@ -622,16 +746,8 @@ def build_current_thailand_assessment(
         "qualified_observation_count": qualified_observation_count,
         "current_indicator_count": len(current_indicators),
         "qualified_event_count": len(qualified_events),
-        "current_lane_coverage": {
-            "lanes_total": len(lane_assessments),
-            "lanes_with_any_qualified_domain": len(lanes_with_evidence),
-            "lane_ids_with_any_qualified_domain": sorted(
-                assessment["lane_id"] for assessment in lanes_with_evidence
-            ),
-        },
-        "current_capability_coverage": current_capability_coverage(
-            qualified_observations, qualified_events
-        ),
+        "current_lane_coverage": current_lane_coverage,
+        "current_capability_coverage": capability_coverage,
         "lanes_requiring_attention": [
             {
                 "lane_id": assessment["lane_id"],
@@ -656,18 +772,13 @@ def build_current_thailand_assessment(
                 f"{len(qualified_events)} qualified event(s) are in scope at this cutoff."
             ]
         ),
-        "major_data_gaps": [
-            "No source in the registry is enabled and none has completed a controlled live "
-            "validation, so live coverage is insufficient.",
-            "Every numeric series held by the platform is a synthetic test fixture and is "
-            "excluded from this view.",
-            "Every event held by the platform is a historical validation fixture with an "
-            "assessment cutoff in the past and is excluded from this view.",
-            "No Thailand-origin freight rate source is qualified, so no Thailand freight "
-            "average is published anywhere in the platform.",
-            "No operational-condition source is registered, so no congestion, waiting-time "
-            "or berth-delay statement is made anywhere in the platform.",
-        ],
+        "major_data_gaps": _current_major_data_gaps(
+            source_status=source_status,
+            capability_coverage=capability_coverage,
+            current_lane_coverage=current_lane_coverage,
+            registry=registry,
+            qualified_events=qualified_events,
+        ),
         "methodology_version": "0.8",
     }
 
@@ -1087,13 +1198,33 @@ def main() -> int:
     lanes = load_lanes()["lanes"]
     load_dimensions()
 
-    source_status = evaluate_registry_health(registry, {}, now=DATA_CUTOFF)
+    # Loaded from persisted, schema-validated manifests -- never an empty
+    # literal standing in for "we checked". No source has ever completed a
+    # live run and no manual notice has ever been reviewed, so both loaders
+    # return empty mappings today, which is the honest, checkable answer.
+    source_status = evaluate_registry_health(
+        registry,
+        load_collection_runs(),
+        now=DATA_CUTOFF,
+        manual_events_by_source=load_manual_review_events(),
+    )
 
     # --- current publication: qualified evidence only ----------------------
     # The filter is the whole mechanism. Nothing downstream knows or cares that
     # the result is currently empty; it derives whatever it is handed.
+    #
+    # WO-010-R3 §5: two publication-use surfaces, not one. ``qualified_observations``
+    # is the derived-publishable set (a source qualified for at least
+    # PUBLISH_DERIVED_VALUE), which is what every direction and threshold rule
+    # below is computed from. ``raw_publishable_records`` is the narrower
+    # PUBLISH_RAW_VALUE set: only a record whose own source qualifies there may
+    # have its raw current reading published, in build_current_indicators below.
     qualified_observations = {
         family: qualified_records(records, registry=registry, publication_use=PUBLISH_DERIVED_VALUE)
+        for family, records in observations.items()
+    }
+    raw_publishable_records = {
+        family: qualified_records(records, registry=registry, publication_use=PUBLISH_RAW_VALUE)
         for family, records in observations.items()
     }
     qualified_events = [
@@ -1104,7 +1235,9 @@ def main() -> int:
     current_lane_assessments = build_current_lane_assessments(
         lanes, qualified_observations, qualified_events, evidence_by_id, source_status, registry
     )
-    current_indicators = build_current_indicators(qualified_observations, registry)
+    current_indicators = build_current_indicators(
+        qualified_observations, registry, raw_publishable_records=raw_publishable_records
+    )
     current_thailand = build_current_thailand_assessment(
         current_lane_assessments,
         qualified_observations,
