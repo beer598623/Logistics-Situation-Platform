@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -654,28 +655,106 @@ def compute_reviewed_record_set_hash(
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def collection_run_problems(run: Mapping[str, Any]) -> list[str]:
-    """Internal consistency of one collection run's own output manifest
-    (WO-010-R6 §1).
+_SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
-    Independent of any record: this checks the run document against itself
-    -- a ``not_modified`` run must never claim newly emitted records of its
-    own, a run that declares ``emitted_records`` must declare a matching
-    ``records_emitted`` count and a matching ``output_manifest_sha256``, and
-    a declared ``output_manifest_sha256`` must actually match what
-    :func:`compute_output_manifest_hash` returns for the declared records.
+
+def output_manifest_problems(
+    emitted_records: Sequence[Mapping[str, Any]], *, label: str
+) -> list[str]:
+    """Internal identity consistency of one output manifest's own entries
+    (WO-010-R7 §3), independent of any run-level status rule.
+
+    Canonical hashing (:func:`compute_output_manifest_hash`) is order
+    independent by design -- two manifests listing the same records in a
+    different order must hash identically. That must never be read as
+    "duplicate record IDs are fine as long as the hash comes out
+    deterministic": a manifest is rejected outright if the same
+    ``record_id`` appears twice (whether or not its repeated entries agree
+    with each other), if any entry's ``content_sha256`` is missing or not a
+    64-hex-digit SHA-256, or if a ``source_record_id`` recorded for one
+    ``record_id`` disagrees with a different occurrence of the same ID (a
+    non-deterministic source-record identity).
+    """
+    problems: list[str] = []
+    seen_hashes: dict[str, str | None] = {}
+    seen_source_ids: dict[str, Any] = {}
+    duplicates: set[str] = set()
+
+    for entry in emitted_records:
+        record_id = str(entry.get("record_id"))
+        content_hash = entry.get("content_sha256")
+        source_record_id = entry.get("source_record_id")
+
+        if (
+            not content_hash
+            or not isinstance(content_hash, str)
+            or not _SHA256_PATTERN.match(content_hash)
+        ):
+            problems.append(
+                f"{label}: output manifest entry {record_id!r} has a missing or malformed "
+                f"content_sha256 ({content_hash!r})"
+            )
+
+        if record_id in seen_hashes:
+            duplicates.add(record_id)
+            if seen_hashes[record_id] != content_hash:
+                problems.append(
+                    f"{label}: output manifest lists record_id {record_id!r} more than once "
+                    f"with disagreeing content_sha256 values ({seen_hashes[record_id]!r} and "
+                    f"{content_hash!r})"
+                )
+            if seen_source_ids.get(record_id) != source_record_id:
+                problems.append(
+                    f"{label}: output manifest lists record_id {record_id!r} more than once "
+                    f"with disagreeing source_record_id values ({seen_source_ids.get(record_id)!r} "
+                    f"and {source_record_id!r}); a source-record identity must be deterministic"
+                )
+        else:
+            seen_hashes[record_id] = content_hash
+            seen_source_ids[record_id] = source_record_id
+
+    for record_id in sorted(duplicates):
+        problems.append(f"{label}: output manifest lists record_id {record_id!r} more than once")
+
+    return problems
+
+
+def collection_run_problems(run: Mapping[str, Any]) -> list[str]:
+    """Whether one collection run's own document is internally consistent
+    with the status-dependent contract WO-010-R7 §1 defines.
+
+    Independent of any record and of any other run: this checks the run
+    document against itself. Most of the structural shape (which fields must
+    be null versus present for each status) is already enforced by
+    ``schemas/collection_run.schema.json``'s status-keyed ``if``/``then``
+    rules before this function is ever reached from
+    :func:`collectors.collection_runs.load_collection_runs`; what remains
+    here is what a JSON Schema cannot express: cross-field count agreement,
+    manifest-internal identity (:func:`output_manifest_problems`), and hash
+    correctness.
+
+    * ``success`` -- ``records_emitted`` must equal ``len(emitted_records)``
+      (including the zero-output case, where both are ``0`` and
+      ``emitted_records`` is ``[]``); every entry must be internally
+      consistent; the declared ``output_manifest_sha256`` must equal
+      :func:`compute_output_manifest_hash` of the declared records.
+    * ``not_modified`` -- ``records_emitted`` must be ``0``.
+    * every status -- a declared ``output_manifest_sha256`` (only possible
+      for ``success``, per the schema) must match the computed hash.
     """
     problems: list[str] = []
     run_id = run.get("run_id", "<run>")
     status = run.get("status")
     emitted_records = run.get("emitted_records")
+    declared_hash = run.get("output_manifest_sha256")
 
-    if status == "not_modified" and emitted_records:
-        problems.append(
-            f"collection run {run_id!r} has status 'not_modified' but declares "
-            f"{len(emitted_records)} emitted_records; a not_modified run must not claim "
-            "newly emitted records"
-        )
+    if status == "not_modified":
+        records_emitted = run.get("records_emitted")
+        if records_emitted not in (0, None):
+            problems.append(
+                f"collection run {run_id!r} has status 'not_modified' but records "
+                f"records_emitted={records_emitted}; a not_modified run emits nothing"
+            )
 
     if emitted_records is not None:
         records_emitted = run.get("records_emitted")
@@ -684,55 +763,274 @@ def collection_run_problems(run: Mapping[str, Any]) -> list[str]:
                 f"collection run {run_id!r} records records_emitted={records_emitted}, which "
                 f"disagrees with the {len(emitted_records)} entries in emitted_records"
             )
+        problems.extend(
+            output_manifest_problems(emitted_records, label=f"collection run {run_id!r}")
+        )
         computed = compute_output_manifest_hash(emitted_records)
-        declared = run.get("output_manifest_sha256")
-        if declared is not None and declared != computed:
+        if declared_hash is not None and declared_hash != computed:
             problems.append(
-                f"collection run {run_id!r} declares output_manifest_sha256 {declared!r}, "
+                f"collection run {run_id!r} declares output_manifest_sha256 {declared_hash!r}, "
                 f"which disagrees with the computed hash {computed!r} of its emitted_records"
+            )
+        if status == "success" and declared_hash is None:
+            problems.append(
+                f"collection run {run_id!r} has status 'success' with an output manifest but no "
+                "output_manifest_sha256; a successful run's manifest must be hashed"
             )
 
     return problems
 
 
-def _resolve_output_manifest(
+def resolve_governing_run(
     run: Mapping[str, Any],
     *,
     runs_by_id: Mapping[str, Mapping[str, Any]],
-) -> tuple[Mapping[str, Any] | None, list[Mapping[str, Any]] | None]:
-    """The run whose output manifest actually governs membership for
-    ``run``, following a ``not_modified`` run's ``supersedes_run_id`` chain
-    back to the nearest run that actually declares ``emitted_records``
-    (WO-010-R6 §1).
+) -> tuple[Mapping[str, Any], Mapping[str, Any] | None, list[str], list[str]]:
+    """The confirming/governing run model (WO-010-R6 §1, formalised
+    WO-010-R7 §4).
 
-    Returns ``(governing_run, emitted_records)``. ``emitted_records`` is
-    ``None`` when the chain cannot resolve one -- a missing link, a cycle, or
-    a governing run with no manifest at all -- so the caller fails closed
-    rather than treating "we could not find the manifest" as "the manifest
-    permits this".
+    A record's ``collection_run_id`` names the **confirming run** -- the
+    run actually cited, which may itself have succeeded, or may be a
+    ``not_modified`` run that merely reconfirms an earlier one is still
+    current. The **governing run** is the run whose own output manifest
+    actually backs the record: the confirming run itself when it succeeded,
+    or -- walking ``supersedes_run_id`` -- the nearest ancestor that
+    succeeded, when the confirming run is ``not_modified``.
+
+    Returns ``(confirming_run, governing_run, supersedes_chain, problems)``.
+    ``confirming_run`` is always ``run`` itself. ``governing_run`` is
+    ``None``, and ``problems`` explains why, when the chain cannot resolve
+    one: a missing link, a cycle, a hop across source boundaries, a
+    non-chronological hop, a chain terminating at a status other than
+    ``success``, or a governing run with no valid output-manifest hash.
+    ``supersedes_chain`` lists every run_id actually visited, confirming run
+    first, governing run last when one was found.
+
+    Fails closed: an empty or partially-walked chain (any ``problems``)
+    means ``governing_run`` is ``None``, never a best-effort guess.
     """
+    # Imported locally: analysis.build_context imports from this module, so a
+    # module-level import here would be circular.
+    from analysis.build_context import parse_timestamp
+
+    problems: list[str] = []
+    chain: list[str] = []
     visited: set[str] = set()
+    confirming = run
+    confirming_id = confirming.get("run_id")
+    source_id = confirming.get("source_id")
     current = run
+
     while True:
         current_id = current.get("run_id")
+        chain.append(str(current_id))
         if current_id in visited:
-            return current, None
+            problems.append(
+                f"supersedes chain from {confirming_id!r} contains a cycle at {current_id!r}"
+            )
+            return confirming, None, chain, problems
         visited.add(str(current_id))
-        emitted_records = current.get("emitted_records")
-        if current.get("status") != "not_modified":
-            return current, emitted_records
-        if emitted_records:
-            # A not_modified run must not have its own records, but if one
-            # does, fall through and let collection_run_problems() catch it
-            # rather than silently trusting it here.
-            return current, emitted_records
+
+        if current.get("source_id") != source_id:
+            problems.append(
+                f"supersedes chain from {confirming_id!r} crosses source boundaries: "
+                f"{current_id!r} belongs to source {current.get('source_id')!r}, not "
+                f"{source_id!r}"
+            )
+            return confirming, None, chain, problems
+
+        status = current.get("status")
+        if status == "success":
+            output_hash = current.get("output_manifest_sha256")
+            if not output_hash or current.get("emitted_records") is None:
+                problems.append(
+                    f"supersedes chain from {confirming_id!r} terminates at successful run "
+                    f"{current_id!r}, which has no valid, non-null output-manifest hash"
+                )
+                return confirming, None, chain, problems
+            return confirming, current, chain, problems
+
+        if status != "not_modified":
+            problems.append(
+                f"supersedes chain from {confirming_id!r} terminates at run {current_id!r} "
+                f"with status {status!r}, not 'success'"
+            )
+            return confirming, None, chain, problems
+
         supersedes_id = current.get("supersedes_run_id")
         if not supersedes_id:
-            return current, None
+            problems.append(
+                f"supersedes chain from {confirming_id!r} is broken: {current_id!r} names no "
+                "supersedes_run_id"
+            )
+            return confirming, None, chain, problems
         prior = runs_by_id.get(supersedes_id)
         if prior is None:
-            return current, None
+            problems.append(
+                f"supersedes chain from {confirming_id!r} is broken: {current_id!r} names "
+                f"supersedes_run_id {supersedes_id!r}, which does not resolve to a persisted "
+                "run for this source"
+            )
+            return confirming, None, chain, problems
+
+        # WO-010-R7 §1: "every prior run occurs before the later run".
+        current_ts, prior_ts = current.get("completed_at"), prior.get("completed_at")
+        if current_ts and prior_ts and parse_timestamp(prior_ts) > parse_timestamp(current_ts):
+            problems.append(
+                f"supersedes chain from {confirming_id!r} is not chronological: "
+                f"{supersedes_id!r} (completed {prior_ts}) is later than {current_id!r} "
+                f"(completed {current_ts})"
+            )
+            return confirming, None, chain, problems
+
         current = prior
+
+
+def resolve_live_record_binding(
+    record: Mapping[str, Any],
+    *,
+    collection_runs_by_source: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+    as_of: Any = None,
+) -> tuple[list[str], dict[str, Any] | None]:
+    """Core acquisition-binding resolution for one ``live_retrieved`` record
+    (WO-010-R6 §1, formalised into the confirming/governing model by
+    WO-010-R7 §4/§5).
+
+    Returns ``(problems, binding)``. ``binding`` is ``None`` whenever
+    ``problems`` is non-empty (fails closed); otherwise it is::
+
+        {
+            "record_id": ...,
+            "confirming_run_id": ...,   # the run collection_run_id actually cites
+            "governing_run_id": ...,    # the successful run whose manifest backs it
+            "output_manifest_sha256": ...,  # the governing run's own hash, never null
+            "supersedes_chain": [...],  # every run_id walked, confirming run first
+        }
+
+    Every field of the record must agree *exactly* with the governing run's
+    own manifest entry: the record ID, the source-record ID (including null
+    versus non-null), the content hash, the parser/adapter version, and the
+    record's ``retrieved_at`` falling within the governing run's own
+    ``started_at``..``completed_at`` interval -- not the confirming run's,
+    since a ``not_modified`` run's own timestamps describe when it was
+    reconfirmed, not when the record was actually produced.
+    """
+    # Imported locally: analysis.build_context imports from this module, so a
+    # module-level import here would be circular.
+    from analysis.build_context import parse_timestamp
+
+    label = _record_label(record)
+    provenance = _provenance(record)
+    source_id = record_source_id(record)
+
+    run_id = provenance.get("collection_run_id")
+    if not run_id:
+        return [f"{label}: live_retrieved record carries no collection_run_id"], None
+    runs = (collection_runs_by_source or {}).get(source_id or "", ())
+    run = next((candidate for candidate in runs if candidate.get("run_id") == run_id), None)
+    if run is None:
+        return [
+            f"{label}: collection_run_id {run_id!r} matches no persisted collection run "
+            f"for source {source_id!r}"
+        ], None
+    if run.get("source_id") != source_id:
+        return [
+            f"{label}: collection_run_id {run_id!r} belongs to source "
+            f"{run.get('source_id')!r}, not {source_id!r}"
+        ], None
+    if run.get("status") not in {"success", "not_modified"}:
+        return [
+            f"{label}: collection run {run_id!r} has status {run.get('status')!r}, not "
+            "'success' or 'not_modified'"
+        ], None
+
+    runs_by_id = {candidate.get("run_id"): candidate for candidate in runs}
+    confirming_run, governing_run, supersedes_chain, chain_problems = resolve_governing_run(
+        run, runs_by_id=runs_by_id
+    )
+    if chain_problems or governing_run is None:
+        return [f"{label}: {problem}" for problem in chain_problems] or [
+            f"{label}: collection run {run_id!r} could not resolve a governing successful run"
+        ], None
+
+    confirming_completed_at = confirming_run.get("completed_at")
+    if (
+        as_of is not None
+        and confirming_completed_at
+        and parse_timestamp(confirming_completed_at) > as_of
+    ):
+        return [f"{label}: collection run {run_id!r} completed after this build's as-of time"], None
+    retrieved_at = provenance.get("retrieved_at")
+    if as_of is not None and retrieved_at and parse_timestamp(retrieved_at) > as_of:
+        return [f"{label}: retrieved_at is after this build's as-of time"], None
+
+    # WO-010-R7 §5: retrieval time must be consistent with the *governing*
+    # run's own interval, not the confirming run's.
+    governing_started_at = governing_run.get("started_at")
+    governing_completed_at = governing_run.get("completed_at")
+    if retrieved_at and governing_started_at and governing_completed_at:
+        retrieved_ts = parse_timestamp(retrieved_at)
+        if not (
+            parse_timestamp(governing_started_at)
+            <= retrieved_ts
+            <= parse_timestamp(governing_completed_at)
+        ):
+            return [
+                f"{label}: retrieved_at {retrieved_at!r} falls outside governing collection "
+                f"run {governing_run.get('run_id')!r}'s started_at..completed_at interval "
+                f"({governing_started_at!r}..{governing_completed_at!r})"
+            ], None
+
+    # WO-010-R7 §4: parser version is compared against the *governing* run's
+    # adapter_version, not the confirming run's -- a not_modified run's own
+    # adapter_version describes the confirmation attempt, not the parser
+    # that actually produced the record.
+    parser_version = provenance.get("parser_version")
+    governing_adapter_version = governing_run.get("adapter_version")
+    if parser_version != governing_adapter_version:
+        return [
+            f"{label}: parser_version {parser_version!r} disagrees with governing collection "
+            f"run {governing_run.get('run_id')!r}'s adapter_version "
+            f"{governing_adapter_version!r}"
+        ], None
+
+    emitted_records = governing_run.get("emitted_records") or []
+    record_id = provenance.get("record_id") or record.get("evidence_id")
+    manifest_entry = next(
+        (entry for entry in emitted_records if entry.get("record_id") == record_id), None
+    )
+    if manifest_entry is None:
+        return [
+            f"{label}: record ID {record_id!r} does not appear in the output manifest of "
+            f"governing collection run {governing_run.get('run_id')!r}"
+        ], None
+
+    # WO-010-R7 §5: exact agreement, not "agree when both happen to be set" --
+    # a record's null source_record_id must not match a manifest entry that
+    # records a non-null one, and vice versa.
+    record_content_hash = provenance.get("content_sha256")
+    manifest_content_hash = manifest_entry.get("content_sha256")
+    if record_content_hash != manifest_content_hash:
+        return [
+            f"{label}: content_sha256 {record_content_hash!r} disagrees with the governing "
+            f"output manifest's recorded hash {manifest_content_hash!r} for this record"
+        ], None
+    record_source_record_id = provenance.get("source_record_id")
+    manifest_source_record_id = manifest_entry.get("source_record_id")
+    if record_source_record_id != manifest_source_record_id:
+        return [
+            f"{label}: source_record_id {record_source_record_id!r} disagrees with the "
+            f"governing output manifest's recorded source_record_id "
+            f"{manifest_source_record_id!r}"
+        ], None
+
+    return [], {
+        "record_id": str(record_id),
+        "confirming_run_id": confirming_run.get("run_id"),
+        "governing_run_id": governing_run.get("run_id"),
+        "output_manifest_sha256": governing_run.get("output_manifest_sha256"),
+        "supersedes_chain": supersedes_chain,
+    }
 
 
 def acquisition_binding_problems(
@@ -753,8 +1051,8 @@ def acquisition_binding_problems(
     for ``human_reviewed_manual``), and that ID must resolve to a persisted
     run/event that: belongs to the same source, succeeded (or, for a manual
     event, was actually reviewed), completed at or before ``as_of``, and
-    -- for a live record -- whose ``adapter_version`` is not positively
-    contradicted by the record's own ``parser_version``.
+    exactly agrees with the record on every field WO-010-R7 §5 names. The
+    ``live_retrieved`` path is :func:`resolve_live_record_binding`.
 
     Fails closed by construction: a record whose origin claims acquisition
     but whose caller supplies no index at all (``collection_runs_by_source``/
@@ -776,79 +1074,10 @@ def acquisition_binding_problems(
     source_id = record_source_id(record)
 
     if origin == LIVE_RETRIEVED:
-        run_id = provenance.get("collection_run_id")
-        if not run_id:
-            return [f"{label}: live_retrieved record carries no collection_run_id"]
-        runs = (collection_runs_by_source or {}).get(source_id or "", ())
-        run = next((candidate for candidate in runs if candidate.get("run_id") == run_id), None)
-        if run is None:
-            return [
-                f"{label}: collection_run_id {run_id!r} matches no persisted collection run "
-                f"for source {source_id!r}"
-            ]
-        if run.get("source_id") != source_id:
-            return [
-                f"{label}: collection_run_id {run_id!r} belongs to source "
-                f"{run.get('source_id')!r}, not {source_id!r}"
-            ]
-        if run.get("status") not in {"success", "not_modified"}:
-            return [
-                f"{label}: collection run {run_id!r} has status {run.get('status')!r}, not "
-                "'success' or 'not_modified'"
-            ]
-        completed_at = run.get("completed_at")
-        if as_of is not None and completed_at and parse_timestamp(completed_at) > as_of:
-            return [f"{label}: collection run {run_id!r} completed after this build's as-of time"]
-        retrieved_at = provenance.get("retrieved_at")
-        if as_of is not None and retrieved_at and parse_timestamp(retrieved_at) > as_of:
-            return [f"{label}: retrieved_at is after this build's as-of time"]
-        parser_version = provenance.get("parser_version")
-        adapter_version = run.get("adapter_version")
-        if parser_version and adapter_version and parser_version != adapter_version:
-            return [
-                f"{label}: parser_version {parser_version!r} disagrees with collection run "
-                f"{run_id!r}'s adapter_version {adapter_version!r}"
-            ]
-
-        # WO-010-R6 §1: the record must not merely cite a run that succeeded --
-        # it must actually appear in that run's own output manifest, following
-        # a not_modified run's supersedes_run_id chain back to the manifest
-        # that actually governs it.
-        runs_by_id = {candidate.get("run_id"): candidate for candidate in runs}
-        governing_run, emitted_records = _resolve_output_manifest(run, runs_by_id=runs_by_id)
-        if emitted_records is None:
-            return [
-                f"{label}: collection run {run_id!r} declares no output manifest "
-                "(emitted_records), so record-level membership cannot be verified"
-            ]
-        record_id = provenance.get("record_id") or record.get("evidence_id")
-        manifest_entry = next(
-            (entry for entry in emitted_records if entry.get("record_id") == record_id), None
+        problems, _binding = resolve_live_record_binding(
+            record, collection_runs_by_source=collection_runs_by_source, as_of=as_of
         )
-        if manifest_entry is None:
-            return [
-                f"{label}: record ID {record_id!r} does not appear in the output manifest of "
-                f"collection run {governing_run.get('run_id')!r}"
-            ]
-        record_content_hash = provenance.get("content_sha256")
-        manifest_content_hash = manifest_entry.get("content_sha256")
-        if (
-            record_content_hash
-            and manifest_content_hash
-            and record_content_hash != manifest_content_hash
-        ):
-            return [
-                f"{label}: content_sha256 {record_content_hash!r} disagrees with the output "
-                f"manifest's recorded hash {manifest_content_hash!r} for this record"
-            ]
-        record_source_record_id = provenance.get("source_record_id")
-        manifest_source_record_id = manifest_entry.get("source_record_id")
-        if record_source_record_id and record_source_record_id != manifest_source_record_id:
-            return [
-                f"{label}: source_record_id {record_source_record_id!r} disagrees with the "
-                f"output manifest's recorded source_record_id {manifest_source_record_id!r}"
-            ]
-        return []
+        return problems
 
     if origin == HUMAN_REVIEWED_MANUAL:
         event_id = provenance.get("manual_review_event_id")
@@ -987,6 +1216,11 @@ def build_acquisition_summary(
     timestamps: list[Any] = []
     excluded = 0
     included_record_ids: set[str] = set()
+    live_record_bindings: list[dict[str, Any]] = []
+    # WO-010-R7 §4: confirming_run_id -> the governing run's own hash, never
+    # a null placeholder for the cited run while silently relying on
+    # another one.
+    collection_run_manifest_hashes: dict[str, str | None] = {}
 
     runs_by_id = {
         run.get("run_id"): run
@@ -1004,6 +1238,26 @@ def build_acquisition_summary(
         origin = record_origin(record)
         if origin not in PUBLISHABLE_ORIGINS:
             return
+        provenance = _provenance(record)
+
+        if origin == LIVE_RETRIEVED:
+            problems, binding = resolve_live_record_binding(
+                record, collection_runs_by_source=collection_runs_by_source, as_of=as_of
+            )
+            if problems or binding is None:
+                excluded += 1
+                return
+            record_id = binding["record_id"]
+            included_record_ids.add(record_id)
+            confirming_id = str(binding["confirming_run_id"])
+            run_ids.add(confirming_id)
+            collection_run_manifest_hashes[confirming_id] = binding["output_manifest_sha256"]
+            live_record_bindings.append(binding)
+            confirming_run = runs_by_id.get(binding["confirming_run_id"])
+            if confirming_run and confirming_run.get("completed_at"):
+                timestamps.append(parse_timestamp(confirming_run["completed_at"]))
+            return
+
         problems = acquisition_binding_problems(
             record,
             collection_runs_by_source=collection_runs_by_source,
@@ -1013,18 +1267,11 @@ def build_acquisition_summary(
         if problems:
             excluded += 1
             return
-        provenance = _provenance(record)
         record_id = provenance.get("record_id") or record.get("evidence_id")
         if record_id:
             included_record_ids.add(str(record_id))
 
-        if origin == LIVE_RETRIEVED:
-            run_id = provenance.get("collection_run_id")
-            run_ids.add(str(run_id))
-            run = runs_by_id.get(run_id)
-            if run and run.get("completed_at"):
-                timestamps.append(parse_timestamp(run["completed_at"]))
-        elif origin == HUMAN_REVIEWED_MANUAL:
+        if origin == HUMAN_REVIEWED_MANUAL:
             event_id = provenance.get("manual_review_event_id")
             event_ids.add(str(event_id))
             event = events_by_id.get(event_id)
@@ -1044,16 +1291,6 @@ def build_acquisition_summary(
             "because they carried no matching, valid acquisition binding."
         )
 
-    # WO-010-R6 §4: per-run and per-event manifest/record-set hashes, so the
-    # package's own acquisition_summary carries not just which runs/events
-    # qualified but what they were bound to at the moment this summary was
-    # built -- what acquisition_currency_problems (analysis.review_package)
-    # and the approval-time acquisition-state hash both compare against.
-    collection_run_manifest_hashes = {
-        run_id: runs_by_id[run_id].get("output_manifest_sha256")
-        for run_id in sorted(run_ids)
-        if run_id in runs_by_id
-    }
     manual_review_record_set_hashes = {
         event_id: events_by_id[event_id].get("reviewed_record_set_sha256")
         for event_id in sorted(event_ids)
@@ -1069,6 +1306,10 @@ def build_acquisition_summary(
         "collection_run_manifest_hashes": collection_run_manifest_hashes,
         "manual_review_record_set_hashes": manual_review_record_set_hashes,
         "included_current_record_ids": sorted(included_record_ids),
+        # WO-010-R7 §4: per-record confirming/governing detail, so a not
+        # modified binding is fully traceable rather than collapsed into a
+        # single confirming-run-id -> hash mapping.
+        "live_record_bindings": sorted(live_record_bindings, key=lambda entry: entry["record_id"]),
     }
 
 

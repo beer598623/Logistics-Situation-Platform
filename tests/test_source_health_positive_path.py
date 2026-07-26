@@ -118,7 +118,24 @@ def _e2e_registry(**source_overrides):
 
 def _run(*, completed_at: str, status: str = "success", records_emitted=26, run_suffix="001"):
     stamp = completed_at.replace("-", "").replace(":", "").replace("Z", "Z")
-    return {
+    # WO-010-R7 §1: a 'success' run's output manifest is mandatory; these
+    # placeholder entries exist only to keep records_emitted/emitted_records
+    # internally consistent for tests that exercise Source Health, not
+    # record-level acquisition binding (which uses its own dedicated
+    # emitted_records in e2e_repo below).
+    emitted_records = (
+        [
+            {
+                "record_id": f"OBS-PLACEHOLDER-{i}",
+                "source_record_id": None,
+                "content_sha256": "a" * 64,
+            }
+            for i in range(records_emitted or 0)
+        ]
+        if status == "success"
+        else ([] if status == "not_modified" else None)
+    )
+    run = {
         "run_id": f"COL-{stamp[:8]}T{stamp[9:15]}Z-{E2E_SOURCE}",
         "source_id": E2E_SOURCE,
         "started_at": completed_at,
@@ -143,7 +160,13 @@ def _run(*, completed_at: str, status: str = "success", records_emitted=26, run_
         "data_cutoff_at": completed_at,
         "warnings": [],
         "errors": [] if status in {"success", "not_modified"} else ["simulated adapter failure"],
+        "emitted_records": emitted_records,
+        "output_manifest_sha256": (
+            compute_output_manifest_hash(emitted_records) if status == "success" else None
+        ),
+        "supersedes_run_id": None,
     }
+    return run
 
 
 def _write_json(path: Path, payload) -> None:
@@ -215,7 +238,11 @@ def e2e_repo(tmp_path, monkeypatch):
     registry = _e2e_registry()
     (temp_root / "config" / "sources.yaml").write_text(yaml.safe_dump(registry), encoding="utf-8")
 
-    run = _run(completed_at="2026-07-20T00:00:00Z")
+    # WO-010-R7 §5: retrieved_at (live_trade_observation's default,
+    # "2026-07-20T06:00:00Z") must fall within the governing run's own
+    # started_at..completed_at window.
+    run = _run(completed_at="2026-07-20T23:59:59Z")
+    run["started_at"] = "2026-07-20T00:00:00Z"
 
     new_records = live_trade_series(
         periods=26,

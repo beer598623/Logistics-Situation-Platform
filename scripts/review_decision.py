@@ -267,20 +267,32 @@ def approval_provenance_problems(
         # package's own cutoff must not crash approval with a future-dated
         # rejection; it is still caught, correctly, by the hash comparison
         # below if it changes what this build now knows.
-        acquisition_state = load_validated_acquisition_state(
-            registry=registry,
-            as_of=None,
-            observations=observations,
-            evidence=evidence,
-        )
-        problems.extend(
-            acquisition_currency_problems(
-                package,
-                collection_runs_by_source=acquisition_state["collection_runs_by_source"],
-                manual_events_by_source=acquisition_state["manual_events_by_source"],
-                current_acquisition_state_sha256=acquisition_state["acquisition_state_sha256"],
+        #
+        # WO-010-R7 §7: "current acquisition state cannot be loaded" is
+        # itself an approval rejection, not an uncaught crash -- a
+        # collection-run manifest or manual-review event modified into an
+        # invalid state (the same conditions load_collection_runs/
+        # load_manual_review_events already fail closed on) must block
+        # approval with a clear reason, the same way it would block
+        # Analysis or a Review Package build.
+        try:
+            acquisition_state = load_validated_acquisition_state(
+                registry=registry,
+                as_of=None,
+                observations=observations,
+                evidence=evidence,
             )
-        )
+        except ValueError as error:
+            problems.append(f"current acquisition state cannot be loaded: {error}")
+        else:
+            problems.extend(
+                acquisition_currency_problems(
+                    package,
+                    collection_runs_by_source=acquisition_state["collection_runs_by_source"],
+                    manual_events_by_source=acquisition_state["manual_events_by_source"],
+                    current_acquisition_state_sha256=acquisition_state["acquisition_state_sha256"],
+                )
+            )
 
     return problems
 

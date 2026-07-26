@@ -47,7 +47,10 @@ from analysis.provenance import (  # noqa: E402
     record_dataset,
 )
 from analysis.review_package import build_input_package  # noqa: E402
-from collectors.collection_runs import load_validated_acquisition_state  # noqa: E402
+from collectors.collection_runs import (  # noqa: E402
+    EMPTY_ACQUISITION_STATE_SHA256,
+    load_validated_acquisition_state,
+)
 
 PACKAGE_DIR = ROOT / "data" / "review" / "packages"
 
@@ -415,7 +418,21 @@ def build(package_id: str, *, surface: str = CURRENT_PUBLICATION) -> dict[str, A
         # A technical_demo package's evidence is all fixture-origin, which
         # never claims a real acquisition (acquisition_binding_problems is a
         # no-op for it) -- an honest empty summary, not a re-derived one.
-        acquisition_summary = None
+        # WO-010-R7 §7: acquisition_state_sha256 is still the explicit,
+        # deterministic hash of the canonical empty acquisition state, never
+        # null, so the field stays schema-valid on every package.
+        acquisition_summary = {
+            "qualifying_collection_run_ids": [],
+            "qualifying_manual_review_event_ids": [],
+            "excluded_unbound_record_count": 0,
+            "latest_source_cutoff": None,
+            "acquisition_health_limitations": [],
+            "collection_run_manifest_hashes": {},
+            "manual_review_record_set_hashes": {},
+            "included_current_record_ids": [],
+            "live_record_bindings": [],
+            "acquisition_state_sha256": EMPTY_ACQUISITION_STATE_SHA256,
+        }
 
     package = build_input_package(
         package_id=package_id,

@@ -42,6 +42,7 @@ from analysis.provenance import (
     build_record_index,
     collection_run_problems,
     compute_reviewed_record_set_hash,
+    resolve_governing_run,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,13 +65,30 @@ def load_collection_runs(
 
     A missing directory, and a source with no file at all, both resolve to no
     known history for that source: neither is treated as a successful run.
+
+    WO-010-R7 §2 adds global run identity: a ``run_id`` must be globally
+    unique across every file in this directory (not merely unique per
+    source, and not resolved by keeping the first or last one seen -- any
+    duplicate is a build failure); the containing filename must match every
+    run's own ``source_id``; an optional document-level ``source_id`` must
+    agree with it too; and ``run_id``'s own source suffix
+    (``COL-<timestamp>-<SUFFIX>``) must agree with the run's declared
+    ``source_id`` -- a run cannot claim one source in its ID and another in
+    its body. WO-010-R7 §4 adds: once every run is loaded, every
+    ``not_modified`` run's ``supersedes_run_id`` chain must actually resolve
+    to a valid prior successful run, contain no cycle, and stay within one
+    source -- checked here, globally, rather than only at the point some
+    later record happens to cite it.
     """
     target = directory if directory is not None else COLLECTION_RUNS_DIR
     runs_by_source: dict[str, list[dict[str, Any]]] = {}
     if not target.exists():
         return runs_by_source
+
+    seen_run_ids: dict[str, Path] = {}
     for path in sorted(target.glob("*.json")):
         document = json.loads(path.read_text(encoding="utf-8"))
+        document_source_id = document.get("source_id")
         for run in document.get("runs", []):
             errors = schema_errors(run, "collection_run.schema.json")
             if errors:
@@ -78,10 +96,53 @@ def load_collection_runs(
                     f"{path}: invalid collection run manifest for "
                     f"{run.get('run_id', '<unknown>')}: {errors}"
                 )
+
+            run_id = run["run_id"]
+            run_source_id = run["source_id"]
+
+            if run_id in seen_run_ids:
+                raise ValueError(
+                    f"{path}: duplicate run_id {run_id!r}; already claimed by "
+                    f"{seen_run_ids[run_id]}"
+                )
+            seen_run_ids[run_id] = path
+
+            if path.stem != run_source_id:
+                raise ValueError(
+                    f"{path}: run {run_id!r} records source_id {run_source_id!r}, which does "
+                    f"not match the containing filename {path.stem!r}"
+                )
+            if document_source_id is not None and document_source_id != run_source_id:
+                raise ValueError(
+                    f"{path}: document-level source_id {document_source_id!r} disagrees with "
+                    f"run {run_id!r}'s own source_id {run_source_id!r}"
+                )
+            run_id_suffix = run_id.split("-", 2)[2] if run_id.count("-") >= 2 else None
+            if run_id_suffix != run_source_id:
+                raise ValueError(
+                    f"{path}: run_id {run_id!r}'s source suffix {run_id_suffix!r} disagrees "
+                    f"with its own source_id {run_source_id!r}"
+                )
+
             manifest_problems = collection_run_problems(run)
             if manifest_problems:
                 raise ValueError(f"{path}: " + "; ".join(manifest_problems))
-            runs_by_source.setdefault(run["source_id"], []).append(run)
+            runs_by_source.setdefault(run_source_id, []).append(run)
+
+    all_runs_by_id = {run.get("run_id"): run for runs in runs_by_source.values() for run in runs}
+    for runs in runs_by_source.values():
+        for run in runs:
+            if run.get("status") != "not_modified":
+                continue
+            _confirming, governing, _chain, chain_problems = resolve_governing_run(
+                run, runs_by_id=all_runs_by_id
+            )
+            if chain_problems or governing is None:
+                raise ValueError(
+                    f"invalid supersedes chain for run {run.get('run_id')!r}: "
+                    + "; ".join(chain_problems or ["the chain did not resolve to a governing run"])
+                )
+
     return runs_by_source
 
 
@@ -321,42 +382,30 @@ def _acquisition_state_hash(
     collection_runs_by_source: dict[str, list[dict[str, Any]]],
     manual_events_by_source: dict[str, list[dict[str, Any]]],
 ) -> str:
-    """WO-010-R6 §4: one deterministic hash over the whole validated
-    acquisition state -- every run's identity, status and output-manifest
-    hash; every manual event's identity, status and reviewed-record-set
-    hash. Sorted so hashing is independent of file/dict iteration order.
-    Any change to a manifest, a status, a timestamp or a hash changes this
-    value.
+    """WO-010-R6 §4, widened to a full-document digest by WO-010-R7 §6: one
+    deterministic hash over the *complete* validated acquisition state.
+
+    R6's version hashed a hand-picked subset of fields (status, a completed
+    timestamp, the manifest hash) -- which meant a change to anything else
+    (``started_at``, ``workflow_sha``, ``content_sha256``, ``data_cutoff_at``,
+    ``records_received``/``records_rejected``, ``warnings``/``errors``, a
+    manual event's ``related_record_ids``, ``underlying_publisher``,
+    ``bounded_content_confirmed``, ``known_limitations``, ...) left this
+    hash unchanged even though the acquisition state genuinely had. This
+    version hashes each run's and each event's *entire* validated document
+    verbatim, sorted by ID so hashing is independent of file/dict iteration
+    order -- a canonical full-document digest is exactly the "any material
+    field changes the hash" property WO-010-R7 §6 requires, without having
+    to individually enumerate and maintain every field that counts as
+    material.
     """
     runs = sorted(
-        (
-            {
-                "run_id": run.get("run_id"),
-                "source_id": run.get("source_id"),
-                "status": run.get("status"),
-                "completed_at": run.get("completed_at"),
-                "adapter_version": run.get("adapter_version"),
-                "output_manifest_sha256": run.get("output_manifest_sha256"),
-                "supersedes_run_id": run.get("supersedes_run_id"),
-            }
-            for runs in collection_runs_by_source.values()
-            for run in runs
-        ),
-        key=lambda entry: str(entry["run_id"]),
+        (dict(run) for runs in collection_runs_by_source.values() for run in runs),
+        key=lambda entry: str(entry.get("run_id")),
     )
     events = sorted(
-        (
-            {
-                "event_id": event.get("event_id"),
-                "source_id": event.get("source_id"),
-                "status": event.get("status"),
-                "reviewed_at": event.get("reviewed_at"),
-                "reviewed_record_set_sha256": event.get("reviewed_record_set_sha256"),
-            }
-            for events in manual_events_by_source.values()
-            for event in events
-        ),
-        key=lambda entry: str(entry["event_id"]),
+        (dict(event) for events in manual_events_by_source.values() for event in events),
+        key=lambda entry: str(entry.get("event_id")),
     )
     encoded = json.dumps(
         {"collection_runs": runs, "manual_review_events": events},
@@ -364,6 +413,16 @@ def _acquisition_state_hash(
         separators=(",", ":"),
     )
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+#: WO-010-R7 §7: the deterministic hash of the canonical empty acquisition
+#: state (no collection runs, no manual review events). A technical-demo
+#: package uses this explicit value in place of ``null`` for
+#: ``acquisition_summary.acquisition_state_sha256``, so the field stays a
+#: non-null, schema-valid, deterministic SHA-256 on every package --
+#: current or demo -- and "no acquisition state" is never confused with
+#: "the hash was never computed".
+EMPTY_ACQUISITION_STATE_SHA256 = _acquisition_state_hash({}, {})
 
 
 def load_validated_acquisition_state(

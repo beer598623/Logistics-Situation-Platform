@@ -62,9 +62,55 @@
       "pattern": "^[a-f0-9]{64}$"
     },
     "supersedes_run_id": {
-      "description": "WO-010-R6 §1. For a 'not_modified' run: the prior successful run whose emitted_records remain current. A not_modified run never claims new records of its own; acquisition-binding checks follow this chain to find a record's membership in the prior run's output manifest.",
+      "description": "WO-010-R6 §1, tightened WO-010-R7 §1. For a 'not_modified' run: the prior run whose emitted_records remain current (required, non-null, for 'not_modified'; must be null for every other status). A not_modified run never claims new records of its own; acquisition-binding checks follow this chain to find a record's governing manifest.",
       "type": ["string", "null"],
       "pattern": "^COL-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$"
     }
-  }
+  },
+  "allOf": [
+    {
+      "description": "WO-010-R7 §1: a 'success' run must carry a complete output manifest -- emitted_records is a non-null array (an empty array is how a successful zero-output run is expressed), output_manifest_sha256 is a non-null hash of it, and it supersedes nothing.",
+      "if": {
+        "required": ["status"],
+        "properties": {"status": {"const": "success"}}
+      },
+      "then": {
+        "required": ["emitted_records", "output_manifest_sha256"],
+        "properties": {
+          "emitted_records": {"type": "array"},
+          "output_manifest_sha256": {"type": "string"},
+          "supersedes_run_id": {"type": "null"}
+        }
+      }
+    },
+    {
+      "description": "WO-010-R7 §1: a 'not_modified' run claims no records of its own -- emitted_records is exactly the empty array, never null and never populated -- carries no output-manifest hash of its own (the governing hash lives on the successful run supersedes_run_id points to), and must name that prior run.",
+      "if": {
+        "required": ["status"],
+        "properties": {"status": {"const": "not_modified"}}
+      },
+      "then": {
+        "required": ["emitted_records", "supersedes_run_id"],
+        "properties": {
+          "emitted_records": {"type": "array", "maxItems": 0},
+          "output_manifest_sha256": {"type": "null"},
+          "supersedes_run_id": {"type": "string"}
+        }
+      }
+    },
+    {
+      "description": "WO-010-R7 §1: 'error', 'disabled' and 'dry_run' runs emitted nothing -- no output manifest, no manifest hash, no supersession -- so no record may ever bind to one.",
+      "if": {
+        "required": ["status"],
+        "properties": {"status": {"enum": ["error", "disabled", "dry_run"]}}
+      },
+      "then": {
+        "properties": {
+          "emitted_records": {"type": "null"},
+          "output_manifest_sha256": {"type": "null"},
+          "supersedes_run_id": {"type": "null"}
+        }
+      }
+    }
+  ]
 }

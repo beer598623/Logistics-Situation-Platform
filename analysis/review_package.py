@@ -34,6 +34,8 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from collectors.collection_runs import EMPTY_ACQUISITION_STATE_SHA256
+
 from .assessments import validate_preparedness_option, validate_scenario_outlook
 from .build_context import parse_timestamp
 from .provenance import (
@@ -351,7 +353,12 @@ def build_input_package(
             "collection_run_manifest_hashes": {},
             "manual_review_record_set_hashes": {},
             "included_current_record_ids": [],
-            "acquisition_state_sha256": None,
+            "live_record_bindings": [],
+            # WO-010-R7 §7: never null -- the canonical hash of the empty
+            # acquisition state, so this field is a real, schema-valid
+            # SHA-256 even for a caller that supplies no acquisition_summary
+            # at all.
+            "acquisition_state_sha256": EMPTY_ACQUISITION_STATE_SHA256,
         }
     )
     operational = [event for event in events if event["event_class"] == "direct_operational_event"]
@@ -628,12 +635,27 @@ def acquisition_currency_problems(
     moved -- any of these changes the overall acquisition-state hash even
     when every individually-cited ID still resolves and still shows an
     acceptable status.
+
+    WO-010-R7 §7: a missing or null ``acquisition_summary.
+    acquisition_state_sha256`` is rejected unconditionally, whether or not
+    fresh state was available to compare against -- there is no path where
+    a current package may carry no acquisition-state hash at all. The
+    equality comparison itself only runs when the caller actually supplied
+    ``current_acquisition_state_sha256`` (approval reloads state fresh from
+    disk before calling this; a caller that could not load it at all reports
+    that failure separately, as its own rejection, rather than silently
+    skipping this comparison).
     """
     problems: list[str] = []
     summary = package.get("acquisition_summary") or {}
 
     declared_state_hash = summary.get("acquisition_state_sha256")
-    if current_acquisition_state_sha256 is not None and declared_state_hash is not None:
+    if not declared_state_hash:
+        problems.append(
+            "acquisition_summary.acquisition_state_sha256 is missing or null; a current "
+            "package must always carry a non-null hash over the complete acquisition state"
+        )
+    elif current_acquisition_state_sha256 is not None:
         if declared_state_hash != current_acquisition_state_sha256:
             problems.append(
                 f"acquisition_summary.acquisition_state_sha256 {declared_state_hash!r} does "

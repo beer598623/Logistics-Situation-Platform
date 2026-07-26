@@ -20,6 +20,7 @@ from analysis.provenance import (  # noqa: E402
     acquisition_binding_problems,
     build_acquisition_summary,
     build_record_index,
+    compute_output_manifest_hash,
     source_health_publication_consistency_problems,
 )
 from tests.positive_path import (  # noqa: E402
@@ -45,8 +46,12 @@ def _run(**overrides):
     run = {
         "run_id": RUN_ID,
         "source_id": TEST_TRADE_SOURCE,
+        # Brackets live_trade_observation's default retrieved_at
+        # ("2026-07-20T06:00:00Z") so the WO-010-R7 §5 retrieval-time-window
+        # check (governing_run.started_at <= retrieved_at <= completed_at)
+        # passes by default; tests exercising that check override explicitly.
         "started_at": "2026-07-20T00:00:00Z",
-        "completed_at": "2026-07-20T00:00:00Z",
+        "completed_at": "2026-07-20T23:59:59Z",
         "status": "success",
         "adapter_version": "test_v1",
         "emitted_records": [
@@ -59,6 +64,8 @@ def _run(**overrides):
         "supersedes_run_id": None,
     }
     run.update(overrides)
+    if run.get("status") == "success" and "output_manifest_sha256" not in overrides:
+        run["output_manifest_sha256"] = compute_output_manifest_hash(run.get("emitted_records"))
     return run
 
 
@@ -247,7 +254,7 @@ def test_a_run_with_no_output_manifest_fails_closed():
     problems = acquisition_binding_problems(
         record, collection_runs_by_source={TEST_TRADE_SOURCE: [run]}, as_of=AS_OF
     )
-    assert any("declares no output manifest" in item for item in problems), problems
+    assert any("has no valid, non-null output-manifest hash" in item for item in problems), problems
 
 
 def test_a_record_bound_to_a_not_modified_run_follows_the_supersedes_chain():
@@ -258,7 +265,12 @@ def test_a_record_bound_to_a_not_modified_run_follows_the_supersedes_chain():
     not_modified_run_id = RUN_ID
     prior_run = _run(
         run_id=prior_run_id,
-        completed_at="2026-07-01T00:00:00Z",
+        # WO-010-R7 §5: the record's retrieved_at must fall within the
+        # *governing* run's own started_at..completed_at window -- the
+        # original run that actually produced the record, dated well before
+        # the later not_modified reconfirmation.
+        started_at="2026-07-01T00:00:00Z",
+        completed_at="2026-07-01T23:59:59Z",
         emitted_records=[
             {
                 "record_id": RECORD_ID,
@@ -274,7 +286,10 @@ def test_a_record_bound_to_a_not_modified_run_follows_the_supersedes_chain():
         supersedes_run_id=prior_run_id,
     )
     record = live_trade_observation(
-        period_key="2026-07", value=100.0, collection_run_id=not_modified_run_id
+        period_key="2026-07",
+        value=100.0,
+        collection_run_id=not_modified_run_id,
+        retrieved_at="2026-07-01T06:00:00Z",
     )
     problems = acquisition_binding_problems(
         record,
@@ -290,7 +305,7 @@ def test_a_not_modified_run_with_no_supersedes_chain_fails_closed():
     problems = acquisition_binding_problems(
         record, collection_runs_by_source={TEST_TRADE_SOURCE: [run]}, as_of=AS_OF
     )
-    assert any("declares no output manifest" in item for item in problems), problems
+    assert any("names no supersedes_run_id" in item for item in problems), problems
 
 
 # ---------------------------------------------------------------------------
@@ -389,7 +404,7 @@ def test_acquisition_summary_reports_a_qualifying_run_and_its_cutoff():
     )
     assert summary["qualifying_collection_run_ids"] == [RUN_ID]
     assert summary["excluded_unbound_record_count"] == 0
-    assert summary["latest_source_cutoff"] == "2026-07-20T00:00:00Z"
+    assert summary["latest_source_cutoff"] == "2026-07-20T23:59:59Z"
     assert summary["acquisition_health_limitations"] == []
     assert summary["included_current_record_ids"] == [RECORD_ID]
     assert set(summary["collection_run_manifest_hashes"]) == {RUN_ID}
@@ -446,4 +461,5 @@ def test_acquisition_summary_of_nothing_is_an_honest_empty_summary():
         "collection_run_manifest_hashes": {},
         "manual_review_record_set_hashes": {},
         "included_current_record_ids": [],
+        "live_record_bindings": [],
     }

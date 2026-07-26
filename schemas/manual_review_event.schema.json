@@ -51,7 +51,7 @@
     "related_record_ids": {
       "type": "array",
       "items": {"type": "string"},
-      "description": "Evidence or observation record IDs this review event is the basis for. The loader does not itself confirm these exist in the current package -- that is analysis.review_package's job -- but a manual review event naming none is unusual enough that callers should treat an empty list here as a signal, not silently accept it as normal."
+      "description": "Evidence or observation record IDs this review event is the basis for. WO-010-R5 §2/R6 §2: when the loader (collectors.collection_runs.load_manual_review_events) is given the current record index, it verifies every one of these IDs itself -- each must resolve to a real, same-source, non-fixture, current-dataset record dated at or before the review, record_count must agree with how many actually do, and the event's own reviewed_record_set_sha256 must match a hash recomputed from the current record set -- rather than trusting this list, or analysis.review_package alone, to catch a bad reference. A manual review event naming none is unusual enough that callers should treat an empty list here as a signal, not silently accept it as normal."
     },
     "data_cutoff_at": {
       "type": "string",

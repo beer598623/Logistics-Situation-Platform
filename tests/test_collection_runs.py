@@ -13,7 +13,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from analysis.provenance import compute_reviewed_record_set_hash  # noqa: E402
+from analysis.provenance import (  # noqa: E402
+    compute_output_manifest_hash,
+    compute_reviewed_record_set_hash,
+)
 from collectors.collection_runs import load_collection_runs, load_manual_review_events  # noqa: E402
 from tests.positive_path import TEST_NOTICE_SOURCE, TEST_REGISTRY  # noqa: E402
 
@@ -89,6 +92,12 @@ def _run(**overrides):
         "supersedes_run_id": None,
     }
     base.update(overrides)
+    # WO-010-R7 §1: a 'success' run must carry a non-null output_manifest_sha256
+    # matching its emitted_records; compute it by default so overriding only
+    # emitted_records (or records_emitted) doesn't also require overriding
+    # the hash by hand, unless a test is deliberately testing hash mismatch.
+    if base.get("status") == "success" and "output_manifest_sha256" not in overrides:
+        base["output_manifest_sha256"] = compute_output_manifest_hash(base.get("emitted_records"))
     return base
 
 
@@ -120,16 +129,21 @@ def test_a_well_formed_run_with_a_matching_manifest_loads_cleanly(tmp_path):
 
 
 def test_a_not_modified_run_that_claims_emitted_records_is_rejected(tmp_path):
+    # WO-010-R7 §1: schemas/collection_run.schema.json now enforces this
+    # structurally (a not_modified run's emitted_records must be the empty
+    # array), so this is a schema rejection, not a semantic one.
     _write_runs(
         tmp_path,
         f"{TEST_TRADE_SOURCE}.json",
         [
             _run(
-                status="not_modified", supersedes_run_id="COL-20251201T000000Z-" + TEST_TRADE_SOURCE
+                status="not_modified",
+                supersedes_run_id="COL-20251201T000000Z-" + TEST_TRADE_SOURCE,
+                output_manifest_sha256=None,
             )
         ],
     )
-    with pytest.raises(ValueError, match="must not claim newly emitted records"):
+    with pytest.raises(ValueError, match="invalid collection run manifest"):
         load_collection_runs(tmp_path)
 
 

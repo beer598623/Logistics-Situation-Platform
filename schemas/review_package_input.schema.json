@@ -273,6 +273,7 @@
         "collection_run_manifest_hashes",
         "manual_review_record_set_hashes",
         "included_current_record_ids",
+        "live_record_bindings",
         "acquisition_state_sha256"
       ],
       "properties": {
@@ -313,9 +314,31 @@
           "type": "array",
           "items": {"type": "string"}
         },
+        "live_record_bindings": {
+          "description": "WO-010-R7 §4. Per-record confirming/governing detail for every included live_retrieved record: which run was actually cited (confirming_run_id), which successful run's manifest actually backs it (governing_run_id), that run's own output_manifest_sha256 (never null), and the full supersedes_chain walked to resolve it. A not_modified binding is fully traceable here rather than collapsed into a single run-id-to-hash mapping that could otherwise show a null hash for the cited run while silently relying on another one.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "record_id",
+              "confirming_run_id",
+              "governing_run_id",
+              "output_manifest_sha256",
+              "supersedes_chain"
+            ],
+            "properties": {
+              "record_id": {"type": "string"},
+              "confirming_run_id": {"type": "string"},
+              "governing_run_id": {"type": "string"},
+              "output_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+              "supersedes_chain": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
         "acquisition_state_sha256": {
-          "description": "WO-010-R6 §4. One hash covering every collection run and manual review event this build loaded -- not only the ones this package cites -- so approval-time revalidation can require an exact match against acquisition state read fresh from disk.",
-          "type": ["string", "null"],
+          "description": "WO-010-R6 §4, made mandatory by WO-010-R7 §7. One hash covering every collection run and manual review event this build loaded -- not only the ones this package cites -- so approval-time revalidation can require an exact match against acquisition state read fresh from disk. Always a non-null SHA-256: a current package hashes its real acquisition state, and a technical-demo package uses the explicit canonical empty-state hash (collectors.collection_runs.EMPTY_ACQUISITION_STATE_SHA256) rather than null, so this field is never absent or ambiguous on any package.",
+          "type": "string",
           "pattern": "^[a-f0-9]{64}$"
         }
       }
