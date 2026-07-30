@@ -58,7 +58,7 @@ source.
 | `dependency-audit.yml` | weekly, manual | package install and dependency-vulnerability lookup only |
 | `collect.yml` | manual only | **none** — contract dry run |
 | `deploy-pages.yml` | push to main, manual | none beyond Pages upload |
-| `health-check.yml` | weekly, manual | none |
+| `health-check.yml` | **daily**, manual | fetches the *published Dashboard URL itself* (liveness check, WO-014) and the GitHub Issues API (to record/clear a failure); neither is a registered logistics source |
 | `manual-live-source-test.yml` | **manual only** | the one place a live fetch of a *registered source* may occur |
 
 `dependency-audit.yml` and the "Audit locked dependencies" step in `validate-pr.yml` both call
@@ -158,6 +158,29 @@ Every WO-010 change is additive on one branch. To roll back:
   prior platform intact.
 - **The warehouse** needs no rollback; delete and rebuild.
 
+### Rolling back the published Dashboard (WO-014)
+
+`deploy-pages.yml` is redeploy-from-source, not serve-a-branch: it checks out a commit, runs
+`scripts/build_dashboard.py`, and uploads that fresh build as the Pages artifact. There is no
+`gh-pages` branch holding old builds to check out directly (`docs/deployment_verification.md`
+§1). To roll the *published site* back to a prior known-good state:
+
+1. Identify the last commit on `main` known to have built and validated correctly (e.g. the
+   commit an earlier successful `deploy-pages.yml` run deployed).
+2. Re-run `deploy-pages.yml` `workflow_dispatch` against that commit's SHA — either by
+   dispatching the workflow with that ref, or by pushing a revert commit to `main` that
+   restores the prior tree and letting the normal `push`-triggered deploy handle it. A revert
+   commit is preferred: it keeps `main`, the build inputs, and the published site consistent
+   with each other, rather than leaving `main` ahead of what is actually live.
+3. Confirm the rollback with `docs/deployment_verification.md`'s liveness check (or wait for
+   the next daily `health-check.yml` run) against the published URL.
+
+Because `deploy-pages.yml`'s `build` job fails closed (§4, "A generator fails"), a bad commit
+that fails validation never reaches the artifact-upload step in the first place — the site
+already stays on its last good deploy without any rollback action. Rollback is only needed
+when a commit *passed* validation but is discovered to be wrong after the fact (a data-quality
+issue caught later, a licensing concern about already-published content, and similar).
+
 ## 7. Before enabling any source
 
 1. Complete a controlled live validation through `manual-live-source-test.yml`.
@@ -168,3 +191,78 @@ Every WO-010 change is additive on one branch. To roll back:
 5. Clear `enablement.blockers`.
 6. Justify a collection schedule that does not exceed the source's cadence.
 7. Re-run `python scripts/validate.py` — it will refuse an enabled source with a blocker.
+
+## 8. Backup and disaster recovery (WO-014)
+
+There is exactly one stateful, non-derivable system: **this git repository**. Every published
+fact, every schema, every reviewed assessment, and every source contract is a committed file.
+GitHub's own repository redundancy is the backup for that state; there is no separate database,
+object store, or credential vault to back up, because none exists (`docs/security_and_privacy_boundary.md`
+§5-6).
+
+Everything else is derived and disposable:
+
+- **The DuckDB warehouse** (`warehouse/logistics.duckdb`) is gitignored and rebuilt from
+  committed data by `scripts/build_warehouse.py`. Losing it costs one command, not data.
+- **The published Dashboard** (`dashboard/public/`) is committed (so it is itself
+  git-recoverable) *and* independently rebuildable from `data/` by `scripts/build_dashboard.py`.
+- **GitHub Pages' serving infrastructure** is not this project's to back up; recovery from a
+  Pages-side outage is "wait, or redeploy" (§6 above), not a restore-from-backup operation.
+
+**Recovery time objective:** a full rebuild from a clean clone (`git clone` → install locked
+dependencies → `scripts/build_warehouse.py` → `scripts/build_dashboard.py`) completes in
+minutes on ordinary CI hardware — see `validate-pr.yml`'s `timeout-minutes: 15` for the
+outer bound actually observed in practice, which covers far more than just the rebuild.
+
+**Recovery point objective:** whatever was last committed to `main`. There is no window of
+uncommitted, unrecoverable state by design — `AGENTS.md` and this runbook's own review cycle
+(§5) require every published change to go through a pull request, not a direct write to a
+running system.
+
+## 9. Incident response (WO-014)
+
+This is a public-data research repository with no on-call rotation and no paid incident
+tooling. "Incident response" here means: notice, triage, act, record — using the mechanisms
+already in this repository rather than inventing new ones.
+
+**Severity levels:**
+
+| Severity | Meaning | Example |
+|---|---|---|
+| **Info** | No user-facing effect | A single `health-check.yml` run fails transiently (e.g. a GitHub Pages CDN blip) and the next scheduled run passes |
+| **Degraded** | The published Dashboard is stale, incomplete, or shows a data-quality problem, but is reachable | A generator's `--check` step would fail if re-run today (caught before the next deploy by `validate-pr.yml`, so this should never reach production) |
+| **Down** | The published URL is unreachable or not serving the expected content | `health-check.yml`'s liveness step fails on two or more consecutive scheduled runs |
+| **Integrity** | Something published violates a structural guarantee this platform claims (fixture data presented as current, a missing value shown as zero, an organization-specific claim, licensing content beyond what a source permits) | Caught by `scripts/validate.py`'s fail-closed checks before publication; if one is discovered *after* publication despite that, treat as Integrity regardless of how it reached production |
+
+**Detection:**
+- **Down** — the automated `[Automated] Repository health check failed` issue from
+  `health-check.yml` (§3 of `docs/deployment_verification.md`). Do not wait for a human to
+  notice a red workflow run; the issue is the notification.
+- **Degraded / Integrity** — a `validate-pr.yml` failure on a pull request (should block merge
+  before publication), a `dependency-audit.yml` finding (§4 above), or a report from anyone
+  reading the published Dashboard.
+
+**Response:**
+1. **Triage severity** using the table above. An Info-level single transient failure needs no
+   action beyond confirming the next scheduled run passed.
+2. **Down** — follow §6's Pages rollback/redeploy procedure once the cause is understood
+   (Pages-service-side vs. a bad deploy). If the cause is unknown, redeploying the last known
+   good commit is a safe first action; it cannot make things worse, since the artifact
+   pipeline always redeploys from a validated build.
+3. **Degraded / Integrity discovered after publication** — this is the one case where a
+   rollback is not automatically safe on its own: check *what* was wrong before just reverting,
+   because reverting to an earlier commit could reintroduce a different, already-fixed problem.
+   Prefer a forward fix (a new, reviewed Work Order correcting the specific defect) unless the
+   published content needs to come down immediately, in which case roll back first and open the
+   corrective Work Order afterward.
+4. **Record it.** The automated health-check issue covers Down. For Degraded/Integrity, open
+   an Issue describing what was found, its severity, and the corrective Work Order — the same
+   Issue → branch → PR → independent review → merge cycle this repository already uses for
+   every other change (`CONTRIBUTING.md`), not a separate incident process.
+5. **Close it** only once the corrective change is merged and verified live (or, for the
+   automated Down issue, once `health-check.yml` closes it on the next successful run).
+
+**Escalation:** there is no on-call rotation or paging system. "Escalation" means the automated
+issue (or a manually opened one per step 4) is the durable record that something needs human
+judgment — the same pattern this repository already uses for any blocker requiring credentials,
+legal/licensing judgment, or another human-only decision.
