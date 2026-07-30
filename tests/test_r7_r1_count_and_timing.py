@@ -284,7 +284,13 @@ def test_a_run_with_a_missing_completed_at_is_rejected(tmp_path):
         load_collection_runs(tmp_path)
 
 
-def test_a_supersedes_chain_hop_with_an_inverted_interval_is_rejected(tmp_path):
+def test_a_run_in_a_supersedes_chain_with_an_inverted_interval_is_rejected_at_load_time(tmp_path):
+    # load_collection_runs runs collection_run_problems (unconditional, on
+    # every run) before it ever walks a not_modified chain, so an inverted
+    # run anywhere in a chain is caught here regardless of position, before
+    # resolve_governing_run's own per-hop check is even reached. See
+    # test_resolve_governing_run_rejects_an_inverted_interval_mid_chain
+    # below for a test that actually exercises that per-hop check.
     prior = _run(started_at="2026-07-20T23:00:00Z", completed_at="2026-07-20T01:00:00Z")
     not_modified = _run(
         run_id="COL-20260721T000000Z-" + TEST_TRADE_SOURCE,
@@ -308,6 +314,65 @@ def test_resolve_governing_run_rejects_a_governing_run_with_an_inverted_interval
     )
     assert governing is None
     assert any("inverted" in problem for problem in problems), problems
+
+
+def test_resolve_governing_run_rejects_an_inverted_interval_mid_chain():
+    # A genuine 3-run chain (not_modified -> not_modified -> success) with
+    # the *middle* hop's own interval inverted -- called directly, bypassing
+    # load_collection_runs/collection_run_problems entirely, so this is the
+    # one test that actually exercises resolve_governing_run's own per-hop
+    # interval check rather than being pre-empted by the per-run check that
+    # already runs for every loaded run before any chain is walked. Before
+    # WO-010-R7-R1, resolve_governing_run only compared completed_at
+    # pairwise across hops and never validated a hop's own interval, so a
+    # middle run whose own started_at > completed_at (while its completed_at
+    # still sorted correctly against its neighbours) would not have been
+    # caught here at all.
+    # terminal is never actually reached: the walk returns at `middle`,
+    # confirming its own interval check runs before any lookup of its
+    # supersedes_run_id.
+    terminal = _run(
+        run_id="COL-20260719T000000Z-" + TEST_TRADE_SOURCE,
+        started_at="2026-07-19T00:00:00Z",
+        completed_at="2026-07-19T23:59:59Z",
+    )
+    middle = _run(
+        run_id="COL-20260721T000000Z-" + TEST_TRADE_SOURCE,
+        # Inverted (started after it completed) -- but completed_at still
+        # sorts at or before confirming's own completed_at, so the pairwise
+        # chronology comparison alone would not catch this; only a check of
+        # this run's own interval does.
+        started_at="2026-07-21T00:00:00Z",
+        completed_at="2026-07-20T12:00:00Z",
+        status="not_modified",
+        emitted_records=[],
+        records_emitted=0,
+        output_manifest_sha256=None,
+        supersedes_run_id=terminal["run_id"],
+    )
+    confirming = _run(
+        run_id="COL-20260720T000000Z-" + TEST_TRADE_SOURCE,
+        started_at="2026-07-20T00:00:00Z",
+        completed_at="2026-07-20T23:59:59Z",
+        status="not_modified",
+        emitted_records=[],
+        records_emitted=0,
+        output_manifest_sha256=None,
+        supersedes_run_id=middle["run_id"],
+    )
+    runs_by_id = {
+        terminal["run_id"]: terminal,
+        middle["run_id"]: middle,
+        confirming["run_id"]: confirming,
+    }
+    _confirming_out, governing, chain, problems = resolve_governing_run(
+        confirming, runs_by_id=runs_by_id
+    )
+    assert governing is None
+    assert chain == [confirming["run_id"], middle["run_id"]]
+    assert any("inverted" in problem and middle["run_id"] in problem for problem in problems), (
+        problems
+    )
 
 
 def test_a_supersedes_chain_whose_prior_run_completes_later_is_rejected():
@@ -475,10 +540,15 @@ def test_collection_run_problems_accepts_a_fully_valid_success_run():
 
 
 def test_a_retrieved_observation_with_a_null_retrieved_at_fails_its_schema():
+    # tests.positive_path.live_trade_observation's default fixture already
+    # fails schema validation on two unrelated, pre-existing fields
+    # (partner_scope, evidence_class) -- asserting only `errors` is truthy
+    # would pass even with the new allOf rule absent. Isolate the rule under
+    # test by asserting the specific error it produces.
     record = live_trade_observation(period_key="2026-07", value=100.0)
     record["provenance"]["retrieved_at"] = None
     errors = schema_errors(record, "trade_observation.schema.json")
-    assert errors, "expected a schema error for retrieval_status=retrieved with a null retrieved_at"
+    assert any("retrieved_at" in error for error in errors), errors
 
 
 def test_a_not_retrieved_observation_with_a_retrieved_at_fails_its_schema():
@@ -487,9 +557,7 @@ def test_a_not_retrieved_observation_with_a_retrieved_at_fails_its_schema():
     )
     record["provenance"]["retrieved_at"] = "2026-07-20T06:00:00Z"
     errors = schema_errors(record, "trade_observation.schema.json")
-    assert errors, (
-        "expected a schema error for retrieval_status=not_retrieved with a non-null retrieved_at"
-    )
+    assert any("retrieved_at" in error for error in errors), errors
 
 
 def test_a_retrieved_event_evidence_with_a_null_retrieved_at_fails_its_schema():

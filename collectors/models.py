@@ -50,12 +50,23 @@ class SourceHealth:
 class CollectionRun:
     """WO-010-R7-R1: emitted_records/output_manifest_sha256/supersedes_run_id
     are now universally required by schemas/collection_run.schema.json, so
-    every CollectionRun carries them -- defaulting to None, which is the
-    correct value for every status this dataclass currently constructs
-    (dry_run, and the error/success paths in the GDACS/TMD adapters, none of
-    which populate an output manifest). records_emitted is null, never 0,
-    for a status that produced no manifest at all -- 0 is reserved for a
-    success run whose manifest genuinely has zero entries.
+    every CollectionRun carries them. The None defaults are correct for
+    dry_run() and for the error/disabled/dry_run branch of the schema's
+    per-status rules -- records_emitted is null, never 0, for a status that
+    produced no manifest at all, since 0 is reserved for a success run whose
+    manifest genuinely has zero entries.
+
+    They are NOT sufficient, on their own, to make a GDACS/TMD adapter's
+    success or not_modified run schema-valid: neither adapter populates an
+    output manifest, so a real success run from either still fails
+    schema.collection_run.schema.json's 'success' allOf block (which
+    requires non-null emitted_records/output_manifest_sha256), and a real
+    not_modified (304) run still fails its own required records_emitted/
+    supersedes_run_id. This predates WO-010-R7-R1 and is unchanged by it --
+    no adapter output is validated against this schema or persisted to
+    data/collection_runs/ by any current code path (scripts/collect.py and
+    scripts/manual_live_source_test.py only print/report it); only
+    dry_run() is schema-validated, by tests/test_data_contracts.py.
     """
 
     run_id: str
