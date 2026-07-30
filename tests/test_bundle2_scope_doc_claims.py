@@ -95,7 +95,10 @@ def test_no_air_source_is_registered_yet() -> None:
     Tokenises on underscores as well as whitespace so a realistic snake_case
     name (e.g. a purpose or logistics_role value like
     'air_freight_benchmark') is caught -- a bare 'air' or 'aviation'
-    substring check alone would miss it."""
+    substring check alone would miss it. Combined with a plain substring
+    check for the less ambiguous 'aviation'/'aircraft'/'airport' terms,
+    which also catches a hyphenated or glued form ('airport-throughput')
+    the token check alone would not."""
     registry = _load_registry()
     fields: list[str] = []
     for source in registry["sources"]:
@@ -103,10 +106,15 @@ def test_no_air_source_is_registered_yet() -> None:
         qualification = source.get("qualification", {})
         fields.extend(qualification.get("logistics_role", []))
 
-    tokens = {token for field in fields for token in re.split(r"[_\s]+", field.lower())}
-    air_related = {token for token in tokens if token in {"air", "aviation", "aircraft", "airport"}}
-    assert not air_related, (
-        f"found air-related tokens in source purposes/logistics_role: {air_related}"
+    lowered = [field.lower() for field in fields]
+    words = {word for field in lowered for word in re.split(r"[_\s]+", field)}
+    air_related = {word for word in words if word == "air"}
+    substring_hits = {
+        field for field in lowered for term in ("aviation", "aircraft", "airport") if term in field
+    }
+    assert not air_related and not substring_hits, (
+        f"found air-related tokens {air_related} or substrings {substring_hits} "
+        "in source purposes/logistics_role"
     )
 
 
