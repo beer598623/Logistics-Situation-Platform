@@ -9,7 +9,7 @@ dependencies = [
   "jsonschema==4.26.0",
   "PyYAML==6.0.3",
   "defusedxml==0.7.1",
-  "duckdb==1.4.1",
+  "duckdb==1.4.2",
 ]
 
 [dependency-groups]
