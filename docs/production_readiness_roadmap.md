@@ -34,19 +34,20 @@ audit; this document treats the Bundle 2 scope doc as *proposed*, not delivered.
 | 7 | Deterministic / auditable / fail-closed pipelines | PASS | `scripts/validate.py` semantic checks, `--check` mode on every generator, cross-version determinism fix (`2171152`), warehouse rebuild tests. Unchanged. |
 | 8 | Dashboard accurate / accessible / organization-neutral | **PARTIAL (improved, one open defect)** | WO-016 added `tests/test_dashboard_accessibility.py` — single `<h1>`, no static heading skip, `lang`, skip-link target, landmark accessible names, WCAG AA contrast computed from `styles.css`, plus payload budgets. Organization-neutrality is enforced in `analysis/assessments.py:56-74`. **Blocker: Issue #32** — `dashboard/public/assets/app.js` injects `<h4>` directly under `<h2>` in the Trade and Cost sections. Was FAIL-equivalent (unverified claims) in audit 1. |
 | 9 | Operational deployment / monitoring / backup / runbooks | **PASS (improved, minor robustness gap)** | WO-014 added a daily liveness check of the real Pages URL (`health-check.yml`, cron `17 3 * * *`) with automated issue open-on-failure / close-on-recovery, `docs/deployment_verification.md`, and runbook §6 rollback / §8 backup-DR / §9 incident response. WO-013 added weekly `pip-audit` (`dependency-audit.yml`). Minor gaps remain — see List A #3 and #4. Was FAIL in audit 1. |
-| 10 | No unresolved Critical/High blocker | PASS | Three open issues: #32 (Low/Medium accessibility defect), #33 (in-flight WO), #15 (deliberate governance HOLD, by design). None is Critical or High. Unchanged. |
+| 10 | No unresolved Critical/High blocker | PASS | Four open issues: #32 (Low/Medium accessibility defect), #33 (in-flight WO), #35 (this roadmap's own tracking issue), #15 (deliberate governance HOLD, by design). None is Critical or High. Unchanged. |
 
 ---
 
 ## List A — autonomously executable now
 
-### A1 (next Work Order) — WO-018: fix the Trade/Cost heading-level skip (Issue #32)
+### A1 (next Work Order) — WO-018: fix the Trade/Cost/Outlook heading-level skip (Issue #32)
 
 Bounded bug fix. Closes the only open defect behind gate 8.
 
 **The defect.** `dashboard/public/index.html:105-113` (Trade) contains an `<h2>` and *no* `<h3>` at
 all; `dashboard/public/index.html:115-122` (Cost) has its first `<h3>` only at line 123, after two
-injection points. Into those four containers, `app.js` writes `<h4>`:
+injection points; `dashboard/public/index.html:151-158` (Outlook) has its first `<h3>` only at line
+159, after two more injection points. Into those six containers, `app.js` writes `<h4>`:
 
 | Container (index.html) | Written by | Heading emitted |
 |---|---|---|
@@ -54,28 +55,47 @@ injection points. Into those four containers, `app.js` writes `<h4>`:
 | `#trade-lanes` (line 112) | `renderTrade`, `app.js:523-534` | `<h4>` lane name (`app.js:531`) + `<h4>` per flow |
 | `#current-cost-series` (line 119) | `renderCost`, `app.js:539-543` | `<h4>` per series via `seriesBlock` |
 | `#cost-series` (line 122) | `renderCost`, `app.js:547-555` | `<h4>` per series via `seriesBlock` |
+| `#withheld-assessments` (line 157) | `app.js:727-735` | `<h4>` per withheld package (`app.js:731`) |
+| `#approved-assessments` (line 158) | `app.js:737-743` | `<h4>` per approved package (`app.js:739`) |
 
-Result at runtime: `h2 → h4`, a level skip in two of seven sections.
+Result at runtime: `h2 → h4`, a level skip in **three** of seven sections (Trade, Cost, Outlook).
+The Outlook instance is latent today — `dashboard/public/data/ai_outlook.json` currently has
+`withheld_assessments: []` and `approved_assessments: []`, so both containers render `''` — but it
+is the fail-closed publication-gate path and is expected to populate. It must be fixed in the same
+Work Order as Trade/Cost, not deferred: the regression test in step 4 below is data-independent and
+would fail on it immediately if step 1 omitted it.
 
 **Prescribed fix — static `<h3>` headings in `index.html`, mirroring the pattern the Ocean section
-already uses.** Do *not* change `seriesBlock`'s heading level: `app.js:219` is shared by the Ocean,
-Events, Outlook and Sources sections, where it correctly sits under an existing `<h3>`
-(e.g. `index.html:123` `<h3>FX context</h3>` → `#fx-series`). Concretely:
+already uses.** Do *not* change `seriesBlock`'s heading level. Its only callers are in the Ocean
+section (`app.js:396`, `:438`) and the Trade/Cost containers this WO is already fixing
+(`app.js:516`, `:525`, `:541`, `:548`, `:556`); in every one of those call sites it already sits
+under an existing `<h3>` (e.g. `index.html:72` `<h3>Ocean lanes</h3>` → `#port-series`, or
+`index.html:123` `<h3>FX context</h3>` → `#fx-series`). The Outlook, Events, and Sources sections'
+`<h4>`s are emitted by their own inline literals, not `seriesBlock` — a distinction that matters
+because it means fixing Outlook (below) does not touch `seriesBlock` or its other callers either.
+Concretely:
 
-1. In `index.html`, insert an `<h3>` immediately before each of the four containers, following the
+1. In `index.html`, insert an `<h3>` immediately before each of the following, following the
    existing "current vs demonstration" labelling convention already used at `index.html:84-89`
    (which pairs a `<h3>… <span class="pill pill-note">current</span></h3>` with a current panel):
    - before `#current-trade-lanes`: `<h3>Current trade flows <span class="pill pill-note">current</span></h3>`
    - before `#trade-lanes`: `<h3 class="demo-heading">Trade flows by lane <span class="pill pill-demo">technical demonstration</span></h3>`
    - before `#current-cost-series`: `<h3>Current cost readings <span class="pill pill-note">current</span></h3>`
    - before `#cost-series`: `<h3 class="demo-heading">Cost and freight benchmarks <span class="pill pill-demo">technical demonstration</span></h3>`
+   - before `#withheld-assessments` (one heading covers both it and the immediately following
+     `#approved-assessments` — they are adjacent siblings with no content between them):
+     `<h3>Assessment status <span class="pill pill-note">current</span></h3>`
    Place each new `<h3>` *after* its section's existing banner paragraph(s) so the banner ordering
-   in `renderTrade`/`renderCost` is unaffected.
+   in `renderTrade`/`renderCost`/the Outlook render function is unaffected.
 2. In `app.js`, replace the two empty-string fallbacks — `app.js:521` (`: ''` for
    `#current-trade-lanes`) and `app.js:543` (`: ''` for `#current-cost-series`) — with an
    `<p class="empty-state">…</p>` message, so the new static `<h3>` never heads a visibly empty
    region. Match the wording style of the existing empty state at `app.js:493-494` ("…this is an
-   absence of records rather than evidence that…"). No other `app.js` change is required.
+   absence of records rather than evidence that…"). `#approved-assessments`'s empty fallback
+   (`app.js:743`) should get the same treatment for consistency, even though `#withheld-assessments`
+   already renders a banner when non-empty and `''` (silently, appropriately) when empty — withheld
+   assessments being absent is good news, not a gap, so it alone does not need an empty-state
+   message. No other `app.js` change is required.
 3. `dashboard/public/assets/styles.css` needs **no** change: `section h3` (line 101),
    `.demo-heading`, and `.series h4` (line 175) already style both levels; verify visually only.
 4. **Regression test.** Extend `tests/test_dashboard_accessibility.py` with a source-level check
@@ -83,8 +103,9 @@ Events, Outlook and Sources sections, where it correctly sits under an existing 
    an `<hN>` literal, assert the nearest *preceding* heading in `index.html` is exactly level
    `N-1`. Implement by regexing `app.js` for `el('<id>').innerHTML` blocks and the `<hN>` literals
    they reach (including via `seriesBlock`), and by reusing the existing `_DashboardHtmlParser` to
-   record heading level and element ids in document order. This catches the whole class of defect,
-   not just today's four instances.
+   record heading level and element ids in document order. This is deliberately data-independent —
+   it must catch the Outlook containers even though they render empty with today's fixture data —
+   and catches the whole class of defect, not just today's six instances.
 5. Update `docs/dashboard_user_guide.md:172-177`, which currently documents this exact skip as a
    known gap and cites Issue #32 — replace with a statement of what is now enforced.
 
@@ -126,7 +147,7 @@ schemas and committed data and is out of scope.
 `EXPECTED_CONTENT_MARKER = "Thailand Ocean Logistics Intelligence"` and asserts (line 72) that it
 appears **in the workflow file** — never that it appears in `dashboard/public/index.html:16`, where
 the `<h1>` actually lives. Renaming that `<h1>` — likely at Bundle 2, when "Ocean" stops being the
-whole scope — would silently break the daily liveness `grep` in `health-check.yml:73` and cause the
+whole scope — would silently break the daily liveness `grep` in `health-check.yml:72` and cause the
 automated failure issue to open every day with no CI warning. Fix: add one assertion that the
 marker is present in the committed `index.html`. Two-line change plus a comment.
 
@@ -136,7 +157,7 @@ marker is present in the committed `index.html`. Two-line change plus a comment.
 `GET /issues?state=open&per_page=100`. That endpoint returns pull requests as well as issues and is
 capped at one page, so with enough open PRs/issues the dedupe silently misses and a fresh duplicate
 issue is opened on every failing run. Fix: filter with `jq 'select(.pull_request | not)'`, or switch
-to the search API scoped by title. Low priority — the repository currently has 3 open issues and 1
+to the search API scoped by title. Low priority — the repository currently has 4 open issues and 1
 open PR, so the failure mode is latent, not active. Add a matching assertion to
 `tests/test_deployment_health_workflow.py`.
 
