@@ -22,6 +22,7 @@ record to either.
 | Property | State |
 |---|---|
 | Network in default CI | **Package installation and dependency-vulnerability lookup only** (WO-013: `validate-pr.yml` and the weekly `dependency-audit.yml` both run `pip-audit -r requirements.lock`, which queries PyPI's advisory feed about the pinned versions themselves). Lint, validation, dry run, build and tests are otherwise offline; neither workflow makes any request related to a registered logistics source |
+| Network in `health-check.yml` | **The published Dashboard URL and the GitHub Issues API only** (WO-014: a daily liveness check fetches `https://beer598623.github.io/Logistics-Situation-Platform/` — this repository's own published output, not a third-party source — and, on failure or recovery, calls the GitHub Issues API with the workflow's own `GITHUB_TOKEN` to record or clear an automated issue). Not contact with any registered logistics source |
 | Network in the new adapters | **None.** Both parse bytes they are handed; neither has a fetch path |
 | Network at import time | **None.** A test imports every module in a fresh interpreter with sockets disabled |
 | Arbitrary user-supplied fetch URLs | **None.** No code path accepts one |

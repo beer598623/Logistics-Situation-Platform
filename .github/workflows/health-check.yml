@@ -2,11 +2,18 @@ name: Repository health check
 
 on:
   schedule:
-    - cron: "17 0 * * 1"
+    - cron: "17 3 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
+  issues: write
+
+env:
+  DEPLOYED_URL: https://beer598623.github.io/Logistics-Situation-Platform/
+  # WO-014: title used to find/dedupe the automated health-check issue. Must
+  # stay in sync between the failure and recovery steps below.
+  HEALTH_ISSUE_TITLE: "[Automated] Repository health check failed"
 
 jobs:
   health:
@@ -49,3 +56,63 @@ jobs:
                          sources indicators source_status build_status; do
             python -m json.tool "dashboard/public/data/${payload}.json" >/dev/null
           done
+      # WO-014: the checks above only verify what is committed. This is the
+      # one check that confirms the actually-published site is reachable and
+      # serving the expected page, not just that the build inputs look right.
+      - name: Check the published Dashboard is live
+        run: |
+          set +e
+          status=$(curl -fsS --max-time 30 -o page.html -w "%{http_code}" "$DEPLOYED_URL")
+          curl_exit=$?
+          set -e
+          if [ "$curl_exit" -ne 0 ] || [ "$status" != "200" ]; then
+            echo "Liveness check failed: curl exit $curl_exit, HTTP status $status"
+            exit 1
+          fi
+          if ! grep -q "Thailand Ocean Logistics Intelligence" page.html; then
+            echo "Liveness check failed: expected content marker not found in the response"
+            exit 1
+          fi
+          echo "Dashboard is live at $DEPLOYED_URL and serving expected content."
+      # WO-014: a weekly-then-scheduled failure was previously silent -- the
+      # only signal was a red run nobody was watching. Record it as an issue
+      # so it survives beyond the Actions log retention window and is
+      # visible wherever the rest of this repository's work is tracked.
+      - name: Record or update a deployment-health issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/issues?state=open&per_page=100" \
+            | jq -r --arg t "$HEALTH_ISSUE_TITLE" '.[] | select(.title == $t) | .number' | head -n1)
+          body=$(jq -n --arg url "$RUN_URL" \
+            '{body: ("The scheduled repository health check failed. See the run log: " + $url + "\n\nThis issue was opened automatically and will not close itself until a later scheduled run succeeds. A maintainer should still confirm the cause.")}')
+          if [ -n "$existing" ]; then
+            curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/issues/${existing}/comments" -d "$body"
+          else
+            payload=$(jq -n --arg title "$HEALTH_ISSUE_TITLE" --arg url "$RUN_URL" \
+              '{title: $title, body: ("The scheduled repository health check failed. See the run log: " + $url + "\n\nThis issue was opened automatically and will not close itself until a later scheduled run succeeds. A maintainer should still confirm the cause.")}')
+            curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/issues" -d "$payload"
+          fi
+      - name: Close a resolved deployment-health issue on success
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          existing=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/issues?state=open&per_page=100" \
+            | jq -r --arg t "$HEALTH_ISSUE_TITLE" '.[] | select(.title == $t) | .number' | head -n1)
+          if [ -n "$existing" ]; then
+            curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/issues/${existing}/comments" \
+              -d '{"body":"The next scheduled health check passed. Closing automatically."}'
+            curl -fsS -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/issues/${existing}" \
+              -d '{"state":"closed","state_reason":"completed"}'
+          fi
