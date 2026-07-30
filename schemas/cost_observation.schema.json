@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cost_observation.schema.json",
+  "title": "Cost Observation (fact_cost_observation)",
+  "description": "A fuel, freight or logistics cost observation. The benchmark_class field is mandatory and is the contract-level guard against publishing a market benchmark or route proxy as if it were a Thailand shipment quotation (WO-010 Gate F freight rules).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "series_id",
+    "cost_family",
+    "benchmark_class",
+    "quotation_claim",
+    "provenance",
+    "measurement",
+    "placement"
+  ],
+  "properties": {
+    "series_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "cost_family": {
+      "enum": ["retail_fuel", "bunker_fuel", "crude_energy", "container_freight", "surcharge", "fee", "other_logistics_cost"]
+    },
+    "benchmark_class": {
+      "description": "What kind of number this is. 'market_benchmark' and 'route_proxy' are directional market information only. 'actual_quotation' is reserved for a qualified dataset that genuinely quotes shipments, and is not used by any source in this bundle.",
+      "enum": ["market_benchmark", "route_proxy", "directional_indicator", "published_official_price", "actual_quotation"]
+    },
+    "quotation_claim": {
+      "description": "Explicit, machine-checkable statement of whether this record may be presented as a shipment quotation. Must be 'not_a_quotation' for every benchmark_class other than 'actual_quotation'.",
+      "enum": ["not_a_quotation", "is_a_quotation"]
+    },
+    "route_scope": {
+      "type": ["string", "null"],
+      "description": "The route the benchmark actually covers, e.g. 'Shanghai to North Europe'. Null for non-route series such as retail fuel."
+    },
+    "applies_to_thailand": {
+      "description": "Whether the series is measured for Thailand ('measured'), is a global or third-route benchmark used only as directional context ('directional_context_only'), or has no established Thailand relationship ('not_established').",
+      "enum": ["measured", "directional_context_only", "not_established"]
+    },
+    "provenance": {"$ref": "observation_common.schema.json#/$defs/provenance"},
+    "measurement": {"$ref": "observation_common.schema.json#/$defs/measurement"},
+    "placement": {"$ref": "observation_common.schema.json#/$defs/placement"}
+  }
+}

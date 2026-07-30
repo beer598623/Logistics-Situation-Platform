@@ -22,10 +22,30 @@ jobs:
       - name: Verify required files
         run: |
           test -f dashboard/public/index.html
+          test -f dashboard/public/assets/app.js
+          test -f dashboard/public/assets/styles.css
           test -f config/sources.yaml
           test -f schemas/source_contract.schema.json
+          test -f data/reference/dimensions.json
+          test -f data/reference/lanes.json
       - name: Verify JSON syntax
         run: |
           python -m json.tool data/reviewed/current_events.json >/dev/null
           python -m json.tool data/source_status/latest.json >/dev/null
           python -m json.tool config/task_manifest.json >/dev/null
+          python -m json.tool data/reference/dimensions.json >/dev/null
+          python -m json.tool data/reference/lanes.json >/dev/null
+          for family in indicator trade port cost; do
+            python -m json.tool "data/observations/${family}_observations.json" >/dev/null
+          done
+          python -m json.tool data/events/events.json >/dev/null
+          python -m json.tool data/events/event_evidence.json >/dev/null
+          python -m json.tool data/assessments/lane_assessments.json >/dev/null
+          python -m json.tool data/assessments/thailand_assessment.json >/dev/null
+          python -m json.tool data/assessments/assessment_history.json >/dev/null
+      - name: Verify every published dashboard payload is present and parseable
+        run: |
+          for payload in thailand_situation ocean trade cost events ai_outlook \
+                         sources indicators source_status build_status; do
+            python -m json.tool "dashboard/public/data/${payload}.json" >/dev/null
+          done

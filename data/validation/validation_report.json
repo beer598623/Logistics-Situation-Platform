@@ -1,0 +1,208 @@
+{
+  "version": "0.8",
+  "generated_at": "2026-07-24T00:00:00Z",
+  "note": "Produced by scripts/run_historical_validation.py. Each case is assessed only against what it records at its own cutoff; later knowledge is excluded by construction.",
+  "cases": [
+    {
+      "case_id": "HVC-001",
+      "event_id": "EVT-20231218-001",
+      "title": "Container carriers divert Asia\u2013Europe services away from the Red Sea and Suez routing",
+      "assessment_cutoff": "2024-01-15T00:00:00Z",
+      "event_class": "direct_operational_event",
+      "transmission_completeness": "complete",
+      "thailand_relevance": "medium",
+      "lane_relevance": [
+        "LANE-OCEAN-TH-MED",
+        "LANE-OCEAN-TH-NEUR",
+        "LANE-OCEAN-TH-USEC"
+      ],
+      "facts_known_at_cutoff": [
+        "Multiple container carriers had publicly announced suspension of Red Sea transits and rerouting via the Cape of Good Hope.",
+        "The Suez Canal Authority publishes transit statistics that would show a decline.",
+        "Thailand westbound container lanes to Northern Europe and the Mediterranean normally use this corridor."
+      ],
+      "hindsight_limitation": "The duration of the diversion, its eventual freight-rate peak and its effect on Thailand trade volumes were all unknown at this cutoff and must not inform the assessment.",
+      "result": "pass",
+      "failures": []
+    },
+    {
+      "case_id": "HVC-002",
+      "event_id": "EVT-20231030-001",
+      "title": "Panama Canal Authority restricts daily transit slots during drought conditions",
+      "assessment_cutoff": "2023-11-15T00:00:00Z",
+      "event_class": "direct_operational_event",
+      "transmission_completeness": "complete",
+      "thailand_relevance": "low",
+      "lane_relevance": [
+        "LANE-OCEAN-TH-USEC"
+      ],
+      "facts_known_at_cutoff": [
+        "The canal authority had published advisories reducing daily transit slots and applying draft restrictions.",
+        "The restriction is a published operating condition of the waterway, not a report about any individual carrier."
+      ],
+      "hindsight_limitation": "How long the restrictions lasted, and whether slot counts were later restored, was unknown at this cutoff.",
+      "result": "pass",
+      "failures": []
+    },
+    {
+      "case_id": "HVC-003",
+      "event_id": "EVT-20240326-001",
+      "title": "Francis Scott Key Bridge collapse suspends vessel traffic at the Port of Baltimore",
+      "assessment_cutoff": "2024-04-05T00:00:00Z",
+      "event_class": "direct_operational_event",
+      "transmission_completeness": "complete",
+      "thailand_relevance": "none_established",
+      "lane_relevance": [
+        "LANE-OCEAN-TH-USEC",
+        "LANE-OCEAN-TH-USWC"
+      ],
+      "facts_known_at_cutoff": [
+        "The port administration had suspended vessel traffic at Baltimore.",
+        "Baltimore is a United States East Coast port with no service relationship to Thailand recorded in this platform's reference data."
+      ],
+      "hindsight_limitation": "The channel reopening timetable and the eventual cargo diversion pattern were unknown at this cutoff. This case exists to check that a large, well-reported event with no established Thailand link produces 'insufficient evidence' rather than an invented transmission chain.",
+      "result": "pass",
+      "failures": []
+    },
+    {
+      "case_id": "HVC-004",
+      "event_id": "EVT-20240520-001",
+      "title": "Elevated vessel waiting times reported at Singapore container terminals",
+      "assessment_cutoff": "2024-06-10T00:00:00Z",
+      "event_class": "direct_operational_event",
+      "transmission_completeness": "complete",
+      "thailand_relevance": "medium",
+      "lane_relevance": [
+        "LANE-OCEAN-TH-ASEAN-SG",
+        "LANE-OCEAN-TH-MED",
+        "LANE-OCEAN-TH-NEUR",
+        "LANE-OCEAN-TH-USEC",
+        "LANE-OCEAN-TH-USWC"
+      ],
+      "facts_known_at_cutoff": [
+        "The port authority had published operational guidance addressing elevated vessel waiting times.",
+        "Estimated port call counts had not fallen, so the pressure was not visible in volume data.",
+        "Singapore is the principal transshipment hub for Thailand long-haul services."
+      ],
+      "hindsight_limitation": "How long the elevated waiting times persisted, and whether they spread to neighbouring hubs, was unknown at this cutoff. This case exists to check that a congestion conclusion requires an operational-condition source and is never derived from throughput alone.",
+      "result": "pass",
+      "failures": []
+    },
+    {
+      "case_id": "HVC-005",
+      "event_id": "EVT-20220301-001",
+      "title": "Crude and refined product prices rise sharply, raising bunker and domestic fuel costs",
+      "assessment_cutoff": "2022-06-30T00:00:00Z",
+      "event_class": "external_driver",
+      "transmission_completeness": "complete",
+      "thailand_relevance": "medium",
+      "lane_relevance": [
+        "LANE-OCEAN-TH-ASEAN-SG",
+        "LANE-OCEAN-TH-DOMESTIC",
+        "LANE-OCEAN-TH-EASIA-CN",
+        "LANE-OCEAN-TH-JPKR",
+        "LANE-OCEAN-TH-MED",
+        "LANE-OCEAN-TH-MEGULF",
+        "LANE-OCEAN-TH-NEUR",
+        "LANE-OCEAN-TH-OCEANIA",
+        "LANE-OCEAN-TH-SASIA",
+        "LANE-OCEAN-TH-USEC",
+        "LANE-OCEAN-TH-USWC"
+      ],
+      "facts_known_at_cutoff": [
+        "International crude and refined product prices had risen sharply.",
+        "Thailand publishes retail fuel prices that track international benchmarks with a lag."
+      ],
+      "hindsight_limitation": "The eventual peak and duration of the price movement were unknown at this cutoff. This case exists to check that an external driver with a complete chain produces potential cost pressure rather than a quantified cost figure.",
+      "result": "pass",
+      "failures": []
+    },
+    {
+      "case_id": "HVC-006",
+      "event_id": "EVT-20241118-001",
+      "title": "Damage to Baltic Sea subsea telecommunications cables reported",
+      "assessment_cutoff": "2024-12-01T00:00:00Z",
+      "event_class": "external_driver",
+      "transmission_completeness": "incomplete",
+      "thailand_relevance": "none_established",
+      "lane_relevance": [
+        "LANE-OCEAN-TH-NEUR"
+      ],
+      "facts_known_at_cutoff": [
+        "Public reporting described damage to subsea telecommunications cables and an associated investigation.",
+        "No port, terminal, canal or carrier had announced any operational change."
+      ],
+      "hindsight_limitation": "This case exists to check that a widely reported security event with no stated Logistics mechanism stays contextual, produces no impact conclusion, and is not admitted to any lane assessment. Whether a mechanism was later established is irrelevant to the assessment at this cutoff.",
+      "result": "pass",
+      "failures": []
+    },
+    {
+      "case_id": "HVC-007",
+      "event_id": "EVT-20240614-002",
+      "title": "Pasir Panjang oil spill response with port operations reported unaffected",
+      "assessment_cutoff": "2024-06-20T00:00:00Z",
+      "event_class": "direct_operational_event",
+      "transmission_completeness": "complete",
+      "thailand_relevance": "low",
+      "lane_relevance": [
+        "LANE-OCEAN-TH-ASEAN-SG",
+        "LANE-OCEAN-TH-MED",
+        "LANE-OCEAN-TH-NEUR",
+        "LANE-OCEAN-TH-USEC",
+        "LANE-OCEAN-TH-USWC"
+      ],
+      "facts_known_at_cutoff": [
+        "An oil spill response was underway near the terminal.",
+        "The operating authority explicitly stated that navigation and berthing were not affected."
+      ],
+      "hindsight_limitation": "This case exists to check the one legitimate use of 'no material impact detected': an actual assessment against explicit negative operational evidence, never an unassessed area.",
+      "result": "pass",
+      "failures": []
+    },
+    {
+      "case_id": "HVC-008",
+      "event_id": "EVT-20260715-001",
+      "title": "Unverified report of a labour dispute affecting a Southeast Asian container terminal",
+      "assessment_cutoff": "2026-07-24T00:00:00Z",
+      "event_class": "discovery_lead",
+      "transmission_completeness": "not_applicable",
+      "thailand_relevance": "none_established",
+      "lane_relevance": [],
+      "facts_known_at_cutoff": [
+        "A discovery source surfaced a lead. Nothing else is known.",
+        "No terminal, port authority or carrier has published a corresponding notice."
+      ],
+      "hindsight_limitation": "This case exists to check that a discovery lead is representable, visible, and structurally unable to support a conclusion.",
+      "result": "pass",
+      "failures": []
+    }
+  ],
+  "metrics": {
+    "traceability_rate": 1.0,
+    "impacts_assessed": 72,
+    "material_impacts": 11,
+    "unsupported_causation_count": 0,
+    "unsupported_causation_rate": 0.0,
+    "unsupported_causation_examples": [],
+    "geography_leakage_count": 0,
+    "geography_leakage_examples": [],
+    "missing_as_zero_count": 0,
+    "missing_as_zero_examples": [],
+    "event_impact_separation_examples": [
+      "EVT-20231030-001: event severity moderate vs worst impact severity low",
+      "EVT-20231218-001: event severity high vs worst impact severity moderate",
+      "EVT-20240326-001: event severity high vs worst impact severity none",
+      "EVT-20240614-002: event severity low vs worst impact severity none"
+    ],
+    "scenario_completeness_rate": 1.0,
+    "scenario_problems": [],
+    "preparedness_overreach_count": 0,
+    "preparedness_overreach_examples": [],
+    "insufficient_evidence_uses": 52,
+    "no_material_uses": 9,
+    "no_material_without_negative_evidence": [],
+    "material_impact_on_discovery_only_evidence": [],
+    "material_impact_on_inadmissible_driver": []
+  },
+  "overall": "pass"
+}

@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review_package_output.schema.json",
+  "title": "ChatGPT Review Package — Output",
+  "description": "The structured assessment a human imports back after running the input package through ChatGPT. Schema validity is necessary but not sufficient: scripts/import_review.py additionally applies the rejection rules in WO-010 Gate I (unknown evidence, missing transmission mechanisms, missing-as-zero, proxy presented as quotation, unsupported real-time congestion claims, unsupported causation, company-specific mandatory instructions) and blocks autonomous publication of High or Critical conclusions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "package_id",
+    "methodology_version",
+    "produced_at",
+    "model_reference",
+    "input_package_sha256",
+    "input_dataset",
+    "input_package_purpose",
+    "input_data_cutoff_at",
+    "input_source_cutoff",
+    "current_situation",
+    "key_changes",
+    "lane_assessments",
+    "verified_facts",
+    "reported_claims",
+    "analytical_inference",
+    "conflicting_evidence",
+    "transmission_chains",
+    "observed_impacts",
+    "potential_impacts",
+    "scenarios",
+    "evidence_references",
+    "data_gaps",
+    "conditional_preparedness_options",
+    "highest_severity_claimed"
+  ],
+  "properties": {
+    "package_id": {"type": "string", "pattern": "^PKG-[0-9]{8}-[0-9]{3,}$"},
+    "methodology_version": {"const": "0.8"},
+    "produced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this OUTPUT was produced. This is an output-generation timestamp, not a binding field -- it must never be read as, or confused with, input_data_cutoff_at or input_source_cutoff below, which describe the INPUT package instead."
+    },
+    "model_reference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text record of which assistant produced the output, entered by the human reviewer. Provenance only -- the repository never calls an AI API."
+    },
+    "input_package_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Copied verbatim from the input package's own package_sha256. Binds this output to the exact package it was produced from; import is rejected if this does not match the package on disk."
+    },
+    "input_dataset": {
+      "enum": ["current_publication", "technical_demo", "historical_validation"],
+      "description": "Copied verbatim from the input package's own dataset. Must equal current_publication for this output to ever be approved into the current AI Outlook."
+    },
+    "input_package_purpose": {
+      "enum": ["current_intelligence_assessment", "engine_demonstration"],
+      "description": "Copied verbatim from the input package's own package_purpose. Must equal current_intelligence_assessment for this output to ever be approved into the current AI Outlook."
+    },
+    "input_data_cutoff_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Copied verbatim from the input package's own data_cutoff_at. A mismatch means this output was produced against a different vintage of the package and cannot be approved without an explicit supersession."
+    },
+    "input_source_cutoff": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Copied verbatim from the input package's own source_cutoff. WO-010-R6 §6: null when the input package included zero acquisition-bound evidence -- the binding must accept and echo that null honestly rather than a package or output ever substituting as_of_time/data_cutoff_at for it."
+    },
+    "current_situation": {
+      "$ref": "#/$defs/currentDisposition",
+      "description": "WO-010-R4 §1: a structured disposition, not a free-text sentence. Free-text wording alone must never be what determines whether a current conclusion is supported."
+    },
+    "key_changes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/keyChange"},
+      "description": "WO-010-R4 §1: structured records, not plain strings. A key change must cite eligible support; with zero eligible support, this array must be empty or contain only change_type 'coverage_change' entries with no support references."
+    },
+    "lane_assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lane_id", "direction", "summary", "evidence_ids", "indicator_ids", "confidence", "data_gaps"],
+        "properties": {
+          "lane_id": {"type": "string", "pattern": "^LANE-[A-Z0-9-]+$"},
+          "direction": {"enum": ["improving", "stable", "deteriorating", "mixed", "insufficient_evidence"]},
+          "summary": {"type": "string", "minLength": 1},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}},
+          "indicator_ids": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "series_id values from the input package's key_indicators that support this lane's direction. A direction other than insufficient_evidence must cite at least one evidence_id or indicator_id."
+          },
+          "confidence": {"enum": ["low", "medium", "high"]},
+          "data_gaps": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "verified_facts": {"type": "array", "items": {"$ref": "#/$defs/statement"}},
+    "reported_claims": {"type": "array", "items": {"$ref": "#/$defs/statement"}},
+    "analytical_inference": {"type": "array", "items": {"$ref": "#/$defs/statement"}},
+    "conflicting_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description", "evidence_ids", "resolution_status"],
+        "properties": {
+          "description": {"type": "string", "minLength": 1},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+          "resolution_status": {"enum": ["unresolved", "resolved_by_primary_source", "superseded", "confidence_reduced"]}
+        }
+      }
+    },
+    "transmission_chains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subject", "external_driver", "operational_change", "logistics_mechanism", "observable_indicator", "outcome", "evidence_ids", "indicator_ids"],
+        "properties": {
+          "subject": {"type": "string", "minLength": 1},
+          "external_driver": {"type": ["string", "null"]},
+          "operational_change": {"type": ["string", "null"]},
+          "logistics_mechanism": {"type": ["string", "null"]},
+          "observable_indicator": {"type": ["string", "null"]},
+          "outcome": {"type": ["string", "null"]},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}},
+          "indicator_ids": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "series_id values supporting whichever links above are populated. A chain with any populated link must cite at least one evidence_id or indicator_id."
+          }
+        }
+      }
+    },
+    "observed_impacts": {"type": "array", "items": {"$ref": "#/$defs/impactClaim"}},
+    "potential_impacts": {"type": "array", "items": {"$ref": "#/$defs/impactClaim"}},
+    "scenarios": {"type": "array", "items": {"$ref": "scenario_outlook.schema.json"}, "minItems": 1},
+    "evidence_references": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Every evidence_id the assessment relies on. Import fails if any is not present in the corresponding input package."
+    },
+    "data_gaps": {"type": "array", "items": {"type": "string"}},
+    "conditional_preparedness_options": {"type": "array", "items": {"$ref": "preparedness_option.schema.json"}},
+    "highest_severity_claimed": {
+      "enum": ["none", "low", "moderate", "high", "critical"],
+      "description": "The maximum severity anywhere in this output. 'high' or 'critical' forces human_review_required and blocks autonomous publication."
+    }
+  },
+  "$defs": {
+    "currentDisposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_direction", "current_disposition", "evidence_ids", "indicator_ids", "statement"],
+      "properties": {
+        "current_direction": {
+          "enum": ["improving", "stable", "deteriorating", "mixed", "insufficient_evidence"],
+          "description": "A direction other than insufficient_evidence must cite at least one eligible, relevant evidence_id or indicator_id."
+        },
+        "current_disposition": {
+          "enum": ["assessed", "insufficient_evidence"],
+          "description": "Whether this is a genuine assessment or a coverage-gap statement. Must be 'insufficient_evidence' whenever current_direction is, and whenever the package holds no eligible support at all."
+        },
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {"type": "array", "items": {"type": "string"}},
+        "statement": {"type": "string", "minLength": 1, "maxLength": 1200}
+      }
+    },
+    "keyChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statement", "change_type", "evidence_ids", "indicator_ids", "comparison_period",
+        "known_limitations"
+      ],
+      "properties": {
+        "statement": {"type": "string", "minLength": 1, "maxLength": 800},
+        "change_type": {
+          "enum": ["new_information", "direction_change", "magnitude_change", "coverage_change"],
+          "description": "'coverage_change' is the only type permitted with empty evidence_ids and indicator_ids -- it describes a change in what the platform can see, not a change in the world."
+        },
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {"type": "array", "items": {"type": "string"}},
+        "comparison_period": {
+          "type": ["string", "null"],
+          "description": "What this change is measured against, e.g. a prior data_cutoff_at. Null when change_type is coverage_change."
+        },
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "statement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement", "evidence_ids", "indicator_ids"],
+      "properties": {
+        "statement": {"type": "string", "minLength": 1, "maxLength": 800},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "series_id values from key_indicators supporting this statement, where an indicator supports it."
+        }
+      }
+    },
+    "impactClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area", "status", "severity", "description", "transmission_mechanism", "evidence_ids", "indicator_ids", "evidence_strength", "confidence", "time_horizon", "known_limitations"],
+      "properties": {
+        "area": {
+          "enum": ["warehouse", "logistics", "transport", "import_export", "inventory", "cost", "capacity", "service", "business_continuity"]
+        },
+        "status": {"enum": ["observed", "potential", "no_material", "insufficient_evidence"]},
+        "severity": {"enum": ["none", "low", "moderate", "high", "critical"]},
+        "description": {"type": "string", "minLength": 1},
+        "transmission_mechanism": {"type": "array", "items": {"type": "string"}},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "indicator_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "series_id values supporting this impact claim. A numeric indicator alone can never establish an operational-condition impact (capacity, service, transport, logistics): those areas require at least one evidence_id."
+        },
+        "evidence_strength": {"enum": ["A", "B", "C", "D"]},
+        "confidence": {"enum": ["low", "medium", "high"]},
+        "time_horizon": {"enum": ["0-7_days", "1-4_weeks", "1-3_months", "longer_term", "unknown"]},
+        "lane_ids": {"type": "array", "items": {"type": "string"}},
+        "known_limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

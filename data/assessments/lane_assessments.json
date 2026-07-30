@@ -1,0 +1,3225 @@
+{
+  "version": "0.8",
+  "dataset": "current_publication",
+  "generated_at": "2026-07-24T00:00:00Z",
+  "note": "Current-publication lane assessments, built from qualified (live-retrieved or human-reviewed) evidence only.",
+  "assessments": [
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-EASIA-CN-20260724",
+      "lane_id": "LANE-OCEAN-TH-EASIA-CN",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-EASIA-CN",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-EASIA-CN",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Mainland China and Hong Kong. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Mainland China and Hong Kong. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Mainland China and Hong Kong. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010; the trade-value criterion is recorded as analytical inference, not as a measured ranking.",
+          "Resolution is country-level: the platform holds no Thailand port-pair statistics, so this lane must not be displayed as a port-pair lane."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010; the trade-value criterion is recorded as analytical inference, not as a measured ranking.",
+        "Resolution is country-level: the platform holds no Thailand port-pair statistics, so this lane must not be displayed as a port-pair lane."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 Mainland China and Hong Kong may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 Mainland China and Hong Kong",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 Mainland China and Hong Kong, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-JPKR-20260724",
+      "lane_id": "LANE-OCEAN-TH-JPKR",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-JPKR",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-JPKR",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Japan and Korea. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Japan and Korea. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Japan and Korea. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010.",
+          "Grouping Japan and Korea reflects service-string structure; it will understate a disruption affecting only one of the two countries."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Grouping Japan and Korea reflects service-string structure; it will understate a disruption affecting only one of the two countries."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 Japan and Korea may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 Japan and Korea",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 Japan and Korea, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-ASEAN-SG-20260724",
+      "lane_id": "LANE-OCEAN-TH-ASEAN-SG",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [
+        {
+          "chokepoint_id": "CHK-MALACCA",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        },
+        {
+          "chokepoint_id": "CHK-SINGAPORE",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        }
+      ],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-ASEAN-SG",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-ASEAN-SG",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 ASEAN and Singapore transshipment. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 ASEAN and Singapore transshipment. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 ASEAN and Singapore transshipment. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010, so the trade-value criterion was not applied to this lane; selection rests on the recorded structural criteria.",
+          "Resolution is regional: transshipment volumes attributable to Thailand cargo are not separable from any public source the platform has qualified.",
+          "A Singapore port notice is evidence of the notice, not automatically of an effect on Thailand cargo."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010, so the trade-value criterion was not applied to this lane; selection rests on the recorded structural criteria.",
+        "Resolution is regional: transshipment volumes attributable to Thailand cargo are not separable from any public source the platform has qualified.",
+        "A Singapore port notice is evidence of the notice, not automatically of an effect on Thailand cargo."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 ASEAN and Singapore transshipment may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 ASEAN and Singapore transshipment",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "contingency",
+          "description": "Where a lane transits a chokepoint with a registered notice channel, an organization may wish to understand in advance what an alternative routing would mean for its own transit-time assumptions.",
+          "applicable_to": "Organizations whose planning assumptions depend on Thailand \u2194 ASEAN and Singapore transshipment transit times",
+          "trigger_condition": "An operating authority publishes a restriction affecting a chokepoint this lane transits.",
+          "possible_benefit": "A planning assumption that is examined before it is tested rather than after.",
+          "tradeoffs": [
+            "Alternative routings usually carry their own cost or transit penalty."
+          ],
+          "limitations": [
+            "The platform does not model routings and publishes no transit-time estimate for any alternative."
+          ],
+          "exit_condition": "The restriction is withdrawn or the lane's exposure is retired.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 ASEAN and Singapore transshipment, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-SASIA-20260724",
+      "lane_id": "LANE-OCEAN-TH-SASIA",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [
+        {
+          "chokepoint_id": "CHK-MALACCA",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        }
+      ],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-SASIA",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-SASIA",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 South Asia. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 South Asia. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 South Asia. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010.",
+          "Grouping four countries at regional resolution will mask country-specific disruption."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Grouping four countries at regional resolution will mask country-specific disruption."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 South Asia may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 South Asia",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "contingency",
+          "description": "Where a lane transits a chokepoint with a registered notice channel, an organization may wish to understand in advance what an alternative routing would mean for its own transit-time assumptions.",
+          "applicable_to": "Organizations whose planning assumptions depend on Thailand \u2194 South Asia transit times",
+          "trigger_condition": "An operating authority publishes a restriction affecting a chokepoint this lane transits.",
+          "possible_benefit": "A planning assumption that is examined before it is tested rather than after.",
+          "tradeoffs": [
+            "Alternative routings usually carry their own cost or transit penalty."
+          ],
+          "limitations": [
+            "The platform does not model routings and publishes no transit-time estimate for any alternative."
+          ],
+          "exit_condition": "The restriction is withdrawn or the lane's exposure is retired.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 South Asia, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-MEGULF-20260724",
+      "lane_id": "LANE-OCEAN-TH-MEGULF",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [
+        {
+          "chokepoint_id": "CHK-MALACCA",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        },
+        {
+          "chokepoint_id": "CHK-HORMUZ",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        }
+      ],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-MEGULF",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-MEGULF",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Middle East and Gulf. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Middle East and Gulf. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Middle East and Gulf. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010.",
+          "Container and energy flows behave differently but are grouped in one lane at this resolution."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Container and energy flows behave differently but are grouped in one lane at this resolution."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 Middle East and Gulf may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 Middle East and Gulf",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "contingency",
+          "description": "Where a lane transits a chokepoint with a registered notice channel, an organization may wish to understand in advance what an alternative routing would mean for its own transit-time assumptions.",
+          "applicable_to": "Organizations whose planning assumptions depend on Thailand \u2194 Middle East and Gulf transit times",
+          "trigger_condition": "An operating authority publishes a restriction affecting a chokepoint this lane transits.",
+          "possible_benefit": "A planning assumption that is examined before it is tested rather than after.",
+          "tradeoffs": [
+            "Alternative routings usually carry their own cost or transit penalty."
+          ],
+          "limitations": [
+            "The platform does not model routings and publishes no transit-time estimate for any alternative."
+          ],
+          "exit_condition": "The restriction is withdrawn or the lane's exposure is retired.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 Middle East and Gulf, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-NEUR-20260724",
+      "lane_id": "LANE-OCEAN-TH-NEUR",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [
+        {
+          "chokepoint_id": "CHK-MALACCA",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        },
+        {
+          "chokepoint_id": "CHK-BABELMANDEB",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        },
+        {
+          "chokepoint_id": "CHK-SUEZ",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        }
+      ],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-NEUR",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-NEUR",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Northern Europe. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Northern Europe. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Northern Europe. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010.",
+          "Most Thailand North Europe cargo is transshipped rather than carried on direct services, so lane performance depends on the ASEAN/Singapore lane as well."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Most Thailand North Europe cargo is transshipped rather than carried on direct services, so lane performance depends on the ASEAN/Singapore lane as well."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 Northern Europe may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 Northern Europe",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "contingency",
+          "description": "Where a lane transits a chokepoint with a registered notice channel, an organization may wish to understand in advance what an alternative routing would mean for its own transit-time assumptions.",
+          "applicable_to": "Organizations whose planning assumptions depend on Thailand \u2194 Northern Europe transit times",
+          "trigger_condition": "An operating authority publishes a restriction affecting a chokepoint this lane transits.",
+          "possible_benefit": "A planning assumption that is examined before it is tested rather than after.",
+          "tradeoffs": [
+            "Alternative routings usually carry their own cost or transit penalty."
+          ],
+          "limitations": [
+            "The platform does not model routings and publishes no transit-time estimate for any alternative."
+          ],
+          "exit_condition": "The restriction is withdrawn or the lane's exposure is retired.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 Northern Europe, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-MED-20260724",
+      "lane_id": "LANE-OCEAN-TH-MED",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [
+        {
+          "chokepoint_id": "CHK-MALACCA",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        },
+        {
+          "chokepoint_id": "CHK-BABELMANDEB",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        },
+        {
+          "chokepoint_id": "CHK-SUEZ",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        }
+      ],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-MED",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-MED",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Mediterranean. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Mediterranean. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Mediterranean. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010.",
+          "Mediterranean volumes are smaller than North European volumes, so indicator movements on this lane are noisier."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Mediterranean volumes are smaller than North European volumes, so indicator movements on this lane are noisier."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 Mediterranean may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 Mediterranean",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "contingency",
+          "description": "Where a lane transits a chokepoint with a registered notice channel, an organization may wish to understand in advance what an alternative routing would mean for its own transit-time assumptions.",
+          "applicable_to": "Organizations whose planning assumptions depend on Thailand \u2194 Mediterranean transit times",
+          "trigger_condition": "An operating authority publishes a restriction affecting a chokepoint this lane transits.",
+          "possible_benefit": "A planning assumption that is examined before it is tested rather than after.",
+          "tradeoffs": [
+            "Alternative routings usually carry their own cost or transit penalty."
+          ],
+          "limitations": [
+            "The platform does not model routings and publishes no transit-time estimate for any alternative."
+          ],
+          "exit_condition": "The restriction is withdrawn or the lane's exposure is retired.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 Mediterranean, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-USWC-20260724",
+      "lane_id": "LANE-OCEAN-TH-USWC",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-USWC",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-USWC",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 United States West Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 United States West Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 United States West Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010.",
+          "Most Thailand transpacific cargo is transshipped, so lane conditions depend partly on the ASEAN/Singapore lane."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Most Thailand transpacific cargo is transshipped, so lane conditions depend partly on the ASEAN/Singapore lane."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 United States West Coast may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 United States West Coast",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 United States West Coast, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-USEC-20260724",
+      "lane_id": "LANE-OCEAN-TH-USEC",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [
+        {
+          "chokepoint_id": "CHK-PANAMA",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        },
+        {
+          "chokepoint_id": "CHK-MALACCA",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        },
+        {
+          "chokepoint_id": "CHK-SUEZ",
+          "status": "insufficient_evidence",
+          "basis": "No qualified notice is recorded for this chokepoint. Absence of a record is not absence of a notice."
+        }
+      ],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-USEC",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-USEC",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 United States East and Gulf Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 United States East and Gulf Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 United States East and Gulf Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010.",
+          "Which routing a given service actually uses is carrier-specific and is not published in any source the platform has qualified; chokepoint exposure is therefore potential, not confirmed, for any specific shipment."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Which routing a given service actually uses is carrier-specific and is not published in any source the platform has qualified; chokepoint exposure is therefore potential, not confirmed, for any specific shipment."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 United States East and Gulf Coast may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 United States East and Gulf Coast",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "contingency",
+          "description": "Where a lane transits a chokepoint with a registered notice channel, an organization may wish to understand in advance what an alternative routing would mean for its own transit-time assumptions.",
+          "applicable_to": "Organizations whose planning assumptions depend on Thailand \u2194 United States East and Gulf Coast transit times",
+          "trigger_condition": "An operating authority publishes a restriction affecting a chokepoint this lane transits.",
+          "possible_benefit": "A planning assumption that is examined before it is tested rather than after.",
+          "tradeoffs": [
+            "Alternative routings usually carry their own cost or transit penalty."
+          ],
+          "limitations": [
+            "The platform does not model routings and publishes no transit-time estimate for any alternative."
+          ],
+          "exit_condition": "The restriction is withdrawn or the lane's exposure is retired.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 United States East and Gulf Coast, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-OCEANIA-20260724",
+      "lane_id": "LANE-OCEAN-TH-OCEANIA",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-OCEANIA",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-OCEANIA",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Australia and New Zealand. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Australia and New Zealand. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand \u2194 Australia and New Zealand. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand trade ranking was retrieved under WO-010.",
+          "Smallest lane in the set by expected volume; indicator movements will be correspondingly noisier."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand trade ranking was retrieved under WO-010.",
+        "Smallest lane in the set by expected volume; indicator movements will be correspondingly noisier."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand \u2194 Australia and New Zealand may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand \u2194 Australia and New Zealand",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand \u2194 Australia and New Zealand, because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    },
+    {
+      "assessment_id": "LAS-CUR-OCEAN-TH-DOMESTIC-20260724",
+      "lane_id": "LANE-OCEAN-TH-DOMESTIC",
+      "generated_at": "2026-07-24T00:00:00Z",
+      "data_cutoff_at": "2026-07-24T00:00:00Z",
+      "overall_direction": "insufficient_evidence",
+      "attention_level": "insufficient_evidence",
+      "domain_assessments": [
+        {
+          "domain": "thailand_trade_flow",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified Thailand trade observation is recorded for this lane.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "port_maritime_activity",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_port_calls.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "freight_benchmark_direction",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series container_freight_benchmark.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fuel_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series thailand_diesel_retail_price.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "fx_pressure",
+          "direction": "insufficient_evidence",
+          "basis": "No qualified observation exists for series usd_thb_reference_rate.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ]
+        },
+        {
+          "domain": "operational_event_status",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "capacity_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "transit_time_or_service_evidence",
+          "direction": "insufficient_evidence",
+          "basis": "Derived from qualified events recorded against this lane: none.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "No event of any class is recorded against this lane, which is an absence of evidence rather than evidence of normal operation."
+          ]
+        },
+        {
+          "domain": "source_freshness_and_coverage",
+          "direction": "insufficient_evidence",
+          "basis": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+          "threshold_rule_id": null,
+          "indicator_ids": [],
+          "evidence_ids": [],
+          "data_period": null,
+          "freshness": {
+            "status": "no_data",
+            "as_of": null,
+            "age_days": null
+          },
+          "revision_status": "unknown",
+          "known_limitations": [
+            "Derived from qualified (live-retrieved or human-reviewed) current-publication records only. 0 such observation(s) and 0 such event(s) exist at this cutoff."
+          ]
+        }
+      ],
+      "active_event_ids": [],
+      "external_driver_event_ids": [],
+      "chokepoint_exposure": [],
+      "scenarios": {
+        "outlook_id": "OUT-CUR-OCEAN-TH-DOMESTIC",
+        "subject_type": "lane",
+        "subject_id": "LANE-OCEAN-TH-DOMESTIC",
+        "generated_at": "2026-07-24T00:00:00Z",
+        "data_cutoff_at": "2026-07-24T00:00:00Z",
+        "base_case": {
+          "narrative": "No outlook can be offered for Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland). The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "deterioration_case": {
+          "narrative": "No outlook can be offered for Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland). The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "improvement_case": {
+          "narrative": "No outlook can be offered for Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland). The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
+          "time_horizon": "1-4_weeks",
+          "trigger_conditions": [
+            {
+              "condition": "a source covering this lane completes a controlled live validation and is enabled, or a human records a reviewed official notice for one of its nodes or chokepoints",
+              "observable_via": "the source registry's enablement records and the Sources and Methodology section"
+            }
+          ],
+          "evidence_ids": [],
+          "confidence": "low",
+          "data_gaps": [
+            "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+          ],
+          "point_forecast_disclaimer": "No numeric forecast is given anywhere in this platform, and with zero qualified evidence no qualitative direction is given either."
+        },
+        "known_limitations": [
+          "This is a coverage statement, not an outlook. All three cases are identical because with no qualified evidence there is nothing to differentiate them.",
+          "No quantitative Thailand port or trade series was retrieved under WO-010, so data_period_used is null and the selection rests on the recorded structural criteria.",
+          "The Ocean module covers only the seaport leg. Inland road and rail drayage is a Land-module concern and is explicitly not assessed by WO-010.",
+          "This lane is mode-tagged 'sea' because only its seaport leg is in scope; the inland leg will require a separate road or rail lane record when the Land module is built."
+        ]
+      },
+      "data_gaps": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal."
+      ],
+      "known_limitations": [
+        "No live-retrieved or human-reviewed evidence exists for this lane. Synthetic and historical-validation fixtures exercise the analysis engine but are excluded from the current view, so there is nothing to assess -- which is a coverage gap, not a finding that conditions are normal.",
+        "No quantitative Thailand port or trade series was retrieved under WO-010, so data_period_used is null and the selection rests on the recorded structural criteria.",
+        "The Ocean module covers only the seaport leg. Inland road and rail drayage is a Land-module concern and is explicitly not assessed by WO-010.",
+        "This lane is mode-tagged 'sea' because only its seaport leg is in scope; the inland leg will require a separate road or rail lane record when the Land module is built."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication",
+      "preparedness_options": [
+        {
+          "option_type": "monitor",
+          "description": "Organizations with cargo moving on Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland) may wish to track the domain readings and official notices recorded for this lane, so that a change is noticed when it occurs rather than afterwards.",
+          "applicable_to": "Organizations with exposure to Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland)",
+          "trigger_condition": "The lane is published with an attention level of watch or elevated, or any domain crosses its documented threshold.",
+          "possible_benefit": "Earlier awareness of a change that is already observable in a public source.",
+          "tradeoffs": [
+            "Requires ongoing attention to a lane that may not change."
+          ],
+          "limitations": [
+            "This platform holds no shipment, booking or capacity data, so it cannot state whether any particular organization is exposed to this lane."
+          ],
+          "exit_condition": "The lane returns to a routine attention level and no official notice is open against its nodes or chokepoints.",
+          "evidence_basis": []
+        },
+        {
+          "option_type": "no_action",
+          "description": "No source-backed action is indicated for Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland), because the platform currently has no usable reading for it. Absence of a reading is a coverage gap and is not a basis for either action or reassurance.",
+          "applicable_to": "Any reader of this lane",
+          "trigger_condition": "Every domain for this lane reports insufficient evidence.",
+          "possible_benefit": "Avoids treating a coverage gap as though it were a finding of stability.",
+          "tradeoffs": [
+            "A real change could be occurring unobserved."
+          ],
+          "limitations": [
+            "This option exists because coverage is insufficient, not because the lane was assessed and found quiet."
+          ],
+          "exit_condition": "At least one domain acquires a usable reading.",
+          "evidence_basis": []
+        }
+      ]
+    }
+  ]
+}

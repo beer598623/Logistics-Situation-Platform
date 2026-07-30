@@ -41,6 +41,13 @@ def test_collection_run_dry_run_is_schema_valid() -> None:
     )
     assert list(validator.iter_errors(run)) == []
     assert run["records_received"] is None
+    # WO-010-R7-R1: emitted_records/output_manifest_sha256/supersedes_run_id
+    # are now universally required by the schema; CollectionRun must carry
+    # them (defaulting to None) so a dry-run manifest stays schema-valid.
+    assert run["records_emitted"] is None
+    assert run["emitted_records"] is None
+    assert run["output_manifest_sha256"] is None
+    assert run["supersedes_run_id"] is None
 
 
 def test_source_status_does_not_claim_all_clear() -> None:

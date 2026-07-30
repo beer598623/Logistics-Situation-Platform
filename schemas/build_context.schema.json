@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "build_context.schema.json",
+  "title": "Build Context",
+  "description": "The single as-of time and provenance snapshot a current build resolves once and every downstream script (build_analysis.py, build_dashboard.py, build_review_package.py) reads from, rather than each independently pinning its own notion of 'now' (WO-010-R4 §6).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "build_context_id",
+    "dataset",
+    "as_of_time",
+    "source_cutoff",
+    "generated_at",
+    "latest_included_collection_run_at",
+    "latest_included_manual_review_at",
+    "methodology_version",
+    "input_hashes",
+    "generation_time_basis"
+  ],
+  "properties": {
+    "build_context_id": {
+      "type": "string",
+      "pattern": "^BCTX-[A-Z_]+-[0-9]{8}T[0-9]{6}Z$",
+      "description": "Deterministic from dataset and as_of_time, so rebuilding at the same as-of time for the same dataset reproduces the same ID."
+    },
+    "dataset": {
+      "enum": ["current_publication", "technical_demo", "historical_validation"]
+    },
+    "as_of_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The operationally valid 'now' this build treats every freshness, activity and inclusion decision as being measured against. Not the wall clock and not a permanent constant -- resolved once per build, from an explicit --as-of, a carried-forward prior context, or a committed reproducible default."
+    },
+    "source_cutoff": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "WO-010-R5 §8: the latest timestamp actually found among the current build's included evidence -- the latest qualified observation, event, collection run or manual review, whichever is most recent. Not as_of_time: as_of_time is the analytical cutoff this build was told to describe; source_cutoff is what evidence the build actually found dated at or before it. Null when the current build includes zero qualified evidence -- a null source_cutoff is the honest 'nothing to cite a cutoff from', never silently defaulted to as_of_time."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "WO-010-R5 §8: the true wall-clock instant this context record was written, never copied from as_of_time. A rebuild with identical inputs and the same as-of time reuses the originally persisted generated_at rather than overwriting it with a new instant, which is what keeps python scripts/build_analysis.py reproducible without pretending the record was generated at its own analytical cutoff."
+    },
+    "latest_included_collection_run_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "The completed_at of the most recent collection-run manifest this build actually treated as valid (i.e. not future-dated relative to as_of_time). Null when no run qualifies."
+    },
+    "latest_included_manual_review_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "The reviewed_at of the most recent manual-review event this build actually treated as valid. Null when no event qualifies."
+    },
+    "methodology_version": {"type": "string"},
+    "input_hashes": {
+      "type": "object",
+      "description": "SHA-256 of each input file this build actually read, keyed by a short logical name -- lets a reviewer confirm which exact files a committed context was built from.",
+      "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    },
+    "generation_time_basis": {
+      "description": "WO-010-R6 §7. Where generated_at actually came from: 'observed_build_time' -- a freshly observed wall-clock instant, this build genuinely ran now; 'persisted_rebuild_time' -- reused from an identical prior build (same build_context_id and input_hashes), which keeps a bare rebuild byte-identical; 'legacy_migrated' -- this context was carried forward from a pre-WO-010-R6 record whose generated_at was produced under the former (incorrect) generated_at = as_of_time rule, and has been given one truthful migration timestamp rather than continuing to be treated as a verified real generation time.",
+      "enum": ["observed_build_time", "persisted_rebuild_time", "legacy_migrated"]
+    }
+  }
+}

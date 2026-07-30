@@ -91,8 +91,16 @@ def test_source_contract_schema_extension_is_additive_and_optional() -> None:
 
 
 def test_last_reviewed_at_was_bumped_for_this_material_change() -> None:
+    """The registry review date advances whenever the registry changes.
+
+    Bumped from the WO-004 date to 2026-07-24 by WO-010, which added ten
+    source candidates and the qualification/enablement records for the three
+    pre-existing Bundle 1 candidates. The GDACS and TMD_CAP entries keep
+    their own unchanged ``terms_reviewed_at`` dates, which this bump does not
+    touch.
+    """
     registry = load_registry()
-    assert registry["last_reviewed_at"] == "2026-07-23"
+    assert registry["last_reviewed_at"] == "2026-07-24"
 
 
 def test_config_sources_yaml_parses_as_plain_yaml() -> None:

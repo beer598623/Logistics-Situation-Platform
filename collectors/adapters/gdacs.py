@@ -504,7 +504,11 @@ class GdacsAdapter(SourceAdapter):
             last_modified=last_modified,
             content_sha256=content_sha256,
             records_received=len(records) + sum(1 for w in warnings if w.startswith("feature[")),
-            records_emitted=len(records),
+            # WO-010-R7-R1: records_emitted is null, not 0, for a status that
+            # produced no manifest at all (error/disabled/dry_run) -- only a
+            # success (or a 304 not_modified, which correctly emits nothing
+            # of its own) may claim a real count.
+            records_emitted=len(records) if status != RunStatus.ERROR else None,
             records_rejected=sum(1 for w in warnings if w.startswith("feature[")),
             # The bounded request's own to_date (end of day, UTC), not the
             # wall-clock time this workflow run happened to finish --

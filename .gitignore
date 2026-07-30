@@ -4,3 +4,9 @@ __pycache__/
 .env
 .DS_Store
 manual_live_test_output/
+
+# Generated analytical warehouse. Derived from version-controlled JSON and
+# rebuilt by scripts/build_warehouse.py; never committed.
+warehouse/
+*.duckdb
+*.duckdb.wal

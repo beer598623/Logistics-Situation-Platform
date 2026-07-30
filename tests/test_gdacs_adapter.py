@@ -360,6 +360,10 @@ def test_collect_rejects_an_unexpected_content_type_like_an_html_error_page(
     assert result.run.status.value == "error"
     assert result.records == []
     assert any("UnexpectedContentTypeError" in error for error in result.errors)
+    # WO-010-R7-R1: an error run's records_emitted is null, not 0 -- no
+    # manifest was ever produced, which is a different fact from a success
+    # run's manifest legitimately being empty.
+    assert result.run.records_emitted is None
 
 
 def test_collect_warns_but_proceeds_when_content_type_header_is_missing(
@@ -422,6 +426,8 @@ def test_collect_handles_304_safely_for_response_url_and_content_type(
     assert result.run.status.value == "not_modified"
     assert result.run.response_url is not None
     assert result.run.content_type is None
+    # WO-010-R7-R1: a not_modified run's records_emitted must be exactly 0.
+    assert result.run.records_emitted == 0
 
 
 def test_dry_run_manifest_has_null_response_url_and_content_type() -> None:

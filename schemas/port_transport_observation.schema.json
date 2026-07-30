@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "port_transport_observation.schema.json",
+  "title": "Port or Transport Observation (fact_port_or_transport_observation)",
+  "description": "An observation about a logistics node or transport operation: port throughput, port calls, vessel activity, transit time, service reliability. Named 'port_or_transport' deliberately -- the same contract carries an airport, border crossing or rail terminal observation for later Air/Land modules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "series_id",
+    "metric",
+    "operational_interpretation",
+    "provenance",
+    "measurement",
+    "placement"
+  ],
+  "properties": {
+    "series_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "metric": {
+      "enum": [
+        "container_throughput",
+        "cargo_throughput",
+        "vessel_calls",
+        "aircraft_movements",
+        "border_crossings",
+        "rail_movements",
+        "berth_occupancy",
+        "waiting_time",
+        "transit_time",
+        "schedule_reliability",
+        "capacity_deployed",
+        "connectivity_index"
+      ]
+    },
+    "operational_interpretation": {
+      "description": "What this metric may and may not be used to claim. 'volume_only' means the metric measures how much moved and can never on its own support a congestion, delay or capacity-shortage conclusion (WO-010 Gate F port rules). 'operational_condition' is reserved for metrics that directly measure an operational condition such as waiting time or berth occupancy.",
+      "enum": ["volume_only", "operational_condition", "service_quality", "structural_capacity"]
+    },
+    "resolution": {
+      "enum": ["node", "port_group", "country", "region", "global"],
+      "description": "Actual geographic resolution of the observation. A regional figure must never be displayed as if it were port-level."
+    },
+    "provenance": {"$ref": "observation_common.schema.json#/$defs/provenance"},
+    "measurement": {"$ref": "observation_common.schema.json#/$defs/measurement"},
+    "placement": {"$ref": "observation_common.schema.json#/$defs/placement"}
+  }
+}

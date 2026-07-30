@@ -1,0 +1,125 @@
+{
+  "dataset": "current_publication",
+  "generated_at": "2026-07-24T00:00:00Z",
+  "data_cutoff_at": "2026-07-24T00:00:00Z",
+  "methodology_version": "0.8",
+  "overall_direction": "insufficient_evidence",
+  "evidence_coverage": "insufficient",
+  "coverage_message": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+  "live_coverage_statement": "Live coverage is INSUFFICIENT. No source in the registry is enabled and none has completed a controlled live validation, so the platform holds no live-retrieved or human-reviewed evidence at all. Every current reading below is therefore 'insufficient evidence' -- which is a coverage gap, not a finding that conditions are normal. Synthetic and historical-validation fixtures are shown only in the separately labelled Technical demonstration panels and never contribute to a current reading.",
+  "qualified_observation_count": 0,
+  "current_indicator_count": 0,
+  "qualified_event_count": 0,
+  "current_lane_coverage": {
+    "lanes_total": 11,
+    "lanes_with_any_qualified_domain": 0,
+    "lane_ids_with_any_qualified_domain": []
+  },
+  "current_capability_coverage": [
+    {
+      "capability": "cost_and_freight_context",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "global_baseline_context",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "operational_event_evidence",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "thailand_port_or_maritime_activity",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    },
+    {
+      "capability": "thailand_trade_flow",
+      "qualified_record_count": 0,
+      "status": "insufficient",
+      "gap_reason": "No qualified current-publication record supports this capability."
+    }
+  ],
+  "key_changes": [
+    "No current assessment can be produced: the platform holds no live-retrieved or human-reviewed evidence, so there is nothing to compare and nothing to report."
+  ],
+  "lanes_requiring_attention": [],
+  "active_verified_events": [],
+  "admitted_external_drivers": [],
+  "contextual_external_drivers": [],
+  "discovery_leads": [],
+  "major_data_gaps": [
+    "Source Health reports overall current-publication coverage 'insufficient': Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
+    "cost and freight context: No qualified current-publication record supports this capability.",
+    "global baseline context: No qualified current-publication record supports this capability.",
+    "operational event evidence: No qualified current-publication record supports this capability.",
+    "thailand port or maritime activity: No qualified current-publication record supports this capability.",
+    "thailand trade flow: No qualified current-publication record supports this capability.",
+    "11 of 11 Ocean lane(s) have no qualified domain at all; every domain in that lane reads insufficient_evidence.",
+    "No qualified operational event exists, so no congestion, waiting-time or berth-delay statement can be made anywhere in the platform."
+  ],
+  "demo_summary": {
+    "dataset": "technical_demo",
+    "label": "Technical demonstration \u2014 synthetic fixtures, not current intelligence",
+    "overall_direction": "deteriorating",
+    "lanes_requiring_attention": 11
+  },
+  "current_cost_pressure": [],
+  "cost_pressure": [
+    {
+      "dataset": "technical_demo",
+      "series_id": "container_freight_benchmark",
+      "source_id": "SYNTHETIC_FIXTURE",
+      "intended_source_id": "FBX_PUBLIC",
+      "evidence_origin": "synthetic_test_fixture",
+      "current_value": 2136.7,
+      "current_period": "2026-06-30",
+      "unit": "index_points",
+      "month_over_month_pct": 6.5260743842855655,
+      "freshness": {
+        "status": "fixture_not_live",
+        "as_of": "2026-06-20T00:00:00Z",
+        "age_days": null
+      }
+    },
+    {
+      "dataset": "technical_demo",
+      "series_id": "thailand_diesel_retail_price",
+      "source_id": "SYNTHETIC_FIXTURE",
+      "intended_source_id": "EPPO_FUEL",
+      "evidence_origin": "synthetic_test_fixture",
+      "current_value": 32.34,
+      "current_period": "2026-06-30",
+      "unit": "THB_per_litre",
+      "month_over_month_pct": 0.779058896852602,
+      "freshness": {
+        "status": "fixture_not_live",
+        "as_of": "2026-06-20T00:00:00Z",
+        "age_days": null
+      }
+    },
+    {
+      "dataset": "technical_demo",
+      "series_id": "usd_thb_reference_rate",
+      "source_id": "SYNTHETIC_FIXTURE",
+      "intended_source_id": "BOT_FX",
+      "evidence_origin": "synthetic_test_fixture",
+      "current_value": 34.767,
+      "current_period": "2026-06-30",
+      "unit": "THB_per_USD",
+      "month_over_month_pct": -0.798927154963318,
+      "freshness": {
+        "status": "fixture_not_live",
+        "as_of": "2026-06-15T00:00:00Z",
+        "age_days": null
+      }
+    }
+  ]
+}

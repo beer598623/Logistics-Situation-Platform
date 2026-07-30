@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review_package_input.schema.json",
+  "title": "ChatGPT Review Package \u2014 Input",
+  "description": "The bounded package a human exports to ChatGPT. No AI API is called by this repository; the package is generated, handed to a human, and the returned assessment is imported and validated separately. The package must never contain secrets, private company information, unbounded article text, or raw licensed content that cannot be shared.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "package_id",
+    "methodology_version",
+    "generated_at",
+    "data_cutoff_at",
+    "source_health_summary",
+    "key_indicators",
+    "lane_status",
+    "active_operational_events",
+    "external_drivers",
+    "evidence_records",
+    "conflicting_evidence",
+    "previous_assessments",
+    "data_gaps",
+    "output_instructions",
+    "required_output_binding",
+    "exclusions_applied",
+    "dataset",
+    "package_purpose",
+    "source_cutoff",
+    "provenance_summary",
+    "acquisition_summary"
+  ],
+  "properties": {
+    "package_id": {
+      "type": "string",
+      "pattern": "^PKG-[0-9]{8}-[0-9]{3,}$"
+    },
+    "methodology_version": {
+      "const": "0.8"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data_cutoff_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_health_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall_status",
+        "coverage_message",
+        "sources",
+        "capabilities"
+      ],
+      "properties": {
+        "overall_status": {
+          "enum": [
+            "sufficient",
+            "limited",
+            "insufficient"
+          ]
+        },
+        "coverage_message": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "key_indicators": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "lane_status": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "active_operational_events": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "external_drivers": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "evidence_records": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Bounded evidence items. Each carries an evidence_id the returned assessment must reference; an assessment referencing an unknown evidence_id is rejected on import."
+    },
+    "conflicting_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "previous_assessments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "data_gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "output_instructions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_sections",
+        "prohibited_outputs",
+        "output_schema_path",
+        "required_output_binding_instructions"
+      ],
+      "properties": {
+        "required_sections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "prohibited_outputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "output_schema_path": {
+          "type": "string"
+        },
+        "required_output_binding_instructions": {
+          "type": "string",
+          "minLength": 1,
+          "description": "WO-010-R3 §1: tells whoever pastes this package which five fields the returned output must echo verbatim (see required_output_binding below), and that produced_at is not one of them."
+        }
+      }
+    },
+    "exclusions_applied": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "description": "What was deliberately withheld from the package (secrets, private company information, unbounded article text, restricted raw content). Recorded so a reviewer can see the boundary was applied."
+    },
+    "package_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "required_output_binding": {
+      "description": "WO-010-R3 §1: the same five values as literals, restated here (not only as instructions) so a script diffing an output against its package has one well-known location to read, and a human pasting the package can copy them directly.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_package_sha256",
+        "input_dataset",
+        "input_package_purpose",
+        "input_data_cutoff_at",
+        "input_source_cutoff"
+      ],
+      "properties": {
+        "input_package_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "input_dataset": {
+          "enum": [
+            "current_publication",
+            "technical_demo",
+            "historical_validation"
+          ]
+        },
+        "input_package_purpose": {
+          "enum": [
+            "current_intelligence_assessment",
+            "engine_demonstration"
+          ]
+        },
+        "input_data_cutoff_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input_source_cutoff": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      }
+    },
+    "dataset": {
+      "description": "Which publication surface this package was built from. Only a current_publication package may be approved into the current AI Outlook.",
+      "enum": [
+        "current_publication",
+        "technical_demo",
+        "historical_validation"
+      ]
+    },
+    "package_purpose": {
+      "description": "What the package is for. Must agree with the dataset: a technical_demo package is an engine demonstration however it is labelled.",
+      "enum": [
+        "current_intelligence_assessment",
+        "engine_demonstration"
+      ]
+    },
+    "source_cutoff": {
+      "description": "The instant the underlying source records were selected against. Recorded separately from data_cutoff_at so an approval can detect an assessment produced against a different vintage of the same package. WO-010-R6 §6: null when the package includes zero acquisition-bound evidence -- never silently replaced with as_of_time/data_cutoff_at.",
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "provenance_summary": {
+      "description": "Where the package's contents came from, and how many records the qualification filter excluded. Lets a reviewer and the approval gate see the provenance mix without re-deriving it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence",
+        "events",
+        "excluded_fixture_record_count"
+      ],
+      "properties": {
+        "evidence": {
+          "type": "object"
+        },
+        "events": {
+          "type": "object"
+        },
+        "excluded_fixture_record_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "acquisition_summary": {
+      "description": "WO-010-R5 §9. What actually stands behind this package's current evidence: which collection runs and manual-review events it drew on, how many otherwise-qualified records were excluded for having no acquisition binding, and the latest source cutoff those bindings support. Present on every package (technical_demo packages report empty/zero values honestly rather than omitting the section) so a reviewer or the approval gate can independently confirm the package's evidence is not merely labelled live/reviewed but is actually traceable to a persisted acquisition event.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qualifying_collection_run_ids",
+        "qualifying_manual_review_event_ids",
+        "excluded_unbound_record_count",
+        "latest_source_cutoff",
+        "acquisition_health_limitations",
+        "collection_run_manifest_hashes",
+        "manual_review_record_set_hashes",
+        "included_current_record_ids",
+        "live_record_bindings",
+        "acquisition_state_sha256"
+      ],
+      "properties": {
+        "qualifying_collection_run_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "qualifying_manual_review_event_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "excluded_unbound_record_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many otherwise-qualified live_retrieved/human_reviewed_manual records were excluded from this package specifically because they carried no matching, valid acquisition binding."
+        },
+        "latest_source_cutoff": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "The latest timestamp among this package's own qualifying acquisition bindings. Null when the package includes no acquisition-bound evidence."
+        },
+        "acquisition_health_limitations": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "collection_run_manifest_hashes": {
+          "description": "WO-010-R6 §4. output_manifest_sha256 of each qualifying collection run, keyed by run_id.",
+          "type": "object",
+          "additionalProperties": {"type": ["string", "null"]}
+        },
+        "manual_review_record_set_hashes": {
+          "description": "WO-010-R6 §4. reviewed_record_set_sha256 of each qualifying manual review event, keyed by event_id.",
+          "type": "object",
+          "additionalProperties": {"type": ["string", "null"]}
+        },
+        "included_current_record_ids": {
+          "description": "WO-010-R6 §4. record_id/evidence_id of every record this package's acquisition summary actually included.",
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "live_record_bindings": {
+          "description": "WO-010-R7 §4. Per-record confirming/governing detail for every included live_retrieved record: which run was actually cited (confirming_run_id), which successful run's manifest actually backs it (governing_run_id), that run's own output_manifest_sha256 (never null), and the full supersedes_chain walked to resolve it. A not_modified binding is fully traceable here rather than collapsed into a single run-id-to-hash mapping that could otherwise show a null hash for the cited run while silently relying on another one.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "record_id",
+              "confirming_run_id",
+              "governing_run_id",
+              "output_manifest_sha256",
+              "supersedes_chain"
+            ],
+            "properties": {
+              "record_id": {"type": "string"},
+              "confirming_run_id": {"type": "string"},
+              "governing_run_id": {"type": "string"},
+              "output_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+              "supersedes_chain": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        "acquisition_state_sha256": {
+          "description": "WO-010-R6 §4, made mandatory by WO-010-R7 §7. One hash covering every collection run and manual review event this build loaded -- not only the ones this package cites -- so approval-time revalidation can require an exact match against acquisition state read fresh from disk. Always a non-null SHA-256: a current package hashes its real acquisition state, and a technical-demo package uses the explicit canonical empty-state hash (collectors.collection_runs.EMPTY_ACQUISITION_STATE_SHA256) rather than null, so this field is never absent or ambiguous on any package.",
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}
