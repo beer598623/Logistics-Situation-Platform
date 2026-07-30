@@ -1,0 +1,9 @@
+# Default owner for everything in this repository, unless overridden below.
+* @beer598623
+
+# Source registry and licensing-sensitive files get no narrower an owner today —
+# listed explicitly so a future narrower rule is a visible, deliberate change.
+/config/sources.yaml @beer598623
+/docs/source_qualification_report.md @beer598623
+/docs/source_enablement_decisions.md @beer598623
+/SECURITY.md @beer598623
