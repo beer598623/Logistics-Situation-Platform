@@ -23,6 +23,7 @@ python scripts/ingest_fixtures.py --check
 python scripts/build_events_from_cases.py --check
 python scripts/build_analysis.py --check
 python scripts/run_historical_validation.py
+python scripts/build_warehouse.py
 python scripts/build_dashboard.py
 git status --porcelain data dashboard/public
 pytest

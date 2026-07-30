@@ -2,9 +2,17 @@
 
 This repository is built through a Work Order process: one bounded change, one GitHub Issue,
 one branch, one pull request, with independent review before merge. This document describes
-that process for a human contributor. If you are an automated agent, also read
-[`AGENTS.md`](AGENTS.md), which defines allowed/prohibited write paths and mandatory behavior
-for automated changes — it is stricter than this document, not looser.
+that process for a human contributor, or for an agent acting as a Work Order implementer (the
+role that writes `scripts/**`, `.github/**`, `schemas/**`, etc., subject to the review-before-merge
+gate above).
+
+A narrower automated role also operates in this repository: applying a human-approved Daily
+Decision Package to already-published data. That role is governed by
+[`AGENTS.md`](AGENTS.md), whose allowed-write-path list (`data/reviewed/**`,
+`decisions/approved/**`, and similarly scoped paths) and prohibited-write-path list
+(`scripts/**`, `.github/**`, `schemas/**`, `config/sources.yaml`, `methodology/**`) apply to
+*that* role specifically — not to Work Order implementation as a whole, which routinely
+touches those same paths under the process described here.
 
 ## The Work Order process
 

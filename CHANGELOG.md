@@ -18,8 +18,9 @@ WO-010 and is not bumped by every Work Order.
 
 ### Added
 
-- `SECURITY.md`, `CONTRIBUTING.md`, `CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`,
-  `.github/ISSUE_TEMPLATE/work_order.md` (WO-012).
+- `SECURITY.md`, `CONTRIBUTING.md`, `CODEOWNERS`, `CHANGELOG.md`,
+  `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/work_order.md` and `config.yml`,
+  `tests/test_oss_governance_files.py` (WO-012).
 
 ## [0.3.0] — 2026-07-30 — WO-010: Bundle 1, Common Foundation + Ocean Logistics Intelligence MVP
 
@@ -30,7 +31,8 @@ ambition to a Thailand-centric MVP scoped to the Ocean mode only.
 
 - 18 conceptual data-model entities and 14 JSON Schema contracts (Gate B/C).
 - Source registry of 17 contracts, all `enabled: false` pending licensing/qualification
-  review; two fixture-first collector adapters (GDACS, TMD_CAP).
+  review; two more fixture-first collector adapters (`csv_series`, `notice_feed` — GDACS and
+  TMD_CAP were added earlier, in v0.2.0).
 - 11-lane Ocean logistics model for Thailand; indicators; event lifecycle and clustering;
   9-domain impact-assessment engine; 3-case scenario outlooks with preparedness options.
 - Human-triggered (no AI API) ChatGPT review workflow with a cryptographic
@@ -38,15 +40,18 @@ ambition to a Thailand-centric MVP scoped to the Ocean mode only.
 - 8 historical validation cases; a 7-section static Dashboard published via GitHub Pages.
 - A DuckDB-derived analytical warehouse (gitignored, built from committed data).
 
-Seven follow-up revisions (R1 through R7-R1) closed provenance, acquisition-binding,
-publication-boundary, timestamp-semantics, and manifest-integrity gaps found in independent
-review before final merge; all folded into this squashed release.
+Eight follow-up revisions (R1 through R7, then R7-R1) closed provenance,
+acquisition-binding, publication-boundary, timestamp-semantics, and manifest-integrity gaps
+found in independent review before final merge; all folded into this squashed release.
 
 ### Known limitations
 
-Zero live sources enabled; the Dashboard states "insufficient" coverage on its face; source
-licensing (`reuse_status`/`redistribution_status`) remains `unknown` for every source pending
-a terms review that requires outbound access this environment does not have.
+Zero live sources enabled; the Dashboard states "insufficient" coverage on its face. Reuse and
+redistribution terms remain `unknown` for every externally-published source pending a terms
+review that requires outbound access this environment does not have. The two exceptions are
+maintainer-operated, not externally published: `MANUAL_NOTICE_INTAKE` carries a reviewed,
+attribution-bounded reuse position, and `NEWS_DISCOVERY` permits link-only redistribution of
+its own headline metadata.
 
 ## [0.2.3] — 2026-07-24 — WO-007A: candidate evidence contract hardening
 
