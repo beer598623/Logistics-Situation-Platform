@@ -151,7 +151,15 @@ def test_dynamically_injected_headings_never_skip_a_level() -> None:
     array literal, not a literal ``el('id')`` call, so this regex-based scan
     does not resolve them. They were manually verified correct (each is
     already preceded by its own static <h3>) at the time this test was
-    written; a regression there would not be caught here."""
+    written; a regression there would not be caught here.
+
+    A second, narrower known gap in the indirection step itself: a helper's
+    levels are credited to a statement on any textual mention of its name,
+    not on confirming that mention is actually a call/reference the runtime
+    would execute. Every heading literal in app.js today is <h4>, so this
+    can't currently produce a false pass -- crediting a level that already
+    equals the correct expectation changes nothing -- but it would stop
+    being inert if a helper ever emitted a different level."""
     js_text = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
     html_text = (PUBLIC / "index.html").read_text(encoding="utf-8")
 
@@ -190,11 +198,16 @@ def test_dynamically_injected_headings_never_skip_a_level() -> None:
                 "preceded_by_heading_level": html_parser.preceding_heading_level[container_id],
             }
 
-    # Guards against the scan becoming vacuous if app.js is restructured
-    # away from the el('literal-id').innerHTML pattern this regex expects.
-    assert checked >= 6, (
-        "expected to statically resolve heading levels for at least the six containers this "
-        f"test guards (Trade/Cost/Outlook, plus Ocean's already-correct ones); resolved {checked}"
+    # Guards against the scan becoming vacuous if app.js is restructured away
+    # from the el('literal-id').innerHTML pattern this regex expects. 15
+    # containers resolve today (Ocean 5, Trade 2, Cost 3, Outlook 4, Sources
+    # 1); the floor is set one below that, not at the six containers this WO
+    # fixed, so losing coverage over most of the resolved set would still
+    # fail here even though six alone would keep passing.
+    assert checked >= 14, (
+        "expected to statically resolve heading levels for at least 14 of the 15 containers "
+        f"this test currently covers (Trade/Cost/Outlook plus the already-correct others); "
+        f"resolved {checked}"
     )
     assert not failures, (
         "these app.js-injected containers emit a heading level that is not exactly one level "
