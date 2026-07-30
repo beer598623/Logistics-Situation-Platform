@@ -10,6 +10,7 @@ test_documentation_registry_coverage.py applies to the source registry.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import yaml
@@ -89,18 +90,24 @@ def test_no_air_source_is_registered_yet() -> None:
     """Locks in the doc's §4 claim that config/sources.yaml has zero air-cargo
     candidates today. This is expected to start failing the moment a real
     Bundle 2 implementation WO adds one -- that's the trip-wire, not a bug:
-    it means docs/bundle2_air_cargo_scope.md §4 needs updating in that PR."""
+    it means docs/bundle2_air_cargo_scope.md §4 needs updating in that PR.
+
+    Tokenises on underscores as well as whitespace so a realistic snake_case
+    name (e.g. a purpose or logistics_role value like
+    'air_freight_benchmark') is caught -- a bare 'air' or 'aviation'
+    substring check alone would miss it."""
     registry = _load_registry()
-    haystack = " ".join(
-        " ".join(source.get("purposes", []) + [source.get("logistics_role", "")])
-        for source in registry["sources"]
-        if "purposes" in source
-    ).lower()
+    fields: list[str] = []
     for source in registry["sources"]:
+        fields.extend(source.get("purposes", []))
         qualification = source.get("qualification", {})
-        haystack += " " + " ".join(qualification.get("logistics_role", [])).lower()
-    assert "air" not in haystack.split() and "aviation" not in haystack
-    assert not any("aircraft" in word or "airport" in word for word in haystack.split())
+        fields.extend(qualification.get("logistics_role", []))
+
+    tokens = {token for field in fields for token in re.split(r"[_\s]+", field.lower())}
+    air_related = {token for token in tokens if token in {"air", "aviation", "aircraft", "airport"}}
+    assert not air_related, (
+        f"found air-related tokens in source purposes/logistics_role: {air_related}"
+    )
 
 
 def test_fbx_public_is_documented_as_ocean_route_scoped_only() -> None:
