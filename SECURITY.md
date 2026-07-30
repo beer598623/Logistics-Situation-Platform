@@ -25,12 +25,12 @@ accounts, sessions, or private company data (see
 [`docs/security_and_privacy_boundary.md`](docs/security_and_privacy_boundary.md) §6). The
 security-relevant surface is narrow:
 
-- **`collectors/http_client.py`** — the bounded fetch transport used by the collector adapters
-  that actually make a network request (currently `tmd_cap.py`; the CAP/RSS discovery and
-  candidate-validation paths use it too): no-redirect discovery transport, DNS-pinned
+- **`collectors/http_client.py`** — the bounded fetch transport used by `tmd_cap.py`, the one
+  adapter that actually makes a network request: no-redirect discovery transport, DNS-pinned
   candidate transport with fail-closed rejection of non-global addresses, response size and
   content-type bounds. Several adapters (`csv_series.py`, `gdacs.py`, `notice_feed.py`) parse
-  bytes they are handed and have no fetch path of their own.
+  bytes they are handed and have no fetch path of their own; the RSS-discovery and
+  candidate-validation modules import no HTTP client at all.
 - **`.github/workflows/manual-live-source-test.yml`** — the one path in this repository
   authorized to make a live outbound request, `workflow_dispatch` only, human-triggered.
 - **The public Dashboard** (`dashboard/public/`) — loads no external JavaScript, stylesheet,

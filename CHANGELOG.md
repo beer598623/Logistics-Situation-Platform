@@ -46,12 +46,16 @@ found in independent review before final merge; all folded into this squashed re
 
 ### Known limitations
 
-Zero live sources enabled; the Dashboard states "insufficient" coverage on its face. Reuse and
-redistribution terms remain `unknown` for every externally-published source pending a terms
-review that requires outbound access this environment does not have. The two exceptions are
-maintainer-operated, not externally published: `MANUAL_NOTICE_INTAKE` carries a reviewed,
-attribution-bounded reuse position, and `NEWS_DISCOVERY` permits link-only redistribution of
-its own headline metadata.
+Zero live sources enabled; the Dashboard states "insufficient" coverage on its face. Of the 17
+registered sources, 15 carry a `qualification` block; on all but one of those, `reuse_status`
+and `redistribution_status` remain `unknown` pending a terms review that requires outbound
+access this environment does not have. The one exception is `MANUAL_NOTICE_INTAKE`, a
+maintainer-operated intake path (not an external publisher) with a reviewed,
+attribution-bounded reuse position. `NEWS_DISCOVERY` (owned by the GDELT Project) still
+carries `reuse_status: unknown`; its `redistribution_status: link_only` is a self-imposed
+ceiling on what this platform will consider publishing, not a permission GDELT has granted.
+`GDACS` and `TMD_CAP` predate this qualification framework and carry only a `licence_status`
+(`reviewed` and `pending_review` respectively), not a recorded reuse/redistribution position.
 
 ## [0.2.3] — 2026-07-24 — WO-007A: candidate evidence contract hardening
 
