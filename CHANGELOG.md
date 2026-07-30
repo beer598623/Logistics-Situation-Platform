@@ -15,12 +15,24 @@ WO-010 and is not bumped by every Work Order.
   `registry-source-count` marker added to each, and `tests/test_documentation_registry_coverage.py`
   added to keep the two in sync going forward. Also corrected stale README text describing a
   scheduled/API-driven review cycle that predates the actual human-triggered, no-API flow.
+- WO-013: `duckdb` bumped `1.4.1` → `1.4.2` in `requirements.txt`, `requirements.lock`, and
+  `pyproject.toml`, clearing `PYSEC-2025-112` / `CVE-2025-64429` / `GHSA-vmp8-hg63-v2hp`
+  (insecure RNG fallback and a GCM-downgrade issue in DuckDB's block-based database
+  *encryption*, found by actually running `pip-audit -r requirements.lock` against `main`).
+  This repository's only DuckDB usage (`analysis/warehouse.py`) never opens an encrypted
+  database or uses `ATTACH`/`ENCRYPTION_KEY` — grepped, zero hits — so exploitability here is
+  nil; the bump is applied anyway as a zero-risk clean-up, verified compatible by re-running
+  `scripts/build_warehouse.py`.
 
 ### Added
 
 - `SECURITY.md`, `CONTRIBUTING.md`, `CODEOWNERS`, `CHANGELOG.md`,
   `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/work_order.md` and `config.yml`,
   `tests/test_oss_governance_files.py` (WO-012).
+- `pip-audit` dependency-vulnerability scanning: a fail-closed step in
+  `.github/workflows/validate-pr.yml` (report uploaded as an artifact) and a new weekly
+  `.github/workflows/dependency-audit.yml` (`schedule` + `workflow_dispatch` only), plus
+  `tests/test_dependency_audit_workflow.py` (WO-013).
 
 ## [0.3.0] — 2026-07-30 — WO-010: Bundle 1, Common Foundation + Ocean Logistics Intelligence MVP
 

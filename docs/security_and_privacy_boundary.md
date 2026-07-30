@@ -21,12 +21,12 @@ record to either.
 
 | Property | State |
 |---|---|
-| Network in default CI | **None.** `validate-pr.yml` runs lint, validation, dry run, build and tests, all offline |
+| Network in default CI | **Package installation and dependency-vulnerability lookup only** (WO-013: `validate-pr.yml` and the weekly `dependency-audit.yml` both run `pip-audit -r requirements.lock`, which queries PyPI's advisory feed about the pinned versions themselves). Lint, validation, dry run, build and tests are otherwise offline; neither workflow makes any request related to a registered logistics source |
 | Network in the new adapters | **None.** Both parse bytes they are handed; neither has a fetch path |
 | Network at import time | **None.** A test imports every module in a fresh interpreter with sockets disabled |
 | Arbitrary user-supplied fetch URLs | **None.** No code path accepts one |
 | Following a discovered link | **Never.** A link found in a feed is recorded, never requested |
-| The one authorized live path | `manual-live-source-test.yml`, `workflow_dispatch` only |
+| The one authorized live path to a registered source | `manual-live-source-test.yml`, `workflow_dispatch` only |
 
 ## 3. Fail-closed parsing
 

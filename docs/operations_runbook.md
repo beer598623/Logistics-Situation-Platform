@@ -39,7 +39,16 @@ python scripts/build_events_from_cases.py --check
 python scripts/build_analysis.py --check
 ```
 
-None of these makes a network request.
+None of these makes a network request. One command in this runbook is the exception, and it
+is run separately rather than folded into the block above:
+
+```bash
+pip-audit -r requirements.lock
+```
+
+`pip-audit` (WO-013, §4 below) queries PyPI's advisory feed about the pinned versions
+themselves — ordinary CI dependency tooling, not contact with any registered logistics
+source.
 
 ## 3. Workflows
 
