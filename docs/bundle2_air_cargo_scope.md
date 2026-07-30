@@ -1,0 +1,136 @@
+# Bundle 2 — Air Cargo Intelligence: scope and architecture
+
+**Work Order:** WO-017 · **Status:** scoping document only — no Air data, lane, node, or
+source contract is delivered by this Work Order.
+
+This is the Bundle 2 equivalent of what
+`docs/thailand_multimodal_logistics_intelligence_scope.md` and
+`docs/source_priority_framework.md` were for Bundle 1: a scoping document written before
+implementation, not a record of what has been built. `docs/thailand_multimodal_logistics_mvp_roadmap.md`
+already names "Air Cargo Intelligence" as Phase 3 / the next approved delivery bundle; this
+document is what that name expands into.
+
+## 1. What already exists (verified against the actual schema and data, not asserted)
+
+`docs/air_land_extension_points.md` claims WO-010 built a mode-neutral foundation that
+accepts Air without a schema change. Re-verified here against the committed files rather than
+taken on that document's word:
+
+| Claim | Verified against |
+|---|---|
+| `observation_common.schema.json`'s `transportMode` permits `air` | `schemas/observation_common.schema.json` |
+| `dim_transport_mode` registers `air` at `module_status: planned` | `data/reference/dimensions.json` → `transport_modes` |
+| An airport node is already registered | `data/reference/dimensions.json` → `logistics_nodes`: `NODE-THBKKAIR`, "Suvarnabhumi Airport cargo terminal", `node_type: airport`, `modes: [air]`, `known_limitations: ["No Air observations, lanes or events are delivered by WO-010; this node carries no data yet."]` |
+| `port_transport_observation.schema.json`'s metric enum already accepts Air-relevant metrics | `schemas/port_transport_observation.schema.json` → `metric` enum includes `aircraft_movements` and `capacity_deployed` (both present; confirmed by direct read, not by cross-reference alone) |
+| `cost_observation.schema.json` needs no change for an air freight benchmark | `schemas/cost_observation.schema.json` → `benchmark_class` enum (`market_benchmark`, `route_proxy`, `directional_indicator`, `published_official_price`, `actual_quotation`) is transport-mode-agnostic already |
+| `dim_lane` needs no schema change to carry an Air lane | Mode is a data field on the lane record, not a schema branch |
+
+**What is not yet true**, contrary to a loose reading of `air_land_extension_points.md` §2: the
+event type enum does **not** fully cover Air-specific events as-is. `schemas/logistics_event.schema.json`'s
+`event_type` enum includes `capacity_withdrawal`, `service_suspension`, `carrier_rerouting`,
+and `customs_or_system_outage` — all genuinely mode-agnostic and directly usable for Air. But
+`port_or_terminal_closure` and `canal_restriction` are Ocean-worded; an airport/cargo-terminal
+closure or an airspace closure has no exact-fit existing value. This is a small, additive
+enum extension (e.g. generalizing `port_or_terminal_closure` to cover any node closure, or
+adding `airspace_closure`), not a redesign — but it is a real schema change a Bundle 2
+implementation WO must make, not something already delivered.
+
+## 2. What Bundle 2 would add
+
+- **Lanes:** `LANE-AIR-TH-*` records, `mode: air`, origin/destination airport groups, and
+  airspace chokepoints where relevant to a lane's routing.
+- **Nodes:** cargo terminals beyond `NODE-THBKKAIR` (e.g. Don Mueang, U-Tapao if in scope for
+  the selected lanes).
+- **Chokepoints:** airspace or airport-capacity chokepoints, using the existing `airspace`
+  `chokepoint_type` (`dim_chokepoint`'s type enum already includes it — see
+  `docs/air_land_extension_points.md` §1).
+- **Observations:** air cargo tonnage/movements and capacity via
+  `port_transport_observation` (`metric: aircraft_movements` or `capacity_deployed`); air
+  freight rate benchmarks via `cost_observation` with an appropriate `benchmark_class`
+  (almost certainly `market_benchmark` or `route_proxy` — an actual-quotation air freight
+  source is exceptionally unlikely to be free-and-public, per the qualification framework
+  §3).
+- **Events:** the additive `event_type` enum change from §1, plus reuse of the already-generic
+  types.
+- **Threshold rules:** new IDs in `analysis/thresholds.py`, documented in
+  `docs/indicator_definitions.md` alongside the existing ones. The rule engine itself needs
+  no change (`docs/air_land_extension_points.md` §2 confirms this and it holds on inspection
+  of `analysis/thresholds.py`'s structure — rules are data, not mode-specific code paths).
+
+## 3. Air lane-selection criteria — the open question this WO does not resolve
+
+`docs/ocean_lane_selection.md` §1 states plainly: **"No quantitative Thailand trade ranking
+was retrieved under WO-010."** Every Ocean lane's selection rests on structural reasoning
+(named port pairs, known trade corridors), not a ranked volume source, and the lane records
+say so explicitly (`data_period_used: null`, the limitation stated in `known_limitations`).
+
+A Bundle 2 implementation WO faces the identical choice WO-010 already made once for Ocean,
+and this document deliberately does not make it in advance:
+
+- **Option A — structural reasoning again.** Select initial Air lanes by named
+  airport-pair significance (e.g. Suvarnabhumi as Thailand's primary cargo gateway, paired
+  with its most obviously significant international counterparts), exactly as Ocean did.
+  This repeats a documented limitation rather than closing it, and the implementation WO
+  should say so as plainly as `docs/ocean_lane_selection.md` does, not less plainly.
+- **Option B — wait for or seek a qualified ranking source.** Do not select Air lanes until
+  an air cargo volume/route significance source is qualified per §4 below. This delays
+  Bundle 2's start but avoids compounding the same limitation a second time.
+
+Neither option is authorized by this WO. The choice belongs to whichever future WO actually
+implements Bundle 2, made explicitly and reviewed, not defaulted into.
+
+## 4. Source-capability gaps Air introduces
+
+None of the following exist in `config/sources.yaml` today (verified: zero entries with
+`logistics_role` or `purposes` referencing air/aviation/cargo-terminal activity). A Bundle 2
+implementation WO needs at least one of each, run through the same Gate C qualification
+process `docs/source_qualification_report.md` used for Bundle 1's 17 candidates:
+
+| Gap | What it would support | Bundle 1 analogue |
+|---|---|---|
+| Air cargo volume/route significance source | Lane selection (§3 Option B), `aircraft_movements` observations | `IMF_PORTWATCH`, `PAT_STATISTICS` (Ocean port activity) |
+| Air freight rate benchmark | `cost_observation` records, distinct route scope from `FBX_PUBLIC` — `config/sources.yaml`'s own `known_limitations` for that contract state it covers "named east-west **container** routes" only and "No route in this index is a Thailand-origin route", so it cannot stand in for an air freight reading | `FBX_PUBLIC` |
+| Airport/airspace operational-notice source | Event evidence for closures, capacity withdrawals, airspace restrictions | `PAT_NOTICE` (Ocean port notices) |
+| Airport authority statistics (Thailand-specific) | A Thailand-scoped alternative or complement to a global aviation-volume source | `PAT_STATISTICS` |
+
+Qualifying any of these means reading the publisher's actual terms and recording
+`reuse_status`/`redistribution_status` — the same standing requirement `docs/source_enablement_decisions.md`
+applies to every current source, none of which is waived for a new mode.
+
+## 5. Acceptance gates for a Bundle 2 implementation Work Order
+
+Mirroring what Bundle 1 actually delivered and was reviewed against — not a new invented
+bar:
+
+1. **Gate B/C equivalent** — a data-model and source-qualification pass for every new Air
+   source candidate, following `docs/source_priority_framework.md`'s existing framework
+   rather than a Bundle-2-specific one.
+2. **No source enabled by default** — every new Air source contract ships `enabled: false`,
+   exactly like all 17 current entries.
+3. **Fixture/current separation preserved** — any Air fixture data is `evidence_origin`-tagged
+   and dataset-scoped identically to Ocean's, never entering `current_publication` without a
+   genuine live source.
+4. **Publication-use enforcement extended, not bypassed** — the same `scripts/validate.py`
+   checks that guard Ocean records (missing-as-zero, organization-neutral, benchmark/proxy
+   labelling) must hold for every new Air record with no mode-specific carve-out.
+5. **At least one historical validation case** — mirroring the 8 Ocean cases
+   `docs/known_data_gaps.md` and the validation suite already rely on, demonstrating the Air
+   event/impact/scenario chain end-to-end before any live data is claimed.
+6. **Dashboard integration** — an Air section (or extension of an existing section) that
+   states its coverage honestly, the same way the current Dashboard states
+   `live_coverage: insufficient` rather than implying completeness.
+7. **All existing tests continue to pass**, plus new tests for every new schema field,
+   adapter, and validation rule — no reduction in `tests/test_reference_and_lanes.py`'s
+   existing mode-neutrality assertions.
+8. **Independent review**, following this repository's standing process
+   (`CONTRIBUTING.md`): the implementer does not approve their own Bundle 2 work.
+
+## 6. What this document explicitly does not do
+
+- It does not add, modify, or enable any source in `config/sources.yaml`.
+- It does not add an Air lane, node, chokepoint, observation, or event record.
+- It does not change any schema (the event-type enum gap in §1 is documented, not fixed,
+  here).
+- It does not decide between §3's Option A and Option B.
+- It does not authorize contacting any publisher or beginning a live validation for any
+  candidate source named in §4.
