@@ -110,6 +110,47 @@ def _extract_root_css_variables(css_text: str) -> dict[str, str]:
     return dict(re.findall(r"--([\w-]+):\s*(#[0-9a-fA-F]{3,8})\s*;", root_block.group(1)))
 
 
+_RULE_PATTERN = re.compile(r"([^{}]+)\{([^{}]*)\}")
+_HEX_LITERAL = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+_VAR_REFERENCE = re.compile(r"^var\(--([\w-]+)\)$")
+
+
+def _parse_css_rules(css_text: str) -> dict[str, dict[str, str]]:
+    """Maps each exact selector text to its declared properties. Later rules
+    for the same selector text overwrite earlier ones, matching how a real
+    stylesheet's cascade would resolve a repeated selector."""
+    rules: dict[str, dict[str, str]] = {}
+    for selector, body in _RULE_PATTERN.findall(css_text):
+        declarations: dict[str, str] = {}
+        for declaration in body.split(";"):
+            if ":" not in declaration:
+                continue
+            prop, _, value = declaration.partition(":")
+            declarations[prop.strip()] = value.strip()
+        rules[selector.strip()] = declarations
+    return rules
+
+
+def _resolve_colour(value: str | None, variables: dict[str, str]) -> str | None:
+    if value is None:
+        return None
+    var_match = _VAR_REFERENCE.match(value)
+    if var_match:
+        return variables.get(var_match.group(1))
+    if _HEX_LITERAL.match(value):
+        return value
+    return None
+
+
+def _declared_colour(
+    rules: dict[str, dict[str, str]], selector: str, variables: dict[str, str]
+) -> str:
+    assert selector in rules, f"expected a '{selector}' rule in styles.css"
+    colour = _resolve_colour(rules[selector].get("color"), variables)
+    assert colour, f"'{selector}' has no resolvable 'color' declaration"
+    return colour
+
+
 def _hex_to_rgb(value: str) -> tuple[int, int, int]:
     value = value.lstrip("#")
     if len(value) == 3:
@@ -137,56 +178,99 @@ def _contrast_ratio(hex_a: str, hex_b: str) -> float:
 def test_contrast_calculator_matches_a_known_wcag_reference_pair() -> None:
     """Regression for the calculator itself: black-on-white is the textbook
     21:1 case every WCAG contrast tool agrees on."""
-    assert _contrast_ratio("#000000", "#ffffff") == 21.0
+    assert abs(_contrast_ratio("#000000", "#ffffff") - 21.0) < 1e-9
 
 
-def test_every_text_colour_pairing_meets_wcag_aa_normal_text() -> None:
-    """Every foreground/background colour pairing actually used together in
-    styles.css for body text, links, pills and muted text -- read from the
-    stylesheet's own :root custom properties plus the literal hex values
-    used inline for pill/badge text, not a separately maintained palette."""
+def test_every_self_contained_text_colour_pairing_meets_wcag_aa() -> None:
+    """A rule is 'self-contained' when it sets both `color` and a background
+    (`background`/`background-color`) on the same selector -- the pairing is
+    unambiguous from the rule alone, no cascade knowledge needed. This covers
+    every pill/badge, the skip link, the site header, and body text, and
+    reads both colours from the actual declarations rather than a copied
+    literal, so a changed pill colour cannot silently stop being tested."""
     css = (PUBLIC / "assets" / "styles.css").read_text(encoding="utf-8")
     variables = _extract_root_css_variables(css)
+    rules = _parse_css_rules(css)
 
-    def var(name: str) -> str:
-        assert name in variables, f"expected --{name} in styles.css :root"
-        return variables[name]
+    self_contained: dict[str, tuple[str, str]] = {}
+    for selector, declarations in rules.items():
+        colour = _resolve_colour(declarations.get("color"), variables)
+        background = _resolve_colour(
+            declarations.get("background") or declarations.get("background-color"), variables
+        )
+        if colour and background:
+            self_contained[selector] = (colour, background)
 
-    pairs = {
-        "body text on page background": (var("ink"), var("bg")),
-        "link colour on page background": (var("accent"), var("bg")),
-        "skip-link / header text on accent background": ("#ffffff", var("accent")),
-        "pill-critical text on its background": ("#7a1a15", var("critical-bg")),
-        "pill-warning text on its background": ("#5c4100", var("warning-bg")),
-        "pill-ok text on its background": ("#14501f", var("ok-bg")),
-        "pill-note text on its background": ("#0e3550", var("note-bg")),
-        "pill-demo / demo-heading badge text on its background": ("#452a70", var("demo-bg")),
-        "pill-muted text on its background": ("#46525f", "#eef0f3"),
-        "muted text ('missing', captions, labels) on page background": (
-            var("ink-muted"),
-            var("bg"),
-        ),
-        "muted text on card surface": (var("ink-muted"), var("surface")),
-    }
+    # Guards this test against becoming vacuous if styles.css is ever
+    # restructured so no rule sets both properties together.
+    assert self_contained, "expected at least one rule to set both color and a background"
+    for expected in (".pill-critical", ".pill-warning", ".pill-ok", ".pill-note", ".pill-demo"):
+        assert expected in self_contained, f"expected '{expected}' to set both color and background"
 
     failures = {
-        name: round(_contrast_ratio(fg, bg), 2)
-        for name, (fg, bg) in pairs.items()
+        selector: round(_contrast_ratio(fg, bg), 2)
+        for selector, (fg, bg) in self_contained.items()
         if _contrast_ratio(fg, bg) < _WCAG_AA_NORMAL_TEXT_RATIO
     }
     assert not failures, (
-        f"these colour pairings fall below the WCAG AA {_WCAG_AA_NORMAL_TEXT_RATIO}:1 "
-        f"normal-text threshold: {failures}"
+        f"these self-contained colour pairings fall below the WCAG AA "
+        f"{_WCAG_AA_NORMAL_TEXT_RATIO}:1 normal-text threshold: {failures}"
     )
 
 
-# WO-016: current total is ~1.1 MB (ocean.json alone is ~450 KB). These
-# ceilings are documented in docs/dashboard_user_guide.md alongside the
-# justification for the headroom, and are a payload *budget*, not a
-# reflection of what's currently shipped -- they should stay well above the
-# current size rather than track it exactly.
-_MAX_TOTAL_SITE_BYTES = 3 * 1024 * 1024
-_MAX_SINGLE_PAYLOAD_BYTES = 1024 * 1024
+def test_every_cascaded_text_colour_pairing_meets_wcag_aa() -> None:
+    """A 'cascaded' pairing is a selector whose `color` rule does not also
+    set its own background -- the background it actually renders against
+    comes from an ancestor element and can't be derived from the stylesheet
+    alone without a real cascade/layout engine. The associations below were
+    verified by reading styles.css's actual selector structure (every one of
+    these selectors sits inside `section { background: var(--surface) }`,
+    confirmed by grepping for any closer override and finding none), but
+    each foreground colour is still read from its own rule -- only the
+    background side is hand-verified, not both."""
+    css = (PUBLIC / "assets" / "styles.css").read_text(encoding="utf-8")
+    variables = _extract_root_css_variables(css)
+    rules = _parse_css_rules(css)
+    surface = variables["surface"]
+
+    # selector -> background it actually renders against (all --surface: none
+    # of these selectors, or any ancestor between them and <section>, sets a
+    # closer background override).
+    cascaded_backgrounds = {
+        "a": surface,
+        ".missing": surface,
+        ".card .label": surface,
+        ".card .note": surface,
+        ".section-intro": surface,
+        "caption": surface,
+        ".figure .label": surface,
+        ".lane-card .meta": surface,
+        ".series .series-meta": surface,
+        ".gap-list li::marker": surface,
+        ".chain li.absent": surface,
+    }
+
+    failures = {}
+    for selector, background in cascaded_backgrounds.items():
+        colour = _declared_colour(rules, selector, variables)
+        ratio = _contrast_ratio(colour, background)
+        if ratio < _WCAG_AA_NORMAL_TEXT_RATIO:
+            failures[selector] = round(ratio, 2)
+
+    assert not failures, (
+        f"these cascaded colour pairings fall below the WCAG AA "
+        f"{_WCAG_AA_NORMAL_TEXT_RATIO}:1 normal-text threshold: {failures}"
+    )
+
+
+# WO-016: current total is ~1.1 MB (ocean.json alone is ~460 KB), using
+# decimal megabytes throughout (1 MB = 1,000,000 bytes) to match
+# docs/dashboard_user_guide.md's wording exactly. These ceilings are
+# documented there alongside the justification for the headroom, and are a
+# payload *budget*, not a reflection of what's currently shipped -- they
+# should stay well above the current size rather than track it exactly.
+_MAX_TOTAL_SITE_BYTES = 3_000_000
+_MAX_SINGLE_PAYLOAD_BYTES = 1_000_000
 
 
 def test_total_published_site_stays_within_its_documented_budget() -> None:
