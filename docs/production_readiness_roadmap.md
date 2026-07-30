@@ -7,8 +7,11 @@
 This is the **second** production-readiness audit. The first ran against `af8e52f` and produced
 8 autonomously-executable Work Orders (List A) and 12 human-blocked items (List B). Since then,
 WO-011 through WO-016 have been implemented, independently reviewed, and merged, plus Dependabot
-PR #2. **WO-017 is still in flight** — Issue #33 is open and PR #34 is open, unmerged, as of this
-audit; this document treats the Bundle 2 scope doc as *proposed*, not delivered.
+PR #2. **WO-017 was still in flight when this audit was written** — Issue #33 and PR #34 were open,
+unmerged, at audit time, so the rest of this document (gate 1, gate 10, the closed-work table)
+originally treated the Bundle 2 scope doc as *proposed*, not delivered. WO-017 merged shortly
+afterward, as `99ecfc4`, and Issue #33 is closed; the affected passages below are corrected in
+place rather than left stale, and are marked accordingly.
 
 ## What changed since audit 1
 
@@ -25,7 +28,7 @@ audit; this document treats the Bundle 2 scope doc as *proposed*, not delivered.
 
 | # | Gate | Status | Current reason |
 |---|------|--------|----------------|
-| 1 | Multimodal foundation | PARTIAL | Reference entities are mode-neutral and already accept Air (`data/reference/dimensions.json:87` — `air` mode at `module_status: planned`; `:100` — `NODE-THBKKAIR`, explicitly carrying no data). Only Ocean (Bundle 1) is delivered. Bundle 2 scope doc is proposed, not merged (Issue #33 / PR #34 both open). Unchanged since audit 1. |
+| 1 | Multimodal foundation | PARTIAL | Reference entities are mode-neutral and already accept Air (`data/reference/dimensions.json:87` — `air` mode at `module_status: planned`; `:100` — `NODE-THBKKAIR`, explicitly carrying no data). Only Ocean (Bundle 1) is delivered. Bundle 2 scope doc (`docs/bundle2_air_cargo_scope.md`) merged as WO-017 (`99ecfc4`, shortly after this audit was written) — documentation only, no Air lane/node/data added, so this gate's status is unchanged. |
 | 2 | Verified-source provenance | PARTIAL | Provenance machinery is complete and tested — acquisition binding (`tests/test_acquisition_binding.py`), collection manifests (`tests/test_r7_manifest_contract.py`), content hashes, retrieval-time fail-closed. But it is exercised only against fixtures, because no source is enabled. Unchanged since audit 1. |
 | 3 | Fixture/current separation | PASS | Enforced by `tests/test_current_publication_boundary.py`, `tests/test_review_package_isolation.py`, `tests/test_current_positive_path.py`; demo panels carry a distinct marker in the Dashboard. Unchanged. |
 | 4 | Acquisition/review binding | PASS | `tests/test_review_decision_transactions.py` and the WO-010-R5/R6/R7 record-level acquisition proof and approval-hash closure. Unchanged. |
@@ -34,7 +37,7 @@ audit; this document treats the Bundle 2 scope doc as *proposed*, not delivered.
 | 7 | Deterministic / auditable / fail-closed pipelines | PASS | `scripts/validate.py` semantic checks, `--check` mode on every generator, cross-version determinism fix (`2171152`), warehouse rebuild tests. Unchanged. |
 | 8 | Dashboard accurate / accessible / organization-neutral | **PARTIAL (improved, one open defect)** | WO-016 added `tests/test_dashboard_accessibility.py` — single `<h1>`, no static heading skip, `lang`, skip-link target, landmark accessible names, WCAG AA contrast computed from `styles.css`, plus payload budgets. Organization-neutrality is enforced in `analysis/assessments.py:56-74`. **Blocker: Issue #32** — `dashboard/public/assets/app.js` injects `<h4>` directly under `<h2>` in the Trade and Cost sections. Was FAIL-equivalent (unverified claims) in audit 1. |
 | 9 | Operational deployment / monitoring / backup / runbooks | **PASS (improved, minor robustness gap)** | WO-014 added a daily liveness check of the real Pages URL (`health-check.yml`, cron `17 3 * * *`) with automated issue open-on-failure / close-on-recovery, `docs/deployment_verification.md`, and runbook §6 rollback / §8 backup-DR / §9 incident response. WO-013 added weekly `pip-audit` (`dependency-audit.yml`). Minor gaps remain — see List A #3 and #4. Was FAIL in audit 1. |
-| 10 | No unresolved Critical/High blocker | PASS | Four open issues: #32 (Low/Medium accessibility defect), #33 (in-flight WO), #35 (this roadmap's own tracking issue), #15 (deliberate governance HOLD, by design). None is Critical or High. Unchanged. |
+| 10 | No unresolved Critical/High blocker | PASS | Three open issues as of WO-017's merge: #32 (Low/Medium accessibility defect), #35 (this roadmap's own tracking issue, closes when PR #36 merges), #15 (deliberate governance HOLD, by design). #33 closed with WO-017's merge. None is Critical or High. Unchanged. |
 
 ---
 
@@ -68,9 +71,11 @@ would fail on it immediately if step 1 omitted it.
 **Prescribed fix — static `<h3>` headings in `index.html`, mirroring the pattern the Ocean section
 already uses.** Do *not* change `seriesBlock`'s heading level. Its only callers are in the Ocean
 section (`app.js:396`, `:438`) and the Trade/Cost containers this WO is already fixing
-(`app.js:516`, `:525`, `:541`, `:548`, `:556`); in every one of those call sites it already sits
-under an existing `<h3>` (e.g. `index.html:72` `<h3>Ocean lanes</h3>` → `#port-series`, or
-`index.html:123` `<h3>FX context</h3>` → `#fx-series`). The Outlook, Events, and Sources sections'
+(`app.js:516`, `:525`, `:541`, `:548`, `:556`). The two Ocean call sites already sit under an
+existing `<h3>` today (`index.html:72` `<h3 class="demo-heading">Thailand port and maritime
+indicators…</h3>` → `#port-series`, and `index.html:123` `<h3>FX context</h3>` → `#fx-series`); the
+Trade/Cost call sites will too, once step 1 below adds the missing `<h3>`s — that is the defect
+this WO closes, so `seriesBlock` itself does not need to change either way. The Outlook, Events, and Sources sections'
 `<h4>`s are emitted by their own inline literals, not `seriesBlock` — a distinction that matters
 because it means fixing Outlook (below) does not touch `seriesBlock` or its other callers either.
 Concretely:
@@ -157,8 +162,8 @@ marker is present in the committed `index.html`. Two-line change plus a comment.
 `GET /issues?state=open&per_page=100`. That endpoint returns pull requests as well as issues and is
 capped at one page, so with enough open PRs/issues the dedupe silently misses and a fresh duplicate
 issue is opened on every failing run. Fix: filter with `jq 'select(.pull_request | not)'`, or switch
-to the search API scoped by title. Low priority — the repository currently has 4 open issues and 1
-open PR, so the failure mode is latent, not active. Add a matching assertion to
+to the search API scoped by title. Low priority — the repository currently has 3 open issues (#32,
+#35, #15) and 1 open PR (#36), so the failure mode is latent, not active. Add a matching assertion to
 `tests/test_deployment_health_workflow.py`.
 
 ---
@@ -193,4 +198,4 @@ WO-012 / WO-013 / WO-014 (governance files, vulnerability scanning, deployment m
 | WO-014 | #26 / #27 | 2026-07-30 | Daily liveness check of the published Pages URL with automated issue open/close; `docs/deployment_verification.md`; runbook §6 rollback, §8 backup/DR, §9 incident response. |
 | WO-015 | #28 / #29 | 2026-07-30 | `tests/test_workflow_consistency.py` — cross-workflow action-pin consistency and `collect.yml` trigger safety. |
 | WO-016 | #30 / #31 | 2026-07-30 | `tests/test_dashboard_accessibility.py` (heading levels, skip-link target, landmark names, WCAG AA contrast from the real CSS) and payload-budget tests. Discovered Issue #32. |
-| WO-017 | #33 / #34 | **not merged** | `docs/bundle2_air_cargo_scope.md` + `tests/test_bundle2_scope_doc_claims.py`. In review at the time of this audit. |
+| WO-017 | #33 / #34 | 2026-07-30 (`99ecfc4`, shortly after this audit was written) | `docs/bundle2_air_cargo_scope.md` + `tests/test_bundle2_scope_doc_claims.py`. Was in review at audit time; corrected in place above rather than left stale. |
