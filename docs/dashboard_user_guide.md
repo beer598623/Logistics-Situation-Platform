@@ -172,8 +172,8 @@ background could invalidate that hand-verified mapping without the test itself c
 **Known gap:** these heading and landmark checks parse the *committed* `index.html` only.
 Content that `assets/app.js` injects at runtime (lane, trade, and cost series panels, among
 others) is not covered — some of that dynamically-rendered content is known to introduce its
-own heading-level skips. This is a real, separately tracked gap, not something this test suite
-currently enforces.
+own heading-level skips (tracked in Issue #32). This is a real gap, not something this test
+suite currently enforces.
 
 This is a set of narrow, specific checks, not a substitute for a full accessibility audit or
 manual screen-reader testing.

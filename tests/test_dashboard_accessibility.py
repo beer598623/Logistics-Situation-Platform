@@ -116,18 +116,22 @@ _VAR_REFERENCE = re.compile(r"^var\(--([\w-]+)\)$")
 
 
 def _parse_css_rules(css_text: str) -> dict[str, dict[str, str]]:
-    """Maps each exact selector text to its declared properties. Later rules
-    for the same selector text overwrite earlier ones, matching how a real
-    stylesheet's cascade would resolve a repeated selector."""
+    """Maps each exact selector text to its declared properties, merging
+    declarations across repeated occurrences of the same selector text (a
+    later declaration for the same property overwrites an earlier one) --
+    closer to how a real cascade resolves a repeated selector than simply
+    replacing the whole rule would be. Comments are stripped first so a
+    selector immediately after a `/* ... */` block isn't captured as part of
+    its own key."""
+    css_text = re.sub(r"/\*.*?\*/", "", css_text, flags=re.DOTALL)
     rules: dict[str, dict[str, str]] = {}
     for selector, body in _RULE_PATTERN.findall(css_text):
-        declarations: dict[str, str] = {}
+        declarations = rules.setdefault(selector.strip(), {})
         for declaration in body.split(";"):
             if ":" not in declaration:
                 continue
             prop, _, value = declaration.partition(":")
             declarations[prop.strip()] = value.strip()
-        rules[selector.strip()] = declarations
     return rules
 
 
@@ -223,28 +227,36 @@ def test_every_cascaded_text_colour_pairing_meets_wcag_aa() -> None:
     set its own background -- the background it actually renders against
     comes from an ancestor element and can't be derived from the stylesheet
     alone without a real cascade/layout engine. The associations below were
-    verified by reading styles.css's actual selector structure (every one of
-    these selectors sits inside `section { background: var(--surface) }`,
-    confirmed by grepping for any closer override and finding none), but
-    each foreground colour is still read from its own rule -- only the
-    background side is hand-verified, not both."""
+    verified by reading styles.css's actual selector structure and, where a
+    selector can render in more than one context (e.g. inside an even table
+    row, or inside a `.demo-panel`), the stricter (lower-contrast) of the
+    real backgrounds it actually appears against was used -- not just the
+    common case. This mapping is hand-verified and not exhaustive: a new
+    colour-only rule added to styles.css would not automatically appear
+    here. Each foreground colour is still read from its own CSS rule; only
+    the background side is hand-verified, not both."""
     css = (PUBLIC / "assets" / "styles.css").read_text(encoding="utf-8")
     variables = _extract_root_css_variables(css)
     rules = _parse_css_rules(css)
     surface = variables["surface"]
 
-    # selector -> background it actually renders against (all --surface: none
-    # of these selectors, or any ancestor between them and <section>, sets a
-    # closer background override).
+    # selector -> background it actually renders against. Most sit directly
+    # inside `section { background: var(--surface) }` with no closer
+    # override. Two exceptions render in a context with a slightly different
+    # (still light) background; the stricter one is used:
+    #   .missing appears in table cells, including even rows where
+    #     `tbody tr:nth-child(even)` sets `background: #fafbfc`.
+    #   .lane-card .meta can render inside `.demo-panel`
+    #     (`background: var(--demo-bg)`) via the demoPanel() helper.
     cascaded_backgrounds = {
         "a": surface,
-        ".missing": surface,
+        ".missing": "#fafbfc",
         ".card .label": surface,
         ".card .note": surface,
         ".section-intro": surface,
         "caption": surface,
         ".figure .label": surface,
-        ".lane-card .meta": surface,
+        ".lane-card .meta": variables["demo-bg"],
         ".series .series-meta": surface,
         ".gap-list li::marker": surface,
         ".chain li.absent": surface,
