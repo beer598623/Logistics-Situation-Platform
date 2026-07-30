@@ -169,11 +169,21 @@ which background it renders against was verified by hand against the stylesheet'
 structure, not derived automatically — a rework of the page layout that changes an ancestor's
 background could invalidate that hand-verified mapping without the test itself changing.
 
-**Known gap:** these heading and landmark checks parse the *committed* `index.html` only.
-Content that `assets/app.js` injects at runtime (lane, trade, and cost series panels, among
-others) is not covered — some of that dynamically-rendered content is known to introduce its
-own heading-level skips (tracked in Issue #32). This is a real gap, not something this test
-suite currently enforces.
+**WO-018:** the heading-level checks above parse the *committed* `index.html` only, so they could
+not see that `assets/app.js` injected `<h4>` content directly under the `<h2>` in the Trade, Cost
+and Outlook sections at runtime (Issue #32) — the Outlook instance was latent, invisible only
+because its backing fixture data happened to be empty. Fixed by adding five static `<h3>`
+headings and a data-independent regression test,
+`test_dynamically_injected_headings_never_skip_a_level`, that statically resolves which heading
+level(s) each `app.js` container injects (including through a named helper like `seriesBlock`,
+by reading that helper's own source rather than hardcoding its level) and checks it against the
+nearest preceding heading actually present in `index.html`.
+
+**Known gap:** that new test resolves only the `el('literal-id').innerHTML = ...` assignment
+pattern. The six `events-*` containers in `renderEvents` are populated through a different
+pattern — a loop over an array literal — and are not covered by it; they were manually verified
+correct (each already sits under its own static `<h3>`) at the time this was written, and a
+regression there would not be caught by this test suite.
 
 This is a set of narrow, specific checks, not a substitute for a full accessibility audit or
 manual screen-reader testing.
