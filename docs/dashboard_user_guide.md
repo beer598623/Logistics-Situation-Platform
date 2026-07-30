@@ -152,7 +152,53 @@ implies that an old reading — or a generated one — is current.
   Verified at 390px width.
 - A print stylesheet expands collapsed panels.
 
-## 7. What the Dashboard will not do
+**Test-enforced (WO-016):** the properties above that a static test can check without
+rendering the page are enforced by `tests/test_dashboard_accessibility.py` on every PR — a
+single `<h1>`, no heading-level skip **in the static markup** (see the caveat below), `lang`
+present, the skip link's target exists, and every `nav`/`section`/`role="region"` landmark has
+an accessible name.
+
+Colour contrast is checked in two tiers, both against the WCAG AA 4.5:1 normal-text ratio:
+every rule in `assets/styles.css` that sets both a text colour and its own background in the
+same selector (every pill/badge, the skip link, the site header, body text) is checked
+automatically, with both colours read from the actual declaration — a changed pill colour
+cannot silently stop being tested. A second, smaller set of selectors (links, `.missing`,
+table captions, muted labels) sets only a text colour and relies on an ancestor element for
+its background; for these, the foreground colour is still read from the actual CSS rule, but
+which background it renders against was verified by hand against the stylesheet's selector
+structure, not derived automatically — a rework of the page layout that changes an ancestor's
+background could invalidate that hand-verified mapping without the test itself changing.
+
+**Known gap:** these heading and landmark checks parse the *committed* `index.html` only.
+Content that `assets/app.js` injects at runtime (lane, trade, and cost series panels, among
+others) is not covered — some of that dynamically-rendered content is known to introduce its
+own heading-level skips (tracked in Issue #32). This is a real gap, not something this test
+suite currently enforces.
+
+This is a set of narrow, specific checks, not a substitute for a full accessibility audit or
+manual screen-reader testing.
+
+## 7. Payload budget (WO-016)
+
+The Dashboard loads no external font, stylesheet, or script (§6), so its own payload is the
+entire download cost. `tests/test_dashboard_accessibility.py` enforces two budgets, using
+decimal megabytes (1 MB = 1,000,000 bytes) throughout:
+
+- **Total published site:** ≤ 3 MB. Current size is ~1.1 MB (mostly `data/ocean.json` at
+  ~460 KB, the largest single payload — the 11-lane Ocean model with its full observation
+  history). The 3 MB ceiling is a little under triple the current size: enough headroom for the
+  Ocean dataset to keep growing and for a future mode's lane data to land without immediately
+  tripping the test, while still catching a genuine regression (e.g. an accidentally
+  unbounded export, or a raw response leaking into a payload it doesn't belong in).
+- **Any single JSON payload:** ≤ 1 MB. Set above the current largest file (`ocean.json`,
+  ~460 KB) with a little over double the room, which is a more meaningful per-file signal than
+  the total budget alone — a single payload doubling in size while the rest of the site stays
+  flat is a different kind of regression than the whole site growing together.
+
+Neither number is a target to grow into; both exist to catch an unbounded payload before it
+ships, not to describe how large the Dashboard is expected to become.
+
+## 8. What the Dashboard will not do
 
 - It will not tell any specific organization what to do. It holds no shipment, booking,
   quotation or capacity data and cannot know anyone's exposure.
