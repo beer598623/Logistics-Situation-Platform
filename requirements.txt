@@ -3,4 +3,4 @@ jsonschema==4.26.0
 PyYAML==6.0.3
 defusedxml==0.7.1
 # Derived analytical warehouse only. The published Dashboard never depends on it.
-duckdb==1.4.1
+duckdb==1.4.2
