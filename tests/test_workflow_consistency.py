@@ -21,11 +21,14 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS_DIR = ROOT / ".github" / "workflows"
 
-_USES_PATTERN = re.compile(r"^\s*uses:\s*(?P<action>[\w./-]+)@(?P<version>[\w.]+)\s*$")
+_USES_PATTERN = re.compile(
+    r"^\s*uses:\s*['\"]?(?P<action>[\w./-]+)@(?P<version>[\w.-]+)['\"]?\s*(#.*)?$"
+)
 
 
 def _iter_workflow_files() -> list[Path]:
-    paths = sorted(WORKFLOWS_DIR.glob("*.yml"))
+    # GitHub Actions honours both .yml and .yaml workflow files.
+    paths = sorted(set(WORKFLOWS_DIR.glob("*.yml")) | set(WORKFLOWS_DIR.glob("*.yaml")))
     assert paths, f"expected at least one workflow file under {WORKFLOWS_DIR}"
     return paths
 
@@ -83,6 +86,7 @@ def test_every_shared_action_actually_appears_more_than_once() -> None:
     assert shared, "expected at least one action reused across multiple workflow steps"
     assert shared.get("actions/checkout", 0) > 1
     assert shared.get("actions/setup-python", 0) > 1
+    assert shared.get("actions/upload-artifact", 0) > 1
 
 
 def test_collect_workflow_has_no_schedule_or_push_trigger() -> None:
