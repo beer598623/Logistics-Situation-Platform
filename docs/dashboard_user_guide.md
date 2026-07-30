@@ -152,7 +152,36 @@ implies that an old reading — or a generated one — is current.
   Verified at 390px width.
 - A print stylesheet expands collapsed panels.
 
-## 7. What the Dashboard will not do
+**Test-enforced (WO-016):** the properties above that a static test can check without
+rendering the page are enforced by `tests/test_dashboard_accessibility.py` on every PR — a
+single `<h1>`, no heading-level skip, `lang` present, the skip link's target exists, every
+`nav`/`section`/`role="region"` landmark has an accessible name, and every text
+foreground/background colour pairing actually used in `assets/styles.css` meets the WCAG AA
+4.5:1 normal-text contrast ratio (computed from the stylesheet's own colours, not a
+separately maintained palette that could drift out of sync with it). This is a set of narrow,
+specific checks, not a substitute for a full accessibility audit or manual screen-reader
+testing.
+
+## 7. Payload budget (WO-016)
+
+The Dashboard loads no external font, stylesheet, or script (§6), so its own payload is the
+entire download cost. `tests/test_dashboard_accessibility.py` enforces two budgets:
+
+- **Total published site:** ≤ 3 MB. Current size is ~1.1 MB (mostly `data/ocean.json` at
+  ~450 KB, the largest single payload — the 11-lane Ocean model with its full observation
+  history). The 3 MB ceiling is roughly triple the current size: enough headroom for the
+  Ocean dataset to keep growing and for a future mode's lane data to land without immediately
+  tripping the test, while still catching a genuine regression (e.g. an accidentally
+  unbounded export, or a raw response leaking into a payload it doesn't belong in).
+- **Any single JSON payload:** ≤ 1 MB. Set above the current largest file (`ocean.json`,
+  ~450 KB) with room to roughly double, which is a more meaningful per-file signal than the
+  total budget alone — a single payload doubling in size while the rest of the site stays flat
+  is a different kind of regression than the whole site growing together.
+
+Neither number is a target to grow into; both exist to catch an unbounded payload before it
+ships, not to describe how large the Dashboard is expected to become.
+
+## 8. What the Dashboard will not do
 
 - It will not tell any specific organization what to do. It holds no shipment, booking,
   quotation or capacity data and cannot know anyone's exposure.
