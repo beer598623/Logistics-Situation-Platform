@@ -1,6 +1,8 @@
 # Source qualification report
 
-**Work Order:** WO-010 Gate C · **Registry version:** 0.3 · **Reviewed:** 2026-07-24
+<!-- registry-source-count: 17 -->
+
+**Work Order:** WO-010 Gate C, extended by WO-011 · **Registry version:** 0.3 · **Reviewed:** 2026-07-24
 **Policy:** `free_public_sources_only` · **Paid-source dependency:** 0
 
 ## 1. Headline finding
@@ -28,8 +30,8 @@ were not actually read, `reuse_status` and `redistribution_status` stay `unknown
 | Required capability | Target | Delivered | Status |
 |---|---|---|---|
 | Thailand trade or flow | ≥ 1 qualified | 1 candidate (`TH_CUSTOMS`), not enabled | **Insufficient — live coverage absent** |
-| Thailand port, maritime or transport | ≥ 1 qualified | 2 candidates (`IMF_PORTWATCH`, `UNCTAD_MARITIME`), not enabled | **Insufficient** |
-| Cost source | ≥ 1 qualified | 3 candidates (`EPPO_FUEL`, `WB_COMMODITY`, `BOT_FX`), not enabled | **Insufficient** |
+| Thailand port, maritime or transport | ≥ 1 qualified | 3 candidates (`IMF_PORTWATCH`, `UNCTAD_MARITIME`, `PAT_STATISTICS`), not enabled | **Insufficient** |
+| Cost source | ≥ 1 qualified | 4 candidates (`EPPO_FUEL`, `WB_COMMODITY`, `BOT_FX`, `FBX_PUBLIC`), not enabled | **Insufficient** |
 | Global baseline | ≥ 1 qualified | 1 candidate (`GSCPI`), not enabled | **Insufficient** |
 | Official operational-notice channels | ≥ 2, or a bounded reviewed intake | 4 channels (`PAT_NOTICE`, `ACP_ADVISORY`, `SCA_CIRCULAR`, `MPA_SG_NOTICE`) **plus** the bounded reviewed intake (`MANUAL_NOTICE_INTAKE`) | **Registered; none enabled** |
 | Free news discovery | ≥ 1 | 1 candidate (`NEWS_DISCOVERY`), not enabled | **Insufficient** |
@@ -41,7 +43,7 @@ stated on the Dashboard, in the source-health snapshot and in every lane assessm
 
 ## 3. Candidate register
 
-Fifteen contracts. Full machine-readable detail is in `config/sources.yaml`.
+Seventeen contracts. Full machine-readable detail is in `config/sources.yaml`.
 
 ### Bundle 1 candidates (10 new + 3 pre-existing)
 
@@ -60,6 +62,19 @@ Fifteen contracts. Full machine-readable detail is in `config/sources.yaml`.
 | `MPA_SG_NOTICE` | Maritime and Port Authority of Singapore | Official notice | free | unknown | unknown | yes | not performed |
 | `MANUAL_NOTICE_INTAKE` | Platform maintainers | Official notice intake | free | permitted with attribution | link only | yes | **not required** |
 | `NEWS_DISCOVERY` | The GDELT Project | News discovery | free | unknown | link only | yes | not performed |
+
+### WO-010-R1 additions (2)
+
+| ID | Publisher | Logistics role | Access | Reuse | Redistribution | Fixture test | Live validation |
+|---|---|---|---|---|---|---|---|
+| `PAT_STATISTICS` | Port Authority of Thailand | Thailand port/maritime activity | free | unknown | unknown | yes | not performed |
+| `FBX_PUBLIC` | Freightos | Freight market benchmark/proxy | free (partial paywall) | unknown | unknown | yes | not performed |
+
+Both correct a provenance defect rather than add capability. WO-010 had published a synthetic
+Thailand port-throughput series against `IMF_PORTWATCH` (a vessel-tracking estimate) and a
+synthetic container freight benchmark against `EPPO_FUEL` (a domestic retail fuel publisher) —
+neither mapping was true. WO-010-R1 registered these two contracts so each series has a
+correctly scoped candidate to stand in for. Both are disabled.
 
 ### Outside the Bundle 1 source core
 
@@ -134,6 +149,23 @@ from being the sole evidence for a material impact conclusion — enforced in
 URL are retained; article bodies are never fetched, stored or republished. Coverage skews to
 English-language and heavily syndicated outlets, so absence of a lead is not evidence that
 nothing happened.
+
+### `PAT_STATISTICS` — Thailand port throughput (WO-010-R1)
+Reported throughput published by the port authority is a different measure from
+`IMF_PORTWATCH`'s model-derived vessel-tracking estimate; the two must never be presented as
+the same series, which is the correction this contract records. Throughput is a volume
+measure and can never on its own establish congestion, waiting time or berth delay. No
+machine-readable statistics endpoint has been confirmed.
+
+### `FBX_PUBLIC` — container freight benchmark (WO-010-R1)
+A market benchmark for named east-west container routes. It is **not** a Thailand shipment
+quotation, not a Thailand average, and not a rate paid by any shipper — no route in the index
+is a Thailand-origin route, so any Thailand reading derived from it is directional context
+only. Registered so the synthetic freight benchmark used by the Ocean MVP has a correctly
+scoped candidate to stand in for, in place of `EPPO_FUEL` (a domestic retail fuel publisher,
+which was wrong in both route scope and cost family). The index is a commercial product with
+a free public display tier (`paywall_status: partial`); the free tier's coverage, history
+depth and machine-readability are all unverified.
 
 ## 5. Enablement rule
 

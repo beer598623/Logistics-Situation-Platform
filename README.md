@@ -1,6 +1,6 @@
 # Logistics Situation Platform
 
-Public research dashboard for global and Thailand logistics conditions, operational impacts, preparedness options, and innovation signals.
+Public research dashboard for global and Thailand logistics conditions, operational impacts, and preparedness options.
 
 ## Approved product direction (WO-009A)
 
@@ -32,11 +32,22 @@ review. See [`docs/bundle1_architecture.md`](docs/bundle1_architecture.md).
 
 ## MVP workflow
 
-1. GitHub prepares candidate data.
-2. Scheduled ChatGPT researches and produces a Decision Package.
-3. A human approves, revises, or rejects the package.
-4. Codex updates approved data and opens a pull request.
-5. GitHub Actions validates, builds, and deploys the static dashboard.
+The review cycle is human-triggered end to end. No AI API is called by this repository — see
+[`docs/chatgpt_review_workflow.md`](docs/chatgpt_review_workflow.md) §1.
+
+1. `python scripts/build_review_package.py --package-id PKG-YYYYMMDD-NNN` builds a bounded
+   package from the current view.
+2. A human runs the package through ChatGPT themselves and saves the structured reply to
+   `data/review/inbound/<id>.json`.
+3. `python scripts/import_review.py --package-id PKG-YYYYMMDD-NNN` validates the reply against
+   the schema and rejection rules, as untrusted input.
+4. `python scripts/review_decision.py --package-id PKG-YYYYMMDD-NNN --decision approve
+   --reviewer '<name>'` records an explicit human decision.
+5. `python scripts/build_dashboard.py` publishes, and GitHub Actions validates and deploys the
+   static dashboard.
+
+See [`docs/operations_runbook.md`](docs/operations_runbook.md) §5 for the full command
+sequence.
 
 ## Local validation
 
