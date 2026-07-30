@@ -36,6 +36,7 @@ import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 #: Where a record came from.
@@ -658,6 +659,32 @@ def compute_reviewed_record_set_hash(
 _SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 
+def _parsed_timestamp(value: Any) -> datetime | None:
+    """A parsed timestamp, or ``None`` when ``value`` is absent or cannot be
+    parsed (WO-010-R7-R1).
+
+    ``schemas/collection_run.schema.json``'s ``format: "date-time"`` is an
+    annotation the ``jsonschema`` version this repository pins does not
+    assert (its ``FormatChecker`` has no ``date-time``/``uri`` checker
+    registered), so a malformed timestamp currently passes schema
+    validation and would otherwise reach ``datetime.fromisoformat`` and
+    raise, crashing a build instead of failing one run or one binding
+    closed. Every caller that needs "is this timestamp present and valid"
+    goes through this helper instead of calling
+    :func:`analysis.build_context.parse_timestamp` directly.
+    """
+    if not value or not isinstance(value, str):
+        return None
+    # Imported locally: analysis.build_context imports from this module, so
+    # a module-level import here would be circular.
+    from analysis.build_context import parse_timestamp
+
+    try:
+        return parse_timestamp(value)
+    except (ValueError, TypeError):
+        return None
+
+
 def output_manifest_problems(
     emitted_records: Sequence[Mapping[str, Any]], *, label: str
 ) -> list[str]:
@@ -721,7 +748,8 @@ def output_manifest_problems(
 
 def collection_run_problems(run: Mapping[str, Any]) -> list[str]:
     """Whether one collection run's own document is internally consistent
-    with the status-dependent contract WO-010-R7 §1 defines.
+    with the status-dependent contract WO-010-R7 §1 defines, tightened by
+    WO-010-R7-R1.
 
     Independent of any record and of any other run: this checks the run
     document against itself. Most of the structural shape (which fields must
@@ -729,16 +757,34 @@ def collection_run_problems(run: Mapping[str, Any]) -> list[str]:
     ``schemas/collection_run.schema.json``'s status-keyed ``if``/``then``
     rules before this function is ever reached from
     :func:`collectors.collection_runs.load_collection_runs`; what remains
-    here is what a JSON Schema cannot express: cross-field count agreement,
-    manifest-internal identity (:func:`output_manifest_problems`), and hash
-    correctness.
+    here is what a JSON Schema cannot express: run-interval validity,
+    cross-field count agreement, manifest-internal identity
+    (:func:`output_manifest_problems`), and hash correctness.
 
-    * ``success`` -- ``records_emitted`` must equal ``len(emitted_records)``
-      (including the zero-output case, where both are ``0`` and
-      ``emitted_records`` is ``[]``); every entry must be internally
-      consistent; the declared ``output_manifest_sha256`` must equal
+    * every status -- ``started_at`` and ``completed_at`` must each be
+      present and a parseable timestamp, and ``started_at`` must not be
+      after ``completed_at`` (WO-010-R7-R1: a run cannot complete before it
+      started). ``schemas/collection_run.schema.json``'s ``format:
+      "date-time"`` is an annotation the installed ``jsonschema`` does not
+      assert, so a malformed timestamp is caught here, not by the schema.
+    * ``success`` -- ``records_emitted`` must be a non-null integer
+      (WO-010-R7-R1: previously a ``success`` run with ``records_emitted``
+      omitted or ``null`` silently skipped the count-agreement check below)
+      and must equal ``len(emitted_records)`` (including the zero-output
+      case, where both are ``0`` and ``emitted_records`` is ``[]``); every
+      entry must be internally consistent; the declared
+      ``output_manifest_sha256`` must equal
       :func:`compute_output_manifest_hash` of the declared records.
-    * ``not_modified`` -- ``records_emitted`` must be ``0``.
+    * ``not_modified`` -- ``records_emitted`` must be exactly ``0``, never
+      ``null`` (WO-010-R7-R1: previously ``null`` was accepted alongside
+      ``0``).
+    * ``error``/``disabled``/``dry_run`` -- ``records_emitted`` must be
+      ``null``, never a number (WO-010-R7-R1: previously unconstrained here;
+      a positive value only failed because the schema's per-status
+      ``emitted_records``/``output_manifest_sha256`` rules happened to
+      reject the run for other reasons). ``0`` is reserved for a
+      ``success`` run whose manifest genuinely has zero entries -- a status
+      that never produced a manifest at all records ``null``, not a count.
     * every status -- a declared ``output_manifest_sha256`` (only possible
       for ``success``, per the schema) must match the computed hash.
     """
@@ -748,13 +794,47 @@ def collection_run_problems(run: Mapping[str, Any]) -> list[str]:
     emitted_records = run.get("emitted_records")
     declared_hash = run.get("output_manifest_sha256")
 
-    if status == "not_modified":
-        records_emitted = run.get("records_emitted")
-        if records_emitted not in (0, None):
-            problems.append(
-                f"collection run {run_id!r} has status 'not_modified' but records "
-                f"records_emitted={records_emitted}; a not_modified run emits nothing"
-            )
+    started_at = run.get("started_at")
+    completed_at = run.get("completed_at")
+    started_ts = _parsed_timestamp(started_at)
+    completed_ts = _parsed_timestamp(completed_at)
+    if started_ts is None:
+        problems.append(
+            f"collection run {run_id!r} records no valid started_at ({started_at!r}); a run's "
+            "start time is required and must be a parseable timestamp"
+        )
+    if completed_ts is None:
+        problems.append(
+            f"collection run {run_id!r} records no valid completed_at ({completed_at!r}); a "
+            "run's completion time is required and must be a parseable timestamp"
+        )
+    if started_ts is not None and completed_ts is not None and started_ts > completed_ts:
+        problems.append(
+            f"collection run {run_id!r} started at {started_at!r} but completed at "
+            f"{completed_at!r}; a run cannot complete before it started"
+        )
+
+    records_emitted = run.get("records_emitted")
+    is_plain_int = isinstance(records_emitted, int) and not isinstance(records_emitted, bool)
+    if status == "success" and not is_plain_int:
+        problems.append(
+            f"collection run {run_id!r} has status 'success' but records "
+            f"records_emitted={records_emitted!r}; a successful run must record an integer "
+            "count (0 for a zero-output run)"
+        )
+    elif status == "not_modified" and (not is_plain_int or records_emitted != 0):
+        problems.append(
+            f"collection run {run_id!r} has status 'not_modified' but records "
+            f"records_emitted={records_emitted!r}; a not_modified run emits nothing and must "
+            "record exactly 0"
+        )
+    elif status in ("error", "disabled", "dry_run") and records_emitted is not None:
+        problems.append(
+            f"collection run {run_id!r} has status {status!r} but records "
+            f"records_emitted={records_emitted!r}; a run that emitted nothing records a null "
+            "count, never a number (0 means an empty manifest was produced and hashed, which "
+            "only a successful run can claim)"
+        )
 
     if emitted_records is not None:
         records_emitted = run.get("records_emitted")
@@ -808,11 +888,14 @@ def resolve_governing_run(
 
     Fails closed: an empty or partially-walked chain (any ``problems``)
     means ``governing_run`` is ``None``, never a best-effort guess.
-    """
-    # Imported locally: analysis.build_context imports from this module, so a
-    # module-level import here would be circular.
-    from analysis.build_context import parse_timestamp
 
+    WO-010-R7-R1: every run visited (confirming, every intermediate
+    ``not_modified`` hop, and the governing run itself) must carry its own
+    valid, non-inverted ``started_at``..``completed_at`` interval -- checked
+    here directly rather than relying on the caller having already run
+    :func:`collection_run_problems` on every run, so this chain boundary is
+    independently fail-closed.
+    """
     problems: list[str] = []
     chain: list[str] = []
     visited: set[str] = set()
@@ -836,6 +919,22 @@ def resolve_governing_run(
                 f"supersedes chain from {confirming_id!r} crosses source boundaries: "
                 f"{current_id!r} belongs to source {current.get('source_id')!r}, not "
                 f"{source_id!r}"
+            )
+            return confirming, None, chain, problems
+
+        current_started = current.get("started_at")
+        current_completed = current.get("completed_at")
+        current_started_ts = _parsed_timestamp(current_started)
+        current_completed_ts = _parsed_timestamp(current_completed)
+        if (
+            current_started_ts is None
+            or current_completed_ts is None
+            or current_started_ts > current_completed_ts
+        ):
+            problems.append(
+                f"supersedes chain from {confirming_id!r} includes run {current_id!r} with a "
+                f"missing, malformed or inverted started_at..completed_at interval "
+                f"({current_started!r}..{current_completed!r})"
             )
             return confirming, None, chain, problems
 
@@ -873,9 +972,23 @@ def resolve_governing_run(
             )
             return confirming, None, chain, problems
 
-        # WO-010-R7 §1: "every prior run occurs before the later run".
+        # WO-010-R7 §1: "every prior run occurs before the later run". prior's
+        # own interval was already validated by this loop's next iteration's
+        # interval check; parsed again here only for the pairwise comparison.
         current_ts, prior_ts = current.get("completed_at"), prior.get("completed_at")
-        if current_ts and prior_ts and parse_timestamp(prior_ts) > parse_timestamp(current_ts):
+        current_completed_parsed = _parsed_timestamp(current_ts)
+        prior_completed_parsed = _parsed_timestamp(prior_ts)
+        if prior_completed_parsed is None:
+            problems.append(
+                f"supersedes chain from {confirming_id!r} is broken: {current_id!r} names "
+                f"supersedes_run_id {supersedes_id!r}, which records no valid completed_at"
+            )
+            return confirming, None, chain, problems
+        chronological_violation = (
+            current_completed_parsed is not None
+            and prior_completed_parsed > current_completed_parsed
+        )
+        if chronological_violation:
             problems.append(
                 f"supersedes chain from {confirming_id!r} is not chronological: "
                 f"{supersedes_id!r} (completed {prior_ts}) is later than {current_id!r} "
@@ -914,14 +1027,38 @@ def resolve_live_record_binding(
     ``started_at``..``completed_at`` interval -- not the confirming run's,
     since a ``not_modified`` run's own timestamps describe when it was
     reconfirmed, not when the record was actually produced.
-    """
-    # Imported locally: analysis.build_context imports from this module, so a
-    # module-level import here would be circular.
-    from analysis.build_context import parse_timestamp
 
+    WO-010-R7-R1: enforced here, at the acquisition-binding boundary itself,
+    not only by repository-level validation (:func:`provenance_problems`)
+    or the publication boundary (:func:`qualifies_for_current_publication`):
+    the record's own ``retrieval_status`` must be ``'retrieved'`` and its
+    ``retrieved_at`` must be present and a parseable timestamp before any
+    run is even looked up; the governing run's own ``started_at`` and
+    ``completed_at`` must each be present and parseable before the interval
+    containment check runs. Every timestamp comparison in this function
+    fails closed on a missing or malformed value rather than silently
+    skipping the check (as a bare ``if value and other_value:`` guard would)
+    or raising (as an unguarded :func:`analysis.build_context.parse_timestamp`
+    call would).
+    """
     label = _record_label(record)
     provenance = _provenance(record)
     source_id = record_source_id(record)
+
+    retrieval_status = record_retrieval_status(record)
+    if retrieval_status != "retrieved":
+        return [
+            f"{label}: live_retrieved record records retrieval_status {retrieval_status!r}, "
+            "not 'retrieved'; a record nothing was retrieved for cannot be bound to an "
+            "acquisition"
+        ], None
+    retrieved_ts = _parsed_timestamp(provenance.get("retrieved_at"))
+    if retrieved_ts is None:
+        return [
+            f"{label}: live_retrieved record records no valid retrieved_at "
+            f"({provenance.get('retrieved_at')!r}); a retrieved record must record when it was "
+            "retrieved"
+        ], None
 
     run_id = provenance.get("collection_run_id")
     if not run_id:
@@ -954,32 +1091,36 @@ def resolve_live_record_binding(
         ], None
 
     confirming_completed_at = confirming_run.get("completed_at")
-    if (
-        as_of is not None
-        and confirming_completed_at
-        and parse_timestamp(confirming_completed_at) > as_of
-    ):
+    confirming_completed_ts = _parsed_timestamp(confirming_completed_at)
+    if confirming_completed_ts is None:
+        return [
+            f"{label}: collection run {run_id!r} records no valid completed_at "
+            f"({confirming_completed_at!r})"
+        ], None
+    if as_of is not None and confirming_completed_ts > as_of:
         return [f"{label}: collection run {run_id!r} completed after this build's as-of time"], None
     retrieved_at = provenance.get("retrieved_at")
-    if as_of is not None and retrieved_at and parse_timestamp(retrieved_at) > as_of:
+    if as_of is not None and retrieved_ts > as_of:
         return [f"{label}: retrieved_at is after this build's as-of time"], None
 
     # WO-010-R7 §5: retrieval time must be consistent with the *governing*
     # run's own interval, not the confirming run's.
     governing_started_at = governing_run.get("started_at")
     governing_completed_at = governing_run.get("completed_at")
-    if retrieved_at and governing_started_at and governing_completed_at:
-        retrieved_ts = parse_timestamp(retrieved_at)
-        if not (
-            parse_timestamp(governing_started_at)
-            <= retrieved_ts
-            <= parse_timestamp(governing_completed_at)
-        ):
-            return [
-                f"{label}: retrieved_at {retrieved_at!r} falls outside governing collection "
-                f"run {governing_run.get('run_id')!r}'s started_at..completed_at interval "
-                f"({governing_started_at!r}..{governing_completed_at!r})"
-            ], None
+    governing_started_ts = _parsed_timestamp(governing_started_at)
+    governing_completed_ts = _parsed_timestamp(governing_completed_at)
+    if governing_started_ts is None or governing_completed_ts is None:
+        return [
+            f"{label}: governing collection run {governing_run.get('run_id')!r} records no "
+            f"valid started_at..completed_at interval ({governing_started_at!r}.."
+            f"{governing_completed_at!r})"
+        ], None
+    if not (governing_started_ts <= retrieved_ts <= governing_completed_ts):
+        return [
+            f"{label}: retrieved_at {retrieved_at!r} falls outside governing collection "
+            f"run {governing_run.get('run_id')!r}'s started_at..completed_at interval "
+            f"({governing_started_at!r}..{governing_completed_at!r})"
+        ], None
 
     # WO-010-R7 §4: parser version is compared against the *governing* run's
     # adapter_version, not the confirming run's -- a not_modified run's own

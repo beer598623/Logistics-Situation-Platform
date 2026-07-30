@@ -48,6 +48,16 @@ class SourceHealth:
 
 @dataclass(slots=True)
 class CollectionRun:
+    """WO-010-R7-R1: emitted_records/output_manifest_sha256/supersedes_run_id
+    are now universally required by schemas/collection_run.schema.json, so
+    every CollectionRun carries them -- defaulting to None, which is the
+    correct value for every status this dataclass currently constructs
+    (dry_run, and the error/success paths in the GDACS/TMD adapters, none of
+    which populate an output manifest). records_emitted is null, never 0,
+    for a status that produced no manifest at all -- 0 is reserved for a
+    success run whose manifest genuinely has zero entries.
+    """
+
     run_id: str
     source_id: str
     started_at: str
@@ -68,6 +78,9 @@ class CollectionRun:
     data_cutoff_at: str | None
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    emitted_records: list[dict[str, Any]] | None = None
+    output_manifest_sha256: str | None = None
+    supersedes_run_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)

@@ -207,7 +207,29 @@
           "pattern": "^MAN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$",
           "description": "WO-010-R5 §1. Required (non-null) when evidence_origin is 'human_reviewed_manual': the persisted manual-review event this record's transcription is the basis for. Optional for the same reason as collection_run_id."
         }
-      }
+      },
+      "allOf": [
+        {
+          "description": "WO-010-R7-R1: makes the retrieved_at description above ('Null unless retrieval_status is retrieved') structural rather than prose-only, matching schemas/event_evidence.schema.json and analysis.provenance.provenance_problems.",
+          "if": {
+            "required": ["retrieval_status"],
+            "properties": {"retrieval_status": {"const": "retrieved"}}
+          },
+          "then": {
+            "required": ["retrieved_at"],
+            "properties": {"retrieved_at": {"type": "string"}}
+          }
+        },
+        {
+          "if": {
+            "required": ["retrieval_status"],
+            "properties": {"retrieval_status": {"enum": ["not_retrieved", "retrieval_failed", "not_applicable"]}}
+          },
+          "then": {
+            "properties": {"retrieved_at": {"type": "null"}}
+          }
+        }
+      ]
     },
     "measurement": {
       "type": "object",

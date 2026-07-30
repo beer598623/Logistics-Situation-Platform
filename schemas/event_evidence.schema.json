@@ -250,5 +250,27 @@
       "pattern": "^MAN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$",
       "description": "WO-010-R5 §1. Optional. Required (non-null) in practice when evidence_origin is 'human_reviewed_manual': the persisted manual-review event this evidence item's transcription is the basis for."
     }
-  }
+  },
+  "allOf": [
+    {
+      "description": "WO-010-R7-R1: makes the retrieved_at description above ('Null unless retrieval_status is retrieved') structural rather than prose-only, matching schemas/observation_common.schema.json's provenance block and analysis.provenance.provenance_problems.",
+      "if": {
+        "required": ["retrieval_status"],
+        "properties": {"retrieval_status": {"const": "retrieved"}}
+      },
+      "then": {
+        "required": ["retrieved_at"],
+        "properties": {"retrieved_at": {"type": "string"}}
+      }
+    },
+    {
+      "if": {
+        "required": ["retrieval_status"],
+        "properties": {"retrieval_status": {"enum": ["not_retrieved", "retrieval_failed", "not_applicable"]}}
+      },
+      "then": {
+        "properties": {"retrieved_at": {"type": "null"}}
+      }
+    }
+  ]
 }

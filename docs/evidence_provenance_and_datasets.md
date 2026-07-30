@@ -115,10 +115,35 @@ The invariant is enforced in `collectors/observations.build_observation`, in
 `analysis/provenance.provenance_problems`, and again by `scripts/validate.py`
 over the committed data. A record that retrieved nothing cannot carry a
 retrieval time, because a retrieval time on such a record is simply false.
+WO-010-R7-R1 made this table structural, not only semantic: both
+`schemas/observation_common.schema.json`'s shared `provenance` block and
+`schemas/event_evidence.schema.json` carry the matching rule directly, so a
+`retrieved`/`retrieved_at` mismatch is a schema error, not only a
+`provenance_problems` finding.
 
 Fixtures record `fixture_created_at` instead: when the file was written. It is
 deliberately a different field name, so it cannot be mistaken for — or copied
 into — a retrieval.
+
+### 2a. Live-record retrieval timing (WO-010-R7-R1)
+
+A `live_retrieved` record's retrieval time must be consistent with the
+collection run that actually governs it, enforced inside
+`analysis.provenance.resolve_live_record_binding` -- the acquisition-binding
+boundary itself, not only by the repository-level checks above:
+
+* `retrieval_status` must be `retrieved`.
+* `retrieved_at` must be present and a parseable timestamp.
+* The governing run (the successful run whose manifest actually backs the
+  record -- see §4 confirming/governing run model in the R6/R7 provenance
+  docstrings) must itself have valid, parseable `started_at`/`completed_at`.
+* `governing_run.started_at <= retrieved_at <= governing_run.completed_at`.
+* `retrieved_at <= Build Context as_of_time`.
+
+Every one of these fails closed on a missing or malformed value rather than
+silently skipping the check, and rather than crashing: a malformed
+`retrieved_at`, for instance, is a validation problem, not an uncaught
+`ValueError`.
 
 ---
 

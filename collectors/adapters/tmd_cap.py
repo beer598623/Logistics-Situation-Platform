@@ -667,7 +667,11 @@ class TmdCapAdapter(SourceAdapter):
             last_modified=last_modified,
             content_sha256=content_sha256,
             records_received=len(records),
-            records_emitted=len(records),
+            # WO-010-R7-R1: records_emitted is null, not 0, for a status that
+            # produced no manifest at all (error/disabled/dry_run) -- only a
+            # success (or a 304 not_modified, which correctly emits nothing
+            # of its own) may claim a real count.
+            records_emitted=len(records) if status != RunStatus.ERROR else None,
             records_rejected=0,
             # TMD's CAP feed is a live "current warnings" snapshot with no
             # bounded query window (unlike GDACS's dated SEARCH request),
