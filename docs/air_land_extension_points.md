@@ -37,8 +37,10 @@ entities are mode-neutral" is a testable statement rather than an intention.
 - **Observations:** air cargo tonnage and capacity via `port_transport_observation` with
   `metric: aircraft_movements` or `capacity_deployed`; air freight rate benchmarks via
   `cost_observation` with an appropriate `benchmark_class`.
-- **Events:** airport or cargo-terminal interruption, airspace closure, capacity withdrawal
-  — all already expressible in the existing event type enum or a small additive extension.
+- **Events:** capacity withdrawal is already expressible. An airport/cargo-terminal
+  interruption or an airspace closure has the same Ocean-worded gap named in §1's table
+  (`port_or_terminal_closure`, `canal_restriction`) and needs the same small additive
+  extension.
 - **Threshold rules:** new IDs in `analysis/thresholds.py`, documented alongside in
   `docs/indicator_definitions.md`. The rule engine itself needs no change.
 
