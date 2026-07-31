@@ -518,7 +518,8 @@
               ]);
             }).join('') + '</div>';
         }).join('')
-      : '';
+      : '<p class="empty-state">No qualified trade-value observation exists for any lane, so no ' +
+        'current reading is published. This is a coverage gap, not evidence that trade stopped.</p>';
     el('trade-note').innerHTML = esc(data.lane_selection_note) + ' ' + esc(data.revision_note);
     el('trade-lanes').innerHTML = data.lane_flows.map(function (lane) {
       var body = lane.flows.map(function (flow) {
@@ -540,7 +541,8 @@
       ? data.current_cost_series.map(function (series) {
           return seriesBlock(series, series.series_id, ['Current cost-context reading']);
         }).join('')
-      : '';
+      : '<p class="empty-state">No qualified cost-context reading exists, so no current value is ' +
+        'published. This is a coverage gap, not evidence that costs are stable.</p>';
     el('cost-limits-banner').innerHTML =
       '<strong>These are benchmarks, not quotations.</strong>' +
       esc(data.benchmark_limitations[1]);
@@ -740,7 +742,8 @@
             '<p class="series-meta">Approved ' + esc(item.approved_at) + ' by ' + esc(item.reviewer_record) + '</p>' +
             '<p class="prose">' + esc(item.assessment.current_situation) + '</p></div>';
         }).join('')
-      : '';
+      : '<p class="empty-state">No AI assessment has been approved for publication. This is a ' +
+        'coverage gap, not evidence that no assessment was produced.</p>';
 
     el('deterministic-note').textContent = data.deterministic_note;
     el('outlook-demo-label').textContent = data.demo_label;

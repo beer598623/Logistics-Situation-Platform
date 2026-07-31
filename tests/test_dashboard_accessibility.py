@@ -34,6 +34,12 @@ class _DashboardHtmlParser(HTMLParser):
         self.heading_levels: list[int] = []
         self.ids: set[str] = set()
         self.landmarks: list[dict[str, str]] = []
+        # WO-018: the heading level in effect at the moment each id is seen,
+        # in document order -- i.e. the level of the nearest heading that
+        # precedes it. Recorded for every id, not just container ids, since
+        # the parser doesn't know in advance which ids app.js will target.
+        self.preceding_heading_level: dict[str, int] = {}
+        self._current_heading_level = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attrs_dict = {key: (value or "") for key, value in attrs}
@@ -41,8 +47,10 @@ class _DashboardHtmlParser(HTMLParser):
             self.html_attrs = attrs_dict
         if "id" in attrs_dict:
             self.ids.add(attrs_dict["id"])
+            self.preceding_heading_level[attrs_dict["id"]] = self._current_heading_level
         if tag in _HEADING_LEVELS:
             self.heading_levels.append(_HEADING_LEVELS[tag])
+            self._current_heading_level = _HEADING_LEVELS[tag]
         if tag in _LANDMARK_TAGS or attrs_dict.get("role") == "region":
             self.landmarks.append(attrs_dict)
 
@@ -72,6 +80,139 @@ def test_heading_levels_never_skip() -> None:
                 "without an intervening heading"
             )
         previous_level = level
+
+
+_EL_INNERHTML_ASSIGNMENT = re.compile(r"el\('(?P<id>[\w-]+)'\)\.innerHTML\s*=\s*")
+_FUNCTION_DEF = re.compile(r"function\s+(\w+)\s*\([^)]*\)\s*\{")
+_JS_HEADING_LITERAL = re.compile(r"<h([1-6])>")
+
+
+def _js_function_bodies(js_text: str) -> dict[str, str]:
+    """Maps each top-level named function in app.js to its balanced-brace
+    body text, by counting braces from the opening one -- app.js has no
+    strings or comments containing an unmatched brace, so this is sufficient
+    without a real JS parser."""
+    bodies: dict[str, str] = {}
+    for match in _FUNCTION_DEF.finditer(js_text):
+        depth = 1
+        i = match.end()
+        while depth > 0 and i < len(js_text):
+            if js_text[i] == "{":
+                depth += 1
+            elif js_text[i] == "}":
+                depth -= 1
+            i += 1
+        bodies[match.group(1)] = js_text[match.end() : i - 1]
+    return bodies
+
+
+def _js_statement_after(js_text: str, start: int) -> str:
+    """Returns the text from `start` up to the terminating semicolon of the
+    statement, tracking bracket depth so a `;` inside a nested function body
+    or array literal doesn't end the statement early."""
+    depth = 0
+    i = start
+    while i < len(js_text):
+        ch = js_text[i]
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+        elif ch == ";" and depth <= 0:
+            return js_text[start:i]
+        i += 1
+    raise AssertionError("unterminated statement while scanning app.js")
+
+
+def test_dynamically_injected_headings_never_skip_a_level() -> None:
+    """WO-018 / Issue #32. ``test_heading_levels_never_skip`` above only
+    parses the *committed* index.html; content app.js injects into an empty
+    container at runtime was invisible to it. That gap let the Trade, Cost
+    and Outlook sections skip from h2 straight to h4 -- Trade and Cost had no
+    static <h3> in the section at all, and the Outlook instance was latent
+    only because its backing fixture data happened to be empty, not because
+    the code differed.
+
+    This test resolves, for every ``el('literal-id').innerHTML = ...``
+    assignment in app.js, which heading level(s) that statement can inject --
+    either a literal ``<hN>`` in the statement text itself, or (one level of
+    indirection) a call to a named app.js function whose own body contains a
+    literal, resolved by reading that function's actual source rather than
+    hardcoding which helper emits which level (the WO-016 review found a
+    hardcoded-literal version of a different check silently stopped tracking
+    its target). It then checks the *shallowest* level found against the
+    nearest preceding heading actually present in the committed index.html.
+    This is deliberately independent of any JSON payload: it would have
+    caught the Outlook containers even while ``ai_outlook.json`` was empty,
+    and it catches the whole class of defect, not just today's instances.
+
+    Known gap: the six ``events-*`` containers in ``renderEvents`` are
+    populated via ``el(entry[0]).innerHTML = ...`` inside a loop over an
+    array literal, not a literal ``el('id')`` call, so this regex-based scan
+    does not resolve them. They were manually verified correct (each is
+    already preceded by its own static <h3>) at the time this test was
+    written; a regression there would not be caught here.
+
+    A second, narrower known gap in the indirection step itself: a helper's
+    levels are credited to a statement on any textual mention of its name,
+    not on confirming that mention is actually a call/reference the runtime
+    would execute. Every heading literal in app.js today is <h4>, so this
+    can't currently produce a false pass -- crediting a level that already
+    equals the correct expectation changes nothing -- but it would stop
+    being inert if a helper ever emitted a different level."""
+    js_text = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
+    html_text = (PUBLIC / "index.html").read_text(encoding="utf-8")
+
+    function_levels = {
+        name: {int(n) for n in _JS_HEADING_LITERAL.findall(body)}
+        for name, body in _js_function_bodies(js_text).items()
+    }
+    function_levels = {name: levels for name, levels in function_levels.items() if levels}
+    assert function_levels, "expected at least one app.js function to contain a heading literal"
+
+    html_parser = _DashboardHtmlParser()
+    html_parser.feed(html_text)
+
+    checked = 0
+    failures: dict[str, dict[str, object]] = {}
+    for match in _EL_INNERHTML_ASSIGNMENT.finditer(js_text):
+        container_id = match.group("id")
+        if container_id not in html_parser.preceding_heading_level:
+            continue
+        statement = _js_statement_after(js_text, match.end())
+
+        levels = {int(n) for n in _JS_HEADING_LITERAL.findall(statement)}
+        for name, name_levels in function_levels.items():
+            if re.search(r"\b" + re.escape(name) + r"\b", statement):
+                levels |= name_levels
+        if not levels:
+            continue
+
+        checked += 1
+        expected = html_parser.preceding_heading_level[container_id] + 1
+        shallowest = min(levels)
+        if shallowest != expected:
+            failures[container_id] = {
+                "emits": sorted(levels),
+                "expected_shallowest": expected,
+                "preceded_by_heading_level": html_parser.preceding_heading_level[container_id],
+            }
+
+    # Guards against the scan becoming vacuous if app.js is restructured away
+    # from the el('literal-id').innerHTML pattern this regex expects. 15
+    # containers resolve today (Ocean 5, Trade 2, Cost 3, Outlook 4, Sources
+    # 1); the floor is set one below that, not at the six containers this WO
+    # fixed, so losing coverage over most of the resolved set would still
+    # fail here even though six alone would keep passing.
+    assert checked >= 14, (
+        "expected to statically resolve heading levels for at least 14 of the 15 containers "
+        f"this test currently covers (Trade/Cost/Outlook plus the already-correct others); "
+        f"resolved {checked}"
+    )
+    assert not failures, (
+        "these app.js-injected containers emit a heading level that is not exactly one level "
+        f"deeper than the nearest preceding static heading in index.html: {failures}"
+    )
 
 
 def test_html_lang_attribute_is_present() -> None:
