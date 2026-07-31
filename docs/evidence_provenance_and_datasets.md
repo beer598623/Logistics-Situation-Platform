@@ -264,8 +264,18 @@ justified collection schedule with unresolved rate limits; all six now record
 | `historical_validation` | Documented past cases replayed against the analysis code. | Panels labelled "Historical validation", each showing its assessment cutoff. |
 
 Events and lane assessments carry `dataset` explicitly. Observations carry it
-implicitly through their origin, and `scripts/build_dashboard.py` stamps the
-dataset onto every payload it emits.
+implicitly through their origin. This applies to every published *content*
+payload that could be current, technical-demonstration or historical
+(`thailand_situation.json`, `ocean.json`, `trade.json`, `cost.json`,
+`events.json`, `ai_outlook.json`, `indicators.json`) — it does not apply to
+`build_status.json`, `source_status.json` or `sources.json`, which are build
+and registry metadata, not part of the current/demo/historical split, and so
+carry no `dataset` field by design rather than by omission. (WO-022: an
+earlier version of this paragraph claimed every published payload carries
+`dataset`; two that didn't — an unlabelled copy of a legacy event record and
+an always-empty solutions register, neither read by the Dashboard UI — were
+publishing unnoticed. Both are no longer published; see
+`tests/test_dashboard_build.py`'s exact-set payload assertion.)
 
 ### The current-publication rule
 

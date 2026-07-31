@@ -35,14 +35,34 @@ def payloads():
     return build_payloads()
 
 
-def test_build_produces_every_required_payload(payloads):
-    assert REQUIRED_OUTPUTS <= set(payloads)
+def test_build_produces_exactly_the_required_payloads(payloads):
+    """WO-022: this was a subset assertion (`<=`), which could never catch an
+    undeclared extra payload -- exactly how current_events.json and
+    solutions.json reached dashboard/public/data/ unlabelled and untested for
+    eight WO-010 revisions and two prior audits. Any future payload addition
+    must be added to REQUIRED_OUTPUTS deliberately, not slip through."""
+    assert set(payloads) == REQUIRED_OUTPUTS
 
 
 def test_every_required_file_is_present_on_disk():
     for name in REQUIRED_OUTPUTS:
         assert (DATA / name).exists(), name
         json.loads((DATA / name).read_text(encoding="utf-8"))
+
+
+def test_no_orphaned_json_file_sits_in_the_published_data_directory():
+    """WO-022: build_dashboard.py's main() only writes the entries in its own
+    payload dict -- it never removes a pre-existing file that a prior build
+    wrote and a later change stopped generating. current_events.json and
+    solutions.json sat in dashboard/public/data/ this way for eight WO-010
+    revisions: unchanged bytes, so `git status` alone never flagged them.
+    This checks the directory itself, not just the declared payload dict, so
+    a future orphan can't recur silently the same way."""
+    on_disk = {path.name for path in DATA.glob("*.json")}
+    assert on_disk == REQUIRED_OUTPUTS, (
+        f"dashboard/public/data/ contains files outside REQUIRED_OUTPUTS: "
+        f"{on_disk - REQUIRED_OUTPUTS or 'none'}; missing: {REQUIRED_OUTPUTS - on_disk or 'none'}"
+    )
 
 
 def test_the_static_site_files_exist():
