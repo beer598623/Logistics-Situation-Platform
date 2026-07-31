@@ -171,9 +171,11 @@ human decision:
   `port_transport_observation` records via the shared `build_observation` helper. Deliberately
   **does not** include a `SourceAdapter.collect()` HTTP-fetching class: writing a
   request-construction method against a guessed URL would have misrepresented an assumption as
-  engineering-complete. Still true after WO-027 — the endpoint is now confirmed (§2), but no
-  live request has actually been made (§7), so `collect()` remains deferred to the live
-  validation itself.
+  engineering-complete. Still true after WO-027: the endpoint is confirmed (§2) and a bounded,
+  one-off live validation has since been executed by a standalone script (§7), but no
+  production `collect()` wiring exists yet — that remains deferred to a future Work Order that
+  reconciles `container_throughput`'s still-open unit question (§8) and makes an explicit
+  enablement/scheduling decision, neither of which this Work Order performs.
 - `tests/fixtures/data_gov_sg/`: two fixtures, exercising both missing-value representations
   (`""` and JSON `null`).
 - `docs/source_qualification_report.md`, `docs/source_enablement_decisions.md`,
