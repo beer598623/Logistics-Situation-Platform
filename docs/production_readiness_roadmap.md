@@ -220,10 +220,12 @@ has a `--check` mode. Independently re-verified against the real code: only thre
 `--check` flag, wrote files anyway, and exited 0 — a maintainer following the documented
 "verify without writing" instruction for either got a false-clean result while mutating the
 working tree. Corrected the four false-claim locations and this document's own gate-7 wording
-and stale WO-018 acceptance-criteria prescription (`:138`; folded in this document's own stale
-`tests/test_dashboard_accessibility.py` line citation at `:141`, drifted from `:288`/`:296` to
-`:429`/`:437` since WO-018 merged — the same self-citation-drift defect class WO-019 and WO-024
-already hit). Also folded in a stale `README.md` claim that WO-010 was still "pending
+and stale WO-018 acceptance-criteria prescription (now at `:137-140` post-fix; folded in this
+document's own stale `tests/test_dashboard_accessibility.py` line citation, now at `:143-144`,
+which had drifted from `:288`/`:296` to `:429`/`:437` since WO-018 merged — the same
+self-citation-drift defect class WO-019 and WO-024 already hit — line numbers throughout this
+paragraph are as of this WO-025 merge, not the pre-fix state they describe). Also folded in a
+stale `README.md` claim that WO-010 was still "pending
 independent review." Made both silently-ignored flags loud: `build_dashboard.py` and
 `generate_synthetic_fixtures.py`'s `main()` functions now reject an unrecognized argument with
 exit 2, matching `build_warehouse.py`'s and `run_historical_validation.py`'s existing behaviour.

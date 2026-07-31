@@ -139,8 +139,9 @@ python scripts/build_analysis.py --check
 
 `build_dashboard.py` likewise has no `--check` mode; its reproducibility is enforced by CI
 running the real build and then requiring `git status --porcelain data dashboard/public` to be
-empty. All four scripts above reject an unrecognized flag (including `--check` on the two
-without a check mode) rather than silently ignoring it.
+empty. All five scripts named above reject an unrecognized flag (including `--check` on the two
+without a check mode, `generate_synthetic_fixtures.py` and `build_dashboard.py`) rather than
+silently ignoring it.
 
 `build_analysis.py` pins "now" to a fixed `DATA_CUTOFF` rather than the wall clock, so
 freshness ages — and therefore the published directions — are stable across rebuilds.

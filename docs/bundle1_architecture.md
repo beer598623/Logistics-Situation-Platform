@@ -110,7 +110,8 @@ plus `validate`, `collect --dry-run`, `build_review_package`, `import_review`,
 
 Three generators — `ingest_fixtures`, `build_events_from_cases`, `build_analysis` — have a
 `--check` mode that regenerates in memory and fails if the committed output no longer matches
-its inputs; `tests/test_derived_outputs.py` runs all three. The others accept no CLI arguments:
+its inputs; `tests/test_derived_outputs.py` runs all three. Two others, `build_dashboard` and
+`generate_synthetic_fixtures`, accept no CLI arguments at all:
 `build_dashboard`'s reproducibility is instead enforced by CI's build-then-`git status
 --porcelain` step, and `generate_synthetic_fixtures`'s by a byte-comparison test
 (`test_regenerating_the_fixtures_is_a_no_op`). See `docs/operations_runbook.md` §1.
