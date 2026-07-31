@@ -251,9 +251,7 @@ def _execute_one(spec: dict[str, str]) -> RequestOutcome:
         if records:
             returned_field_names = list(records[0].keys())
         elif isinstance(fields, list):
-            returned_field_names = [
-                f.get("id") if isinstance(f, dict) else f for f in fields
-            ]
+            returned_field_names = [f.get("id") if isinstance(f, dict) else f for f in fields]
         if resource_id != spec["expected_resource_id"]:
             raise ValueError(
                 f"result.resource_id {resource_id!r} does not match expected "
