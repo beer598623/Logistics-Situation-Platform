@@ -188,8 +188,11 @@ human decision:
   bounded live validation §5 authorizes, using `collectors.http_client.ResilientHttpClient
   .get_no_redirect` (single physical request, no redirect follow, no retry) for each request.
   Stops immediately and never attempts a second request if the first fails a transport bound,
-  and distinguishes a proxy/environment-layer failure from an actual data.gov.sg source
-  response.
+  and attempts to distinguish a proxy/environment-layer failure from an actual data.gov.sg
+  source response — narrowly: it recognizes only a rejected CONNECT tunnel, so an org-policy
+  denial delivered as an ordinary HTTP error or an HTML block page would currently be
+  misclassified as a source response. This is a diagnostic aid for human review, not something
+  the script's stop-on-any-failure behavior depends on.
 - `docs/evidence/wo027_part_b_live_validation.json`: the committed evidence artifact — exactly
   the fields §5 authorizes retaining, nothing else.
 - This document: §5 updated to record execution; §6 items 2-4 resolved; §7 rewritten with the
@@ -395,13 +398,18 @@ keeps its `False` default, and no production spec sets it to `True` for `contain
 separately-authorized live read of data.gov.sg's own field/dataset unit documentation is the
 concrete next step that could close this gap; it is out of scope for WO-027.
 
-**`gross_tonnage`, assessed separately (per the human decision).** The live values (§7) are
-internally consistent with a real vessel-tonnage aggregate (mean gross tonnage per vessel
-across the five observed months is on the order of 24,000 GT, a plausible mixed-fleet average
-for vessels above the dataset's 75 GT threshold) but this observation does not by itself define
-a capability. Per the human decision, `gross_tonnage` is **not** added as a parsed field or
-metric in this Work Order; it remains present-but-unparsed, exactly as Part A left it, pending
-a separate assessment of what capability it would serve.
+**`gross_tonnage`, assessed separately (per the human decision).** The raw `gross_tonnage` /
+`number_of_vessels` quotient across the five observed months (§7) is consistently close to 24
+(23.6-24.4). **This document deliberately does not interpret that number as "~24 GT per
+vessel" or "~24,000 GT per vessel" or any other unit** — doing either would silently assume a
+scale for `gross_tonnage` exactly the way §8 above refuses to do for `container_throughput`,
+and `gross_tonnage`'s scale has had no reconciliation attempt of any kind in this Work Order.
+The quotient is recorded only as a raw, unitless internal-consistency check (a materially
+different quotient across months would have been a red flag; a stable one is not, on its own,
+evidence of anything else) and does not by itself define a capability. Per the human decision,
+`gross_tonnage` is **not** added as a parsed field or metric in this Work Order; it remains
+present-but-unparsed, exactly as Part A left it, pending a separate assessment of what
+capability it would serve and, if pursued, its own unit reconciliation.
 
 **No operational inference drawn.** Neither the throughput values nor the vessel-arrival
 counts are used here, or anywhere in this document, to infer congestion, waiting time, berth
