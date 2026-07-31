@@ -104,6 +104,16 @@ def test_health_check_failure_and_recovery_steps_share_one_issue_title() -> None
     assert "if: success()" in text
 
 
+def test_health_check_issue_dedupe_excludes_pull_requests() -> None:
+    """WO-021: GET /issues returns pull requests as well as issues. Without
+    filtering, a PR that happened to carry $HEALTH_ISSUE_TITLE would be
+    mistaken for the tracked issue by both the failure-recording lookup and
+    the recovery-closing lookup, corrupting the dedupe. Both occurrences
+    must exclude pull requests, not just one."""
+    text = (ROOT / ".github" / "workflows" / "health-check.yml").read_text(encoding="utf-8")
+    assert text.count("select(.pull_request == null)") >= 2
+
+
 def test_deployment_verification_doc_cites_the_same_url_as_the_workflow() -> None:
     text = (ROOT / "docs" / "deployment_verification.md").read_text(encoding="utf-8")
     assert EXPECTED_URL in text

@@ -85,9 +85,15 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # GET /issues returns pull requests as well as issues; a PR sharing
+          # $HEALTH_ISSUE_TITLE would otherwise be mistaken for the tracked
+          # issue. Filtered out via .pull_request == null. This lookup stays
+          # capped at one page (per_page=100) -- with the repository's
+          # current low open-item count that's not a live gap, but it is a
+          # real limit, not a fix, if that count ever grows past 100.
           existing=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${REPO}/issues?state=open&per_page=100" \
-            | jq -r --arg t "$HEALTH_ISSUE_TITLE" '.[] | select(.title == $t) | .number' | head -n1)
+            | jq -r --arg t "$HEALTH_ISSUE_TITLE" '.[] | select(.pull_request == null) | select(.title == $t) | .number' | head -n1)
           body=$(jq -n --arg url "$RUN_URL" \
             '{body: ("The scheduled repository health check failed. See the run log: " + $url + "\n\nThis issue was opened automatically and will not close itself until a later scheduled run succeeds. A maintainer should still confirm the cause.")}')
           if [ -n "$existing" ]; then
@@ -105,9 +111,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
+          # See the matching guard and comment in the failure step above --
+          # excludes pull requests from the same-title lookup.
           existing=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${REPO}/issues?state=open&per_page=100" \
-            | jq -r --arg t "$HEALTH_ISSUE_TITLE" '.[] | select(.title == $t) | .number' | head -n1)
+            | jq -r --arg t "$HEALTH_ISSUE_TITLE" '.[] | select(.pull_request == null) | select(.title == $t) | .number' | head -n1)
           if [ -n "$existing" ]; then
             curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${REPO}/issues/${existing}/comments" \
