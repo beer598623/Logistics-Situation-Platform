@@ -355,7 +355,14 @@ h2[tabindex="-1"], h3, h4, [id] {
 @media print {
   .navbar, .skip-link, .row-expand-btn, #route-status, .load-all-control { display: none !important; }
   section { border: none; }
-  .view[hidden] { display: block !important; }
+  /* Unconditional, not keyed on the `hidden` attribute: the beforeprint
+     handler in app.js removes `hidden` from every view (rather than adding
+     it), specifically so it does not rely on this selector matching an
+     attribute state the handler itself is clearing. A `[hidden]`-qualified
+     version of this rule would only ever match the boot view's own
+     data-boot-view show-rule accidentally winning -- not real coverage of
+     all seven views. */
+  .view { display: block !important; }
   details, .region-demo { display: block !important; }
   details > *:not(summary), .region-demo > *:not(summary) { display: block !important; }
   details::details-content, .region-demo::details-content { content-visibility: visible !important; }

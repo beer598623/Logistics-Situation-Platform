@@ -1201,6 +1201,16 @@
   function activateView(route, subId) {
     var view = VIEW_BY_ROUTE[route];
     VIEWS.forEach(function (v) { el(v.id).hidden = v.route !== route; });
+    /* The inline anti-flash boot script (index.html <head>) sets data-boot-view
+       once, before this file even loads, purely to avoid a flash of every view
+       stacked on first paint. Its CSS show-rule is deliberately ID-specific so
+       it outranks the generic "hide every view" rule -- but that only stays
+       correct if this attribute keeps tracking the active view. Without this
+       line the boot view stays pinned visible (and every other .view stays
+       display:none) for the rest of the page's life, no matter what `hidden`
+       says: hashchange navigation would update the DOM's `hidden` attribute
+       but never the one thing the CSS cascade actually keys visibility on. */
+    document.documentElement.setAttribute('data-boot-view', view.id);
     document.querySelectorAll('.nav-list a[data-route]').forEach(function (link) {
       if (link.getAttribute('data-route') === route) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');

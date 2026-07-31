@@ -366,3 +366,58 @@ def test_heading_order_is_strict_within_each_view_in_isolation() -> None:
                     "without an intervening heading"
                 )
             previous = level
+
+
+# ---------------------------------------------------------------------------
+# View visibility: pin the F-1/F-2 fix from the first Opus review of PR #62
+# ---------------------------------------------------------------------------
+
+
+def test_activate_view_keeps_data_boot_view_in_sync() -> None:
+    """Regression for a real bug an independent Opus review caught in the
+    first version of this PR (not covered by any static test at the time,
+    which is exactly why it survived: every dashboard test before this one
+    parses committed markup, never a rendered DOM).
+
+    ``index.html``'s inline anti-flash boot script sets ``data-boot-view``
+    once, before app.js even loads, and ``styles.css`` keys an ID-specific
+    show-rule off it (deliberately high specificity so it outranks the
+    generic "hide every view" rule at first paint). But that rule's
+    specificity also outranks ``.view[hidden] { display: none }` -- so if
+    ``data-boot-view`` is never updated after boot, the ORIGINAL view stays
+    rendered forever and every hashchange only ever updates the nav
+    highlight, never what is actually on screen. The fix is one line in
+    ``activateView()``. This test cannot see computed CSS (no browser here),
+    but it can pin that the line exists, which a real-browser check (done
+    manually for this PR, see docs/evidence/) confirmed is sufficient."""
+    script = _js()
+    activate_body = _js_function_body(script, "activateView")
+    assert activate_body, "expected to resolve activateView's body"
+    assert re.search(r"setAttribute\(\s*['\"]data-boot-view['\"]", activate_body), (
+        "activateView() must keep documentElement's data-boot-view attribute in sync with "
+        "the active view, or the CSS anti-flash show-rule permanently pins the original "
+        "boot view visible regardless of navigation"
+    )
+
+
+def test_print_forces_every_view_visible_without_depending_on_the_hidden_attribute() -> None:
+    """Regression for the second half of the same review finding: the
+    ``beforeprint`` handler in app.js makes every view visible by *removing*
+    the `hidden` attribute (``section.hidden = false``) on all seven -- so a
+    print CSS rule keyed on ``.view[hidden]`` matches nothing by the time
+    printing actually happens, and only the (still-pinned, see the test
+    above) original boot view would print. The fix drops the ``[hidden]``
+    qualifier so the print rule applies to every ``.view`` unconditionally."""
+    css = (PUBLIC / "assets" / "styles.css").read_text(encoding="utf-8")
+    print_block_match = re.search(r"@media print\s*\{(.*?)\n\}", css, re.S)
+    assert print_block_match, "expected an @media print block in styles.css"
+    print_block = print_block_match.group(1)
+    assert re.search(r"\.view\s*\{[^}]*display:\s*block\s*!important", print_block), (
+        "the @media print block must force every .view to display:block unconditionally, "
+        "not only .view[hidden] -- app.js's beforeprint handler removes the hidden attribute "
+        "rather than adding it"
+    )
+    assert not re.search(r"\.view\[hidden\]\s*\{[^}]*display:\s*block\s*!important", print_block), (
+        "a .view[hidden]-qualified print rule matches nothing once beforeprint has already "
+        "removed the hidden attribute from every view -- this is the exact regression"
+    )
