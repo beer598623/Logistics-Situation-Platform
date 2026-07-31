@@ -1,12 +1,22 @@
 """Reproducibility of every generated artefact, and the no-network default.
 
-Each generator has a ``--check`` mode that regenerates in memory and compares
-against what is committed. If any of these fail, the committed data no longer
-matches the inputs it claims to be derived from.
+Three generators (``ingest_fixtures``, ``build_events_from_cases``,
+``build_analysis``) have a ``--check`` mode that regenerates in memory and
+compares against what is committed; exercised directly below. If any of these
+fail, the committed data no longer matches the inputs it claims to be derived
+from. ``generate_synthetic_fixtures`` has no ``--check`` mode -- its
+reproducibility is instead verified by
+``test_regenerating_the_fixtures_is_a_no_op``, which byte-compares its output
+before and after a fresh run. ``build_dashboard`` and ``build_warehouse`` are
+not exercised by this file at all; ``build_dashboard``'s reproducibility is
+enforced by CI's build-then-``git status --porcelain`` step (see
+``docs/operations_runbook.md`` §1), and ``build_warehouse`` is not a generated
+artefact this repository commits (its output is gitignored).
 """
 
 from __future__ import annotations
 
+import ast
 import json
 import subprocess
 import sys
@@ -16,6 +26,12 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+# Ground truth for which generators genuinely have a --check mode, kept in
+# sync with the real code by test_check_flag_support_matches_what_the_docs_claim
+# below (WO-025). Every doc that claims "every generator has --check" must
+# name exactly these three.
+CHECK_MODE_SCRIPTS = {"ingest_fixtures.py", "build_events_from_cases.py", "build_analysis.py"}
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -59,6 +75,50 @@ def test_event_records_match_the_authored_cases():
 def test_derived_analysis_records_are_up_to_date():
     result = run("scripts/build_analysis.py", "--check")
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def _scripts_declaring_a_check_argument() -> set[str]:
+    """AST-parse scripts/*.py for a real ``add_argument("--check")`` call.
+
+    Ground truth for what "has a --check mode" means, so documentation claims
+    about it are bound to the real code rather than merely asserted (WO-025).
+    """
+    declaring: set[str] = set()
+    for path in sorted((ROOT / "scripts").glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+                continue
+            if node.func.attr != "add_argument":
+                continue
+            if any(isinstance(arg, ast.Constant) and arg.value == "--check" for arg in node.args):
+                declaring.add(path.name)
+    return declaring
+
+
+def test_check_flag_support_matches_what_the_docs_claim():
+    """Regression guard for WO-025: exactly these three scripts have --check.
+
+    docs/operations_runbook.md, docs/bundle1_architecture.md and
+    docs/data_model_and_persistence.md all once claimed every generator has a
+    --check mode; only three genuinely do. If a future change adds or removes
+    --check support from any script in scripts/, this must fail until
+    CHECK_MODE_SCRIPTS and the prose in those three docs are updated to match.
+    """
+    assert _scripts_declaring_a_check_argument() == CHECK_MODE_SCRIPTS
+
+
+@pytest.mark.parametrize("script", ["build_dashboard.py", "generate_synthetic_fixtures.py"])
+def test_generators_without_a_check_mode_reject_an_unrecognized_flag(script):
+    """WO-025: these two scripts have no --check mode. Before this Work Order,
+    both silently ignored an unrecognized flag and wrote files anyway (exit 0),
+    so a maintainer following the "verify without writing" instruction got a
+    false-clean result while the working tree was mutated. They must now fail
+    fast instead.
+    """
+    result = run(f"scripts/{script}", "--check")
+    assert result.returncode != 0
+    assert "unrecognized arguments" in result.stderr
 
 
 def test_validation_passes():

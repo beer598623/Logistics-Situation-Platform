@@ -126,7 +126,9 @@ remain valid unchanged.
 
 ## 5. Reproducibility
 
-Every generated artefact has a `--check` mode:
+Every generated artefact is verified reproducible, but not all by the same mechanism. Three
+scripts have a real `--check` mode; `generate_synthetic_fixtures.py` does not — regenerating
+it must be a no-op, verified by byte comparison rather than a flag:
 
 ```bash
 python scripts/generate_synthetic_fixtures.py   # regenerating must be a no-op
@@ -135,6 +137,13 @@ python scripts/build_events_from_cases.py --check
 python scripts/build_analysis.py --check
 ```
 
+`build_dashboard.py` likewise has no `--check` mode; its reproducibility is enforced by CI
+running the real build and then requiring `git status --porcelain data dashboard/public` to be
+empty. All five scripts named above reject an unrecognized flag (including `--check` on the two
+without a check mode, `generate_synthetic_fixtures.py` and `build_dashboard.py`) rather than
+silently ignoring it.
+
 `build_analysis.py` pins "now" to a fixed `DATA_CUTOFF` rather than the wall clock, so
 freshness ages — and therefore the published directions — are stable across rebuilds.
-`tests/test_derived_outputs.py` runs every check.
+`tests/test_derived_outputs.py` runs the three real `--check` invocations plus the
+`generate_synthetic_fixtures.py` byte-comparison check.

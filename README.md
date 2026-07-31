@@ -18,8 +18,9 @@ See:
 - [`docs/source_priority_framework.md`](docs/source_priority_framework.md) — source-priority matrix and free-only qualification framework.
 
 WO-009A was architecture, governance, and documentation only. **WO-010 implements Bundle 1**
-— the common data foundation plus the Ocean Logistics Intelligence MVP — pending independent
-review. See [`docs/bundle1_architecture.md`](docs/bundle1_architecture.md).
+— the common data foundation plus the Ocean Logistics Intelligence MVP — merged as PR #19
+(`af8e52f`) and released as `[0.3.0]` (see `CHANGELOG.md`). See
+[`docs/bundle1_architecture.md`](docs/bundle1_architecture.md).
 
 ## Project principles
 

@@ -262,6 +262,9 @@ def test_a_failed_build_leaves_the_published_directory_untouched(monkeypatch):
         raise RuntimeError("simulated upstream failure")
 
     monkeypatch.setattr(builder, "build_payloads", _explode)
+    # main() parses sys.argv (WO-025); calling it in-process needs a controlled
+    # argv, the same convention scripts/build_analysis.py's tests already use.
+    monkeypatch.setattr(sys, "argv", ["build_dashboard.py"])
     with pytest.raises(RuntimeError, match="simulated upstream failure"):
         builder.main()
 

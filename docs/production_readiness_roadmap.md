@@ -47,10 +47,10 @@ date is closed.
 | 4 | Acquisition/review binding | PASS | `tests/test_review_decision_transactions.py` and the WO-010-R5/R6/R7 record-level acquisition proof and approval-hash closure. Unchanged. |
 | 5 | Licensing/enablement review | PARTIAL (human-blocked) | 15 of 17 contracts are `licence_status: pending_review`; `docs/source_enablement_decisions.md` registers all 17 with a decision record. Blocked on List B items 1 and 3. Unchanged. |
 | 6 | Controlled live validation, offline-default CI | PASS | `collect.yml` and `manual-live-source-test.yml` are `workflow_dispatch:`-only with no `schedule:`/`push:`/`pull_request:` trigger, enforced by `tests/test_workflow_consistency.py::test_collect_workflow_has_no_schedule_or_push_trigger` and `tests/test_manual_workflow.py`. Unchanged since audit 2. |
-| 7 | Deterministic / auditable / fail-closed pipelines | PASS | `scripts/validate.py` semantic checks, `--check` mode on every generator, cross-version determinism fix, warehouse rebuild tests. Unchanged. |
+| 7 | Deterministic / auditable / fail-closed pipelines | PASS | `scripts/validate.py` semantic checks, a real `--check` mode on the three generators that have one (`ingest_fixtures`, `build_events_from_cases`, `build_analysis`) plus an equivalent CI/byte-comparison reproducibility check on the other two (`build_dashboard`, `generate_synthetic_fixtures` — WO-025), cross-version determinism fix, warehouse rebuild tests. |
 | 8 | Dashboard accurate / accessible / organization-neutral | **PASS (regression found and fixed this audit)** | `tests/test_dashboard_accessibility.py` covers heading structure, `lang`, skip-link target, landmark names, WCAG AA contrast computed from the real CSS, and payload budgets; WO-018 closed the runtime `<h2>`→`<h4>` heading-skip (Issue #32) with a mutation-verified regression test. Organization-neutrality is enforced by `analysis/assessments.py`'s `validate_preparedness_option`/`_MANDATORY_PHRASES`/`_ORGANIZATION_SPECIFIC`. This audit found the same publication-boundary gap as gate 3 above (an unlabelled legacy record on the published site, contradicting the properly-derived Dashboard content) and closed it as WO-022. Known residual gap, unchanged from audit 2: the accessibility regression test's regex doesn't resolve the `events-*` containers (a different, array-driven render pattern); manually verified correct, but a regression there wouldn't be caught by this suite. |
 | 9 | Operational deployment / monitoring / backup / runbooks | **PASS (hardened this audit, one operational-proof gap noted)** | `health-check.yml` runs daily (`17 3 * * *`) with automated issue open-on-failure/close-on-recovery, now binding its content marker to the real committed `index.html` (WO-020) and excluding pull requests from its issue-dedupe lookup (WO-021); `docs/deployment_verification.md` and runbook §6/§8/§9. WO-013 added weekly `pip-audit`. **Noted, not fixed:** as of this audit, `health-check.yml` has run exactly once ever — `run_number: 1`, 2026-07-27, against `e2acb77` — and that run predates WO-014's merge (`bb73501`, 2026-07-30), which is when the daily liveness fetch and issue-automation steps were added. The current (post-WO-014) form of the workflow has completed **zero** runs: it is structurally tested but has not yet fired even once, let alone been empirically proven in production. Not autonomously actionable; the workflow runs on its own schedule. |
-| 10 | No unresolved Critical/High blocker | PASS | Two open issues as of this baseline: #15 (deliberate TMD_CAP governance HOLD, by design) and #50 (this WO-024, open until this PR merges — self-counting, the same convention prior roadmap refreshes used for their own tracking issue). Every other issue this and the prior audit opened (#32, #33, #35, #38, #40, #42, #44, #46, #48) is closed. None was, or is, Critical or High. |
+| 10 | No unresolved Critical/High blocker | PASS | Two open issues as of this baseline: #15 (deliberate TMD_CAP governance HOLD, by design) and #52 (this WO-025, open until this PR merges — self-counting, the same convention prior roadmap refreshes used for their own tracking issue). Every other issue this and the prior audits opened (#32, #33, #35, #38, #40, #42, #44, #46, #48, #50) is closed. None was, or is, Critical or High. |
 
 ---
 
@@ -134,12 +134,16 @@ Concretely:
 5. Update `docs/dashboard_user_guide.md:172-177`, which currently documents this exact skip as a
    known gap and cites Issue #32 — replace with a statement of what is now enforced.
 
-**Acceptance criteria.** `ruff check` / `ruff format --check`, `scripts/validate.py`, all `--check`
-generators, `python scripts/build_dashboard.py --check`, and `pytest` pass;
+**Acceptance criteria.** `ruff check` / `ruff format --check`, `scripts/validate.py`, the three
+real `--check` generators, `python scripts/build_dashboard.py` (with the rebuilt output checked
+for drift via `git status --porcelain`, since this script has no `--check` mode of its own —
+see WO-025), and `pytest` pass;
 `git status --porcelain data dashboard/public/data` is empty (only `index.html`, `app.js` and the
 two doc/test files change); `config/sources.yaml`, all schemas and all data files unchanged; the
-payload-budget tests (`tests/test_dashboard_accessibility.py:288`, `:296`) still pass — the added
-markup is well under 1 KB against a budget with megabytes of headroom. Close Issue #32 on merge.
+payload-budget tests (`tests/test_dashboard_accessibility.py:429`, `:437` — line numbers as of
+WO-025; they were at `:288`/`:296` when WO-018 itself merged, before later edits shifted them)
+still pass — the added markup is well under 1 KB against a budget with megabytes of headroom.
+Close Issue #32 on merge.
 
 ### ~~WO-019~~ — reconcile the two "nine domains" vocabularies — DONE
 
@@ -205,6 +209,30 @@ in this repository's history), a `CHANGELOG.md` `[Unreleased]` section that stop
 and a deployment-verification doc describing the pre-WO-021 dedupe behaviour. This is that
 correction — the document you are reading.
 
+### ~~WO-025~~ — reconcile "`--check` on every generator" claims with the real code — DONE
+
+Found by a fourth audit, run after this document's WO-024 rewrite. `docs/operations_runbook.md`,
+`docs/bundle1_architecture.md`, `docs/data_model_and_persistence.md` and
+`tests/test_derived_outputs.py`'s own docstring all claimed, unqualified, that every generator
+has a `--check` mode. Independently re-verified against the real code: only three do
+(`ingest_fixtures.py`, `build_events_from_cases.py`, `build_analysis.py`).
+`build_dashboard.py` and `generate_synthetic_fixtures.py` silently ignored an unrecognized
+`--check` flag, wrote files anyway, and exited 0 — a maintainer following the documented
+"verify without writing" instruction for either got a false-clean result while mutating the
+working tree. Corrected the four false-claim locations and this document's own gate-7 wording
+and stale WO-018 acceptance-criteria prescription (now at `:137-140` post-fix; folded in this
+document's own stale `tests/test_dashboard_accessibility.py` line citation, now at `:143-144`,
+which had drifted from `:288`/`:296` to `:429`/`:437` since WO-018 merged — the same
+self-citation-drift defect class WO-019 and WO-024 already hit — line numbers throughout this
+paragraph are as of this WO-025 merge, not the pre-fix state they describe). Also folded in a
+stale `README.md` claim that WO-010 was still "pending
+independent review." Made both silently-ignored flags loud: `build_dashboard.py` and
+`generate_synthetic_fixtures.py`'s `main()` functions now reject an unrecognized argument with
+exit 2, matching `build_warehouse.py`'s and `run_historical_validation.py`'s existing behaviour.
+Added a binding test in `tests/test_derived_outputs.py` that parses `scripts/*.py` for real
+`--check` support and asserts it against what the docs claim, so this defect class cannot recur
+silently.
+
 ---
 
 ## List B — blocked on human decision
@@ -246,3 +274,5 @@ WO-012 / WO-013 / WO-014 (governance files, vulnerability scanning, deployment m
 | WO-021 | #44 / #45 | 2026-07-31 (`122d9fe`) | Excluded pull requests from `health-check.yml`'s two issue-dedupe lookups (`select(.pull_request == null)`). |
 | WO-022 | #46 / #47 | 2026-07-31 (`160d272`) | Stopped publishing two unlabelled, uncovered Dashboard payloads, one of which contradicted the properly-derived `events.json` on the same site; added a directory-level orphan-file test. |
 | WO-023 | #48 / #49 | 2026-07-31 (`1bd1d9a`) | Reconciled `docs/air_land_extension_points.md` and `README.md` with WO-017's already-verified event-type-enum finding. |
+| — | Roadmap third audit | 2026-07-31 (`6b39f3b`) | This document's own full rewrite (WO-024), Issue #50 / PR #51. |
+| WO-025 | #52 / this PR | 2026-07-31 | Corrected four documents' and one test docstring's false claim that every generator has a `--check` mode (only three do); made `build_dashboard.py` and `generate_synthetic_fixtures.py` reject an unrecognized `--check` flag instead of silently writing files; added a binding test cross-checking the docs' claims against the real scripts. |
