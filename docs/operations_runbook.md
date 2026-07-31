@@ -15,8 +15,19 @@ python scripts/build_dashboard.py                # static payloads
 python scripts/validate.py                       # contracts + semantics
 ```
 
-Every generator also accepts `--check`, which regenerates in memory and exits non-zero if
-the committed output no longer matches its inputs. CI runs all of them.
+Three generators accept `--check`, which regenerates in memory and exits non-zero if the
+committed output no longer matches its inputs: `ingest_fixtures.py`,
+`build_events_from_cases.py`, `build_analysis.py`. CI runs all three
+(`.github/workflows/validate-pr.yml`, "Verify generated data is reproducible"). The other
+generators accept no CLI arguments at all — an unrecognized flag such as `--check` now fails
+fast (exit 2) rather than being silently ignored. Their reproducibility is enforced
+differently: `build_dashboard.py`'s by CI's own "Confirm the build produced no uncommitted
+change" step, which runs the real build and then requires
+`git status --porcelain data dashboard/public` to be empty; `generate_synthetic_fixtures.py`'s
+by `tests/test_derived_outputs.py::test_regenerating_the_fixtures_is_a_no_op`, which
+byte-compares its output before and after a fresh run. `build_warehouse.py` and
+`run_historical_validation.py` accept unrelated flags (`--path`, `--write-report`) and also
+reject `--check`.
 
 ## 2. Verification commands
 

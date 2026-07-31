@@ -26,6 +26,7 @@ asserts exactly that.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import math
 from pathlib import Path
@@ -230,6 +231,13 @@ def generate_indicators() -> None:
 
 
 def main() -> int:
+    # No CLI arguments accepted: this script has no --check mode. Its
+    # reproducibility is instead verified by test_regenerating_the_fixtures_is_a_no_op
+    # (tests/test_derived_outputs.py), which byte-compares output before/after a
+    # fresh run. An unrecognized flag must fail loudly rather than being
+    # silently ignored while still writing files.
+    argparse.ArgumentParser().parse_args()
+
     generate_trade()
     generate_port()
     generate_cost()

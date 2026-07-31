@@ -13,6 +13,7 @@ browser never talks to DuckDB or to any service.
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import UTC, datetime
@@ -1323,6 +1324,12 @@ def build_payloads() -> dict[str, Any]:
 
 
 def main() -> int:
+    # No CLI arguments accepted: unlike ingest_fixtures/build_events_from_cases/
+    # build_analysis, this script has no --check mode. An unrecognized flag
+    # (e.g. --check) must fail loudly rather than being silently ignored while
+    # still writing files -- see docs/operations_runbook.md §1.
+    argparse.ArgumentParser().parse_args()
+
     # Assemble everything before touching the published directory: a failure
     # here leaves the last successfully built Dashboard in place.
     payloads = build_payloads()
