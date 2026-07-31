@@ -5,13 +5,14 @@
     "fields": [
       {"id": "_id", "type": "int"},
       {"id": "month", "type": "text"},
-      {"id": "total_vessels", "type": "numeric"}
+      {"id": "number_of_vessels", "type": "numeric"},
+      {"id": "gross_tonnage", "type": "numeric"}
     ],
     "records": [
-      {"_id": 1, "month": "2026-01", "total_vessels": "3520"},
-      {"_id": 2, "month": "2026-02", "total_vessels": "3410"},
-      {"_id": 3, "month": "2026-03", "total_vessels": "3598"},
-      {"_id": 4, "month": "2026-04", "total_vessels": null}
+      {"_id": 1, "month": "2026-01", "number_of_vessels": "3520", "gross_tonnage": "112400000"},
+      {"_id": 2, "month": "2026-02", "number_of_vessels": "3410", "gross_tonnage": "109800000"},
+      {"_id": 3, "month": "2026-03", "number_of_vessels": "3598", "gross_tonnage": "114900000"},
+      {"_id": 4, "month": "2026-04", "number_of_vessels": null, "gross_tonnage": "111200000"}
     ],
     "total": 4
   }

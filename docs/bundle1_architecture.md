@@ -88,13 +88,16 @@ Added by WO-010:
 - `adapters/notice_feed.py` — bounded RSS/Atom notice and discovery intake, plus the manual
   reviewed-notice path. Records a discovered link; never follows one.
 
-Added by WO-026:
+Added by WO-026, field names and endpoint corrected by WO-027:
 
 - `adapters/data_gov_sg.py` — bounded parser for the CKAN Datastore Search JSON envelope
   (`MPA_SG_STATISTICS`), fail-closed, fixture-first. Deliberately carries no
-  `SourceAdapter.collect()` HTTP integration yet: the endpoint is unconfirmed (see
-  `docs/mpa_sg_statistics_qualification.md`), so no request-construction code exists to
-  misrepresent an assumption as verified.
+  `SourceAdapter.collect()` HTTP integration yet: no live response has actually been read (see
+  `docs/mpa_sg_statistics_qualification.md` §7), so no request-construction code exists to
+  misrepresent an untested path as verified. `DatastoreSeriesSpec.unit_verified` defaults to
+  `False` (fail-closed): `container_throughput`'s unit/scale is unverified against real
+  evidence, so a caller must affirmatively mark a series as verified before the parser will
+  touch it, rather than getting that for free by omission.
 
 ### `analysis/` — deterministic interpretation
 

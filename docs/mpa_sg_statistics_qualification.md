@@ -1,6 +1,8 @@
 # MPA Singapore statistics (data.gov.sg) — qualification record
 
-**Work Order:** WO-026 · **Status:** offline engineering only — not enabled, not live-tested
+**Work Order:** WO-026, extended by WO-027 · **Status:** offline engineering reconciled;
+controlled live validation authorized but not yet executed (environment network-access
+blocker, see §7)
 **Source ID:** `MPA_SG_STATISTICS` · **Registry:** `config/sources.yaml`
 
 This document records what was actually verified about this candidate, as opposed to what is
@@ -11,23 +13,29 @@ and `docs/source_qualification_report.md` apply elsewhere in this repository.
 
 The Ocean Minimum Live Core research (recorded on Issue #54) found that `WebFetch` is blocked
 for every external host in this environment: `data.go.th`, `gdcatalog.go.th`,
-`portwatch.imf.org`, `newyorkfed.org`, and `data.gov.sg` itself all returned HTTP 403. This
-means **no primary source page for this candidate has been directly read by an automated
-agent** — the research pass could only use search-engine snippets, and this Work Order's
-parser and fixtures are built against the *documented convention* data.gov.sg's own developer
-pages name ("Datastore Search"), not a captured response.
+`portwatch.imf.org`, `newyorkfed.org`, and `data.gov.sg` itself all returned HTTP 403. WO-026's
+parser and fixtures were therefore built against the *documented convention* data.gov.sg's own
+developer pages name ("Datastore Search"), not a captured response — and, as WO-027 found, two
+of WO-026's field-name assumptions were wrong.
 
-**What changes that limitation here:** a human read the primary `data.gov.sg` pages directly
-and recorded the findings in §1 below. That is the only reason this source carries
+**What WO-026 changed:** a human read the primary `data.gov.sg` licence pages directly and
+recorded the findings in §1 below. That is the only reason this source carries
 `licence_status: reviewed` rather than `pending_review` — the first source in this registry to
 reach that status through direct primary-text verification rather than being pre-existing
 (`GDACS`) or a bounded intake mechanism (`MANUAL_NOTICE_INTAKE`).
 
-Everything **not** explicitly attributed to that human verification in §1 remains an
-engineering assumption, flagged as such, and is not license or fact until independently
-confirmed.
+**What WO-027 changed:** a human independently reconciled the primary dataset pages a second
+time — this time reading the actual field schemas, not just the licence terms — and corrected
+two wrong field names (§2), confirmed the endpoint (§2), and authorized a bounded controlled
+live validation (§5) that this environment cannot yet execute (§7) because outbound network
+access to `data.gov.sg` from this session's `Bash` tool is denied by the auto-mode permission
+classifier, and `WebFetch` cannot satisfy the validation's raw-bytes/header/hash retention
+requirements even where it is reachable. §7 records this precisely.
 
-## 1. Human-verified licence findings (Issue #54, human decision)
+Everything **not** explicitly attributed to a human primary-source reading in §1 or §2 remains
+either an engineering assumption (flagged as such) or a still-open question (§6), not fact.
+
+## 1. Human-verified licence findings (WO-026, Issue #54 human decision)
 
 Recorded verbatim from the human decision, not re-derived:
 
@@ -40,7 +48,7 @@ Recorded verbatim from the human decision, not re-derived:
 3. The licence does not grant rights over personal data, third-party rights, patents,
    trademarks or design rights. The selected MPA statistical datasets must be confirmed to
    contain no such fields before publication — **not yet done**, since no live response has
-   been read (see §6).
+   been read (see §6, §7).
 4. The official MPA dataset pages label the following as free forever for personal or
    commercial use under the Open Data Licence: Container Throughput (Monthly), Registered
    Vessels and Shipping Tonnage (Monthly), and monthly cargo-throughput total/breakdown
@@ -51,120 +59,186 @@ Recorded verbatim from the human decision, not re-derived:
    seconds. An API key is recommended for higher production limits but is not required for
    initial low-frequency access.
 
-## 2. Selected datasets and capability mapping
+## 2. Confirmed dataset schema (WO-027, Issue #56 human decision)
 
-Two datasets, both monthly, both Singapore-wide aggregates (not per-terminal), registered
-under one contract (matching `PAT_STATISTICS`'s one-contract/multiple-series pattern):
+Recorded verbatim from the human decision, not re-derived. This **corrects** WO-026's assumed
+field names, which were wrong:
 
-| Dataset | Resource ID | Metric | `port_transport_observation.metric` |
+| Dataset | Resource ID | Confirmed fields | `port_transport_observation.metric` |
 |---|---|---|---|
-| Container Throughput, Monthly | `d_da030f7028200d19ffcbe4a2d71af39c` | Container volume moved | `container_throughput` |
-| Vessel Arrivals (>75 GT) Total, Monthly | `d_d48c5a038904f6da3c603cd854b6c191` | Vessel call count | `vessel_calls` |
+| Container Throughput, Monthly | `d_da030f7028200d19ffcbe4a2d71af39c` | `month`, `container_throughput` | `container_throughput` |
+| Vessel Arrivals (>75 GT) Total, Monthly | `d_d48c5a038904f6da3c603cd854b6c191` | `month`, `number_of_vessels`, `gross_tonnage` | `vessel_calls` |
 
-Both resource IDs come from the prior research pass's search-engine citations of the dataset
-landing pages, **not** an independent fetch by this repository, and must be reconfirmed as
-part of the controlled live validation in §5.
+- **Endpoint confirmed:** `https://data.gov.sg/api/action/datastore_search`.
+- **WO-026's two assumed value-field names were wrong** and have been fully retired from
+  `collectors/adapters/data_gov_sg.py` and the test fixtures in favour of the confirmed names
+  in the table above.
+  `tests/test_data_gov_sg_adapter.py::test_retired_field_names_are_absent_from_the_adapter_module`
+  and its sibling test grep the adapter module and the fixtures to make sure neither retired
+  name reappears in code.
+- **`gross_tonnage` is confirmed to exist** on the vessel-arrivals dataset but is **not**
+  wired into any parsed capability. Per the human decision, it must be assessed separately
+  and implemented only if it adds a clearly defined capability — it is not added merely
+  because it is available. The test suite's `VESSEL_SPEC` (§3: no production spec is
+  instantiated anywhere outside the tests) does not reference it;
+  `tests/test_data_gov_sg_adapter.py::test_gross_tonnage_is_present_in_the_fixture_but_not_parsed`
+  pins this.
+- The dataset (resource) identifiers are unchanged from WO-026 and are now human-confirmed
+  rather than search-snippet-derived.
 
-**Capability mapping.** Neither dataset measures Thailand directly. Per
-`docs/air_land_extension_points.md`'s and `docs/known_data_gaps.md`'s established discipline
-of stating a mechanism rather than asserting relevance, both are registered with
+**Capability mapping (unchanged from WO-026).** Neither dataset measures Thailand directly.
+Per `docs/air_land_extension_points.md`'s and `docs/known_data_gaps.md`'s established
+discipline of stating a mechanism rather than asserting relevance, both are registered with
 `logistics_role: [external_driver_context]`, not `thailand_port_or_maritime_activity` — that
-enum value is reserved for a genuine Thailand measurement.
-`docs/ocean_lane_selection.md` already documents Singapore's role for
-`LANE-OCEAN-TH-ASEAN-SG`: "Singapore hub condition is a real Thailand input... through the
-transshipment mechanism," and the pre-registered reference node `NODE-SGSIN` (Port of
-Singapore, `thailand_relationship: transit_or_chokepoint`) already exists for exactly this
-reason. This source, once enabled, would give that existing relationship a real number instead
-of leaving it purely structural — it does not create a new capability commitment.
+enum value is reserved for a genuine Thailand measurement. `docs/ocean_lane_selection.md`
+already documents Singapore's role for `LANE-OCEAN-TH-ASEAN-SG`: "Singapore hub condition is a
+real Thailand input... through the transshipment mechanism," and the pre-registered reference
+node `NODE-SGSIN` (Port of Singapore, `thailand_relationship: transit_or_chokepoint`) already
+exists for exactly this reason.
 
-`operational_interpretation: volume_only` on both metrics (already a valid enum value —
-no schema change was needed): a throughput or vessel-call count can never on its own establish
+`operational_interpretation: volume_only` on both metrics (already a valid enum value — no
+schema change was needed): a throughput or vessel-call count can never on its own establish
 congestion, waiting time or berth delay, the same rule `PAT_STATISTICS` and `IMF_PORTWATCH`
 already carry.
 
-## 3. What this Work Order implemented
+## 3. Open unit issue — container throughput (WO-027, must not be resolved by assumption)
 
+The `container_throughput` field's raw numeric scale does not obviously match individual TEUs
+against official MPA annual statements the human decision cited: **41.12 million TEUs for
+2024, 44.66 million TEUs for 2025.** Neither figure has yet been reconciled against a real
+returned value (§7 blocks that).
+
+Per the human decision: **do not assign `unit: teu` to a published value, and do not apply a
+×1,000 (or any other) scale conversion, until the scale is independently reconciled against
+real evidence.** Missing or ambiguous unit metadata must fail publication rather than risk
+producing a value that is roughly 1,000× wrong.
+
+**This is enforced in code, not only in documentation.** No `collect()` or production
+collector wiring exists yet for this source (§4) — the only place a `DatastoreSeriesSpec` is
+currently instantiated at all is this repository's own test suite. What matters for safety is
+what happens when one *is* eventually instantiated, including by a future author who has not
+read this document: `collectors/adapters/data_gov_sg.py`'s `DatastoreSeriesSpec.unit_verified`
+field defaults to **`False`** — fail-closed, per a finding from independent review that the
+original WO-027 draft had this backwards (defaulting to `True`, which let an omitted argument
+silently parse `container_throughput` with a guessed unit — exactly the outcome this section
+exists to prevent). A spec must *affirmatively* set `unit_verified=True` before
+`parse_datastore_search_response` will touch it; omitting the argument entirely, not just
+setting it to `False`, refuses to parse. `parse_datastore_search_response` checks this flag
+**before opening the payload at all** and raises `UnverifiedUnitError` (a
+`DatastoreContractError` subclass) — a policy refusal, not a payload defect.
+`tests/test_data_gov_sg_adapter.py::test_omitting_unit_verified_defaults_to_false_and_refuses_to_parse`
+pins the fail-closed default directly; `::test_unit_unverified_series_refuses_to_parse` and
+`::test_unit_unverified_refusal_happens_before_the_payload_is_even_opened` pin the refusal
+mechanism itself (the latter passes deliberately-invalid bytes as the payload and confirms the
+unit error surfaces first, proving the check runs before any parsing attempt).
+
+Vessel arrivals (`number_of_vessels`) carries no equivalent ambiguity — it is a literal count,
+not a scaled aggregate — and is not unit-blocked.
+
+**Verified fact vs. analytical inference vs. remaining uncertainty**, kept separate per the
+human decision:
+
+- **Verified fact:** the field is named `container_throughput` (§2, human-confirmed). Its
+  publisher-documented unit label (if any) has not yet been read by this repository.
+- **Analytical inference (not yet made):** whether the raw number is individual TEUs,
+  thousand-TEU units, or another scale. This requires the bounded returned values from §5/§7
+  plus the two official annual figures above — Part C of WO-027, not performed until §7's
+  blocker clears.
+- **Remaining uncertainty:** everything about this field's scale, until Part C completes.
+
+## 4. What this Work Order pairing implemented
+
+**WO-026:**
 - `config/sources.yaml`: the `MPA_SG_STATISTICS` contract, `licence_status: reviewed`,
-  `enabled: false`. Full `qualification`/`enablement` blocks record what is confirmed
-  (licence position, §1) separately from what is not (endpoint, field names, personal-data
-  absence, §6).
+  `enabled: false`.
 - `collectors/adapters/data_gov_sg.py`: a fixture-first, bounded, fail-closed JSON parser for
   the standard CKAN Datastore Search response envelope
   (`{"success", "result": {"resource_id", "fields", "records", "total"}}`), producing
-  `port_transport_observation` records via the shared `build_observation` helper — the same
-  provenance machinery every other adapter in this repository uses. Deliberately **does not**
-  include a `SourceAdapter.collect()` HTTP-fetching class: the endpoint is unconfirmed, and
-  writing a request-construction method against a guessed URL would misrepresent an assumption
-  as engineering-complete. That piece is deferred to the live-validation Work Order once §5's
-  package is approved and the endpoint is confirmed.
-- `tests/fixtures/data_gov_sg/`: two fixtures, explicitly labelled unverified (see their own
-  `README.md`), exercising both missing-value representations (`""` and JSON `null`) a real
-  API might plausibly use.
-- `tests/test_data_gov_sg_adapter.py`: 22 tests — schema validation against
-  `port_transport_observation.schema.json`, missing-value handling, fail-closed behaviour
-  (wrong resource ID, malformed month, non-numeric value, oversized payload, too many records,
-  wrong content type, malformed JSON), and a no-network-at-import guarantee. The two
-  highest-value checks (resource-ID mismatch rejection, missing-value-not-zero) were
-  mutation-verified: each was broken on purpose, confirmed to fail the corresponding test, then
-  restored.
+  `port_transport_observation` records via the shared `build_observation` helper. Deliberately
+  **does not** include a `SourceAdapter.collect()` HTTP-fetching class: writing a
+  request-construction method against a guessed URL would have misrepresented an assumption as
+  engineering-complete. Still true after WO-027 — the endpoint is now confirmed (§2), but no
+  live request has actually been made (§7), so `collect()` remains deferred to the live
+  validation itself.
+- `tests/fixtures/data_gov_sg/`: two fixtures, exercising both missing-value representations
+  (`""` and JSON `null`).
 - `docs/source_qualification_report.md`, `docs/source_enablement_decisions.md`,
-  `docs/bundle1_architecture.md`: registry-source-count and candidate-register updates
-  (`tests/test_documentation_registry_coverage.py` enforces the count stays in sync).
+  `docs/bundle1_architecture.md`: registry-source-count and candidate-register updates.
 
-## 4. What this Work Order explicitly did not do
+**WO-027:**
+- Retired WO-026's two wrong value-field-name guesses; replaced with the confirmed
+  `container_throughput`/`number_of_vessels` throughout the adapter and fixtures (§2).
+- Added the `gross_tonnage` field to the vessel-arrivals fixture (matching the confirmed real
+  shape) without wiring it into a parsed capability (§2).
+- Added `DatastoreSeriesSpec.unit_verified` and the `UnverifiedUnitError` fail-closed gate
+  (§3).
+- Regression tests preventing the two retired field names from reappearing in the adapter
+  module or the fixtures, plus tests for the new unit-refusal behaviour.
+- This document: corrected §2's field names, added §3 (unit issue) and §7 (Part B execution
+  status).
 
-Per the human decision on Issue #54, none of the following happened, and none is authorized
-by this document:
+## 5. Controlled live-validation package — authorized, execution status in §7
 
-- No live network request to `data.gov.sg` or any MPA endpoint.
-- No source enablement — `enabled: false` in `config/sources.yaml`.
-- No collection schedule — `enablement.schedule_justified: false`,
-  `collection_schedule: null`.
-- No external account or API key created.
-- No publication of MPA values as current Dashboard evidence — every record this Work Order's
-  fixtures produce carries `evidence_origin: synthetic_test_fixture` and
-  `dataset: technical_demo`, the same publication-boundary machinery
-  (`analysis/provenance.py`) that keeps every other unqualified fixture out of the current
-  view.
+Unlike WO-026's draft, this package is **human-authorized exactly as specified** (Issue #56).
+It is not a draft awaiting approval; it awaits only the environment blocker in §7 clearing.
 
-## 5. Draft controlled live-validation package (for the next human gate — not executed)
+**Exactly two sequential GET requests, no more:**
 
-This is a **draft for review**, not an authorization to proceed. Per the human decision, this
-must be presented and approved before any request is made.
+```
+GET https://data.gov.sg/api/action/datastore_search?resource_id=d_da030f7028200d19ffcbe4a2d71af39c&limit=5&sort=month%20desc&fields=month,container_throughput
 
-| Item | Draft value |
-|---|---|
-| Exact dataset IDs | `d_da030f7028200d19ffcbe4a2d71af39c` (Container Throughput, Monthly), `d_d48c5a038904f6da3c603cd854b6c191` (Vessel Arrivals >75GT, Monthly) — **both require reconfirmation**, see §6 |
-| Endpoint | Not confirmed. Best-effort candidate, following the standard CKAN Datastore Search action path: `GET https://data.gov.sg/api/action/datastore_search?resource_id=<id>` — or data.gov.sg's newer poll-download API if that has superseded it. **This is the first thing the live validation must confirm, not assume.** |
-| Why each dataset is needed | Container throughput and vessel-call counts are the two metrics the capability mapping in §2 selected as the Ocean Minimum Live Core's regional-hub-activity role (R2 in the prior research pass) |
-| Maximum request count | 2 (one GET per resource_id), single controlled run, matching the `manual-live-source-test` workflow's existing one-request-per-source discipline for `TMD_CAP`/`GDACS` |
-| Anonymous rate-limit compliance | 2 requests, sequential, well under the documented 4-per-10-seconds Datastore Search limit (§1 item 5) |
-| Timeout / max response size | 30 seconds / 5,000,000 bytes, matching `http.timeout_seconds` / `http.max_response_bytes` already set in the contract |
-| Fields retained | `month` (or the confirmed real field name), the numeric value field, `resource_id` — only what §2's parser needs |
-| Fields explicitly not retained | Any field not named above; no raw response body is committed to the repository, matching the existing GDACS/TMD_CAP artifact-redaction convention |
-| Attribution text (draft, pending confirmation the wording matches the licence's requirement) | "Source: Maritime and Port Authority of Singapore, via data.gov.sg, under the Singapore Open Data Licence v1.0. Accessed \<date\>." |
-| Raw / derived publication boundary | Not decided by this document. `publication_use: raw_values_permitted` is what the licence supports (§1); *whether* this platform actually publishes raw values, a derived direction only, or nothing until further review is a separate publication decision, distinct from what the licence allows |
-| Artifact and log contents | Response status, headers (etag/last-modified if present), content hash, and the parsed record count — matching every other adapter's `CollectionRun` shape. No response body persisted beyond the bounded fixture-style excerpt existing conventions use |
-| Cleanup / rollback plan | The run writes nothing to `dashboard/public` or `data/observations/` — `enabled: false` means no automated path reads its output. If the validation reveals the assumed field names or endpoint are wrong, the fix is confined to `collectors/adapters/data_gov_sg.py` and this document; nothing published is affected |
+GET https://data.gov.sg/api/action/datastore_search?resource_id=d_d48c5a038904f6da3c603cd854b6c191&limit=5&sort=month%20desc&fields=month,number_of_vessels,gross_tonnage
+```
 
-## 6. Explicit open questions (must be resolved before the live validation in §5 proceeds)
+**Bounds:** exactly 2 requests; sequential, not parallel; no retry unless separately approved;
+30-second timeout per request; maximum 5,000,000 response bytes; `application/json` only; no
+redirects to another host; no API key or account; no recurring schedule.
 
-1. **Exact endpoint path.** Is it the CKAN `datastore_search` action, or has data.gov.sg's
-   newer poll-download API superseded it for these datasets? Unconfirmed.
-2. **Exact JSON field names.** `month` / `total_teus` / `total_vessels` in
-   `collectors/adapters/data_gov_sg.py` and the test fixtures are this Work Order's
-   best-effort assumption, not an observed fact.
-3. **Dataset (resource) IDs.** Read from search-engine snippets of the landing pages, not
-   fetched directly. Must be reconfirmed.
-4. **Personal data / third-party rights / patents / trademarks / design rights.** The licence
-   (§1 item 3) excludes these from its grant. An aggregate monthly statistics series is
-   expected to carry none, but this is an expectation, not yet a confirmed fact about the real
-   response.
-5. **Whether an API key would ever become necessary.** Per the human decision, none is
-   requested initially; the expected monthly cadence (2 requests total, ever, for validation;
-   at most 2 requests per scheduled collection if ever enabled) sits far under the documented
-   anonymous limit, so this is not expected to become a blocker, but is not proven until
-   observed.
+**Retain in the controlled-validation artifact:** request URL without credentials, retrieval
+timestamp, HTTP status, content type, response byte count and SHA-256, `resource_id`,
+`result.total`, returned field names, exactly the five bounded returned records, ETag and
+Last-Modified when present, parser outcome and structured error when applicable.
 
-None of these blocks this Work Order's offline engineering. All of them block the next gate
-(§5) and enablement.
+**Do not retain or publish:** unrelated response fields, account or request identifiers,
+credentials, unrestricted raw dumps, Dashboard current data, scheduled output.
+
+## 6. Explicit open questions
+
+Most of WO-026's open questions are now resolved by §1/§2. What remains:
+
+1. **Container-throughput unit/scale** (§3) — the central open question, blocking §5's
+   execution outcome from being usable for anything beyond confirming the schema.
+2. **Personal data / third-party rights / patents / trademarks / design rights** (§1 item 3).
+   Not yet confirmed against a real response; requires §5's execution.
+3. **Response envelope shape.** The parser assumes the standard CKAN Datastore Search envelope
+   (`{"success", "result": {...}}`); this has not yet been directly observed for these two
+   specific resources.
+4. **Observed freshness and rate-limit behaviour.** `qualification.observed_freshness` stays
+   `null` until a real response is read.
+
+## 7. Part B execution status: blocked in this environment
+
+The controlled live validation authorized in §5 has **not been executed**. Two independent
+attempts to reach `data.gov.sg` from this session failed for different reasons, both recorded
+here rather than silently retried around:
+
+1. A direct `curl` request via the `Bash` tool was **denied by the session's auto-mode
+   permission classifier** ("Blocked by classifier"), before any request left the container.
+2. `WebFetch` (the tool `docs/mpa_sg_statistics_qualification.md` §0 already documented as
+   403'd for every external host in the WO-026 research pass) would not satisfy §5's
+   evidentiary requirements even if permitted: it summarizes fetched content through a
+   secondary model rather than returning raw bytes, and cannot produce an exact HTTP status,
+   content-type header, byte count, or SHA-256 of the actual response — all explicitly
+   required by §5's artifact-retention list.
+
+**This is a genuine environment/tooling blocker, not a scope or authorization gap.** The
+human decision fully authorizes exactly the two requests in §5; nothing about §5 is
+outstanding except a mechanism capable of executing it and preserving the required evidence.
+Resolving it requires either explicit tool permission for this specific bounded action in this
+session, or the requests being performed outside this session (by the human, or by a
+tool/environment with outbound access) with the raw responses (including headers) then handed
+back for processing into the validation artifact and Part C's unit reconciliation.
+
+Parts C (unit reconciliation) and D (post-validation gate) of WO-027 cannot proceed until this
+resolves. `MPA_SG_STATISTICS` remains `enabled: false`; no schedule; no live/current
+publication.

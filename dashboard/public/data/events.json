@@ -1,6 +1,6 @@
 {
   "dataset": "current_publication",
-  "generated_at": "2026-07-31T07:00:00Z",
+  "generated_at": "2026-07-31T08:15:00Z",
   "current_direct_operational_events": [],
   "current_external_drivers": [],
   "current_statement": "No current event records exist. Every event the platform holds is a historical validation fixture with an assessment cutoff in the past; none is evidence of a current condition, and none appears above.",

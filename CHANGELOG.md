@@ -96,6 +96,18 @@ WO-010 and is not bumped by every Work Order.
   fixture-first parser, tests, `docs/mpa_sg_statistics_qualification.md` and a draft
   controlled-live-validation package for a future human gate. `enabled: false`; no live
   request, account, API key, schedule, or Dashboard publication (WO-026, Issue #54).
+- WO-027: corrected two wrong field-name guesses WO-026 made for `MPA_SG_STATISTICS`
+  (`total_teus` → `container_throughput`, `total_vessels` → `number_of_vessels`) after a human
+  independently reconciled the primary `data.gov.sg` dataset schemas and confirmed the
+  Datastore Search endpoint. Added `DatastoreSeriesSpec.unit_verified` and a fail-closed
+  `UnverifiedUnitError` gate in `collectors/adapters/data_gov_sg.py`: `container_throughput`'s
+  raw numeric scale does not obviously match individual TEUs against official MPA annual
+  statements (41.12M TEU for 2024, 44.66M TEU for 2025), so the parser now refuses to parse
+  this series at all until its unit/scale is verified against real evidence, rather than
+  guessing a conversion that could be off by roughly 1000×. A bounded 2-request controlled
+  live validation is human-authorized (Issue #56) but not yet executed — outbound network
+  access to `data.gov.sg` is denied by this environment's auto-mode permission classifier.
+  `enabled: false` throughout.
 
 ## [0.3.0] — 2026-07-30 — WO-010: Bundle 1, Common Foundation + Ocean Logistics Intelligence MVP
 
