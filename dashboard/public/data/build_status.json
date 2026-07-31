@@ -1,9 +1,9 @@
 {
-  "built_at": "2026-07-31T07:50:00Z",
+  "built_at": "2026-07-31T08:15:00Z",
   "fixture_generated_at": "2026-07-24T00:00:00Z",
   "qualified_evidence": false,
   "methodology_version": "0.8",
-  "data_cutoff_at": "2026-07-31T07:50:00Z",
+  "data_cutoff_at": "2026-07-31T08:15:00Z",
   "live_coverage": "insufficient",
   "paid_source_dependency": 0,
   "ai_api_used": false

@@ -112,16 +112,24 @@ Per the human decision: **do not assign `unit: teu` to a published value, and do
 real evidence.** Missing or ambiguous unit metadata must fail publication rather than risk
 producing a value that is roughly 1,000× wrong.
 
-**This is enforced in code, not only in documentation.**
-`collectors/adapters/data_gov_sg.py`'s `DatastoreSeriesSpec` carries a new `unit_verified`
-field (default `True`, so it does not silently block a future series with no such ambiguity).
-The registered container-throughput spec sets `unit_verified=False`. `parse_datastore_search_response`
-checks this flag **before opening the payload at all** and raises `UnverifiedUnitError` (a
-`DatastoreContractError` subclass) if it is `False` — a policy refusal, not a payload defect.
-`tests/test_data_gov_sg_adapter.py::test_unit_unverified_series_refuses_to_parse` and
-`::test_unit_unverified_refusal_happens_before_the_payload_is_even_opened` pin this (the
-latter passes deliberately-invalid bytes as the payload and confirms the unit error surfaces
-first, proving the check runs before any parsing attempt).
+**This is enforced in code, not only in documentation.** No `collect()` or production
+collector wiring exists yet for this source (§4) — the only place a `DatastoreSeriesSpec` is
+currently instantiated at all is this repository's own test suite. What matters for safety is
+what happens when one *is* eventually instantiated, including by a future author who has not
+read this document: `collectors/adapters/data_gov_sg.py`'s `DatastoreSeriesSpec.unit_verified`
+field defaults to **`False`** — fail-closed, per a finding from independent review that the
+original WO-027 draft had this backwards (defaulting to `True`, which let an omitted argument
+silently parse `container_throughput` with a guessed unit — exactly the outcome this section
+exists to prevent). A spec must *affirmatively* set `unit_verified=True` before
+`parse_datastore_search_response` will touch it; omitting the argument entirely, not just
+setting it to `False`, refuses to parse. `parse_datastore_search_response` checks this flag
+**before opening the payload at all** and raises `UnverifiedUnitError` (a
+`DatastoreContractError` subclass) — a policy refusal, not a payload defect.
+`tests/test_data_gov_sg_adapter.py::test_omitting_unit_verified_defaults_to_false_and_refuses_to_parse`
+pins the fail-closed default directly; `::test_unit_unverified_series_refuses_to_parse` and
+`::test_unit_unverified_refusal_happens_before_the_payload_is_even_opened` pin the refusal
+mechanism itself (the latter passes deliberately-invalid bytes as the payload and confirms the
+unit error surfaces first, proving the check runs before any parsing attempt).
 
 Vessel arrivals (`number_of_vessels`) carries no equivalent ambiguity — it is a literal count,
 not a scaled aggregate — and is not unit-blocked.

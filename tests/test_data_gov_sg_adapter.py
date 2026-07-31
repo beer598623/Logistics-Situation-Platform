@@ -89,6 +89,11 @@ VESSEL_SPEC = DatastoreSeriesSpec(
     operational_interpretation="volume_only",
     resolution="country",
     unit="vessels",
+    # A literal count, not a scaled aggregate -- no unit/scale ambiguity,
+    # unlike container_throughput. Must be explicit: unit_verified now
+    # defaults to False (WO-027 fail-closed fix), so a series that is
+    # genuinely fine to parse has to say so affirmatively.
+    unit_verified=True,
     evidence_class="synthetic_test_fixture",
     geography_id="GEO-CTY-SG",
     country_id="SG",
@@ -151,6 +156,31 @@ def test_unverified_unit_error_is_a_datastore_contract_error() -> None:
     assert issubclass(UnverifiedUnitError, DatastoreContractError)
 
 
+def test_omitting_unit_verified_defaults_to_false_and_refuses_to_parse() -> None:
+    """WO-027 review: the dangerous failure mode is failing *open* (parsing
+    with a guessed unit), not failing closed. A spec that simply omits
+    ``unit_verified`` -- never sets it either way -- must default to
+    ``False`` and refuse to parse; a caller must affirmatively mark a
+    series as verified rather than getting that for free by omission."""
+    spec_without_the_keyword = DatastoreSeriesSpec(
+        resource_id=UNVERIFIED_CONTAINER_SPEC.resource_id,
+        series_id=UNVERIFIED_CONTAINER_SPEC.series_id,
+        month_field=UNVERIFIED_CONTAINER_SPEC.month_field,
+        value_field=UNVERIFIED_CONTAINER_SPEC.value_field,
+        metric=UNVERIFIED_CONTAINER_SPEC.metric,
+        operational_interpretation=UNVERIFIED_CONTAINER_SPEC.operational_interpretation,
+        resolution=UNVERIFIED_CONTAINER_SPEC.resolution,
+        unit=UNVERIFIED_CONTAINER_SPEC.unit,
+        evidence_class=UNVERIFIED_CONTAINER_SPEC.evidence_class,
+        # unit_verified deliberately omitted -- this is the point of the test.
+    )
+    assert spec_without_the_keyword.unit_verified is False
+    with pytest.raises(UnverifiedUnitError):
+        parse_datastore_search_response(
+            CONTAINER_FIXTURE.read_bytes(), _contract(spec_without_the_keyword)
+        )
+
+
 def test_vessel_arrivals_is_not_unit_blocked() -> None:
     """Only the container-throughput series has an open unit question; a
     literal vessel count carries no such ambiguity and must parse normally."""
@@ -198,7 +228,11 @@ def test_gross_tonnage_is_present_in_the_fixture_but_not_parsed() -> None:
     assert "gross_tonnage" in {field["id"] for field in raw["result"]["fields"]}
     assert VESSEL_SPEC.value_field != "gross_tonnage"
     records = parse_datastore_search_response(VESSEL_FIXTURE.read_bytes(), _contract(VESSEL_SPEC))
-    assert all("gross_tonnage" not in record for record in records)
+    assert records, "fixture must actually produce records for this check to mean anything"
+    # Checks the whole serialized record, not just top-level keys, so a
+    # leak into a nested dict (e.g. measurement/extra) would still be caught.
+    for record in records:
+        assert "gross_tonnage" not in json.dumps(record)
 
 
 def test_empty_string_value_becomes_missing_not_zero() -> None:

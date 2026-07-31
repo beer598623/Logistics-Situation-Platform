@@ -1,16 +1,22 @@
 """Fixture-first bounded parser for Singapore's data.gov.sg Datastore Search API.
 
-Scope of this module (WO-026): **parsing only**. It turns a Datastore Search
-JSON response into ``port_transport_observation`` records. It performs no
-fetching itself -- there is deliberately no ``SourceAdapter``/``collect()``
-wired to a live endpoint here, because the exact endpoint path and the exact
-JSON field names below have not been independently confirmed by this
-repository (this environment's ``WebFetch`` could not reach ``data.gov.sg`` --
-see ``docs/mpa_sg_statistics_qualification.md``). The response shape parsed
-here is the standard CKAN Datastore Search convention data.gov.sg's own
-developer documentation names ("Datastore Search"), not a captured live
-response. Confirming the real field names is the first step of the
-controlled live-validation this Work Order explicitly does not perform.
+Scope of this module (WO-026, corrected by WO-027): **parsing only**. It
+turns a Datastore Search JSON response into ``port_transport_observation``
+records. It performs no fetching itself -- there is deliberately no
+``SourceAdapter``/``collect()`` wired to a live endpoint here, because no
+live response has actually been read yet (this environment's ``WebFetch``
+could not reach ``data.gov.sg``, and a direct request was separately denied
+by this session's permission classifier -- see
+``docs/mpa_sg_statistics_qualification.md`` sec7). The endpoint
+(``https://data.gov.sg/api/action/datastore_search``) and the field names
+below (``month``, ``container_throughput``, ``number_of_vessels``,
+``gross_tonnage``) are human-confirmed against the primary data.gov.sg
+dataset pages (WO-027, Issue #56) -- no longer a guess. What remains
+unconfirmed is the *response envelope shape itself* (assumed to be the
+standard CKAN Datastore Search convention data.gov.sg's own developer
+documentation names) and ``container_throughput``'s unit/scale (see
+``DatastoreSeriesSpec.unit_verified`` below). Confirming both is what the
+controlled live validation this module does not perform is for.
 
 Safety posture, matching every other adapter in this package:
 
@@ -27,6 +33,11 @@ Safety posture, matching every other adapter in this package:
 * The response's own ``result.resource_id`` must match the dataset the
   caller asked to parse, so a caller can never be handed one dataset's
   response and mistake it for another's.
+* A series whose unit/scale has not been explicitly marked verified
+  refuses to parse at all (WO-027, ``DatastoreSeriesSpec.unit_verified``
+  defaults to ``False``) -- fail-closed, not fail-open: a caller must
+  affirmatively state the unit is trustworthy rather than the parser
+  assuming it is unless told otherwise.
 """
 
 from __future__ import annotations
@@ -83,11 +94,12 @@ class DatastoreSeriesSpec:
     """Everything needed to turn one Datastore Search resource into
     ``port_transport_observation`` records.
 
-    ``month_field`` and ``value_field`` are this WO's best-effort guess at
-    data.gov.sg's actual JSON field names, following common data.gov.sg
-    naming convention -- **not independently confirmed**. Confirming them
-    against a real response is the first action of the controlled
-    live-validation this module does not perform.
+    ``month_field`` and ``value_field`` are human-confirmed against the
+    primary data.gov.sg dataset pages (WO-027, Issue #56) -- no longer a
+    guess, unlike in WO-026. What the controlled live validation this
+    module does not perform still needs to confirm is the *response
+    envelope shape itself* and, for ``container_throughput`` specifically,
+    its unit and scale (see ``unit_verified`` below).
     """
 
     resource_id: str
@@ -114,12 +126,14 @@ class DatastoreSeriesSpec:
     #: individual TEUs against official MPA annual statements (41.12M TEU for
     #: 2024, 44.66M TEU for 2025) -- guessing a scale (assigning "teu" or
     #: applying a x1000 conversion) risks publishing a value roughly 1000x
-    #: wrong. When ``False``, :func:`parse_datastore_search_response` refuses
-    #: to parse this series at all: missing or ambiguous unit metadata must
-    #: fail publication, not produce a plausible-looking but unverified
-    #: number. Defaults to ``True`` so a spec whose unit genuinely is settled
-    #: (e.g. a literal count like vessel arrivals) is not blocked by default.
-    unit_verified: bool = True
+    #: wrong. Defaults to ``False`` -- fail-closed: a spec must *affirmatively*
+    #: state its unit is trustworthy before :func:`parse_datastore_search_response`
+    #: will touch it. Missing or ambiguous unit metadata must fail publication,
+    #: never silently pass through as a plausible-looking but unverified
+    #: number, so an omitted argument here is refused, not allowed. A series
+    #: whose unit genuinely carries no such ambiguity (e.g. a literal count
+    #: like vessel arrivals) must set this explicitly to ``True``.
+    unit_verified: bool = False
     #: Where records built from this spec come from. Defaults to the
     #: synthetic fixture origin, matching every other WO-010-style spec
     #: until a real collection run supplies ``live_retrieved`` explicitly.
