@@ -111,8 +111,10 @@ already carry.
 
 The `container_throughput` field's raw numeric scale does not obviously match individual TEUs
 against official MPA annual statements the human decision cited: **41.12 million TEUs for
-2024, 44.66 million TEUs for 2025.** Neither figure has yet been reconciled against a real
-returned value (§7 blocks that).
+2024, 44.66 million TEUs for 2025.** *(This section records the question as WO-027 Part A
+originally posed it, before Part B/C executed. §8 now records the actual reconciliation
+against real returned values and its conclusion — this section's own code-enforcement content
+below is unaffected and still describes the current, unchanged state.)*
 
 Per the human decision: **do not assign `unit: teu` to a published value, and do not apply a
 ×1,000 (or any other) scale conversion, until the scale is independently reconciled against
@@ -146,11 +148,15 @@ human decision:
 
 - **Verified fact:** the field is named `container_throughput` (§2, human-confirmed). Its
   publisher-documented unit label (if any) has not yet been read by this repository.
-- **Analytical inference (not yet made):** whether the raw number is individual TEUs,
-  thousand-TEU units, or another scale. This requires the bounded returned values from §5/§7
-  plus the two official annual figures above — Part C of WO-027, not performed until §7's
-  blocker clears.
-- **Remaining uncertainty:** everything about this field's scale, until Part C completes.
+- **Analytical inference:** now performed — see §8. Using the bounded returned values from §7
+  plus the two official annual figures above, §8's reconciliation corroborates a ×1,000
+  ("thousand TEU") scale, but this is corroboration by magnitude elimination and a tight
+  quantitative match, not an independently-read primary-source unit label, so it does not
+  clear the bar to flip `unit_verified`.
+- **Remaining uncertainty:** the scale itself remains open by deliberate decision, per §8's
+  conclusion — corroborated but not primary-source-confirmed. See §8 for the full reasoning,
+  its acknowledged limits, and what a future, separately-authorized primary-source read would
+  need to confirm to close this gap.
 
 ## 4. What this Work Order pairing implemented
 
@@ -195,9 +201,10 @@ human decision:
   the script's stop-on-any-failure behavior depends on.
 - `docs/evidence/wo027_part_b_live_validation.json`: the committed evidence artifact — exactly
   the fields §5 authorizes retaining, nothing else.
-- This document: §5 updated to record execution; §6 items 2-4 resolved; §7 rewritten with the
-  full execution record; §8 (new) records the Part C unit reconciliation and why
-  `unit_verified` stays `False`; §9 (new) records the Part D per-field qualification status.
+- This document: §5 updated to record execution; §6 items addressed (item 2 partially resolved,
+  item 3 resolved, item 4 partially resolved — see §6 for each item's exact status); §7
+  rewritten with the full execution record; §8 (new) records the Part C unit reconciliation and
+  why `unit_verified` stays `False`; §9 (new) records the Part D per-field qualification status.
 - `config/sources.yaml`: `MPA_SG_STATISTICS.machine_readable_status` raised to `verified`
   (the endpoint is now confirmed live-machine-readable — this does not enable the source, see
   `scripts/validate.py::source_contract_checks`, which only checks this field when `enabled`
@@ -245,8 +252,9 @@ credentials, unrestricted raw dumps, Dashboard current data, scheduled output.
 
 ## 6. Explicit open questions
 
-Most of WO-026's open questions were resolved by §1/§2; Part B's execution (§7) resolves all
-but the first:
+Most of WO-026's open questions were resolved by §1/§2; Part B's execution (§7) addresses the
+rest, though not all fully — item 3 is fully resolved, items 2 and 4 are only partially
+resolved (see each item below for exactly what remains open):
 
 1. **Container-throughput unit/scale** (§3, §8) — **still open by deliberate fail-closed
    decision**, not for lack of evidence. §8 reconciles the live-validated values against the

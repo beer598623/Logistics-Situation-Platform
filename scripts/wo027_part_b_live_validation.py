@@ -249,14 +249,16 @@ def _execute_one(spec: dict[str, str]) -> RequestOutcome:
         raw_records = result.get("records")
         if isinstance(raw_records, list):
             records = raw_records[:5]
-        # The envelope's own "fields" schema block uses whatever key naming
-        # convention this CKAN instance's API version emits (observed here:
-        # entries without a usable "id"/"name" key this parser recognises).
-        # Rather than guess at that shape, derive the returned field names
-        # from the records CKAN actually sent back -- dict key order is
-        # preserved by Python's json.loads and matches the response byte
+        # The envelope's own "fields" schema block is not on Issue #56's
+        # retention allowlist, so its raw shape is never captured or relied
+        # on here -- this parser derives the returned field names entirely
+        # from the records CKAN actually sent back instead. dict key order
+        # is preserved by Python's json.loads and matches the response byte
         # order, so the first record's keys are exactly the "returned field
-        # names" Issue #56 asks to retain, with no re-request needed.
+        # names" Issue #56 asks to retain, with no re-request needed. The
+        # `elif` below is an untested fallback for a response with no
+        # records at all; it is not a claim about what "fields" actually
+        # contained in any run of this script.
         fields = result.get("fields")
         if records:
             returned_field_names = list(records[0].keys())

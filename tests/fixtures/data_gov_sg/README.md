@@ -30,10 +30,12 @@ for the full reconciliation record and the confirmed endpoint
 The response *envelope* shape (`{"success", "result": {"resource_id", "fields", "records",
 "total"}}`, the standard CKAN Datastore Search convention) is now confirmed to match the real
 API — see WO-027 Part B's bounded live validation, `docs/mpa_sg_statistics_qualification.md`
-§7. This fixture's own `_id`/`fields` block was never re-verified against that live validation,
-because the live requests used a `fields=` projection and never received data.gov.sg's own
-`result.fields` schema block back for the fields actually requested — so nothing here confirms
-or contradicts this fixture's `fields` array in particular, only the envelope's outer shape.
+§7. This fixture's own `_id`/`fields` block was never re-verified against that live validation:
+`result.fields` is not on Issue #56's retention allowlist, so its exact live shape was never
+captured in the committed evidence artifact, and `scripts/wo027_part_b_live_validation.py`
+derives `returned_field_names` from the retained *records* rather than from `result.fields` for
+exactly this reason. Nothing here confirms or contradicts this fixture's `fields` array in
+particular, only the envelope's outer shape.
 
 **These fixture values remain shape-only, not magnitude-calibrated — this is now visible by
 direct comparison, not merely a caveat.** WO-027 Part B's live validation retrieved real values
