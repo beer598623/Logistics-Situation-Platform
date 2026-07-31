@@ -100,6 +100,11 @@ def test_container_throughput_fixture_parses_into_valid_port_observations() -> N
         assert record["resolution"] == "country"
         assert record["placement"]["geography_id"] == "GEO-CTY-SG"
         assert record["placement"]["country_id"] == "SG"
+        # WO-026 review: these fixture records must never be mistaken for
+        # live evidence -- the same publication-boundary guarantee every
+        # other WO-010-style adapter carries.
+        assert record["provenance"]["evidence_origin"] == "synthetic_test_fixture"
+        assert record["provenance"]["dataset"] == "technical_demo"
 
 
 def test_vessel_arrivals_fixture_parses_into_valid_port_observations() -> None:
@@ -243,6 +248,56 @@ def test_non_numeric_value_string_is_rejected() -> None:
         }
     ).encode("utf-8")
     with pytest.raises(DatastoreContractError, match="value field"):
+        parse_datastore_search_response(payload, _contract(CONTAINER_SPEC))
+
+
+def test_nan_json_literal_is_rejected() -> None:
+    """json.loads accepts the non-standard NaN literal by default; this
+    parser must not let it through as a real measurement (WO-026 review)."""
+    payload = (
+        b'{"success": true, "result": {"resource_id": "'
+        + CONTAINER_SPEC.resource_id.encode("ascii")
+        + b'", "records": [{"month": "2026-01", "total_teus": NaN}]}}'
+    )
+    with pytest.raises(DatastoreContractError, match="NaN"):
+        parse_datastore_search_response(payload, _contract(CONTAINER_SPEC))
+
+
+def test_infinity_json_literal_is_rejected() -> None:
+    payload = (
+        b'{"success": true, "result": {"resource_id": "'
+        + CONTAINER_SPEC.resource_id.encode("ascii")
+        + b'", "records": [{"month": "2026-01", "total_teus": Infinity}]}}'
+    )
+    with pytest.raises(DatastoreContractError, match="Infinity"):
+        parse_datastore_search_response(payload, _contract(CONTAINER_SPEC))
+
+
+def test_infinite_string_value_is_rejected() -> None:
+    payload = json.dumps(
+        {
+            "success": True,
+            "result": {
+                "resource_id": CONTAINER_SPEC.resource_id,
+                "records": [{"month": "2026-01", "total_teus": "inf"}],
+            },
+        }
+    ).encode("utf-8")
+    with pytest.raises(DatastoreContractError, match="finite"):
+        parse_datastore_search_response(payload, _contract(CONTAINER_SPEC))
+
+
+def test_row_missing_the_month_field_is_rejected() -> None:
+    payload = json.dumps(
+        {
+            "success": True,
+            "result": {
+                "resource_id": CONTAINER_SPEC.resource_id,
+                "records": [{"total_teus": "100"}],
+            },
+        }
+    ).encode("utf-8")
+    with pytest.raises(DatastoreContractError, match="month"):
         parse_datastore_search_response(payload, _contract(CONTAINER_SPEC))
 
 

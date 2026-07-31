@@ -32,6 +32,7 @@ Safety posture, matching every other adapter in this package:
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -143,6 +144,25 @@ def _parse_period(value: str) -> tuple[str, str, str]:
     return start.isoformat(), end.isoformat(), text
 
 
+def _finite_or_raise(value: float) -> float:
+    """Reject NaN/Infinity: never a real throughput or vessel-call count.
+
+    ``json.loads`` accepts the non-standard ``NaN``/``Infinity``/``-Infinity``
+    literals by default, and ``float()`` accepts ``"inf"``/``"infinity"``
+    strings; neither is a recognised missing-marker, and a non-finite value
+    would pass schema validation (jsonschema treats ``nan`` as a number) and
+    then serialize as invalid JSON (``json.dumps`` emits bare ``NaN`` /
+    ``Infinity``, which RFC 8259 does not permit). Caught here rather than
+    left to whatever reads the record next.
+    """
+    if not math.isfinite(value):
+        raise DatastoreContractError(
+            "value field is not a finite number (NaN or Infinity), which is neither a "
+            "real measurement nor a recognised missing marker"
+        )
+    return value
+
+
 def _parse_value(cell: Any) -> tuple[float | None, str]:
     """Return ``(value, value_status)`` for one field value.
 
@@ -155,19 +175,20 @@ def _parse_value(cell: Any) -> tuple[float | None, str]:
     if isinstance(cell, bool):
         raise DatastoreContractError("value field is a boolean, not a number")
     if isinstance(cell, (int, float)):
-        return float(cell), "available"
+        return _finite_or_raise(float(cell)), "available"
     if isinstance(cell, str):
         text = cell.strip()
         if text.lower() in MISSING_MARKERS:
             return None, "missing"
         normalized = text.replace(",", "")
         try:
-            return float(normalized), "available"
+            parsed = float(normalized)
         except ValueError as exc:
             raise DatastoreContractError(
                 "value field contains a token that is neither a number nor a recognised "
                 "missing marker"
             ) from exc
+        return _finite_or_raise(parsed), "available"
     raise DatastoreContractError(f"value field has an unsupported type: {type(cell).__name__}")
 
 
@@ -203,8 +224,17 @@ def parse_datastore_search_response(
     except UnicodeDecodeError as exc:
         raise DatastoreContractError("payload is not valid UTF-8") from exc
 
+    def _reject_non_finite_constant(token: str) -> float:
+        # json.loads accepts the non-standard NaN/Infinity/-Infinity literals
+        # by default; parse_constant is the hook that intercepts them before
+        # they become a Python float that would otherwise sail through
+        # _parse_value's isinstance(cell, (int, float)) branch unfinished.
+        raise DatastoreContractError(
+            f"payload contains the non-standard JSON constant {token!r}, not a real number"
+        )
+
     try:
-        data = json.loads(text)
+        data = json.loads(text, parse_constant=_reject_non_finite_constant)
     except json.JSONDecodeError as exc:
         raise DatastoreContractError("payload is not valid JSON") from exc
 

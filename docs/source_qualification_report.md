@@ -2,7 +2,7 @@
 
 <!-- registry-source-count: 18 -->
 
-**Work Order:** WO-010 Gate C, extended by WO-011 · **Registry version:** 0.3 · **Reviewed:** 2026-07-24
+**Work Order:** WO-010 Gate C, extended by WO-011, WO-026 · **Registry version:** 0.3 · **Reviewed:** 2026-07-31
 **Policy:** `free_public_sources_only` · **Paid-source dependency:** 0
 
 ## 1. Headline finding
@@ -94,8 +94,11 @@ correctly scoped candidate to stand in for. Both are disabled.
 The Ocean Minimum Live Core research pass (see Issue #54) found that this is the only
 candidate in the whole registry whose reuse terms a human independently verified against the
 primary licence text as unambiguously permitting redistribution — the Singapore Open Data
-Licence v1.0. Every other entry in this table remains `unknown` because this environment's
-`WebFetch` tool is blocked for external hosts and no one has yet read the underlying terms.
+Licence v1.0. Almost every other entry across §3's tables remains `unknown` because this
+environment's `WebFetch` tool is blocked for external hosts and no one has yet read the
+underlying terms; the two exceptions are `MANUAL_NOTICE_INTAKE` (`permitted with attribution` /
+`link only`, a bounded reviewed intake mechanism, not a primary-text reading) and
+`NEWS_DISCOVERY` (`link only` on redistribution specifically, reuse itself still `unknown`).
 Still disabled: the endpoint and exact field names are unconfirmed, no controlled live
 validation has run, and no human has yet approved a first live request. See
 `docs/mpa_sg_statistics_qualification.md` for the full record.

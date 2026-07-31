@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-31T00:00:00Z",
+  "generated_at": "2026-07-31T07:00:00Z",
   "policy": "free_public_sources_only",
   "registry_version": "0.3",
-  "last_reviewed_at": "2026-07-24",
+  "last_reviewed_at": "2026-07-31",
   "overall_status": "insufficient",
   "coverage_message": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
   "capabilities": [

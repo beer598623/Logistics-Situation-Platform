@@ -1,6 +1,6 @@
 version: "0.3"
 policy: free_public_sources_only
-last_reviewed_at: "2026-07-24"
+last_reviewed_at: "2026-07-31"
 sources:
   - id: GDACS
     name: Global Disaster Alert and Coordination System
