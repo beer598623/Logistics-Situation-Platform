@@ -72,6 +72,24 @@ def test_health_check_liveness_step_checks_status_and_content() -> None:
     assert EXPECTED_CONTENT_MARKER in text
 
 
+def test_content_marker_is_actually_present_on_the_committed_page() -> None:
+    """WO-020 / Issue #32-adjacent roadmap gap: the test above only checks
+    that EXPECTED_CONTENT_MARKER appears in the workflow file's grep
+    command -- never that the marker actually appears on the page it greps.
+    A renamed <h1> (e.g. at Bundle 2, when "Ocean" stops being the whole
+    scope) would silently break the daily liveness check in production with
+    no CI warning, since nothing today ties the two together. index.html itself
+    is hand-maintained, not generated -- scripts/build_dashboard.py only writes
+    dashboard/public/data/ -- but it is committed, so this can check it
+    directly like any other test here."""
+    index_html = (ROOT / "dashboard" / "public" / "index.html").read_text(encoding="utf-8")
+    assert EXPECTED_CONTENT_MARKER in index_html, (
+        f"EXPECTED_CONTENT_MARKER {EXPECTED_CONTENT_MARKER!r} is not present in "
+        "dashboard/public/index.html -- health-check.yml's daily liveness grep for this "
+        "string would now fail against the real published page"
+    )
+
+
 def test_health_check_failure_and_recovery_steps_share_one_issue_title() -> None:
     workflow = _load_health_check_workflow()
     title = workflow["env"]["HEALTH_ISSUE_TITLE"]
