@@ -26,7 +26,8 @@ reflect the new state, the same in-place-correction approach used above for WO-0
   sources remain `enabled: false`; 15 of 17 remain `licence_status: pending_review` (only `GDACS`
   and `MANUAL_NOTICE_INTAKE` are `reviewed`). Live coverage is still "insufficient" by design.
 - Two gates moved materially: **operational deployment/monitoring** (WO-014) and **Dashboard
-  accessibility** (WO-016). One new open defect was discovered in the process: **Issue #32**.
+  accessibility** (WO-016). One new open defect was discovered in the process, **Issue #32**;
+  it has since been closed by WO-018 (PR #37, see the "Update" note above and gate 8 below).
 - No List B item became actionable. Issue #15 (TMD_CAP governance HOLD) is still open, unchanged
   since 2026-07-24.
 
@@ -49,7 +50,7 @@ reflect the new state, the same in-place-correction approach used above for WO-0
 
 ## List A — autonomously executable now
 
-### ~~A1 — WO-018: fix the Trade/Cost/Outlook heading-level skip (Issue #32)~~ — DONE
+### ~~WO-018 (was A1)~~ — fix the Trade/Cost/Outlook heading-level skip (Issue #32) — DONE
 
 Merged as PR #37 (`5f78897`), closing Issue #32. Gate 8 moved to PASS. Left in place below,
 unmodified, as the historical implementation plan the merged fix actually followed — it was
@@ -170,8 +171,11 @@ marker is present in the committed `index.html`. Two-line change plus a comment.
 `GET /issues?state=open&per_page=100`. That endpoint returns pull requests as well as issues and is
 capped at one page, so with enough open PRs/issues the dedupe silently misses and a fresh duplicate
 issue is opened on every failing run. Fix: filter with `jq 'select(.pull_request | not)'`, or switch
-to the search API scoped by title. Low priority — the repository currently has 1 open issue (#15)
-and 0 open PRs, so the failure mode is latent, not active. Add a matching assertion to
+to the search API scoped by title. Low priority — as of this correction (which is itself Issue #38
+/ PR #39, following the same self-counting convention the prior roadmap refresh used for #35/#36),
+the repository has 2 open issues (#15, #38) and 1 open PR (#39), so the failure mode is latent, not
+active; this count will drift as soon as the next Work Order opens its own Issue/PR, same as any
+other point-in-time count in this document. Add a matching assertion to
 `tests/test_deployment_health_workflow.py`.
 
 ---
