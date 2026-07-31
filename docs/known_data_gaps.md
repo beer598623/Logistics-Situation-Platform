@@ -71,7 +71,7 @@ The repository has two disjoint nine-item vocabularies, both enforced with near-
 in `scripts/validate.py` ("must assess/contain all nine ... exactly once"), which invites the
 assumption that they line up one-to-one. They don't.
 
-- **Measurement domains** — `analysis/assessments.py:29-38`'s `DOMAINS`. What each lane
+- **Measurement domains** — `analysis/assessments.py:39-49`'s `DOMAINS`. What each lane
   assessment actually measures: `thailand_trade_flow`, `port_maritime_activity`,
   `freight_benchmark_direction`, `fuel_pressure`, `fx_pressure`, `operational_event_status`,
   `capacity_evidence`, `transit_time_or_service_evidence`, `source_freshness_and_coverage`.
