@@ -130,6 +130,42 @@ WO-010 and is not bumped by every Work Order.
   exercise the real live-validated envelope shape end to end through the parser and the
   live-validation script's proxy/source failure-layer classification. `MPA_SG_STATISTICS`
   remains `enabled: false`; no schedule; no publication (WO-027, Issue #56).
+- WO-030: restructured the Dashboard from one long scroll into seven hash-routed views
+  (`#/overview`, `#/ocean`, `#/trade`, `#/cost`, `#/events`, `#/outlook`, `#/sources`), against
+  a design-review specification finalised on Issue #59 (AC-1 through AC-47). Legacy anchors
+  and `#/<route>/<id>`/bare-`#<id>` sub-anchors are supported; an unmatched hash falls back to
+  Overview with a visible, announced notice rather than a silent redirect. Fixes carried in the
+  same PR: technical-demonstration material no longer sits above the current material it
+  modifies in Ocean (was C-1); the demonstration lane assessment is relocated out of the
+  current lane row into its own demonstration-region block, leaving a value-free
+  cross-reference in the current row (R-3, Issue #59 §22); no two headings in one view share
+  leading text (was C-2); one function now drives both the persistent coverage chip and the
+  Overview banner, with no exit from a load-failed state (was H-1, a dual-write race); wide
+  tables no longer force horizontal page scroll at 1280×720/1440×900/1920×1080 (was H-4);
+  every scrollable table container is independently keyboard-focusable (was H-5, a WCAG 2.1 SC
+  2.1.1 failure); a no-JS load still renders all seven views in document order (was H-6); every
+  table has a caption and a scoped `<thead>`, including the previously headerless source-detail
+  table (was H-7); a source's or lane's blocker is reachable in one interaction via a new
+  expandable-row table, replacing the card layout (was H-8). Also: a URL-scheme allowlist
+  before any `href` is emitted (was M-1); the FX panel carries its own demonstration heading
+  (was M-2); numeric table cells always carry `.num`, with no exception for a missing-value
+  cell (was M-4); print now expands every collapsed region and row via a `beforeprint` handler,
+  verified with a real print-to-PDF rather than assumed from the (documented-fallback-only)
+  stylesheet rule (was M-5/M-6); sparkline distortion capped and given min/max/latest/
+  period-range text annotations (was M-7); the global `table { min-width: 520px }` rule
+  removed in favour of per-table rules (was M-8); a same-origin favicon added (was L-2); and a
+  machine-readable payload list published on Sources & Methodology covering all ten files,
+  including `indicators.json`/`source_status.json`, explicitly labelled as generated static
+  artifacts and not a supported public API (was L-1, AC-37/AC-42/AC-43). `docs/dashboard_user_guide.md`
+  §7 corrected: the previous claim that a print stylesheet alone expands collapsed panels
+  described a CSS-only rule inert for a closed `<details>` element in current browser engines
+  and had never been checked in a browser; it now names the `beforeprint` mechanism actually
+  verified working. `tests/test_dashboard_accessibility.py`'s
+  `test_dynamically_injected_headings_never_skip_a_level` anti-vacuity floor re-based (14 → 13)
+  for the new heading-injection-site count, and its `cascaded_backgrounds` map updated for the
+  new (actually-visible) zebra-stripe colour; `tests/test_dashboard_routing_and_regions.py`
+  added, covering the new routing, region-ordering and table-structure invariants (WO-030,
+  Issue #61).
 
 ## [0.3.0] — 2026-07-30 — WO-010: Bundle 1, Common Foundation + Ocean Logistics Intelligence MVP
 

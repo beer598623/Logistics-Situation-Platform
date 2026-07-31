@@ -1,0 +1,155 @@
+{
+  "newOverviewNodeCount": 405,
+  "note": "old baseline measured separately via git worktree; see script output",
+  "overflow": [
+    {
+      "vpName": "1280x720",
+      "view": "overview",
+      "bodyScrollWidth": 1280,
+      "clientWidth": 1280,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1280x720",
+      "view": "ocean",
+      "bodyScrollWidth": 1280,
+      "clientWidth": 1280,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1280x720",
+      "view": "trade",
+      "bodyScrollWidth": 1280,
+      "clientWidth": 1280,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1280x720",
+      "view": "cost",
+      "bodyScrollWidth": 1280,
+      "clientWidth": 1280,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1280x720",
+      "view": "events",
+      "bodyScrollWidth": 1280,
+      "clientWidth": 1280,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1280x720",
+      "view": "outlook",
+      "bodyScrollWidth": 1280,
+      "clientWidth": 1280,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1280x720",
+      "view": "sources",
+      "bodyScrollWidth": 1280,
+      "clientWidth": 1280,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1440x900",
+      "view": "overview",
+      "bodyScrollWidth": 1440,
+      "clientWidth": 1440,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1440x900",
+      "view": "ocean",
+      "bodyScrollWidth": 1440,
+      "clientWidth": 1440,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1440x900",
+      "view": "trade",
+      "bodyScrollWidth": 1440,
+      "clientWidth": 1440,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1440x900",
+      "view": "cost",
+      "bodyScrollWidth": 1440,
+      "clientWidth": 1440,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1440x900",
+      "view": "events",
+      "bodyScrollWidth": 1440,
+      "clientWidth": 1440,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1440x900",
+      "view": "outlook",
+      "bodyScrollWidth": 1440,
+      "clientWidth": 1440,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1440x900",
+      "view": "sources",
+      "bodyScrollWidth": 1440,
+      "clientWidth": 1440,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1920x1080",
+      "view": "overview",
+      "bodyScrollWidth": 1920,
+      "clientWidth": 1920,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1920x1080",
+      "view": "ocean",
+      "bodyScrollWidth": 1920,
+      "clientWidth": 1920,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1920x1080",
+      "view": "trade",
+      "bodyScrollWidth": 1920,
+      "clientWidth": 1920,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1920x1080",
+      "view": "cost",
+      "bodyScrollWidth": 1920,
+      "clientWidth": 1920,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1920x1080",
+      "view": "events",
+      "bodyScrollWidth": 1920,
+      "clientWidth": 1920,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1920x1080",
+      "view": "outlook",
+      "bodyScrollWidth": 1920,
+      "clientWidth": 1920,
+      "hOverflow": false
+    },
+    {
+      "vpName": "1920x1080",
+      "view": "sources",
+      "bodyScrollWidth": 1920,
+      "clientWidth": 1920,
+      "hOverflow": false
+    }
+  ],
+  "loadFailedChip": "Live coverage: load failed",
+  "pdfPath": "docs/evidence/dashboard_print_all-views-expanded_8ca658ed_2026-07-31T2329Z.pdf"
+}

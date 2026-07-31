@@ -159,7 +159,28 @@ def test_dynamically_injected_headings_never_skip_a_level() -> None:
     would execute. Every heading literal in app.js today is <h4>, so this
     can't currently produce a false pass -- crediting a level that already
     equals the correct expectation changes nothing -- but it would stop
-    being inert if a helper ever emitted a different level."""
+    being inert if a helper ever emitted a different level.
+
+    WO-030 (Issue #61, AC-44/AC-45 -- updated under the D-3 human decision on
+    Issue #59, which permits mechanics changes to this test as long as the
+    protected property is preserved and the reason is documented here): the
+    Ocean and Sources views were restructured from card lists into
+    expandable-row tables. ``lane-cards`` and ``source-list`` lost the
+    literal ``<h4>`` each row used to carry -- a table row has no heading of
+    its own -- so those two containers silently drop out of this scan's
+    resolvable set entirely (not a failure: the loop's `if not levels:
+    continue` guard skips them, exactly as it already did for containers
+    with no heading content). Ocean gained one new heading-bearing
+    container, ``lane-demo-cards`` (the relocated demonstration lane
+    assessment, R-3/AC-41), which nets Ocean back to its previous count.
+    Today's resolved composition is Ocean 5, Trade 2, Cost 3, Outlook 4 = 14
+    (Sources' one contributor is gone and not replaced). The floor is
+    re-based to 13 -- one below today's 14, following this test's original
+    convention -- rather than left at the old value of 14, which after this
+    change would sit exactly on today's count with zero margin and silently
+    stop functioning as a regression guard. The protected property itself
+    (no injected heading skips a level) is unchanged and still checked with
+    the same strength by ``assert not failures`` below."""
     js_text = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
     html_text = (PUBLIC / "index.html").read_text(encoding="utf-8")
 
@@ -199,15 +220,15 @@ def test_dynamically_injected_headings_never_skip_a_level() -> None:
             }
 
     # Guards against the scan becoming vacuous if app.js is restructured away
-    # from the el('literal-id').innerHTML pattern this regex expects. 15
-    # containers resolve today (Ocean 5, Trade 2, Cost 3, Outlook 4, Sources
-    # 1); the floor is set one below that, not at the six containers this WO
-    # fixed, so losing coverage over most of the resolved set would still
-    # fail here even though six alone would keep passing.
-    assert checked >= 14, (
-        "expected to statically resolve heading levels for at least 14 of the 15 containers "
-        f"this test currently covers (Trade/Cost/Outlook plus the already-correct others); "
-        f"resolved {checked}"
+    # from the el('literal-id').innerHTML pattern this regex expects. 14
+    # containers resolve today (Ocean 5, Trade 2, Cost 3, Outlook 4 -- see
+    # the WO-030 docstring note above for why Sources no longer contributes);
+    # the floor is set one below that, so losing coverage over most of the
+    # resolved set would still fail here even though one dropped container
+    # alone would keep passing.
+    assert checked >= 13, (
+        "expected to statically resolve heading levels for at least 13 of the 14 containers "
+        f"this test currently covers (Ocean/Trade/Cost/Outlook); resolved {checked}"
     )
     assert not failures, (
         "these app.js-injected containers emit a heading level that is not exactly one level "
@@ -385,13 +406,20 @@ def test_every_cascaded_text_colour_pairing_meets_wcag_aa() -> None:
     # inside `section { background: var(--surface) }` with no closer
     # override. Two exceptions render in a context with a slightly different
     # (still light) background; the stricter one is used:
-    #   .missing appears in table cells, including even rows where
-    #     `tbody tr:nth-child(even)` sets `background: #fafbfc`.
+    #   .missing appears in table cells, including even/hovered rows. WO-030
+    #     replaced the old (functionally invisible, ~1.03:1) zebra colour with
+    #     two real ones: `tbody tr:nth-child(even)` now sets `--zebra`
+    #     (#f2f5f8, 5.11:1 against .missing) and `tbody tr:hover` sets
+    #     `--row-hover` (#e9eef4, 4.80:1). The stricter (lower-contrast) of
+    #     the two real backgrounds is recorded here, per this test's own
+    #     stated convention above.
     #   .lane-card .meta can render inside `.demo-panel`
-    #     (`background: var(--demo-bg)`) via the demoPanel() helper.
+    #     (`background: var(--demo-bg)`) via the laneDemoBlock() helper
+    #     (WO-030 renamed this from demoPanel() when R-3 relocated the
+    #     demonstration lane assessment out of the current lane card).
     cascaded_backgrounds = {
         "a": surface,
-        ".missing": "#fafbfc",
+        ".missing": "#e9eef4",
         ".card .label": surface,
         ".card .note": surface,
         ".section-intro": surface,
