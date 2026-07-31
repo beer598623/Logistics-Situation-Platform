@@ -71,6 +71,13 @@ class ResponseTooLargeError(ValueError):
     """Raised when the payload exceeds the parser's own byte or record bound."""
 
 
+class UnverifiedUnitError(DatastoreContractError):
+    """Raised when a series' unit/scale has not been verified against real
+    evidence (WO-027). Never caught and reinterpreted as a parse failure of
+    the payload itself -- this is a policy refusal, checked before the
+    payload is even opened, not a defect in the response."""
+
+
 @dataclass(slots=True, frozen=True)
 class DatastoreSeriesSpec:
     """Everything needed to turn one Datastore Search resource into
@@ -102,6 +109,17 @@ class DatastoreSeriesSpec:
     country_id: str | None = None
     transport_mode: str = "not_applicable"
     known_limitations: tuple[str, ...] = ()
+    #: WO-027: whether ``unit`` has been confirmed against real evidence.
+    #: ``container_throughput``'s raw numeric scale does not obviously match
+    #: individual TEUs against official MPA annual statements (41.12M TEU for
+    #: 2024, 44.66M TEU for 2025) -- guessing a scale (assigning "teu" or
+    #: applying a x1000 conversion) risks publishing a value roughly 1000x
+    #: wrong. When ``False``, :func:`parse_datastore_search_response` refuses
+    #: to parse this series at all: missing or ambiguous unit metadata must
+    #: fail publication, not produce a plausible-looking but unverified
+    #: number. Defaults to ``True`` so a spec whose unit genuinely is settled
+    #: (e.g. a literal count like vessel arrivals) is not blocked by default.
+    unit_verified: bool = True
     #: Where records built from this spec come from. Defaults to the
     #: synthetic fixture origin, matching every other WO-010-style spec
     #: until a real collection run supplies ``live_retrieved`` explicitly.
@@ -210,6 +228,15 @@ def parse_datastore_search_response(
     Raises rather than returning a partial result on any contract
     violation, matching ``csv_series.parse_csv_series``.
     """
+    if not contract.series.unit_verified:
+        # Checked before the payload is even opened: an unverified unit is a
+        # policy refusal to publish, not something a well-formed response
+        # could ever satisfy. See DatastoreSeriesSpec.unit_verified.
+        raise UnverifiedUnitError(
+            f"{contract.series.series_id}: unit/scale is not yet verified against real "
+            "evidence (WO-027) -- refusing to parse rather than publish a value that may be "
+            "off by a factor of 1000 or more"
+        )
     if content_type is not None:
         # Raises before any parsing happens, so an HTML error or login page
         # served in place of data is never read as JSON.
