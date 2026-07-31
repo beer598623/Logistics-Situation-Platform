@@ -24,11 +24,21 @@ Bounds (all human-authorized, all enforced here, none configurable via CLI):
 On any transport-level anomaly on request 1 (proxy 403/407, DNS failure,
 redirect, wrong content type, oversized body, timeout, or any other
 exception) this script stops immediately: request 2 is never attempted, no
-retry occurs, and a structured failure record is written distinguishing a
-proxy/environment-layer failure from an actual data.gov.sg source response.
-A failure on request 2 (which only happens after request 1 already
-succeeded, since both requests are individually authorized) is recorded the
-same way; it does not retroactively invalidate request 1's evidence.
+retry occurs, and a structured failure record is written. ``failure_layer``
+attempts to distinguish a proxy/environment-layer failure from an actual
+data.gov.sg source response, but this detection is narrow: it currently
+recognizes only a rejected CONNECT tunnel (the literal failure mode this
+environment's egress proxy uses for an org-policy denial -- see
+``_classify_failure_layer``). An org-policy denial delivered as an ordinary
+HTTP error status or an HTML block page after a successful tunnel would be
+classified ``"source"``, not ``"proxy"`` -- a known blind spot, not a
+guarantee this field is always correct. It is a diagnostic aid for human
+review, not something downstream logic branches on: the script stops on
+*any* transport failure regardless of which layer it attributes the
+failure to. A failure on request 2 (which only happens after request 1
+already succeeded, since both requests are individually authorized) is
+recorded the same way; it does not retroactively invalidate request 1's
+evidence.
 
 Only the fields listed in Issue #56 as retainable are written to the output
 report: request URL (already credential-free), retrieval timestamp, HTTP

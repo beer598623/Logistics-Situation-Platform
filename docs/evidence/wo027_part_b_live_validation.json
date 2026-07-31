@@ -101,10 +101,6 @@
       "sequence": 2
     }
   ],
-  "notes": [
-    "returned_field_names for both requests reflects the confirmed field SET present in the retained records (derived from those records post hoc), not an independently-observed wire order: the original report-writing pass serialized this file with alphabetically-sorted JSON keys, so the exact byte-order CKAN returned fields in was not preserved. This is a script/report defect, not a re-request -- fixed in scripts/wo027_part_b_live_validation.py for future runs, corrected here by reprocessing the already-retained records, with no additional network call (the WO-027 Part B two-request bound was not exceeded).",
-    "This is a factual limitation of this evidence artifact's field-order claim only. It does not affect resource_id matching, record content, byte counts, hashes, or HTTP status/header evidence, all of which were captured directly from the live response at request time."
-  ],
   "stop_reason": null,
   "stopped_after_sequence": null,
   "work_order": "WO-027"

@@ -559,11 +559,24 @@ def test_part_b_evidence_has_exactly_two_requests_matching_the_authorized_urls()
         assert entry["resource_id"] == spec["expected_resource_id"]
 
 
+#: Exactly the top-level keys scripts/wo027_part_b_live_validation.py's
+#: main() writes to the report. A future top-level addition (e.g. an
+#: unreviewed debug field) must be caught here, not only inside each
+#: per-request entry -- a prior version of this test checked only the
+#: latter and would have missed anything added at this level.
+_APPROVED_TOP_LEVEL_FIELDS = frozenset(
+    {"work_order", "issue", "generated_at", "requests", "stopped_after_sequence", "stop_reason"}
+)
+
+
 def test_part_b_evidence_retains_only_the_approved_fields() -> None:
     """Issue #56 names an exact retention allowlist. Nothing outside it may
-    appear in a committed request entry -- this is a regression test against
-    a future edit accidentally widening what gets retained/published."""
+    appear anywhere in the committed evidence artifact -- this is a
+    regression test against a future edit accidentally widening what gets
+    retained/published, at either the top level or per request."""
     report = json.loads(PART_B_EVIDENCE.read_text(encoding="utf-8"))
+    extra_top_level = set(report.keys()) - _APPROVED_TOP_LEVEL_FIELDS
+    assert not extra_top_level, f"unapproved top-level fields in evidence: {extra_top_level}"
     for entry in report["requests"]:
         extra = set(entry.keys()) - _APPROVED_EVIDENCE_FIELDS
         assert not extra, f"unapproved fields retained in evidence: {extra}"

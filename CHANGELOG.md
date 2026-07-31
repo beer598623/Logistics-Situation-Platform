@@ -120,8 +120,11 @@ WO-010 and is not bumped by every Work Order.
   corroborated by magnitude elimination, not an independently-read primary-source unit label,
   so `DatastoreSeriesSpec.unit_verified` stays `False` and `UnverifiedUnitError` continues to
   refuse parsing this series — a deliberate, documented outcome, not an unfinished step.
-  Confirmed structurally that neither dataset's schema can carry personal or third-party-rights
-  data. `config/sources.yaml`: `machine_readable_status` raised to `verified` (does not affect
+  Confirmed none of the fields Part B actually requested/returned can carry personal or
+  third-party-rights data; Part B's `fields=`-projected response cannot itself confirm either
+  resource's *complete* schema, so that broader confirmation still rests on the earlier human
+  primary-source reading (§1 item 4 of the qualification doc), not on Part B alone.
+  `config/sources.yaml`: `machine_readable_status` raised to `verified` (does not affect
   `enabled`, which stays `false`); `observed_freshness`/`data_period` populated from the live
   evidence; `enablement.live_validation_status` set to `completed`. New regression tests
   exercise the real live-validated envelope shape end to end through the parser and the

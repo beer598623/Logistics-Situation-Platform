@@ -201,9 +201,11 @@ human decision:
   is `true`); `qualification.observed_freshness` and `qualification.data_period` populated
   from §7's evidence; `enablement.live_validation_status` set to `completed` with
   `live_validation_reference` citing the evidence artifact; `enablement.blockers` updated to
-  drop the resolved items (live validation performed; personal-data absence structurally
-  confirmed) and keep the still-open ones (unit/scale; `gross_tonnage` capability assessment;
-  rate-limit boundary only partially exercised). `enabled: false` unchanged.
+  drop the fully-resolved item (live validation performed), reword the personal-data item to
+  attribute the confirmed-fields conclusion to the fields Part B actually requested rather than
+  overclaiming a full-schema read, and keep the still-open ones (unit/scale; `gross_tonnage`
+  capability assessment; rate-limit boundary only partially exercised; full-schema personal-data
+  confirmation). `enabled: false` unchanged.
 - `tests/test_data_gov_sg_adapter.py`: new tests exercising the live-validated response
   envelope shape end to end through the real parser (still refusing `container_throughput`
   via `UnverifiedUnitError`, still parsing `number_of_vessels` normally), plus tests for the
@@ -251,12 +253,20 @@ but the first:
    doing so would have been a third request, outside the exactly-two-request authorization in
    §5). `unit_verified` stays `False`.
 2. **Personal data / third-party rights / patents / trademarks / design rights** (§1 item 3) —
-   **resolved for the fields these two datasets actually carry.** The ten records retrieved in
-   §7 contain only a calendar month and aggregate monthly numeric totals (container
-   throughput; vessel count and gross tonnage) — no name, identifier, free-text, or
-   third-party-attributable field exists in either resource's schema for any row to carry.
-   This is a structural conclusion (the field list itself has no such field), not merely an
-   absence observed in the ten-record sample.
+   **partially resolved; the full-schema confirmation still rests on §2's human primary-source
+   reading, not on §7's live response.** Both Part B requests used a `fields=` projection
+   (`month,container_throughput` and `month,number_of_vessels,gross_tonnage`) — a projected
+   CKAN response can only echo the fields it was asked for and cannot enumerate a resource's
+   *full* schema. This is independently visible in the evidence itself: every CKAN Datastore
+   resource carries an internal `_id` field (present in `tests/fixtures/data_gov_sg/*.json`),
+   yet no `_id` appears anywhere in §7's retained records, because it was never requested. So
+   "no personal-data-capable field exists" is true of the fields actually requested and
+   returned (`month`, `container_throughput`, `number_of_vessels`, `gross_tonnage` — plainly
+   aggregate/numeric, none capable of carrying personal data), but §7's bounded, projected
+   response cannot by itself prove the *entire* resource schema contains no such field. The
+   original, broader confirmation this item describes still rests on §1 item 4's human reading
+   of the primary MPA dataset pages (which describe these as aggregate monthly statistics
+   datasets), not on Part B's response.
 3. **Response envelope shape** — **resolved.** Both responses matched the standard CKAN
    Datastore Search envelope (`{"success": true, "result": {"resource_id", "records",
    "total", ...}}`) the parser already assumed; see §7.
@@ -337,15 +347,29 @@ the five observed months to a full year (mean × 12) as a rough annualization:
 
 | Candidate scale | Extrapolated annual value | Plausible against 41.12M (2024) / 44.66M (2025) TEU? |
 |---|---|---|
-| raw = TEU (×1) | ≈45,393 TEU/year | No — roughly six orders of magnitude too small for the world's second-busiest container port |
+| raw = TEU (×1) | ≈45,393 TEU/year | No — roughly three orders of magnitude too small for the world's second-busiest container port |
 | raw = thousand TEU (×1,000) | ≈45.39 million TEU/year | Yes — within ~2% of 2025's actual 44.66M and consistent with continued year-over-year growth from 2024's 41.12M |
 | raw = million TEU (×1,000,000) | ≈45.39 billion TEU/year | No — roughly three orders of magnitude too large; exceeds plausible global container volumes, let alone one port |
 
-Only the ×1,000 ("thousand TEU") scale produces a value in the physically plausible range and
-tracks the two independent official annual figures within a few percent — not a coincidence a
-wrong scale could plausibly produce. This is genuine evidence-based reconciliation, not a
-guess: it uses the returned data and the official MPA annual totals exactly as Part C
-instructs, and rules out the two alternative scales rather than assuming the answer.
+This is genuine evidence-based reconciliation, not a guess: it uses the returned data and the
+official MPA annual totals exactly as Part C instructs. But it has two logically separate
+parts that carry different evidentiary weight:
+
+1. **Elimination** rules out ×1 and ×1,000,000 outright — both land many orders of magnitude
+   outside any plausible port-throughput figure. This part is close to conclusive on its own.
+2. **The ~2% quantitative match** to 2025's actual annual figure is what actually discriminates
+   ×1,000 as the *specific* right answer, not merely "not obviously wrong" — a materially
+   different scale would not coincidentally land this close to two independent official annual
+   totals across two different years.
+
+Elimination alone would not rule out every plausible alternative: it tests only decade-spaced
+scales (×1, ×1,000, ×1,000,000) and says nothing about a different *metric* definition at a
+similar magnitude — for example, if the field counted "thousand containers (boxes)" rather
+than "thousand TEU", a mixed 20/40-foot fleet could plausibly shift the true value by roughly
+1.0-1.6× (a 40-foot box counts as 2 TEU but 1 container), which elimination by decade cannot
+distinguish and the ~2% match does not itself rule out either, since a ~1.6x error would still
+often land inside noisy year-over-year growth ranges depending on the true 2026 trend. This is
+named here as a residual, not-fully-closed risk, not resolved by this reconciliation.
 
 **Remaining uncertainty, and why `unit_verified` stays `False`.** This reconciliation has two
 gaps the human decision's "must not be resolved by assumption" standard is read strictly
@@ -392,13 +416,13 @@ volume_only` (§2) and the same rule `PAT_STATISTICS` and `IMF_PORTWATCH` alread
 | Response schema/envelope | Confirmed live: matches the parser's assumed CKAN Datastore Search shape (§6 item 3, §7). |
 | Fields | Confirmed live: `month`, `container_throughput` (resource 1); `month`, `number_of_vessels`, `gross_tonnage` (resource 2) — matching §2's human-confirmed names exactly. |
 | Units | `number_of_vessels` and `month` carry no ambiguity. `container_throughput`'s unit remains **unverified and fail-closed** by deliberate decision (§8) — not published, not assigned a unit label. `gross_tonnage` is not wired into any capability (§8). |
-| Freshness / data period | Observed: latest available month at 2026-07-31 retrieval was 2026-05 — an approximately 2-month reporting lag, within the contract's `max_stale_minutes` (~73 days) tolerance for a monthly series. `result.total: 377` records exist per resource (full historical depth unread beyond the 5 most recent). |
-| Personal data / third-party rights | Resolved: neither resource's field schema contains a field capable of carrying personal data, a third-party identifier, or free text (§6 item 2). |
+| Freshness / data period | Observed: latest available month at 2026-07-31 retrieval was 2026-05 — a reporting lag of 61 days from that month's period end (2026-05-31) or 91 days from its period start (2026-05-01), depending which boundary is used; either reading is within the contract's `max_stale_minutes` (~73 days) figure, but that field is actually evaluated against collection-run/review recency (`collectors/source_health.py`), not directly against reporting lag — the two are related but not the same measurement. `result.total: 377` records exist per resource (full historical depth unread beyond the 5 most recent). The `Last-Modified` header values recorded in §7 are the response's own generation timestamps (seconds after the retrieval timestamp), not a freshness signal about the underlying data. |
+| Personal data / third-party rights | Partially resolved: none of the fields actually requested/returned (`month`, `container_throughput`, `number_of_vessels`, `gross_tonnage`) is capable of carrying personal data or a third-party identifier, but §7's field-projected response cannot enumerate the full resource schema (it never requested, and so never saw, CKAN's own `_id` field, confirming the projection limits what a response can prove). The broader confirmation still rests on §1 item 4's human primary-source reading (§6 item 2). |
 | Licence and attribution | Unchanged from §1 (WO-026 human-verified): Singapore Open Data Licence v1.0, attribution required, no endorsement implied. Not yet exercised — enablement is a separate decision. |
-| Raw/derived publication boundary | Unchanged: `MPA_SG_STATISTICS.enabled: false`; nothing from §7's evidence has been written to `dashboard/public/data/**`, `data/candidates/**`, `data/reviewed/**`, or `data/source_status/latest.json`. The evidence artifact lives only at `docs/evidence/wo027_part_b_live_validation.json`, a qualification record, not a publication path. |
+| Raw/derived publication boundary | Unchanged: `MPA_SG_STATISTICS.enabled: false`; no measurement or observation value from §7's evidence has been written to `dashboard/public/data/**`, `data/candidates/**`, `data/reviewed/**`, or `data/source_status/latest.json` — `current_port_series` and every other current-publication array remain empty. The registry's own qualification-level summary text (e.g. `observed_freshness`/`data_period` narrative strings, not measurement values) *is* mirrored into `dashboard/public/data/sources.json`, the same as every other source's qualification metadata already published there. The evidence artifact itself lives only at `docs/evidence/wo027_part_b_live_validation.json`, a qualification record, not a publication path. |
 | Operational interpretation | Unchanged: `volume_only` for both series; no congestion/disruption inference drawn (§8). |
-| Fail-closed behaviour | Confirmed intact end to end: the live-validated envelope structure was exercised against `parse_datastore_search_response` (see `tests/test_data_gov_sg_adapter.py`), and `container_throughput` continues to be refused via `UnverifiedUnitError` even against a real, successfully-fetched response — the gate was never bypassed by having genuine live data available. |
-| Test adequacy / regression protection | Extended: the retired-field-name and unit-refusal regression tests from Part A still pass; new tests added for the live-validation script's proxy/source failure-layer classification and the evidence artifact's retention-allowlist compliance (WO-027 Part D). |
+| Fail-closed behaviour | Confirmed intact end to end against the parser's own logic: `container_throughput` continues to be refused via `UnverifiedUnitError` even when fed a JSON envelope reconstructed from real, live-retrieved records (see `tests/test_data_gov_sg_adapter.py`) — the gate was never bypassed by having genuine live data available. This reconstructed test envelope carries only the fields §5 authorized retaining; §7's response was field-projected, so no test here proves the parser against the *actual, unprojected* raw response bytes (which were never retained per the retention allowlist) — a gap the parser's own field-presence checks already tolerate, since `result.fields`/`_id` are not read at all. |
+| Test adequacy / regression protection | Extended: the retired-field-name and unit-refusal regression tests from Part A still pass; new tests added for the live-validation script's proxy/source failure-layer classification and the evidence artifact's retention-allowlist compliance (WO-027 Part D), including a top-level-keys check so an undeclared field added to the report in the future is caught, not only per-request fields. |
 
 **Enablement, scheduling, and publication remain separate human decisions**, per Issue #56's
 explicit instruction. This Work Order changes none of `MPA_SG_STATISTICS`'s `enabled`,
