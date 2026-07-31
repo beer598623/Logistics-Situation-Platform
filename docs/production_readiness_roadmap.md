@@ -1,33 +1,39 @@
-# Production-readiness roadmap — second audit
+# Production-readiness roadmap — third audit
 
-**Audit date:** 2026-07-30
-**Baseline audited:** `main` @ `49bb9c4` (WO-016 merge, PR #31)
-**Previous audit baseline:** `main` @ `af8e52f` (WO-010 Bundle 1 merge, PR #19)
+**Audit date:** 2026-07-31
+**Baseline audited:** `main` @ `1bd1d9a` (WO-023 merge, PR #49)
+**Previous audit baselines:** `main` @ `49bb9c4` (second audit, WO-016 merge, PR #31); `main` @
+`af8e52f` (first audit, WO-010 Bundle 1 merge, PR #19)
 
-This is the **second** production-readiness audit. The first ran against `af8e52f` and produced
-8 autonomously-executable Work Orders (List A) and 12 human-blocked items (List B). Since then,
-WO-011 through WO-016 have been implemented, independently reviewed, and merged, plus Dependabot
-PR #2. **WO-017 was still in flight when this audit was written** — Issue #33 and PR #34 were open,
-unmerged, at audit time, so the rest of this document (gate 1, gate 10, the closed-work table)
-originally treated the Bundle 2 scope doc as *proposed*, not delivered. WO-017 merged shortly
-afterward, as `99ecfc4`, and Issue #33 is closed; the affected passages below are corrected in
-place rather than left stale, and are marked accordingly.
+This is the **third** production-readiness audit. The first two rounds (WO-011 through WO-021)
+are summarized in "Recently closed" below rather than re-narrated here; the full implementation
+history for each is on its own closed Issue/PR. This audit re-verified all ten gates against
+real evidence — file contents, test names, live GitHub state — rather than carrying forward the
+second audit's citations, several of which had already gone stale (see WO-024 in "Recently
+closed").
 
-**Update (2026-07-31): this document's own A1 item, WO-018, has since been implemented and
-merged** (PR #37, `5f78897`), closing Issue #32 and resolving gate 8's only open blocker. Rather
-than rewrite the A1 section's implementation plan out of the historical record, it is left in
-place below (marked done) and the gate table / List A / closed-work table are corrected to
-reflect the new state, the same in-place-correction approach used above for WO-017.
+The second audit's own List A (A1-A3: WO-019, WO-020, WO-021) is now fully closed. This audit's
+own independent re-derivation of the gate table (not an assumption that "List A empty" implies
+"nothing to find") turned up three more real, autonomously-fixable defects — WO-022, WO-023 and
+this document's own currency pass (WO-024) — all closed by the time this text reached `main`. As
+of this baseline, **List A is empty**: every autonomously-executable item any audit has found to
+date is closed.
 
-## What changed since audit 1
+## What changed since audit 2
 
-- Six List A items closed (WO-011 … WO-016). All were CI / docs / test infrastructure.
-- **Nothing touched `config/sources.yaml`, any schema, or any data file.** All 17 registered
-  sources remain `enabled: false`; 15 of 17 remain `licence_status: pending_review` (only `GDACS`
-  and `MANUAL_NOTICE_INTAKE` are `reviewed`). Live coverage is still "insufficient" by design.
-- Two gates moved materially: **operational deployment/monitoring** (WO-014) and **Dashboard
-  accessibility** (WO-016). One new open defect was discovered in the process, **Issue #32**;
-  it has since been closed by WO-018 (PR #37, see the "Update" note above and gate 8 below).
+- All four of audit 2's List A items closed: WO-018 (Dashboard heading-skip fix, closing Issue
+  #32), WO-019 (nine-domains vocabulary reconciliation), WO-020 (health-check content-marker
+  binding), WO-021 (health-check issue-dedupe hardening).
+- This audit found and closed three more: WO-022 (two unlabelled, uncovered payloads reached the
+  published Dashboard data directory — one of them, `current_events.json`, contained a real
+  legacy event record that contradicted `events.json`'s correctly-derived "zero current events"
+  on the same site), WO-023 (`docs/air_land_extension_points.md` and `README.md` contradicted a
+  finding WO-017 had already verified, about a real gap in the event-type schema enum), and
+  WO-024 (this document, plus `CHANGELOG.md` and `docs/deployment_verification.md`, had gone
+  stale after the volume of merges above).
+- **Nothing touched `config/sources.yaml`, any schema, or any data file** across any of the seven
+  Work Orders above. All 17 registered sources remain `enabled: false`; 15 of 17 remain
+  `licence_status: pending_review`. Live coverage is still "insufficient" by design.
 - No List B item became actionable. Issue #15 (TMD_CAP governance HOLD) is still open, unchanged
   since 2026-07-24.
 
@@ -35,22 +41,27 @@ reflect the new state, the same in-place-correction approach used above for WO-0
 
 | # | Gate | Status | Current reason |
 |---|------|--------|----------------|
-| 1 | Multimodal foundation | PARTIAL | Reference entities are mode-neutral and already accept Air (`data/reference/dimensions.json:87` — `air` mode at `module_status: planned`; `:100` — `NODE-THBKKAIR`, explicitly carrying no data). Only Ocean (Bundle 1) is delivered. Bundle 2 scope doc (`docs/bundle2_air_cargo_scope.md`) merged as WO-017 (`99ecfc4`, shortly after this audit was written) — documentation only, no Air lane/node/data added, so this gate's status is unchanged. |
-| 2 | Verified-source provenance | PARTIAL | Provenance machinery is complete and tested — acquisition binding (`tests/test_acquisition_binding.py`), collection manifests (`tests/test_r7_manifest_contract.py`), content hashes, retrieval-time fail-closed. But it is exercised only against fixtures, because no source is enabled. Unchanged since audit 1. |
-| 3 | Fixture/current separation | PASS | Enforced by `tests/test_current_publication_boundary.py`, `tests/test_review_package_isolation.py`, `tests/test_current_positive_path.py`; demo panels carry a distinct marker in the Dashboard. Unchanged. |
+| 1 | Multimodal foundation | PARTIAL | Reference entities are mode-neutral and already accept Air (`data/reference/dimensions.json` — `air` mode at `module_status: planned`; `NODE-THBKKAIR`, explicitly carrying no data). Only Ocean (Bundle 1) is delivered; `docs/bundle2_air_cargo_scope.md` (WO-017) is a scope document, not an implementation. Unchanged since audit 1, other than WO-023's documentation correction (below) about a real gap that a Bundle 2 implementation will still need to close. |
+| 2 | Verified-source provenance | PARTIAL | Provenance machinery is complete and tested — acquisition binding (`tests/test_acquisition_binding.py`), collection manifests (`tests/test_r7_manifest_contract.py`), content hashes, retrieval-time fail-closed. Exercised only against fixtures, because no source is enabled. Unchanged since audit 1. |
+| 3 | Fixture/current separation | **PASS (regression found and fixed this audit)** | Enforced by `tests/test_current_publication_boundary.py`, `tests/test_review_package_isolation.py`, `tests/test_current_positive_path.py`, and now also `tests/test_dashboard_build.py::test_no_orphaned_json_file_sits_in_the_published_data_directory`. This audit found a real violation — `current_events.json`, an unlabelled legacy record, was reaching the published site outside every one of these boundary tests — and closed it as WO-022. |
 | 4 | Acquisition/review binding | PASS | `tests/test_review_decision_transactions.py` and the WO-010-R5/R6/R7 record-level acquisition proof and approval-hash closure. Unchanged. |
 | 5 | Licensing/enablement review | PARTIAL (human-blocked) | 15 of 17 contracts are `licence_status: pending_review`; `docs/source_enablement_decisions.md` registers all 17 with a decision record. Blocked on List B items 1 and 3. Unchanged. |
-| 6 | Controlled live validation, offline-default CI | **PASS (improved)** | `collect.yml` and `manual-live-source-test.yml` are `workflow_dispatch:`-only with no `schedule:`/`push:`/`pull_request:` trigger, and WO-015 now makes that a CI failure rather than a convention (`tests/test_workflow_consistency.py`). Was PARTIAL in audit 1 (correct but unenforced). |
-| 7 | Deterministic / auditable / fail-closed pipelines | PASS | `scripts/validate.py` semantic checks, `--check` mode on every generator, cross-version determinism fix (`2171152`), warehouse rebuild tests. Unchanged. |
-| 8 | Dashboard accurate / accessible / organization-neutral | **PASS (improved, WO-018)** | WO-016 added `tests/test_dashboard_accessibility.py` — single `<h1>`, no static heading skip, `lang`, skip-link target, landmark accessible names, WCAG AA contrast computed from `styles.css`, plus payload budgets. Organization-neutrality is enforced in `analysis/assessments.py:56-74`. **Issue #32 (the last blocker) closed by WO-018** (PR #37, `5f78897`): five new static `<h3>` headings fix the `h2→h4` skip in Trade/Cost/Outlook, with a new data-independent regression test (`test_dynamically_injected_headings_never_skip_a_level`) verified non-vacuous by mutation testing. One documented residual gap: that test's regex doesn't resolve the `events-*` containers (a different, array-driven render pattern); they were manually verified correct, but a regression there wouldn't be caught by this test suite. Was FAIL-equivalent (unverified claims) in audit 1. |
-| 9 | Operational deployment / monitoring / backup / runbooks | **PASS (improved, minor robustness gap)** | WO-014 added a daily liveness check of the real Pages URL (`health-check.yml`, cron `17 3 * * *`) with automated issue open-on-failure / close-on-recovery, `docs/deployment_verification.md`, and runbook §6 rollback / §8 backup-DR / §9 incident response. WO-013 added weekly `pip-audit` (`dependency-audit.yml`). Minor gaps remain — see List A #2 and #3. Was FAIL in audit 1. |
-| 10 | No unresolved Critical/High blocker | PASS | One open issue as of WO-018's merge: #15 (deliberate TMD_CAP governance HOLD, by design). #32, #33 and #35 all closed since this audit was written. None is Critical or High. |
+| 6 | Controlled live validation, offline-default CI | PASS | `collect.yml` and `manual-live-source-test.yml` are `workflow_dispatch:`-only with no `schedule:`/`push:`/`pull_request:` trigger, enforced by `tests/test_workflow_consistency.py::test_collect_workflow_has_no_schedule_or_push_trigger` and `tests/test_manual_workflow.py`. Unchanged since audit 2. |
+| 7 | Deterministic / auditable / fail-closed pipelines | PASS | `scripts/validate.py` semantic checks, `--check` mode on every generator, cross-version determinism fix, warehouse rebuild tests. Unchanged. |
+| 8 | Dashboard accurate / accessible / organization-neutral | **PASS (regression found and fixed this audit)** | `tests/test_dashboard_accessibility.py` covers heading structure, `lang`, skip-link target, landmark names, WCAG AA contrast computed from the real CSS, and payload budgets; WO-018 closed the runtime `<h2>`→`<h4>` heading-skip (Issue #32) with a mutation-verified regression test. Organization-neutrality is enforced by `analysis/assessments.py`'s `validate_preparedness_option`/`_MANDATORY_PHRASES`/`_ORGANIZATION_SPECIFIC`. This audit found the same publication-boundary gap as gate 3 above (an unlabelled legacy record on the published site, contradicting the properly-derived Dashboard content) and closed it as WO-022. Known residual gap, unchanged from audit 2: the accessibility regression test's regex doesn't resolve the `events-*` containers (a different, array-driven render pattern); manually verified correct, but a regression there wouldn't be caught by this suite. |
+| 9 | Operational deployment / monitoring / backup / runbooks | **PASS (hardened this audit, one operational-proof gap noted)** | `health-check.yml` runs daily (`17 3 * * *`) with automated issue open-on-failure/close-on-recovery, now binding its content marker to the real committed `index.html` (WO-020) and excluding pull requests from its issue-dedupe lookup (WO-021); `docs/deployment_verification.md` and runbook §6/§8/§9. WO-013 added weekly `pip-audit`. **Noted, not fixed:** as of this audit, `health-check.yml` has run exactly once ever — `run_number: 1`, 2026-07-27, against `e2acb77` — and that run predates WO-014's merge (`bb73501`, 2026-07-30), which is when the daily liveness fetch and issue-automation steps were added. The current (post-WO-014) form of the workflow has completed **zero** runs: it is structurally tested but has not yet fired even once, let alone been empirically proven in production. Not autonomously actionable; the workflow runs on its own schedule. |
+| 10 | No unresolved Critical/High blocker | PASS | Two open issues as of this baseline: #15 (deliberate TMD_CAP governance HOLD, by design) and #50 (this WO-024, open until this PR merges — self-counting, the same convention prior roadmap refreshes used for their own tracking issue). Every other issue this and the prior audit opened (#32, #33, #35, #38, #40, #42, #44, #46, #48) is closed. None was, or is, Critical or High. |
 
 ---
 
 ## List A — autonomously executable now
 
-### ~~WO-018 (was A1)~~ — fix the Trade/Cost/Outlook heading-level skip (Issue #32) — DONE
+**Empty as of this baseline.** Every item any of the three audits has found — WO-018 through
+WO-024 below — is closed. The historical implementation plans are left in place rather than
+deleted, the same in-place-correction convention used throughout this document's revisions; a
+future audit adds new sections here rather than reopening these.
+
+### ~~WO-018~~ — fix the Trade/Cost/Outlook heading-level skip (Issue #32) — DONE
 
 Merged as PR #37 (`5f78897`), closing Issue #32. Gate 8 moved to PASS. Left in place below,
 unmodified, as the historical implementation plan the merged fix actually followed — it was
@@ -130,53 +141,69 @@ two doc/test files change); `config/sources.yaml`, all schemas and all data file
 payload-budget tests (`tests/test_dashboard_accessibility.py:288`, `:296`) still pass — the added
 markup is well under 1 KB against a budget with megabytes of headroom. Close Issue #32 on merge.
 
-### A1 (next Work Order) — WO-019: reconcile the two "nine domains" vocabularies
+### ~~WO-019~~ — reconcile the two "nine domains" vocabularies — DONE
 
-Carried forward from audit 1 (was WO-018 there, then A2); **re-verified and still accurate**. Now
-first in List A since WO-018 (the item that outranked it) is done.
+Merged as PR #41 (`a3a9c32`), closing Issue #40. Added a reconciliation table to
+`docs/known_data_gaps.md` §5 between `analysis/assessments.py`'s nine *measurement* domains
+(`DOMAINS`) and `schemas/impact_assessment.schema.json`'s nine *business-impact* areas (`area`
+enum) — two disjoint vocabularies enforced with near-identical wording in `scripts/validate.py`,
+which invites the assumption they correspond. Documentation only; no rename (a rename touches
+committed data under `data/assessments/`/`data/events/` and remains List B item 8).
 
-The repository has two disjoint nine-item vocabularies, both described in prose as "the nine":
+### ~~WO-020~~ — bind the health-check content marker to the actual page — DONE
 
-- `analysis/assessments.py:29-39` — `DOMAINS`, nine *measurement* domains (`thailand_trade_flow`,
-  `port_maritime_activity`, `freight_benchmark_direction`, `fuel_pressure`, `fx_pressure`,
-  `operational_event_status`, `capacity_evidence`, `transit_time_or_service_evidence`,
-  `source_freshness_and_coverage`), enforced at `scripts/validate.py:479-483`
-  ("must assess all nine domains exactly once").
-- `schemas/impact_assessment.schema.json` `area` enum — nine *business impact* areas (`warehouse`,
-  `logistics`, `transport`, `import_export`, `inventory`, `cost`, `capacity`, `service`,
-  `business_continuity`), enforced at `scripts/validate.py:110-117` ("must contain each of the nine
-  areas exactly once") and described at `schemas/logistics_event.schema.json:335`.
+Merged as PR #43 (`79b2ba1`), closing Issue #42. `tests/test_deployment_health_workflow.py` only
+checked that its content-marker constant appeared in `health-check.yml`'s own grep command, never
+that it actually appeared on the page the workflow greps. Added
+`test_content_marker_is_actually_present_on_the_committed_page`, asserting the marker is present
+in the committed `dashboard/public/index.html`. Test-only.
 
-The two error strings are near-identical and the vocabularies do not map onto each other. Scope:
-documentation only — add a mapping table (which measurement domain, if any, can evidence which
-impact area) and state plainly that `warehouse`, `inventory`, `capacity` and `service` have **no**
-measurement schema behind them today (`capacity_evidence` and `transit_time_or_service_evidence`
-are event-derived, not indicator-derived). Land it in `docs/known_data_gaps.md` plus a clarifying
-docstring at `analysis/assessments.py:26-28`. Do not rename either vocabulary — a rename touches
-schemas and committed data and is out of scope.
+### ~~WO-021~~ — harden the health-check issue dedupe — DONE
 
-### A2 — WO-020: bind the health-check content marker to the actual page
+Merged as PR #45 (`122d9fe`), closing Issue #44. `health-check.yml`'s two issue-dedupe lookups
+matched by title alone against `GET /issues`, which also returns pull requests; added
+`select(.pull_request == null)` to both jq filters so a same-titled PR can't be mistaken for the
+tracked issue. The `per_page=100` pagination cap was deliberately left unfixed and is now
+documented in a workflow comment and in `docs/deployment_verification.md` §4 (WO-024) as a real,
+currently-latent limit.
 
-`tests/test_deployment_health_workflow.py:24` hardcodes
-`EXPECTED_CONTENT_MARKER = "Thailand Ocean Logistics Intelligence"` and asserts (line 72) that it
-appears **in the workflow file** — never that it appears in `dashboard/public/index.html:16`, where
-the `<h1>` actually lives. Renaming that `<h1>` — likely at Bundle 2, when "Ocean" stops being the
-whole scope — would silently break the daily liveness `grep` in `health-check.yml:72` and cause the
-automated failure issue to open every day with no CI warning. Fix: add one assertion that the
-marker is present in the committed `index.html`. Two-line change plus a comment.
+### ~~WO-022~~ — stop publishing two unlabelled, uncovered payloads — DONE
 
-### A3 — WO-021: harden the health-check issue dedupe
+Merged as PR #47 (`160d272`), closing Issue #46. Found by this audit: `scripts/build_dashboard.py`
+published `data/reviewed/current_events.json` and `innovation/solution_register.json` to
+`dashboard/public/data/` since WO-010 Gate K, unlabelled (no `dataset` field), untested, and
+unconsumed by `assets/app.js`. The first carried a real legacy WO-002 event record that
+contradicted the properly-derived `events.json` on the same site, which correctly reports zero
+current events. Stopped publishing both; the underlying source file and its own validation
+(`scripts/validate.py`, `tests/test_data_contracts.py`) are unaffected. Also found and fixed in
+the same WO: `build_dashboard.py`'s build step never removed a file a prior build wrote once a
+later change stopped generating it — exactly how the two files went unnoticed for eight WO-010
+revisions and two prior audits. Added
+`tests/test_dashboard_build.py::test_no_orphaned_json_file_sits_in_the_published_data_directory`,
+which checks the real directory contents rather than only the declared payload dict, and
+tightened the existing payload-set assertion from a subset check to an exact-set check.
 
-`health-check.yml:88-90` and `:108-110` look up the existing automated issue via
-`GET /issues?state=open&per_page=100`. That endpoint returns pull requests as well as issues and is
-capped at one page, so with enough open PRs/issues the dedupe silently misses and a fresh duplicate
-issue is opened on every failing run. Fix: filter with `jq 'select(.pull_request | not)'`, or switch
-to the search API scoped by title. Low priority — as of this correction (which is itself Issue #38
-/ PR #39, following the same self-counting convention the prior roadmap refresh used for #35/#36),
-the repository has 2 open issues (#15, #38) and 1 open PR (#39), so the failure mode is latent, not
-active; this count will drift as soon as the next Work Order opens its own Issue/PR, same as any
-other point-in-time count in this document. Add a matching assertion to
-`tests/test_deployment_health_workflow.py`.
+### ~~WO-023~~ — reconcile air_land_extension_points.md with WO-017's finding — DONE
+
+Merged as PR #49 (`1bd1d9a`), closing Issue #48. Found by this audit: WO-017 had already verified
+that `logistics_event.schema.json`'s `event_type` enum has two Ocean-worded values
+(`port_or_terminal_closure`, `canal_restriction`) with no exact fit for a non-Ocean closure event
+— a real, small schema change a future Bundle 2 implementation WO must still make. A separate,
+older document, `docs/air_land_extension_points.md` (plus `README.md`), was never corrected and
+still claimed, unqualified, that the whole shared foundation needs no schema change. Qualified
+both documents to match WO-017's verified position; corrected a stale test-coverage claim.
+Documentation only.
+
+### ~~WO-024~~ — currency pass on roadmap, CHANGELOG and deployment-verification docs — DONE
+
+This Work Order. Found by this audit: this document itself, plus `CHANGELOG.md` and
+`docs/deployment_verification.md`, had gone stale after the volume of merges above — three
+items presented as pending "next Work Order"s that were already merged, several stale
+line-number self-citations (WO-019's own docstring insertion shifted the line numbers this
+document cited for it — the same defect class two independent reviews already caught elsewhere
+in this repository's history), a `CHANGELOG.md` `[Unreleased]` section that stopped at WO-013,
+and a deployment-verification doc describing the pre-WO-021 dedupe behaviour. This is that
+correction — the document you are reading.
 
 ---
 
@@ -191,7 +218,7 @@ All items re-verified against the current tree; **none has become actionable**.
 5. **`BOT_FX` API credential.** `config/sources.yaml:380` and `:420` record that the developer portal requires account registration and an API key, and that no credential-handling mechanism exists in this repository. Needs a human to register **and** a secrets-handling decision.
 6. **Dependabot security-alert and branch-protection settings.** `.github/dependabot.yml` covers `pip` and `github-actions` on a monthly cadence, but security alerts, secret scanning and required-status-check branch protection are repository *settings*, not files — only a repo admin can set them.
 7. **XLSX / PDF parser dependency decision.** `WB_COMMODITY` is `format: xlsx` (`config/sources.yaml:433`) and several qualification/terms references are PDFs. Parsing either adds a runtime dependency to a repository that currently has a deliberately minimal lockfile. Needs an explicit accept/reject.
-8. **Destructive data migration.** Any rename of the impact-area or measurement-domain vocabularies (see A1/WO-019) rewrites committed data under `data/assessments/` and `data/events/`. Requires human sign-off before it is attempted.
+8. **Destructive data migration.** Any rename of the impact-area or measurement-domain vocabularies (see WO-019's reconciliation table in `docs/known_data_gaps.md` §5) rewrites committed data under `data/assessments/` and `data/events/`. Requires human sign-off before it is attempted.
 9. **Air cargo lane-selection source (new, from the WO-017 scope work).** Selecting Bundle 2 Air lanes needs either a qualified air-cargo volume/route source — none is registered — or an explicit reviewed decision to repeat WO-010's structural-reasoning-only approach, which `docs/known_data_gaps.md` §3 already records as a limitation for Ocean. That is a scope decision, not an implementation task.
 
 Audit-1 List B items not repeated above were either folded into items 1–8 or were resolved by
@@ -210,6 +237,12 @@ WO-012 / WO-013 / WO-014 (governance files, vulnerability scanning, deployment m
 | WO-014 | #26 / #27 | 2026-07-30 | Daily liveness check of the published Pages URL with automated issue open/close; `docs/deployment_verification.md`; runbook §6 rollback, §8 backup/DR, §9 incident response. |
 | WO-015 | #28 / #29 | 2026-07-30 | `tests/test_workflow_consistency.py` — cross-workflow action-pin consistency and `collect.yml` trigger safety. |
 | WO-016 | #30 / #31 | 2026-07-30 | `tests/test_dashboard_accessibility.py` (heading levels, skip-link target, landmark names, WCAG AA contrast from the real CSS) and payload-budget tests. Discovered Issue #32. |
-| WO-017 | #33 / #34 | 2026-07-30 (`99ecfc4`, shortly after this audit was written) | `docs/bundle2_air_cargo_scope.md` + `tests/test_bundle2_scope_doc_claims.py`. Was in review at audit time; corrected in place above rather than left stale. |
-| — | Roadmap refresh #2 | 2026-07-30 (`72f3e0a`) | This document (`docs/production_readiness_roadmap.md`), Issue #35 / PR #36. |
+| WO-017 | #33 / #34 | 2026-07-30 (`99ecfc4`, shortly after audit 2 was written) | `docs/bundle2_air_cargo_scope.md` + `tests/test_bundle2_scope_doc_claims.py`. Was in review when audit 2 was written; that audit's affected passages were corrected in place rather than left stale. |
+| — | Roadmap refresh #2 | 2026-07-30 (`72f3e0a`) | Audit 2's own document, `docs/production_readiness_roadmap.md`, Issue #35 / PR #36. |
 | WO-018 | #32 / #37 | 2026-07-31 (`5f78897`) | Fixed the Trade/Cost/Outlook `h2→h4` heading-level skip (5 new static `<h3>`s) and added `test_dynamically_injected_headings_never_skip_a_level`, a data-independent regression test mutation-verified to catch the defect class. Closed gate 8's last open blocker. |
+| — | Roadmap follow-up | 2026-07-31 (`c81770e`) | Corrected audit 2's own document after WO-018 merged (gate 8, gate 10, List A renumbering), Issue #38 / PR #39. |
+| WO-019 | #40 / #41 | 2026-07-31 (`a3a9c32`) | `docs/known_data_gaps.md` §5 — reconciliation table between the nine measurement domains and the nine business-impact areas, built from the real `event_domain_direction` call sites rather than asserted. |
+| WO-020 | #42 / #43 | 2026-07-31 (`79b2ba1`) | Bound the health-check content-marker test to the real committed `index.html`, not just the workflow file's own grep text. |
+| WO-021 | #44 / #45 | 2026-07-31 (`122d9fe`) | Excluded pull requests from `health-check.yml`'s two issue-dedupe lookups (`select(.pull_request == null)`). |
+| WO-022 | #46 / #47 | 2026-07-31 (`160d272`) | Stopped publishing two unlabelled, uncovered Dashboard payloads, one of which contradicted the properly-derived `events.json` on the same site; added a directory-level orphan-file test. |
+| WO-023 | #48 / #49 | 2026-07-31 (`1bd1d9a`) | Reconciled `docs/air_land_extension_points.md` and `README.md` with WO-017's already-verified event-type-enum finding. |

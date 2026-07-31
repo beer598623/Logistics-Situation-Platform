@@ -24,6 +24,20 @@ WO-010 and is not bumped by every Work Order.
   nil; the bump is applied anyway as a zero-risk clean-up, verified compatible by re-running
   `scripts/build_warehouse.py`.
 
+- WO-022: `dashboard/public/data/current_events.json` and `solutions.json` were published,
+  unlabelled and untested, since WO-010 Gate K. `current_events.json` carried a real legacy
+  WO-002 event record that contradicted `events.json`'s correctly-derived "zero current
+  events" on the same site. Stopped publishing both (neither was fetched by the frontend or
+  documented); tightened `tests/test_dashboard_build.py`'s payload-set assertion from a
+  subset check to an exact-set check, and added a directory-level orphan-file test so a
+  future undeclared payload can't recur silently; corrected a false "every payload carries
+  `dataset`" claim in `docs/evidence_provenance_and_datasets.md`.
+- WO-023: `docs/air_land_extension_points.md` and `README.md` claimed, unqualified, that
+  WO-010's shared foundation needs no schema change for Air/Land — including
+  `logistics_event.schema.json`'s `event_type` enum, which WO-017 had already verified has
+  two Ocean-worded values with no exact fit for a non-Ocean closure event. Qualified both
+  documents to match WO-017's verified finding; corrected a stale test-coverage claim.
+
 ### Added
 
 - `SECURITY.md`, `CONTRIBUTING.md`, `CODEOWNERS`, `CHANGELOG.md`,
@@ -33,6 +47,36 @@ WO-010 and is not bumped by every Work Order.
   `.github/workflows/validate-pr.yml` (report uploaded as an artifact) and a new weekly
   `.github/workflows/dependency-audit.yml` (`schedule` + `workflow_dispatch` only), plus
   `tests/test_dependency_audit_workflow.py` (WO-013).
+- `.github/workflows/health-check.yml` rewritten to run daily (was weekly) and fetch the real
+  published Pages URL, requiring HTTP 200 and the page's own `<h1>` text as a content marker;
+  opens/closes a tracked GitHub issue on failure/recovery. `docs/deployment_verification.md`
+  new; `docs/operations_runbook.md` extended with rollback, backup/DR and incident-response
+  sections (WO-014).
+- `actions/upload-artifact` bumped v4 → v7 across `.github/workflows/manual-live-source-test.yml`
+  and `validate-pr.yml` (Dependabot).
+- `tests/test_workflow_consistency.py`: cross-workflow shared-action version-pin consistency,
+  and a guard that `collect.yml` carries no `schedule`/`push`/`pull_request` trigger (WO-015).
+- `tests/test_dashboard_accessibility.py`: single `<h1>`, no static heading-level skip, `lang`
+  attribute, skip-link target, landmark accessible names, WCAG AA colour-contrast computed
+  from the real `styles.css`, and payload-size budgets (WO-016). Found the Dashboard's runtime
+  heading-level skip later fixed by WO-018 (tracked as Issue #32 at the time).
+- `docs/bundle2_air_cargo_scope.md` and `tests/test_bundle2_scope_doc_claims.py`: Bundle 2
+  (Air Cargo) scope and architecture, verified against the real schema/data rather than
+  asserted — no Air lane, node, or source contract delivered (WO-017).
+- Five new static `<h3>` headings in `dashboard/public/index.html` fixing a runtime
+  `<h2>`→`<h4>` heading-level skip across the Trade, Cost and Outlook sections (Issue #32);
+  `tests/test_dashboard_accessibility.py::test_dynamically_injected_headings_never_skip_a_level`,
+  a data-independent regression test (WO-018).
+- `docs/known_data_gaps.md`: a reconciliation table between the nine *measurement* domains
+  (`analysis/assessments.py`'s `DOMAINS`) and the nine *business-impact* areas
+  (`schemas/impact_assessment.schema.json`'s `area` enum) — two disjoint vocabularies that
+  read as if they should correspond and don't (WO-019).
+- `tests/test_deployment_health_workflow.py::test_content_marker_is_actually_present_on_the_committed_page`:
+  binds the health-check workflow's content marker to the real committed `index.html`, closing
+  a gap where the marker was only checked against the workflow file's own text (WO-020).
+- `.github/workflows/health-check.yml`'s two issue-dedupe lookups now exclude pull requests
+  (`select(.pull_request == null)`), which the underlying GitHub API returns alongside issues
+  and could otherwise be mistaken for the tracked deployment-health issue (WO-021).
 
 ## [0.3.0] — 2026-07-30 — WO-010: Bundle 1, Common Foundation + Ocean Logistics Intelligence MVP
 
