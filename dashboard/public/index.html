@@ -3,12 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Thailand Ocean Logistics Intelligence — Logistics Situation Platform</title>
+  <title>Overview — Thailand Ocean Logistics Intelligence</title>
   <meta name="description" content="Thailand-centred Ocean Logistics intelligence: lanes, chokepoints, trade and cost pressure, evidence-linked events, scenario outlooks and source coverage.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/styles.css">
+  <!-- Anti-flash boot: resolves the initial route before first paint so the
+       seven views don't flash stacked, then hand off to assets/app.js. Kept
+       to a handful of lines and duplicates no route text -- ROUTE_TO_ID here
+       is read again, unmodified, by app.js at the top of the file. Never
+       loads an external resource; app.js::test_the_page_loads_no_external_resource
+       covers this whole document, not only the body. -->
+  <script>
+    (function () {
+      var ROUTE_TO_ID = { overview: 'situation', ocean: 'ocean', trade: 'trade', cost: 'cost', events: 'events', outlook: 'outlook', sources: 'sources' };
+      var LEGACY_TO_ROUTE = { situation: 'overview' };
+      document.documentElement.classList.add('has-js');
+      var seg = (location.hash || '').replace(/^#\/?/, '').split('/')[0];
+      var route = ROUTE_TO_ID[seg] ? seg : (LEGACY_TO_ROUTE[seg] || 'overview');
+      document.documentElement.setAttribute('data-boot-view', ROUTE_TO_ID[route]);
+    })();
+  </script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
+
+<noscript>
+  <div class="wrap">
+    <p class="banner banner-critical">
+      <strong>JavaScript is disabled, so no values are shown on this page.</strong>
+      Every number on this dashboard is loaded from JSON files in <code>data/</code> by
+      <code>assets/app.js</code>. Nothing is being withheld and nothing below should be read as
+      zero, empty or all-clear — treat live coverage as insufficient. The seven views below are
+      listed in sequence, each with its own headings and labels. The underlying payloads are
+      listed under Sources and Methodology and can be read directly.
+    </p>
+  </div>
+</noscript>
 
 <header class="site-header">
   <div class="wrap">
@@ -16,7 +46,7 @@
     <h1>Thailand Ocean Logistics Intelligence</h1>
     <p class="subtitle">Thailand-centred multimodal logistics intelligence and outlook. Ocean is the first operational module.</p>
     <dl class="build-meta">
-      <div><dt>Data cutoff</dt><dd id="meta-cutoff">loading…</dd></div>
+      <div><dt>Data cutoff</dt><dd id="meta-cutoff">not loaded</dd></div>
       <div><dt>Methodology</dt><dd id="meta-methodology">—</dd></div>
       <div><dt>Live coverage</dt><dd id="meta-coverage">—</dd></div>
       <div><dt>Paid sources</dt><dd id="meta-paid">—</dd></div>
@@ -24,171 +54,253 @@
   </div>
 </header>
 
-<div class="wrap" role="region" aria-label="Coverage warning">
-  <p class="banner banner-critical" id="coverage-banner">Loading coverage status…</p>
-</div>
-
-<nav class="section-nav wrap" aria-label="Dashboard sections">
-  <a href="#situation">1. Thailand Situation</a>
-  <a href="#ocean">2. Ocean Logistics</a>
-  <a href="#trade">3. Trade and Flow</a>
-  <a href="#cost">4. Cost and Freight</a>
-  <a href="#events">5. Events and Drivers</a>
-  <a href="#outlook">6. AI Outlook</a>
-  <a href="#sources">7. Sources and Methodology</a>
+<nav class="navbar" aria-label="Views">
+  <div class="wrap navbar-inner">
+    <a class="brand" href="#/overview">Thailand Ocean Logistics Intelligence</a>
+    <ul class="nav-list">
+      <li><a href="#/overview" data-route="overview">Overview</a></li>
+      <li><a href="#/ocean" data-route="ocean">Ocean Operations</a></li>
+      <li><a href="#/trade" data-route="trade">Trade &amp; Flow</a></li>
+      <li><a href="#/cost" data-route="cost">Cost &amp; Freight</a></li>
+      <li><a href="#/events" data-route="events">Events</a></li>
+      <li><a href="#/outlook" data-route="outlook">Outlook</a></li>
+      <li><a href="#/sources" data-route="sources">Sources &amp; Methodology</a></li>
+    </ul>
+    <p class="nav-status">
+      <a class="pill pill-critical" id="chip-coverage" href="#/sources">Live coverage: not loaded</a>
+      <span class="pill pill-note" id="chip-cutoff">Cutoff: not loaded</span>
+    </p>
+  </div>
 </nav>
+<div id="route-status" class="visually-hidden" aria-live="polite" role="status"></div>
+<div id="route-notice-slot"></div>
+<div class="print-header" id="print-header" aria-hidden="true"></div>
 
 <main id="main" class="wrap">
 
-  <section id="situation" aria-labelledby="situation-h">
-    <h2 id="situation-h">1. Thailand Logistics Situation</h2>
+  <section id="situation" class="view" data-view="overview" aria-labelledby="situation-h">
+    <h2 id="situation-h" tabindex="-1">Overview</h2>
     <p class="section-intro">What the platform can currently say about Thailand ocean logistics, and how much of it is actually supported by evidence.</p>
-    <div class="cards" id="situation-cards"></div>
-    <h3>Lanes requiring attention</h3>
-    <div class="table-wrap"><table id="attention-table">
-      <caption>Lanes at an attention level above routine. Attention level is derived from domain directions and open events; it is not a risk score.</caption>
-      <thead><tr><th scope="col">Lane</th><th scope="col">Attention</th><th scope="col">Direction</th><th scope="col">Resolution</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <h3>Current cost pressure</h3>
-    <p class="banner banner-note" id="situation-cost-current"></p>
-    <div id="situation-cost-current-series"></div>
-    <h3 class="demo-heading">Cost pressure <span class="pill pill-demo">technical demonstration</span></h3>
-    <div class="table-wrap"><table id="situation-cost-table">
-      <caption>Latest reading per cost-context series, with its own freshness. A stale reading is labelled stale; it is never presented as current.</caption>
-      <thead><tr><th scope="col">Series</th><th scope="col">Latest value</th><th scope="col">Period</th><th scope="col">Month over month</th><th scope="col">Freshness</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <h3>Key changes</h3>
-    <ul id="situation-changes" class="prose-list"></ul>
-    <h3>Major data gaps</h3>
-    <ul id="situation-gaps" class="prose-list gap-list"></ul>
+    <p class="banner banner-critical" id="coverage-banner">Loading…</p>
+
+    <div data-evidence-region="current">
+      <div class="cards" id="situation-cards"></div>
+      <h3>Lanes requiring attention</h3>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="attention-table-caption"><table id="attention-table">
+        <caption id="attention-table-caption">Lanes at an attention level above routine. Attention level is derived from domain directions and open events; it is not a risk score.</caption>
+        <thead><tr><th scope="col">Lane</th><th scope="col">Attention</th><th scope="col">Direction</th><th scope="col">Resolution</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <h3>Key changes</h3>
+      <ul id="situation-changes" class="prose-list"></ul>
+      <h3>Major data gaps</h3>
+      <ul id="situation-gaps" class="prose-list gap-list"></ul>
+      <h3>Current cost pressure</h3>
+      <p class="banner banner-note" id="situation-cost-current"></p>
+      <div id="situation-cost-current-series"></div>
+    </div>
+
+    <details class="region region-demo" data-evidence-region="demonstration" id="situation-demo-region">
+      <summary>Demonstration material <span class="pill pill-demo">technical demonstration — synthetic fixture</span></summary>
+      <div class="region-body">
+        <p class="prose">The figure and table below are generated from synthetic fixtures. They describe no real-world condition and must not be quoted as one.</p>
+        <div class="cards" id="situation-demo-cards"></div>
+        <h3 class="demo-heading">Cost pressure — demonstration <span class="pill pill-demo">technical demonstration</span></h3>
+        <div class="table-wrap" tabindex="0" role="region" aria-labelledby="situation-cost-table-caption"><table id="situation-cost-table">
+          <caption id="situation-cost-table-caption">Latest reading per cost-context series, with its own freshness. A stale reading is labelled stale; it is never presented as current.</caption>
+          <thead><tr><th scope="col">Series</th><th scope="col" class="num">Latest value</th><th scope="col">Period</th><th scope="col" class="num">Month over month</th><th scope="col">Freshness</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </details>
   </section>
 
-  <section id="ocean" aria-labelledby="ocean-h">
-    <h2 id="ocean-h">2. Ocean Logistics</h2>
+  <section id="ocean" class="view" data-view="ocean" aria-labelledby="ocean-h">
+    <h2 id="ocean-h" tabindex="-1">Ocean Operations</h2>
     <p class="section-intro">Thailand port and maritime indicators, the lane set, chokepoint exposure, official notices, and the capacity and service evidence that exists.</p>
     <p class="banner banner-warning" id="port-note"></p>
-    <h3 class="demo-heading">Thailand port and maritime indicators <span class="pill pill-demo">technical demonstration</span></h3>
-    <p class="banner banner-demo" id="ocean-demo-label"></p>
-    <div id="port-series"></div>
-    <h3>Ocean lanes</h3>
-    <p class="section-intro">Each lane states the analytical resolution it actually supports. A regional lane is never displayed as a port-pair lane. Each card shows its <strong>current</strong> assessment; where a technical-demonstration assessment exists it is in a separately labelled panel inside the card.</p>
-    <div id="lane-cards" class="lane-grid"></div>
-    <h3>Chokepoints</h3>
-    <div class="table-wrap"><table id="chokepoint-table">
-      <caption>Registered chokepoints, the lanes exposed to each, and whether an official notice is recorded.</caption>
-      <thead><tr><th scope="col">Chokepoint</th><th scope="col">Type</th><th scope="col">Modes</th><th scope="col">Operating authority</th><th scope="col">Exposed lanes</th><th scope="col">Notice status</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <h3>Thailand port and maritime indicators <span class="pill pill-note">current</span></h3>
-    <div id="current-port-series"></div>
-    <h3>Current official operational notices</h3>
-    <p class="banner banner-note" id="current-notice-statement"></p>
-    <div id="current-notices"></div>
-    <h3>Current capacity and service evidence</h3>
-    <div class="table-wrap"><table id="current-capacity-table">
-      <caption>Capacity and service impacts recorded against a currently active event, each backed by qualified evidence.</caption>
-      <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <h3 class="demo-heading">Official notices <span class="pill pill-demo">historical validation</span></h3>
-    <div id="notices"></div>
-    <h3 class="demo-heading">Capacity and service evidence <span class="pill pill-demo">historical validation</span></h3>
-    <div class="table-wrap"><table id="capacity-table">
-      <caption>Capacity and service impacts actually recorded against an event, with the evidence strength and confidence behind each.</caption>
-      <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
+
+    <div data-evidence-region="current">
+      <h3>Thailand port and maritime indicators — current</h3>
+      <div id="current-port-series"></div>
+      <h3>Current official operational notices</h3>
+      <p class="banner banner-note" id="current-notice-statement"></p>
+      <div id="current-notices"></div>
+      <h3>Current capacity and service evidence</h3>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="current-capacity-table-caption"><table id="current-capacity-table">
+        <caption id="current-capacity-table-caption">Capacity and service impacts recorded against a currently active event, each backed by qualified evidence.</caption>
+        <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <h3>Ocean lanes</h3>
+      <p class="section-intro">Each lane states the analytical resolution it actually supports. A regional lane is never displayed as a port-pair lane.</p>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="lane-table-caption"><table id="lane-table">
+        <caption id="lane-table-caption">Current lane assessments. Expand a row for the full domain assessment, data gaps, selection evidence and known limitations.</caption>
+        <thead><tr><th scope="col"><span class="visually-hidden">Expand</span></th><th scope="col">Lane</th><th scope="col">Attention</th><th scope="col">Direction</th><th scope="col">Resolution</th><th scope="col">Mode</th><th scope="col">Chokepoints</th></tr></thead>
+        <tbody id="lane-cards"></tbody>
+      </table></div>
+      <h3>Chokepoints</h3>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="chokepoint-table-caption"><table id="chokepoint-table">
+        <caption id="chokepoint-table-caption">Registered chokepoints, the lanes exposed to each, and whether an official notice is recorded.</caption>
+        <thead><tr><th scope="col">Chokepoint</th><th scope="col">Type</th><th scope="col">Modes</th><th scope="col">Operating authority</th><th scope="col">Exposed lanes</th><th scope="col">Notice status</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <details class="region region-demo" data-evidence-region="demonstration" id="ocean-demo-region">
+      <summary>Demonstration &amp; historical material <span class="pill pill-demo">technical demonstration</span> <span class="pill pill-demo">historical validation</span></summary>
+      <div class="region-body">
+        <p class="banner banner-demo" id="ocean-demo-label"></p>
+        <h3 class="demo-heading">Port and maritime indicators — demonstration <span class="pill pill-demo">technical demonstration</span></h3>
+        <div id="port-series"></div>
+        <h3 class="demo-heading">Lane assessments — demonstration <span class="pill pill-demo">technical demonstration</span></h3>
+        <div id="lane-demo-cards"></div>
+        <h3 class="demo-heading">Official notices — historical validation <span class="pill pill-demo">historical validation</span></h3>
+        <div id="notices"></div>
+        <h3 class="demo-heading">Capacity and service evidence — historical validation <span class="pill pill-demo">historical validation</span></h3>
+        <div class="table-wrap" tabindex="0" role="region" aria-labelledby="capacity-table-caption"><table id="capacity-table">
+          <caption id="capacity-table-caption">Capacity and service impacts actually recorded against an event, with the evidence strength and confidence behind each.</caption>
+          <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </details>
   </section>
 
-  <section id="trade" aria-labelledby="trade-h">
-    <h2 id="trade-h">3. Trade and Flow</h2>
+  <section id="trade" class="view" data-view="trade" aria-labelledby="trade-h">
+    <h2 id="trade-h" tabindex="-1">Trade &amp; Flow</h2>
     <p class="section-intro">Thailand import and export value by lane group, with period comparisons and revision status.</p>
-    <p class="banner banner-note" id="trade-current"></p>
-    <h3>Current trade flows <span class="pill pill-note">current</span></h3>
-    <div id="current-trade-lanes"></div>
-    <p class="banner banner-demo" id="trade-demo-label"></p>
-    <p class="banner banner-note" id="trade-note"></p>
-    <h3 class="demo-heading">Trade flows by lane <span class="pill pill-demo">technical demonstration</span></h3>
-    <div id="trade-lanes"></div>
+
+    <div data-evidence-region="current">
+      <p class="banner banner-note" id="trade-current"></p>
+      <h3>Current trade flows</h3>
+      <div id="current-trade-lanes"></div>
+      <p class="prose" id="trade-note"></p>
+    </div>
+
+    <details class="region region-demo" data-evidence-region="demonstration" id="trade-demo-region">
+      <summary>Demonstration material <span class="pill pill-demo">technical demonstration — synthetic fixture</span></summary>
+      <div class="region-body">
+        <p class="banner banner-demo" id="trade-demo-label"></p>
+        <h3 class="demo-heading">Trade flows by lane — demonstration <span class="pill pill-demo">technical demonstration</span></h3>
+        <div id="trade-lanes"></div>
+      </div>
+    </details>
   </section>
 
-  <section id="cost" aria-labelledby="cost-h">
-    <h2 id="cost-h">4. Cost and Freight Pressure</h2>
+  <section id="cost" class="view" data-view="cost" aria-labelledby="cost-h">
+    <h2 id="cost-h" tabindex="-1">Cost &amp; Freight</h2>
     <p class="section-intro">Fuel, FX and freight benchmarks. Each series states what kind of number it is.</p>
-    <p class="banner banner-note" id="cost-current"></p>
-    <h3>Current cost readings <span class="pill pill-note">current</span></h3>
-    <div id="current-cost-series"></div>
-    <p class="banner banner-demo" id="cost-demo-label"></p>
-    <p class="banner banner-warning" id="cost-limits-banner"></p>
-    <h3 class="demo-heading">Cost and freight benchmarks <span class="pill pill-demo">technical demonstration</span></h3>
-    <div id="cost-series"></div>
-    <h3>FX context</h3>
-    <div id="fx-series"></div>
-    <h3>Benchmark limitations</h3>
-    <ul id="cost-limitations" class="prose-list gap-list"></ul>
-    <h3>Surcharges and fees</h3>
-    <p id="surcharge-note" class="prose"></p>
+
+    <div data-evidence-region="current">
+      <p class="banner banner-note" id="cost-current"></p>
+      <h3>Current cost readings</h3>
+      <div id="current-cost-series"></div>
+      <h3>Benchmark limitations</h3>
+      <ul id="cost-limitations" class="prose-list gap-list"></ul>
+      <h3>Surcharges and fees</h3>
+      <p id="surcharge-note" class="prose"></p>
+    </div>
+
+    <details class="region region-demo" data-evidence-region="demonstration" id="cost-demo-region">
+      <summary>Demonstration material <span class="pill pill-demo">technical demonstration — synthetic fixture</span></summary>
+      <div class="region-body">
+        <p class="banner banner-demo" id="cost-demo-label"></p>
+        <p class="banner banner-warning" id="cost-limits-banner"></p>
+        <h3 class="demo-heading">Cost and freight benchmarks — demonstration <span class="pill pill-demo">technical demonstration</span></h3>
+        <div id="cost-series"></div>
+        <h3 class="demo-heading">FX context <span class="pill pill-demo">technical demonstration</span></h3>
+        <div id="fx-series"></div>
+      </div>
+    </details>
   </section>
 
-  <section id="events" aria-labelledby="events-h">
-    <h2 id="events-h">5. Events and External Drivers</h2>
+  <section id="events" class="view" data-view="events" aria-labelledby="events-h">
+    <h2 id="events-h" tabindex="-1">Events</h2>
     <p class="section-intro">Direct operational events, external drivers and discovery leads are kept separate. An external driver stays contextual until a transmission mechanism is stated.</p>
     <p class="banner banner-note" id="events-note"></p>
-    <h3>Current direct operational events</h3>
-    <p class="banner banner-note" id="events-current-statement"></p>
-    <div id="events-current-operational"></div>
-    <h3>Current external drivers</h3>
-    <div id="events-current-drivers"></div>
-    <p class="banner banner-demo" id="events-demo-label"></p>
-    <h3 class="demo-heading">Direct operational events <span class="pill pill-demo">historical validation</span></h3>
-    <div id="events-operational"></div>
-    <h3 class="demo-heading">External drivers with a stated transmission mechanism <span class="pill pill-demo">historical validation</span></h3>
-    <div id="events-admitted"></div>
-    <h3 class="demo-heading">Contextual external drivers <span class="pill pill-muted">no transmission mechanism established</span> <span class="pill pill-demo">historical validation</span></h3>
-    <div id="events-contextual"></div>
-    <h3 class="demo-heading">Discovery leads <span class="pill pill-muted">unconfirmed, cannot support a conclusion</span> <span class="pill pill-demo">historical validation</span></h3>
-    <div id="events-leads"></div>
+
+    <div data-evidence-region="current">
+      <h3>Current direct operational events</h3>
+      <p class="banner banner-note" id="events-current-statement"></p>
+      <div id="events-current-operational"></div>
+      <h3>Current external drivers</h3>
+      <div id="events-current-drivers"></div>
+    </div>
+
+    <details class="region region-demo" data-evidence-region="historical" id="events-demo-region">
+      <summary>Historical validation material <span class="pill pill-demo">historical validation — not a current condition</span></summary>
+      <div class="region-body">
+        <p class="banner banner-demo" id="events-demo-label"></p>
+        <h3 class="demo-heading">Direct operational events <span class="pill pill-demo">historical validation</span></h3>
+        <div id="events-operational"></div>
+        <h3 class="demo-heading">External drivers with a stated transmission mechanism <span class="pill pill-demo">historical validation</span></h3>
+        <div id="events-admitted"></div>
+        <h3 class="demo-heading">Contextual external drivers <span class="pill pill-muted">no transmission mechanism established</span> <span class="pill pill-demo">historical validation</span></h3>
+        <div id="events-contextual"></div>
+        <h3 class="demo-heading">Discovery leads <span class="pill pill-muted">unconfirmed, cannot support a conclusion</span> <span class="pill pill-demo">historical validation</span></h3>
+        <div id="events-leads"></div>
+      </div>
+    </details>
   </section>
 
-  <section id="outlook" aria-labelledby="outlook-h">
-    <h2 id="outlook-h">6. AI Outlook and Preparedness</h2>
+  <section id="outlook" class="view" data-view="outlook" aria-labelledby="outlook-h">
+    <h2 id="outlook-h" tabindex="-1">Outlook</h2>
     <p class="section-intro">Human-approved AI assessments only.</p>
     <p class="banner banner-critical" id="ai-status"></p>
     <p class="prose" id="ai-boundary"></p>
     <p class="prose" id="ai-package-note"></p>
-    <h3>Assessment status <span class="pill pill-note">current</span></h3>
-    <div id="withheld-assessments"></div>
-    <div id="approved-assessments"></div>
-    <h3>Current deterministic lane outlooks</h3>
-    <p class="section-intro" id="deterministic-note"></p>
-    <div id="current-outlooks"></div>
-    <h3 class="demo-heading">Lane outlooks <span class="pill pill-demo">technical demonstration</span></h3>
-    <p class="banner banner-demo" id="outlook-demo-label"></p>
-    <div id="outlooks"></div>
+
+    <div data-evidence-region="current">
+      <h3>Assessment status</h3>
+      <div id="withheld-assessments"></div>
+      <div id="approved-assessments"></div>
+      <h3>Current deterministic lane outlooks</h3>
+      <p class="section-intro" id="deterministic-note"></p>
+      <div id="current-outlooks"></div>
+    </div>
+
+    <details class="region region-demo" data-evidence-region="demonstration" id="outlook-demo-region">
+      <summary>Demonstration material <span class="pill pill-demo">technical demonstration — synthetic fixture</span></summary>
+      <div class="region-body">
+        <p class="banner banner-demo" id="outlook-demo-label"></p>
+        <h3 class="demo-heading">Lane outlooks — demonstration <span class="pill pill-demo">technical demonstration</span></h3>
+        <div id="outlooks"></div>
+      </div>
+    </details>
   </section>
 
-  <section id="sources" aria-labelledby="sources-h">
-    <h2 id="sources-h">7. Sources and Methodology</h2>
+  <section id="sources" class="view" data-view="sources" aria-labelledby="sources-h">
+    <h2 id="sources-h" tabindex="-1">Sources &amp; Methodology</h2>
     <p class="section-intro">Every source in the registry, its licence and reuse position, its freshness, its limitations, and exactly what is blocking enablement.</p>
     <div class="cards" id="sources-cards"></div>
     <h3>Capability coverage</h3>
-    <div class="table-wrap"><table id="capability-table">
-      <caption>Whether each analytical capability has a working source behind it.</caption>
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="capability-table-caption"><table id="capability-table">
+      <caption id="capability-table-caption">Whether each analytical capability has a working source behind it.</caption>
       <thead><tr><th scope="col">Capability</th><th scope="col">Status</th><th scope="col">Supporting sources</th><th scope="col">Gap reason</th></tr></thead>
       <tbody></tbody>
     </table></div>
     <h3>Source registry</h3>
-    <div id="source-list"></div>
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="source-table-caption"><table id="source-table">
+      <caption id="source-table-caption">Every registered source. Expand a row for its full record, enablement blockers and known limitations.</caption>
+      <thead><tr><th scope="col"><span class="visually-hidden">Expand</span></th><th scope="col">Source</th><th scope="col">Owner</th><th scope="col">Class</th><th scope="col">Licence</th><th scope="col">Enabled</th><th scope="col">Health</th><th scope="col">Blockers</th></tr></thead>
+      <tbody id="source-list"></tbody>
+    </table></div>
     <h3>Historical validation summary</h3>
-    <div class="table-wrap"><table id="validation-table">
-      <caption>Behaviours measured across the historical validation cases by scripts/run_historical_validation.py.</caption>
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="validation-table-caption"><table id="validation-table">
+      <caption id="validation-table-caption">Behaviours measured across the historical validation cases by scripts/run_historical_validation.py.</caption>
       <thead><tr><th scope="col">Measure</th><th scope="col">Result</th></tr></thead>
       <tbody></tbody>
     </table></div>
     <h3>Methodology documents</h3>
     <ul id="methodology-docs" class="prose-list"></ul>
+    <h3>Machine-readable payloads</h3>
+    <p class="prose">These files are <strong>generated static artifacts, not a supported public API</strong>. Schema stability is not guaranteed unless a specific data contract says otherwise. They are published for inspection and reproducibility, consistent with this platform's evidence-provenance discipline.</p>
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="payload-table-caption"><table id="payload-table">
+      <caption id="payload-table-caption">Every JSON file this build publishes under data/, whether the page itself consumes it, and its dataset classification where declared.</caption>
+      <thead><tr><th scope="col">File</th><th scope="col">Dataset</th><th scope="col">Used by this page</th></tr></thead>
+      <tbody id="payload-list"></tbody>
+    </table></div>
   </section>
 
 </main>
