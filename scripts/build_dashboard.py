@@ -1304,8 +1304,6 @@ def build_payloads() -> dict[str, Any]:
         "sources.json": sources_payload,
         "indicators.json": _load(ROOT / "data/indicators/latest.json"),
         "source_status.json": source_status,
-        "current_events.json": _load(ROOT / "data/reviewed/current_events.json"),
-        "solutions.json": _load(ROOT / "innovation/solution_register.json"),
         "build_status.json": {
             "built_at": current_as_of_iso,
             "fixture_generated_at": DATA_CUTOFF_ISO,
