@@ -99,9 +99,12 @@ environment's `WebFetch` tool is blocked for external hosts and no one has yet r
 underlying terms; the two exceptions are `MANUAL_NOTICE_INTAKE` (`permitted with attribution` /
 `link only`, a bounded reviewed intake mechanism, not a primary-text reading) and
 `NEWS_DISCOVERY` (`link only` on redistribution specifically, reuse itself still `unknown`).
-Still disabled: the endpoint and exact field names are unconfirmed, no controlled live
-validation has run, and no human has yet approved a first live request. See
-`docs/mpa_sg_statistics_qualification.md` for the full record.
+Still disabled: the endpoint and exact field names are now human-confirmed (WO-027, Issue
+#56), and a bounded 2-request controlled live validation is human-authorized, but neither has
+been executed — this environment's outbound network access to `data.gov.sg` is denied by the
+session's auto-mode permission classifier. `container_throughput`'s unit/scale also remains
+unverified against real evidence. See `docs/mpa_sg_statistics_qualification.md` for the full
+record.
 
 ### Outside the Bundle 1 source core
 

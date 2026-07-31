@@ -79,8 +79,9 @@ field names, which were wrong:
 - **`gross_tonnage` is confirmed to exist** on the vessel-arrivals dataset but is **not**
   wired into any parsed capability. Per the human decision, it must be assessed separately
   and implemented only if it adds a clearly defined capability — it is not added merely
-  because it is available. The parser's `VESSEL_SPEC`-equivalent registered spec does not
-  reference it; `tests/test_data_gov_sg_adapter.py::test_gross_tonnage_is_present_in_the_fixture_but_not_parsed`
+  because it is available. The test suite's `VESSEL_SPEC` (§3: no production spec is
+  instantiated anywhere outside the tests) does not reference it;
+  `tests/test_data_gov_sg_adapter.py::test_gross_tonnage_is_present_in_the_fixture_but_not_parsed`
   pins this.
 - The dataset (resource) identifiers are unchanged from WO-026 and are now human-confirmed
   rather than search-snippet-derived.
