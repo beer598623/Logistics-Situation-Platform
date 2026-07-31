@@ -53,8 +53,10 @@ Recorded verbatim from the human decision, not re-derived:
    imply government endorsement.
 3. The licence does not grant rights over personal data, third-party rights, patents,
    trademarks or design rights. The selected MPA statistical datasets must be confirmed to
-   contain no such fields before publication — **not yet done**, since no live response has
-   been read (see §6, §7).
+   contain no such fields before publication — **only partially done**: WO-027 Part B's live
+   validation (§7) confirmed the fields it actually requested and returned carry no such data,
+   but its field-projected requests cannot confirm either resource's *complete* schema, so full
+   confirmation is still outstanding (see §6 item 2, §9).
 4. The official MPA dataset pages label the following as free forever for personal or
    commercial use under the Open Data Licence: Container Throughput (Monthly), Registered
    Vessels and Shipping Tonnage (Monthly), and monthly cargo-throughput total/breakdown
