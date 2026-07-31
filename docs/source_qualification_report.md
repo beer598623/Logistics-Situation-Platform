@@ -89,7 +89,7 @@ correctly scoped candidate to stand in for. Both are disabled.
 
 | ID | Publisher | Logistics role | Access | Reuse | Redistribution | Fixture test | Live validation |
 |---|---|---|---|---|---|---|---|
-| `MPA_SG_STATISTICS` | Maritime and Port Authority of Singapore (data.gov.sg) | Regional hub / external driver context (Singapore, not Thailand) | free | **open licence (reviewed)** | **permitted** | yes | not performed |
+| `MPA_SG_STATISTICS` | Maritime and Port Authority of Singapore (data.gov.sg) | Regional hub / external driver context (Singapore, not Thailand) | free | **open licence (reviewed)** | **permitted** | yes | completed |
 
 The Ocean Minimum Live Core research pass (see Issue #54) found that this is the only
 candidate in the whole registry whose reuse terms a human independently verified against the
@@ -99,12 +99,14 @@ environment's `WebFetch` tool is blocked for external hosts and no one has yet r
 underlying terms; the two exceptions are `MANUAL_NOTICE_INTAKE` (`permitted with attribution` /
 `link only`, a bounded reviewed intake mechanism, not a primary-text reading) and
 `NEWS_DISCOVERY` (`link only` on redistribution specifically, reuse itself still `unknown`).
-Still disabled: the endpoint and exact field names are now human-confirmed (WO-027, Issue
-#56), and a bounded 2-request controlled live validation is human-authorized, but neither has
-been executed — this environment's outbound network access to `data.gov.sg` is denied by the
-session's auto-mode permission classifier. `container_throughput`'s unit/scale also remains
-unverified against real evidence. See `docs/mpa_sg_statistics_qualification.md` for the full
-record.
+Still disabled: the endpoint and exact field names are human-confirmed (WO-027, Issue #56),
+and the human-authorized bounded 2-request controlled live validation has now been executed
+(WO-027 Part B, 2026-07-31, from an environment that allowlists `data.gov.sg` — a prior
+session's denial was an environment-policy failure, not a `data.gov.sg` source response).
+`container_throughput`'s unit/scale remains unverified and fail-closed by deliberate decision:
+WO-027 Part C's reconciliation against official MPA annual totals corroborates a scale but is
+not an independently-read primary-source unit label. See `docs/mpa_sg_statistics_qualification.md`
+for the full record.
 
 ### Outside the Bundle 1 source core
 

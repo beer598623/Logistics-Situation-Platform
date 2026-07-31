@@ -27,8 +27,36 @@ for the full reconciliation record and the confirmed endpoint
   response shape but is **not** wired into any parsed capability — the human decision recorded
   on Issue #56 requires it to be assessed separately before it is added.
 
-Whether this exact response *envelope* shape (`{"success", "result": {"resource_id", "fields",
-"records", "total"}}`, the standard CKAN Datastore Search convention) matches the real API is
-still unconfirmed pending the controlled live validation.
+The response *envelope* shape (`{"success", "result": {"resource_id", "fields", "records",
+"total"}}`, the standard CKAN Datastore Search convention) is now confirmed to match the real
+API — see WO-027 Part B's bounded live validation, `docs/mpa_sg_statistics_qualification.md`
+§7. This fixture's own `_id`/`fields` block was never re-verified against that live validation:
+`result.fields` is not on Issue #56's retention allowlist, so its exact live shape was never
+captured in the committed evidence artifact, and `scripts/wo027_part_b_live_validation.py`
+derives `returned_field_names` from the retained *records* rather than from `result.fields` for
+exactly this reason. Nothing here confirms or contradicts this fixture's `fields` array in
+particular, only the envelope's outer shape.
+
+**These fixture values remain shape-only, not magnitude-calibrated — this is now visible by
+direct comparison, not merely a caveat.** WO-027 Part B's live validation retrieved real values
+that diverge from this fixture's invented figures by very different factors per field, none of
+them a suspiciously round number that would suggest a shared, correctable scale error:
+
+| Field | Fixture (invented) | Live (WO-027 Part B) | Approximate divergence |
+|---|---|---|---|
+| `container_throughput` | ~3,045,000-3,210,000 | ~3,421-3,943 | ~800-890x |
+| `number_of_vessels` | ~3,410-3,598 | ~10,873-12,031 | ~3.2-3.3x |
+| `gross_tonnage` | ~109,800,000-114,900,000 | ~257,056-293,346 | ~400x |
+
+This is expected and does not indicate an error in either the fixture or the live data: the
+fixture was never intended to be numerically realistic (see this file's opening paragraph), and
+WO-027 deliberately did not update it to match live magnitudes, preserving the fixture/live
+evidence-origin boundary `docs/mpa_sg_statistics_qualification.md` and every other WO-010-style
+adapter maintain — a fixture must never be silently reshaped to imitate a specific live
+observation, or a future reader could mistake a fixture-derived value for a real one. Note that
+`container_throughput`'s own divergence (~800-890x) is in the same broad neighbourhood as, but
+is not equal to and must not be read as corroborating, the ×1,000 scale `docs/mpa_sg_statistics_qualification.md`
+§8 discusses — the fixture's number was never calibrated to any real unit and carries no
+evidentiary weight for that question.
 
 No data.gov.sg content or attribution text is reproduced here.
