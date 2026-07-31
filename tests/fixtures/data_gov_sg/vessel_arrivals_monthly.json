@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "result": {
+    "resource_id": "d_d48c5a038904f6da3c603cd854b6c191",
+    "fields": [
+      {"id": "_id", "type": "int"},
+      {"id": "month", "type": "text"},
+      {"id": "total_vessels", "type": "numeric"}
+    ],
+    "records": [
+      {"_id": 1, "month": "2026-01", "total_vessels": "3520"},
+      {"_id": 2, "month": "2026-02", "total_vessels": "3410"},
+      {"_id": 3, "month": "2026-03", "total_vessels": "3598"},
+      {"_id": 4, "month": "2026-04", "total_vessels": null}
+    ],
+    "total": 4
+  }
+}

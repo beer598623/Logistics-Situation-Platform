@@ -132,9 +132,10 @@ def test_collect_dry_run_reports_every_contract_without_network():
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["status"] == "dry_run"
-    # 17 registered sources, none enabled: a dry run enumerates every contract
-    # without touching the network. R1 added PAT_STATISTICS and FBX_PUBLIC.
-    assert payload["contracts"] == 17
+    # 18 registered sources, none enabled: a dry run enumerates every contract
+    # without touching the network. R1 added PAT_STATISTICS and FBX_PUBLIC;
+    # WO-026 added MPA_SG_STATISTICS.
+    assert payload["contracts"] == 18
     assert all(run_manifest["status"] == "dry_run" for run_manifest in payload["runs"])
 
 

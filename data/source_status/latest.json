@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-24T00:00:00Z",
+  "generated_at": "2026-07-31T00:00:00Z",
   "overall_status": "insufficient",
   "coverage_message": "Zero evidence: no source has collected any qualifying record, so one or more capabilities required for publication have no coverage at all.",
   "sources": [
@@ -132,6 +132,16 @@
       "item_count": null,
       "required_for_publication": false,
       "max_stale_minutes": 20160
+    },
+    {
+      "source_id": "MPA_SG_STATISTICS",
+      "status": "disabled",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "last_error": null,
+      "item_count": null,
+      "required_for_publication": false,
+      "max_stale_minutes": 105120
     },
     {
       "source_id": "MANUAL_NOTICE_INTAKE",
@@ -294,9 +304,18 @@
       "supporting_sources": [
         "IMF_PORTWATCH",
         "UNCTAD_MARITIME",
+        "MPA_SG_STATISTICS",
         "PAT_STATISTICS"
       ],
       "gap_reason": "No enabled source currently backs port_activity_indicator."
+    },
+    {
+      "capability": "regional_hub_activity_context",
+      "status": "insufficient",
+      "supporting_sources": [
+        "MPA_SG_STATISTICS"
+      ],
+      "gap_reason": "No enabled source currently backs regional_hub_activity_context."
     },
     {
       "capability": "thailand_fuel_indicator",

@@ -938,6 +938,105 @@ sources:
         - Reuse and redistribution terms have not been reviewed.
         - No controlled live validation has been performed.
 
+  - id: MPA_SG_STATISTICS
+    name: Maritime and Port Authority of Singapore vessel and container throughput statistics (data.gov.sg)
+    owner: Maritime and Port Authority of Singapore, published via data.gov.sg
+    source_class: regulator
+    purposes: [port_activity_indicator, regional_hub_activity_context]
+    authoritative_for:
+      - mpa_singapore_published_container_throughput
+      - mpa_singapore_published_vessel_arrivals
+    landing_url: https://data.gov.sg/datasets/d_da030f7028200d19ffcbe4a2d71af39c/view
+    endpoint: null
+    access_method: ckan
+    format: json
+    machine_readable_status: unverified
+    parser: data_gov_sg_v1
+    stable_id_field: [resource_id, month]
+    expected_cadence_minutes: 44640
+    max_stale_minutes: 105120
+    publication_lag: monthly
+    pagination:
+      type: none
+      page_size: null
+    http:
+      supports_etag: unknown
+      supports_last_modified: unknown
+      timeout_seconds: 30
+      max_response_bytes: 5000000
+    retry:
+      attempts: 3
+      backoff: exponential_jitter
+    licence_status: reviewed
+    terms_url: https://data.gov.sg/open-data-licence
+    terms_reviewed_at: "2026-07-31"
+    reuse_reference_urls:
+      - label: singapore_open_data_licence_v1
+        url: https://data.gov.sg/open-data-licence
+      - label: container_throughput_dataset
+        url: https://data.gov.sg/datasets/d_da030f7028200d19ffcbe4a2d71af39c/view
+      - label: vessel_arrivals_dataset
+        url: https://data.gov.sg/datasets/d_d48c5a038904f6da3c603cd854b6c191/view
+    fallback_sources: [PAT_STATISTICS, IMF_PORTWATCH]
+    known_limitations:
+      - "WO-026: this is Singapore hub activity, not a Thailand measurement. Singapore is a transshipment hub for Thailand cargo, so it is relevant to Thailand only through the transshipment mechanism, which must be stated rather than assumed -- the same caveat MPA_SG_NOTICE already carries."
+      - Throughput and vessel-call counts are volume measures. They can never on their own establish congestion, waiting time or berth delay.
+      - "WO-026: the exact Datastore Search API endpoint path and JSON field names are this Work Order's best-effort assumption from data.gov.sg's documented Datastore Search convention, not an independently confirmed observation -- this environment's WebFetch tool is blocked for every external host, so no live response has been read. Confirming both is the first action of the controlled live validation this Work Order does not perform."
+      - "The two dataset (resource) identifiers this contract covers were themselves read from search-engine snippets of the dataset landing pages, not fetched directly, and must also be reconfirmed."
+      - Covers two Datastore Search resources under one contract -- container throughput and vessel arrivals -- distinguished by resource_id, the same one-contract/multiple-series pattern PAT_STATISTICS uses for its two terminals.
+      - Registration requirement is recorded as none because data.gov.sg's own developer documentation states public Datastore Search reads need no API key; anonymous access is rate-limited (documented as 4 Datastore Search calls / 10s, 2 dataset-download calls / 10s) and this has not yet been independently observed.
+      - No personal data, third-party rights, patents, trademarks or design rights are expected in an aggregate monthly statistics series, but this has not yet been positively confirmed against a real response, which the Singapore Open Data Licence v1.0 requires before publication.
+      - "WO-026: no controlled live validation could be performed."
+    enabled: false
+    required_for_publication: false
+    qualification:
+      access_cost: free
+      registration_requirement: none
+      paywall_status: none
+      reuse_status: open_licence
+      reuse_licence_name: Singapore Open Data Licence v1.0
+      redistribution_status: permitted
+      # WO-026: human-verified directly against the primary data.gov.sg pages (this
+      # environment's WebFetch tool could not reach them). The licence grants a
+      # worldwide, perpetual, royalty-free, non-exclusive right to access, download,
+      # copy, distribute, modify and adapt covered datasets and derived analyses,
+      # commercially or non-commercially, conditional on attribution (dataset name,
+      # access date, MPA/data.gov.sg as source, and the licence itself) and on not
+      # implying government endorsement. It grants no rights over personal data,
+      # third-party rights, patents, trademarks or design rights.
+      publication_use: raw_values_permitted
+      publication_use_basis: >-
+        Singapore Open Data Licence v1.0 explicitly grants copy/distribute/modify,
+        commercially, with attribution required -- the most permissive disposition
+        this registry's enum carries. Not yet exercised: enablement is separately
+        blocked (see enablement.blockers) until a controlled live validation
+        confirms the endpoint, field shapes and the absence of personal or
+        third-party-rights data in the real response.
+      publication_cadence: monthly
+      observed_freshness: null
+      data_period: null
+      geography: [Singapore]
+      logistics_role: [external_driver_context]
+      rate_limit: "documented (unobserved): 4 Datastore Search calls / 10s, 2 dataset-download calls / 10s, anonymous access"
+      response_size_limit_bytes: 5000000
+      prototype_eligibility: eligible_pending_validation
+      reviewed_at: "2026-07-31"
+    enablement:
+      fixture_test_exists: true
+      fixture_test_reference: tests/test_data_gov_sg_adapter.py::test_container_throughput_fixture_parses_into_valid_port_observations
+      live_validation_status: not_performed
+      live_validation_reference: null
+      parser_fails_closed: true
+      response_bounded: true
+      schedule_justified: false
+      collection_schedule: null
+      public_repository_safe: true
+      blockers:
+        - No controlled live validation has been performed; the endpoint field is null and the exact JSON field names are unconfirmed.
+        - Human approval for the first live request has not yet been obtained (deferred to a separate Work Order / human gate).
+        - No external account or API key has been created; anonymous access is intended and untested against the real documented rate limit.
+        - The absence of personal data, third-party rights, patents, trademarks or design rights in the real response has not yet been positively confirmed, which the licence requires before publication.
+
   - id: MANUAL_NOTICE_INTAKE
     name: Human-reviewed official operational notice intake
     owner: Logistics Situation Platform maintainers

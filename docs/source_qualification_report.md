@@ -1,6 +1,6 @@
 # Source qualification report
 
-<!-- registry-source-count: 17 -->
+<!-- registry-source-count: 18 -->
 
 **Work Order:** WO-010 Gate C, extended by WO-011 · **Registry version:** 0.3 · **Reviewed:** 2026-07-24
 **Policy:** `free_public_sources_only` · **Paid-source dependency:** 0
@@ -41,9 +41,18 @@ because qualification requires a controlled live validation that could not be pe
 unqualified data was substituted to close the gap; the resulting coverage limitation is
 stated on the Dashboard, in the source-health snapshot and in every lane assessment.
 
+**WO-026 addition, outside the table above:** `MPA_SG_STATISTICS` (Singapore vessel/container
+statistics via `data.gov.sg`) is registered with `licence_status: reviewed` — the platform's
+first source whose reuse terms were actually read by a human against the primary licence text
+(Singapore Open Data Licence v1.0), rather than left `unknown`. It is deliberately not counted
+against the "Thailand port, maritime or transport" row above: it measures Singapore hub
+activity, not Thailand, and is relevant only through the transshipment mechanism (see
+`docs/mpa_sg_statistics_qualification.md`). Still `enabled: false`; no controlled live
+validation has been performed.
+
 ## 3. Candidate register
 
-Seventeen contracts. Full machine-readable detail is in `config/sources.yaml`.
+Eighteen contracts. Full machine-readable detail is in `config/sources.yaml`.
 
 ### Bundle 1 candidates (10 new + 3 pre-existing)
 
@@ -75,6 +84,21 @@ Thailand port-throughput series against `IMF_PORTWATCH` (a vessel-tracking estim
 synthetic container freight benchmark against `EPPO_FUEL` (a domestic retail fuel publisher) —
 neither mapping was true. WO-010-R1 registered these two contracts so each series has a
 correctly scoped candidate to stand in for. Both are disabled.
+
+### WO-026 addition (1)
+
+| ID | Publisher | Logistics role | Access | Reuse | Redistribution | Fixture test | Live validation |
+|---|---|---|---|---|---|---|---|
+| `MPA_SG_STATISTICS` | Maritime and Port Authority of Singapore (data.gov.sg) | Regional hub / external driver context (Singapore, not Thailand) | free | **open licence (reviewed)** | **permitted** | yes | not performed |
+
+The Ocean Minimum Live Core research pass (see Issue #54) found that this is the only
+candidate in the whole registry whose reuse terms a human independently verified against the
+primary licence text as unambiguously permitting redistribution — the Singapore Open Data
+Licence v1.0. Every other entry in this table remains `unknown` because this environment's
+`WebFetch` tool is blocked for external hosts and no one has yet read the underlying terms.
+Still disabled: the endpoint and exact field names are unconfirmed, no controlled live
+validation has run, and no human has yet approved a first live request. See
+`docs/mpa_sg_statistics_qualification.md` for the full record.
 
 ### Outside the Bundle 1 source core
 
