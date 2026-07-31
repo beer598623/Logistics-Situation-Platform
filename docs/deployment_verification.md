@@ -50,7 +50,9 @@ unrelated problem, and nothing would notice.
 - On any failure (file check, JSON syntax, or liveness), opens a GitHub issue titled
   `[Automated] Repository health check failed` linking the run, or comments on that issue if
   it is already open (deduplicated by exact title match, not GitHub's fuzzy search, to avoid
-  false matches).
+  false matches — and, since WO-021, explicitly excluding pull requests from that lookup,
+  since `GET /issues` returns them alongside issues and a same-titled PR could otherwise be
+  mistaken for the tracked one).
 - On the next successful run, comments on and closes that issue automatically if it is still
   open.
 
@@ -68,6 +70,11 @@ Actions tab that nobody was necessarily watching.
   the page) — only that the HTML document itself is reachable and contains the expected
   marker. `dashboard/public/assets/app.js` fetching `dashboard/public/data/*.json` client-side
   is exercised by `tests/test_dashboard_build.py` and the CI build step, not by this check.
+- The issue-dedupe lookup (§3) stays capped at one API page (`per_page=100`). With the
+  repository's current low open-issue-and-PR count this is latent, not active, but if that
+  count ever grows past 100 an existing tracked issue past the first page would be missed and
+  a duplicate opened (WO-021 fixed the PR-matching false positive in the same lookup, not
+  this pagination limit).
 
 See `docs/operations_runbook.md` for the rollback procedure and incident-response section
 this Work Order also adds.
