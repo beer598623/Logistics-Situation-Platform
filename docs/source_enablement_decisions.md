@@ -22,6 +22,7 @@ source in `config/sources.yaml` and summarised in `docs/source_qualification_rep
 | `MPA_SG_NOTICE` | **Keep disabled** | No machine-readable feed confirmed; reuse terms unreviewed |
 | `MANUAL_NOTICE_INTAKE` | **Keep disabled** | The path exists and is tested, but no notice has been recorded through it, so it currently contributes no coverage |
 | `NEWS_DISCOVERY` | **Keep disabled** | No query endpoint confirmed; reuse terms unreviewed. Discovery-only in any case |
+| `MPA_SG_STATISTICS` | **Keep disabled** (WO-026) | Reuse terms are the platform's first `reviewed` licence position, but the endpoint and field names are unconfirmed and no controlled live validation has run; enablement is a separate, later decision |
 | `TMD_CAP` | **Unchanged, disabled** | Outside the Bundle 1 source core. Governed by Issue #15; WO-010 must not modify it |
 | `GDACS` | **Unchanged, disabled** | Outside the Bundle 1 source core. Same |
 
@@ -60,6 +61,7 @@ rather than halting the bundle:
 | `NEWS_DISCOVERY` | Confirm the query endpoint and rate limits; confirm link-level redistribution is permitted |
 | `PAT_STATISTICS` | Confirm a stable machine-readable throughput publication and its scope (TEU vs tonnes, port vs terminal); read and record reuse terms |
 | `FBX_PUBLIC` | Confirm which figures are publicly reusable versus subscription-only; record route scope, unit and redistribution position before any value is committed |
+| `MPA_SG_STATISTICS` | Confirm the exact Datastore Search endpoint and JSON field names by controlled live validation; confirm the response carries no personal data, third-party rights, patents, trademarks or design rights; obtain human approval for the first live request before it is made |
 | `TMD_CAP`, `GDACS` | Out of scope, and explicitly excluded from WO-010-R1. A separate Work Order and their own governance records apply. Neither was contacted |
 
 ## Schedule policy

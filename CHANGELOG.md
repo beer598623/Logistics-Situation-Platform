@@ -37,6 +37,18 @@ WO-010 and is not bumped by every Work Order.
   `logistics_event.schema.json`'s `event_type` enum, which WO-017 had already verified has
   two Ocean-worded values with no exact fit for a non-Ocean closure event. Qualified both
   documents to match WO-017's verified finding; corrected a stale test-coverage claim.
+- WO-024: a currency pass on `docs/production_readiness_roadmap.md`, this file, and
+  `docs/deployment_verification.md` after the volume of WO-018 through WO-023 merges; fixed a
+  factual error a fresh independent review caught (a health-check run-count claim that had the
+  workflow's post-WO-014 run count backwards).
+- WO-025: `docs/operations_runbook.md`, `docs/bundle1_architecture.md`,
+  `docs/data_model_and_persistence.md` and `tests/test_derived_outputs.py`'s own docstring
+  claimed, unqualified, that every generator has a `--check` mode; only three do
+  (`ingest_fixtures.py`, `build_events_from_cases.py`, `build_analysis.py`).
+  `build_dashboard.py` and `generate_synthetic_fixtures.py` silently ignored an unrecognized
+  `--check` flag and wrote files anyway. Corrected the claims; made both scripts reject an
+  unrecognized flag with exit 2; added a binding test that AST-parses `scripts/*.py` for real
+  `--check` support so the claim can't drift silently again.
 
 ### Added
 
@@ -77,6 +89,13 @@ WO-010 and is not bumped by every Work Order.
 - `.github/workflows/health-check.yml`'s two issue-dedupe lookups now exclude pull requests
   (`select(.pull_request == null)`), which the underlying GitHub API returns alongside issues
   and could otherwise be mistaken for the tracked deployment-health issue (WO-021).
+- `config/sources.yaml`'s `MPA_SG_STATISTICS` contract and `collectors/adapters/data_gov_sg.py`:
+  the platform's first source with a human-verified `licence_status: reviewed` position
+  (Singapore Open Data Licence v1.0, read directly by a human against the primary text since
+  this environment's `WebFetch` is blocked for external hosts). Offline engineering only —
+  fixture-first parser, tests, `docs/mpa_sg_statistics_qualification.md` and a draft
+  controlled-live-validation package for a future human gate. `enabled: false`; no live
+  request, account, API key, schedule, or Dashboard publication (WO-026, Issue #54).
 
 ## [0.3.0] — 2026-07-30 — WO-010: Bundle 1, Common Foundation + Ocean Logistics Intelligence MVP
 

@@ -237,7 +237,7 @@ def test_events_are_separated_by_class(payloads):
 
 def test_the_sources_section_exposes_licence_freshness_and_blockers(payloads):
     sources = payloads["sources.json"]["sources"]
-    assert len(sources) == 17
+    assert len(sources) == 18
     for source in sources:
         assert source["licence_status"]
         assert source["health"] is not None
