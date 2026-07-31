@@ -65,7 +65,56 @@ These are out of WO-010's scope, not oversights:
   local-only and outside the public core.
 - Innovation Radar — deferred outside the MVP.
 
-## 5. What would close the largest gaps, in order
+## 5. Two "nine domains" vocabularies, reconciled
+
+The repository has two disjoint nine-item vocabularies, both enforced with near-identical wording
+in `scripts/validate.py` ("must assess/contain all nine ... exactly once"), which invites the
+assumption that they line up one-to-one. They don't.
+
+- **Measurement domains** — `analysis/assessments.py:29-38`'s `DOMAINS`. What each lane
+  assessment actually measures: `thailand_trade_flow`, `port_maritime_activity`,
+  `freight_benchmark_direction`, `fuel_pressure`, `fx_pressure`, `operational_event_status`,
+  `capacity_evidence`, `transit_time_or_service_evidence`, `source_freshness_and_coverage`.
+  Enforced at `scripts/validate.py:479-481`.
+- **Business impact areas** — `schemas/impact_assessment.schema.json`'s `area` enum. What an
+  *event's* impact assessment is scored against: `warehouse`, `logistics`, `transport`,
+  `import_export`, `inventory`, `cost`, `capacity`, `service`, `business_continuity`. Enforced at
+  `scripts/validate.py:115-116` and described at `schemas/logistics_event.schema.json:335`.
+
+The table below records the actual relationship, read from the code that computes each domain
+(`scripts/build_analysis.py`, `analysis/events.py::event_domain_direction`) rather than asserted
+from either vocabulary's name:
+
+| Measurement domain | How it's derived | Impact area(s) |
+|---|---|---|
+| `operational_event_status` | Event-derived: `event_domain_direction(lane_id, events, areas)` | **Code-enforced**: `transport`, `logistics`, `import_export` |
+| `capacity_evidence` | Event-derived: same function | **Code-enforced**: `capacity` |
+| `transit_time_or_service_evidence` | Event-derived: same function | **Code-enforced**: `service`, `transport` |
+| `thailand_trade_flow` | Indicator-derived: a trade-value series and a threshold rule | No code link. Conceptually closest to `import_export` |
+| `port_maritime_activity` | Indicator-derived: `thailand_port_calls` series | No code link. Conceptually closest to `transport` |
+| `freight_benchmark_direction` | Indicator-derived: `container_freight_benchmark` series | No code link. Conceptually closest to `cost` |
+| `fuel_pressure` | Indicator-derived: `thailand_diesel_retail_price` series | No code link. Conceptually closest to `cost` |
+| `fx_pressure` | Indicator-derived: `usd_thb_reference_rate` series | No code link. Conceptually closest to `cost` |
+| `source_freshness_and_coverage` | Meta-domain: overall source-coverage status, not a lane condition | No correspondence, conceptual or otherwise — it is not about business impact at all |
+
+"Code-enforced" means `analysis/events.py::event_domain_direction` literally filters
+`impact_assessments` on `impact["area"] in areas` for that domain — a `deteriorating` reading
+requires an event whose recorded impact area matches. The five indicator-derived domains never
+read an event's `area` field at all; the "conceptually closest" column is this document's own
+informal reading for a person comparing the two vocabularies, not something any code path checks.
+
+**Three impact areas have no domain evidencing them, even conceptually: `warehouse`, `inventory`,
+`business_continuity`.** No measurement domain is derived from, or informally maps to, any of the
+three. An event can still carry an impact assessment scored against them (the schema requires all
+nine areas on every event, per `scripts/validate.py:115-116`), but nothing rolls that scoring up
+into a lane-level domain reading the way the three event-derived domains above do for their areas.
+
+This is a documentation reconciliation only. Neither vocabulary is renamed here — a rename would
+touch `schemas/impact_assessment.schema.json`, `analysis/assessments.py`, and every record already
+committed under `data/assessments/` and `data/events/`, which is a separate, human-blocked decision
+(see the production-readiness roadmap's List B).
+
+## 6. What would close the largest gaps, in order
 
 1. **A controlled live validation of one Thailand trade source** — turns lane selection from
    structural reasoning into evidence, and gives the trade domain a real reading.

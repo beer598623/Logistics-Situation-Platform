@@ -26,6 +26,16 @@ from .thresholds import Direction, combine_directions, rule
 #: The nine assessment domains, in publication order. Every lane assessment
 #: carries all nine, because a domain that was not assessed must be visible
 #: as ``insufficient_evidence`` rather than absent.
+#:
+#: This is a *measurement* vocabulary, not the same nine as
+#: ``schemas/impact_assessment.schema.json``'s ``area`` enum (a *business
+#: impact* vocabulary) -- the two are easy to conflate because
+#: ``scripts/validate.py`` enforces "exactly once, all nine" on both, in
+#: near-identical wording. They do not map one-to-one; only three of these
+#: domains (``operational_event_status``, ``capacity_evidence``,
+#: ``transit_time_or_service_evidence``) are code-enforced against specific
+#: ``area`` values at all, via ``analysis.events.event_domain_direction``.
+#: See ``docs/known_data_gaps.md`` for the full reconciliation.
 DOMAINS = (
     "thailand_trade_flow",
     "port_maritime_activity",
