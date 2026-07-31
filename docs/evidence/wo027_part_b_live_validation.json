@@ -1,0 +1,111 @@
+{
+  "generated_at": "2026-07-31T13:48:08.665297Z",
+  "issue": 56,
+  "requests": [
+    {
+      "approved_response_headers": {
+        "content-type": "application/json",
+        "last-modified": "Fri, 31 Jul 2026 13:48:10 GMT"
+      },
+      "content_sha256": "053bbffb5d90dd5b224cd06ee412f31f6853663725546362c6f0bdae57cffd95",
+      "content_type": "application/json",
+      "error": null,
+      "failure_layer": null,
+      "http_status": 200,
+      "label": "container_throughput_monthly",
+      "outcome": "success",
+      "parser_outcome": "envelope_parsed_ok",
+      "records": [
+        {
+          "container_throughput": "3942.74",
+          "month": "2026-05"
+        },
+        {
+          "container_throughput": "3760.27",
+          "month": "2026-04"
+        },
+        {
+          "container_throughput": "3897.28",
+          "month": "2026-03"
+        },
+        {
+          "container_throughput": "3421.08",
+          "month": "2026-02"
+        },
+        {
+          "container_throughput": "3892.37",
+          "month": "2026-01"
+        }
+      ],
+      "request_url": "https://data.gov.sg/api/action/datastore_search?resource_id=d_da030f7028200d19ffcbe4a2d71af39c&limit=5&sort=month%20desc&fields=month,container_throughput",
+      "resource_id": "d_da030f7028200d19ffcbe4a2d71af39c",
+      "response_bytes": 727,
+      "result_total": 377,
+      "retrieval_timestamp": "2026-07-31T13:48:08.665715Z",
+      "returned_field_names": [
+        "container_throughput",
+        "month"
+      ],
+      "sequence": 1
+    },
+    {
+      "approved_response_headers": {
+        "content-type": "application/json",
+        "last-modified": "Fri, 31 Jul 2026 13:48:12 GMT"
+      },
+      "content_sha256": "44853ed6f8938ef2b456587088603306797a6474290b31ff720a8a1f6fd25383",
+      "content_type": "application/json",
+      "error": null,
+      "failure_layer": null,
+      "http_status": 200,
+      "label": "vessel_arrivals_monthly",
+      "outcome": "success",
+      "parser_outcome": "envelope_parsed_ok",
+      "records": [
+        {
+          "gross_tonnage": "278622.13",
+          "month": "2026-05",
+          "number_of_vessels": "11729"
+        },
+        {
+          "gross_tonnage": "261031.68",
+          "month": "2026-04",
+          "number_of_vessels": "10873"
+        },
+        {
+          "gross_tonnage": "275916.11",
+          "month": "2026-03",
+          "number_of_vessels": "11591"
+        },
+        {
+          "gross_tonnage": "257055.9",
+          "month": "2026-02",
+          "number_of_vessels": "10886"
+        },
+        {
+          "gross_tonnage": "293346.24",
+          "month": "2026-01",
+          "number_of_vessels": "12031"
+        }
+      ],
+      "request_url": "https://data.gov.sg/api/action/datastore_search?resource_id=d_d48c5a038904f6da3c603cd854b6c191&limit=5&sort=month%20desc&fields=month,number_of_vessels,gross_tonnage",
+      "resource_id": "d_d48c5a038904f6da3c603cd854b6c191",
+      "response_bytes": 866,
+      "result_total": 377,
+      "retrieval_timestamp": "2026-07-31T13:48:10.520973Z",
+      "returned_field_names": [
+        "gross_tonnage",
+        "month",
+        "number_of_vessels"
+      ],
+      "sequence": 2
+    }
+  ],
+  "notes": [
+    "returned_field_names for both requests reflects the confirmed field SET present in the retained records (derived from those records post hoc), not an independently-observed wire order: the original report-writing pass serialized this file with alphabetically-sorted JSON keys, so the exact byte-order CKAN returned fields in was not preserved. This is a script/report defect, not a re-request -- fixed in scripts/wo027_part_b_live_validation.py for future runs, corrected here by reprocessing the already-retained records, with no additional network call (the WO-027 Part B two-request bound was not exceeded).",
+    "This is a factual limitation of this evidence artifact's field-order claim only. It does not affect resource_id matching, record content, byte counts, hashes, or HTTP status/header evidence, all of which were captured directly from the live response at request time."
+  ],
+  "stop_reason": null,
+  "stopped_after_sequence": null,
+  "work_order": "WO-027"
+}

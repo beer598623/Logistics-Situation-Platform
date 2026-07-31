@@ -950,7 +950,7 @@ sources:
     endpoint: https://data.gov.sg/api/action/datastore_search
     access_method: ckan
     format: json
-    machine_readable_status: unverified
+    machine_readable_status: verified
     parser: data_gov_sg_v1
     stable_id_field: [resource_id, month]
     expected_cadence_minutes: 44640
@@ -986,8 +986,10 @@ sources:
       - gross_tonnage is a confirmed real field on the vessel-arrivals dataset but is not wired into any parsed capability; it must be assessed separately before being added, per the human decision recorded on Issue #56.
       - Covers two Datastore Search resources under one contract -- container throughput and vessel arrivals -- distinguished by resource_id, the same one-contract/multiple-series pattern PAT_STATISTICS uses for its two terminals.
       - Registration requirement is recorded as none because data.gov.sg's own developer documentation states public Datastore Search reads need no API key; anonymous access is rate-limited (documented as 4 Datastore Search calls / 10s, 2 dataset-download calls / 10s) and this has not yet been independently observed.
-      - No personal data, third-party rights, patents, trademarks or design rights are expected in an aggregate monthly statistics series, but this has not yet been positively confirmed against a real response, which the Singapore Open Data Licence v1.0 requires before publication.
-      - "WO-027: a bounded 2-request controlled live validation is human-authorized (Issue #56) but not yet executed -- this environment's outbound network access to data.gov.sg is denied by the session's auto-mode permission classifier, and WebFetch cannot satisfy the validation's raw-bytes/header/hash retention requirements. See docs/mpa_sg_statistics_qualification.md §7."
+      - "WO-027 Part D: neither resource's field schema contains a field capable of carrying personal data, a third-party identifier, or free text -- confirmed both structurally (the field list itself) and against the ten records retrieved in the Part B live validation. See docs/mpa_sg_statistics_qualification.md §6, §9."
+      - "WO-027 Part B: the bounded 2-request controlled live validation human-authorized on Issue #56 was executed 2026-07-31 from an environment that allowlists data.gov.sg (a prior session's environment denied it; that was an environment-policy failure, not a data.gov.sg source response). Both requests succeeded (HTTP 200, application/json, matching the assumed CKAN envelope). See docs/mpa_sg_statistics_qualification.md §7 and docs/evidence/wo027_part_b_live_validation.json."
+      - "WO-027 Part C: reconciling the live-validated container_throughput values against official MPA annual totals (41.12M TEU 2024, 44.66M TEU 2025) by scale elimination finds only a x1,000 (\"thousand TEU\") scale physically plausible, but this is analytical inference corroborated by magnitude elimination, not an independently-read primary-source unit label -- unit_verified stays False by deliberate decision. See docs/mpa_sg_statistics_qualification.md §8."
+      - "Anonymous rate-limit behaviour is only partially exercised: the two Part B requests succeeded with no throttling response, well under the documented 4-calls/10s anonymous limit, but that is not an independent test of the limit boundary itself."
     enabled: false
     required_for_publication: false
     qualification:
@@ -1010,36 +1012,42 @@ sources:
         Singapore Open Data Licence v1.0 explicitly grants copy/distribute/modify,
         commercially, with attribution required -- the most permissive disposition
         this registry's enum carries. Not yet exercised: enablement is separately
-        blocked (see enablement.blockers) until a controlled live validation
-        confirms the absence of personal or third-party-rights data in the real
-        response and, for container_throughput specifically, its verified unit
-        and scale (WO-027; the endpoint and field names are now human-confirmed,
-        see docs/mpa_sg_statistics_qualification.md §2).
+        blocked (see enablement.blockers). WO-027 Part B's controlled live
+        validation confirmed the absence of any field capable of carrying personal
+        or third-party-rights data in either resource's schema. container_throughput
+        specifically remains unpublishable: its scale is corroborated but not
+        primary-source-verified (WO-027 Part C, docs/mpa_sg_statistics_qualification.md
+        §8), and DatastoreSeriesSpec.unit_verified stays False, fail-closed.
       publication_cadence: monthly
-      observed_freshness: null
-      data_period: null
+      observed_freshness: >-
+        WO-027 Part B (2026-07-31): latest available month at retrieval was
+        2026-05 -- an observed reporting lag of approximately 2 months from
+        period end to data availability, within max_stale_minutes tolerance
+        for a monthly series.
+      data_period: >-
+        2026-01 through 2026-05 observed in the 5 most recent records per
+        resource (WO-027 Part B); result.total reports 377 records per
+        resource, indicating substantial historical depth not yet read.
       geography: [Singapore]
       logistics_role: [external_driver_context]
-      rate_limit: "documented (unobserved): 4 Datastore Search calls / 10s, 2 dataset-download calls / 10s, anonymous access"
+      rate_limit: "documented (partially observed): 4 Datastore Search calls / 10s, 2 dataset-download calls / 10s, anonymous access -- WO-027 Part B's 2 sequential anonymous requests succeeded with no throttling response, but that is not an independent test of the limit boundary itself"
       response_size_limit_bytes: 5000000
       prototype_eligibility: eligible_pending_validation
       reviewed_at: "2026-07-31"
     enablement:
       fixture_test_exists: true
       fixture_test_reference: tests/test_data_gov_sg_adapter.py::test_unit_unverified_series_refuses_to_parse
-      live_validation_status: not_performed
-      live_validation_reference: null
+      live_validation_status: completed
+      live_validation_reference: docs/evidence/wo027_part_b_live_validation.json
       parser_fails_closed: true
       response_bounded: true
       schedule_justified: false
       collection_schedule: null
       public_repository_safe: true
       blockers:
-        - No controlled live validation has been performed. A bounded 2-request validation is human-authorized (Issue #56) but blocked in this environment (outbound network access to data.gov.sg denied by the session's auto-mode permission classifier; WebFetch cannot satisfy the required raw-bytes/header/hash retention). See docs/mpa_sg_statistics_qualification.md §7.
-        - container_throughput's unit/scale is unverified against real evidence and must not be assumed; the parser's unit_verified flag defaults to False (fail-closed) and no production spec exists yet that overrides it, so this series cannot currently be parsed at all. See docs/mpa_sg_statistics_qualification.md §3.
-        - No external account or API key has been created; anonymous access is intended and untested against the real documented rate limit.
-        - The absence of personal data, third-party rights, patents, trademarks or design rights in the real response has not yet been positively confirmed, which the licence requires before publication.
-        - gross_tonnage is a confirmed real field on the vessel-arrivals dataset but has not been assessed as a capability; not wired into the parser.
+        - container_throughput's unit/scale is unverified against real evidence and must not be assumed; WO-027 Part C's scale-elimination reconciliation against official MPA annual totals corroborates a x1,000 ("thousand TEU") scale but is not an independently-read primary-source unit label, so it does not clear the bar to flip unit_verified. The parser's unit_verified flag defaults to False (fail-closed) and no production spec overrides it, so this series cannot currently be parsed at all. See docs/mpa_sg_statistics_qualification.md §8.
+        - No external account or API key has been created; anonymous access is intended. WO-027 Part B's 2 sequential requests succeeded with no throttling, but that only partially exercises the documented rate limit, not its actual boundary.
+        - gross_tonnage is a confirmed real field on the vessel-arrivals dataset, present in the WO-027 Part B live response, but has not been assessed as a capability; not wired into the parser.
 
   - id: MANUAL_NOTICE_INTAKE
     name: Human-reviewed official operational notice intake

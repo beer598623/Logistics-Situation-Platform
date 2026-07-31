@@ -108,6 +108,25 @@ WO-010 and is not bumped by every Work Order.
   live validation is human-authorized (Issue #56) but not yet executed — outbound network
   access to `data.gov.sg` is denied by this environment's auto-mode permission classifier.
   `enabled: false` throughout.
+- WO-027 Parts B-D: executed the human-authorized bounded live validation from a later
+  session's environment that allowlists `data.gov.sg` (the prior denial was an
+  environment-policy failure, not a `data.gov.sg` source response). `scripts/wo027_part_b_live_validation.py`
+  ran exactly the two committed-specification requests, sequential, no retry; both succeeded
+  (HTTP 200, `application/json`, matching the assumed CKAN envelope). Evidence — exactly the
+  fields Issue #56 authorizes retaining — committed at
+  `docs/evidence/wo027_part_b_live_validation.json`. Part C reconciled the live
+  `container_throughput` values against official MPA annual totals by scale elimination: only
+  a ×1,000 ("thousand TEU") scale is physically plausible, but this is analytical inference
+  corroborated by magnitude elimination, not an independently-read primary-source unit label,
+  so `DatastoreSeriesSpec.unit_verified` stays `False` and `UnverifiedUnitError` continues to
+  refuse parsing this series — a deliberate, documented outcome, not an unfinished step.
+  Confirmed structurally that neither dataset's schema can carry personal or third-party-rights
+  data. `config/sources.yaml`: `machine_readable_status` raised to `verified` (does not affect
+  `enabled`, which stays `false`); `observed_freshness`/`data_period` populated from the live
+  evidence; `enablement.live_validation_status` set to `completed`. New regression tests
+  exercise the real live-validated envelope shape end to end through the parser and the
+  live-validation script's proxy/source failure-layer classification. `MPA_SG_STATISTICS`
+  remains `enabled: false`; no schedule; no publication (WO-027, Issue #56).
 
 ## [0.3.0] — 2026-07-30 — WO-010: Bundle 1, Common Foundation + Ocean Logistics Intelligence MVP
 

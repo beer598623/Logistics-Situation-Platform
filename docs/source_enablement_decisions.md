@@ -22,7 +22,7 @@ source in `config/sources.yaml` and summarised in `docs/source_qualification_rep
 | `MPA_SG_NOTICE` | **Keep disabled** | No machine-readable feed confirmed; reuse terms unreviewed |
 | `MANUAL_NOTICE_INTAKE` | **Keep disabled** | The path exists and is tested, but no notice has been recorded through it, so it currently contributes no coverage |
 | `NEWS_DISCOVERY` | **Keep disabled** | No query endpoint confirmed; reuse terms unreviewed. Discovery-only in any case |
-| `MPA_SG_STATISTICS` | **Keep disabled** (WO-026, corrected WO-027) | Reuse terms are the platform's first `reviewed` licence position, and the endpoint/field names are now human-confirmed (WO-027), but `container_throughput`'s unit/scale is unverified and the controlled live validation authorized on Issue #56 has not run (environment network-access blocker); enablement is a separate, later decision |
+| `MPA_SG_STATISTICS` | **Keep disabled** (WO-026, extended WO-027 Parts A-D) | Reuse terms are the platform's first `reviewed` licence position, and the endpoint/field names are human-confirmed (WO-027 Part A) and now live-executed (WO-027 Part B, 2026-07-31); `container_throughput`'s unit/scale remains unverified and fail-closed by deliberate decision after reconciliation (WO-027 Part C) found strong but not primary-source-confirmed corroboration; enablement is a separate, later decision |
 | `TMD_CAP` | **Unchanged, disabled** | Outside the Bundle 1 source core. Governed by Issue #15; WO-010 must not modify it |
 | `GDACS` | **Unchanged, disabled** | Outside the Bundle 1 source core. Same |
 
@@ -61,7 +61,7 @@ rather than halting the bundle:
 | `NEWS_DISCOVERY` | Confirm the query endpoint and rate limits; confirm link-level redistribution is permitted |
 | `PAT_STATISTICS` | Confirm a stable machine-readable throughput publication and its scope (TEU vs tonnes, port vs terminal); read and record reuse terms |
 | `FBX_PUBLIC` | Confirm which figures are publicly reusable versus subscription-only; record route scope, unit and redistribution position before any value is committed |
-| `MPA_SG_STATISTICS` | Execute the human-authorized (Issue #56) controlled live validation once the environment network-access blocker clears; reconcile `container_throughput`'s unit/scale against the returned values and official MPA annual statements; confirm the response carries no personal data, third-party rights, patents, trademarks or design rights |
+| `MPA_SG_STATISTICS` | WO-027 Part B (live validation) and the structural personal-data check are done. Remaining: a separately-authorized primary-source read of data.gov.sg's own field/dataset unit documentation for `container_throughput` — the scale-elimination reconciliation against official MPA annual totals (WO-027 Part C) corroborates but does not itself confirm the unit, so `unit_verified` stays `False` until that primary-source read happens |
 | `TMD_CAP`, `GDACS` | Out of scope, and explicitly excluded from WO-010-R1. A separate Work Order and their own governance records apply. Neither was contacted |
 
 ## Schedule policy

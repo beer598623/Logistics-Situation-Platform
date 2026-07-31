@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -36,11 +37,43 @@ from collectors.adapters.data_gov_sg import (
     parse_datastore_search_response,
 )
 from collectors.http_client import UnexpectedContentTypeError
+from scripts.wo027_part_b_live_validation import (
+    APPROVED_RESPONSE_HEADERS,
+    _classify_failure_layer,
+)
+from scripts.wo027_part_b_live_validation import (
+    REQUESTS as PART_B_REQUESTS,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "data_gov_sg"
 CONTAINER_FIXTURE = FIXTURE_DIR / "container_throughput_monthly.json"
 VESSEL_FIXTURE = FIXTURE_DIR / "vessel_arrivals_monthly.json"
+PART_B_EVIDENCE = ROOT / "docs" / "evidence" / "wo027_part_b_live_validation.json"
+
+#: Exactly the fields Issue #56 authorizes retaining in the Part B evidence
+#: artifact, per request entry. Nothing else may appear.
+_APPROVED_EVIDENCE_FIELDS = frozenset(
+    {
+        "sequence",
+        "label",
+        "request_url",
+        "retrieval_timestamp",
+        "outcome",
+        "failure_layer",
+        "http_status",
+        "content_type",
+        "response_bytes",
+        "content_sha256",
+        "resource_id",
+        "result_total",
+        "returned_field_names",
+        "records",
+        "approved_response_headers",
+        "parser_outcome",
+        "error",
+    }
+)
 
 #: WO-027: the two field names WO-026 guessed and the human independently
 #: confirmed were wrong. Must never reappear anywhere this module touches.
@@ -472,6 +505,135 @@ def test_row_not_an_object_is_rejected() -> None:
 
 
 # --- No network access ----------------------------------------------------
+
+
+# --- WO-027 Part B/D: live-validation script and evidence artifact ----------
+
+
+def test_part_b_requests_are_exactly_the_two_issue_56_authorized() -> None:
+    """The script must never drift from the exact, human-authorized URLs."""
+    assert len(PART_B_REQUESTS) == 2
+    urls = [spec["url"] for spec in PART_B_REQUESTS]
+    assert urls == [
+        "https://data.gov.sg/api/action/datastore_search"
+        "?resource_id=d_da030f7028200d19ffcbe4a2d71af39c"
+        "&limit=5&sort=month%20desc&fields=month,container_throughput",
+        "https://data.gov.sg/api/action/datastore_search"
+        "?resource_id=d_d48c5a038904f6da3c603cd854b6c191"
+        "&limit=5&sort=month%20desc&fields=month,number_of_vessels,gross_tonnage",
+    ]
+
+
+def test_classify_failure_layer_detects_proxy_tunnel_failure() -> None:
+    """A CONNECT-tunnel rejection (e.g. an org egress-policy 403/407) must be
+    reported as a proxy-layer failure, never mistaken for a data.gov.sg
+    source response."""
+    exc = URLError(OSError("Tunnel connection failed: 403 Forbidden"))
+    assert _classify_failure_layer(exc) == "proxy"
+
+
+def test_classify_failure_layer_detects_source_http_error() -> None:
+    """An HTTPError that made it past the tunnel is a real response from the
+    source, not the proxy -- must never be mislabelled 'proxy'."""
+    exc = HTTPError("https://data.gov.sg/x", 403, "Forbidden", {}, None)
+    assert _classify_failure_layer(exc) == "source"
+
+
+def test_classify_failure_layer_falls_back_to_client_for_unrecognized_errors() -> None:
+    exc = TimeoutError("timed out")
+    assert _classify_failure_layer(exc) == "client"
+
+
+def test_part_b_evidence_artifact_exists_and_is_valid_json() -> None:
+    assert PART_B_EVIDENCE.exists(), "WO-027 Part B evidence artifact must be committed"
+    report = json.loads(PART_B_EVIDENCE.read_text(encoding="utf-8"))
+    assert report["work_order"] == "WO-027"
+    assert report["issue"] == 56
+
+
+def test_part_b_evidence_has_exactly_two_requests_matching_the_authorized_urls() -> None:
+    report = json.loads(PART_B_EVIDENCE.read_text(encoding="utf-8"))
+    assert len(report["requests"]) == 2
+    for entry, spec in zip(report["requests"], PART_B_REQUESTS, strict=True):
+        assert entry["request_url"] == spec["url"]
+        assert entry["resource_id"] == spec["expected_resource_id"]
+
+
+def test_part_b_evidence_retains_only_the_approved_fields() -> None:
+    """Issue #56 names an exact retention allowlist. Nothing outside it may
+    appear in a committed request entry -- this is a regression test against
+    a future edit accidentally widening what gets retained/published."""
+    report = json.loads(PART_B_EVIDENCE.read_text(encoding="utf-8"))
+    for entry in report["requests"]:
+        extra = set(entry.keys()) - _APPROVED_EVIDENCE_FIELDS
+        assert not extra, f"unapproved fields retained in evidence: {extra}"
+        assert set(entry["approved_response_headers"].keys()) <= set(APPROVED_RESPONSE_HEADERS)
+
+
+def test_part_b_evidence_never_retains_more_than_five_records_per_request() -> None:
+    report = json.loads(PART_B_EVIDENCE.read_text(encoding="utf-8"))
+    for entry in report["requests"]:
+        if entry["records"] is not None:
+            assert len(entry["records"]) <= 5
+
+
+def test_part_b_evidence_requests_both_succeeded() -> None:
+    """Pinned so a future re-run that silently regresses to a transport
+    failure cannot slip past review unnoticed."""
+    report = json.loads(PART_B_EVIDENCE.read_text(encoding="utf-8"))
+    for entry in report["requests"]:
+        assert entry["outcome"] == "success"
+        assert entry["http_status"] == 200
+        assert entry["content_type"] in {"application/json", "text/json"}
+
+
+def test_part_b_live_validated_vessel_envelope_parses_through_the_real_parser() -> None:
+    """Reconstructs a minimal Datastore Search envelope from the WO-027 Part B
+    live-retrieved vessel-arrivals records (not a fixture) and confirms the
+    real parser accepts it end to end -- proving the parser was validated
+    against genuinely live data, not only hand-written fixtures."""
+    report = json.loads(PART_B_EVIDENCE.read_text(encoding="utf-8"))
+    vessel_entry = next(
+        r for r in report["requests"] if r["resource_id"] == VESSEL_SPEC.resource_id
+    )
+    payload = json.dumps(
+        {
+            "success": True,
+            "result": {
+                "resource_id": vessel_entry["resource_id"],
+                "records": vessel_entry["records"],
+                "total": vessel_entry["result_total"],
+            },
+        }
+    ).encode("utf-8")
+    records = parse_datastore_search_response(payload, _contract(VESSEL_SPEC))
+    assert len(records) == len(vessel_entry["records"])
+    for record in records:
+        assert schema_errors(record, "port_transport_observation.schema.json") == []
+        assert record["measurement"]["value_status"] == "available"
+
+
+def test_part_b_live_validated_container_envelope_still_refuses_to_parse() -> None:
+    """The unit-unverified fail-closed gate must hold even against a real,
+    successfully-fetched live response -- confirming the gate was never
+    conditioned on "no live data available yet" as an implicit escape
+    hatch (WO-027 Part C: unit_verified stays False by deliberate decision)."""
+    report = json.loads(PART_B_EVIDENCE.read_text(encoding="utf-8"))
+    container_entry = next(
+        r for r in report["requests"] if r["resource_id"] == UNVERIFIED_CONTAINER_SPEC.resource_id
+    )
+    payload = json.dumps(
+        {
+            "success": True,
+            "result": {
+                "resource_id": container_entry["resource_id"],
+                "records": container_entry["records"],
+                "total": container_entry["result_total"],
+            },
+        }
+    ).encode("utf-8")
+    with pytest.raises(UnverifiedUnitError):
+        parse_datastore_search_response(payload, _contract(UNVERIFIED_CONTAINER_SPEC))
 
 
 def test_importing_this_adapter_makes_no_network_request() -> None:
