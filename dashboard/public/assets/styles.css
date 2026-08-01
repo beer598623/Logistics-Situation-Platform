@@ -133,9 +133,16 @@ html.has-js[data-boot-view="outlook"] #outlook,
 html.has-js[data-boot-view="sources"] #sources {
   display: block;
 }
-/* Once app.js has taken over it drives visibility via [hidden] on inactive
-   views; this rule keeps the initial boot-view visible until that handoff,
-   and stops mattering once every non-active view carries [hidden]. */
+/* activateView() (app.js) keeps data-boot-view pointed at the active view on
+   every navigation, not only at first paint -- the rule above is this
+   page's *only* visibility mechanism once JS has run. [hidden] is kept in
+   sync on every <section> for its own sake (semantics, no-JS fallback,
+   AC-30), but does not drive display here: html.has-js .view {display:none}
+   already covers every inactive view regardless of the attribute, and the
+   ID-specific rule above already covers the active one. This selector is
+   therefore redundant with that base rule, not a second, competing source
+   of truth -- kept only so a page loaded without has-js still honours a
+   stray hidden attribute if one is ever present. */
 .view[hidden] { display: none; }
 
 /* ---------- banners ---------- */
