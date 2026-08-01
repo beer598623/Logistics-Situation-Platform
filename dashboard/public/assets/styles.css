@@ -20,6 +20,24 @@
   --ok-bg: #ecf6ee;
   --ok-line: #1d6b33;
   --radius: 8px;
+
+  /* WO-030: surfaces */
+  --surface-2: #eef1f5;
+  --zebra: #f2f5f8;
+  --row-hover: #e9eef4;
+  --line-strong: #b9c3ce;
+
+  /* WO-030: layout */
+  --shell-max: 1560px;
+  --shell-gutter: 24px;
+  --navbar-h: 52px;
+  --prose-max: 82ch;
+  --intro-max: 78ch;
+
+  /* WO-030: spacing scale */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+
+  --radius-sm: 6px;
 }
 
 * { box-sizing: border-box; }
@@ -33,7 +51,12 @@ body {
   font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Thai", sans-serif;
 }
 
-.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+.wrap { max-width: var(--shell-max); margin: 0 auto; padding: 0 var(--shell-gutter); }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 
 .skip-link {
   position: absolute; left: -9999px; top: 0;
@@ -45,6 +68,14 @@ a { color: var(--accent); }
 a:focus-visible, button:focus-visible, summary:focus-visible {
   outline: 3px solid var(--accent); outline-offset: 2px;
 }
+/* Focus rings inside a scrollable container must not be clipped by the
+   container's own overflow, so the offset goes negative there instead. */
+.table-wrap :focus-visible { outline-offset: -3px; }
+
+/* No motion anywhere on this page, including inside a printed or
+   screen-reader-driven scroll -- prefers-reduced-motion has nothing to
+   override because nothing animates in the first place. */
+* { scroll-behavior: auto !important; }
 
 /* ---------- header ---------- */
 
@@ -57,6 +88,62 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .build-meta div { min-width: 130px; }
 .build-meta dt { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.8; }
 .build-meta dd { margin: 2px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- navbar (WO-030) ---------- */
+
+.navbar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  min-height: var(--navbar-h);
+}
+.navbar-inner {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3);
+  padding-top: var(--s2); padding-bottom: var(--s2);
+}
+.navbar .brand {
+  font-weight: 700; text-decoration: none; color: var(--ink);
+  font-size: 0.92rem; white-space: nowrap; margin-right: var(--s3);
+}
+.nav-list {
+  display: flex; flex-wrap: wrap; gap: 2px; list-style: none;
+  margin: 0; padding: 0; flex: 1 1 auto;
+  overflow-x: auto;
+}
+.nav-list a {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px;
+  text-decoration: none; color: var(--ink); font-size: 0.86rem; border-radius: var(--radius-sm);
+  border-bottom: 3px solid transparent;
+}
+.nav-list a:hover { background: var(--note-bg); }
+.nav-list a[aria-current="page"] {
+  border-bottom-color: var(--accent); font-weight: 700;
+}
+.nav-status { display: flex; gap: var(--s2); align-items: center; margin: 0; white-space: nowrap; }
+.nav-status .pill { text-decoration: none; }
+
+/* ---------- anti-flash boot (WO-030) ---------- */
+
+html.has-js .view { display: none; }
+html.has-js[data-boot-view="situation"] #situation,
+html.has-js[data-boot-view="ocean"] #ocean,
+html.has-js[data-boot-view="trade"] #trade,
+html.has-js[data-boot-view="cost"] #cost,
+html.has-js[data-boot-view="events"] #events,
+html.has-js[data-boot-view="outlook"] #outlook,
+html.has-js[data-boot-view="sources"] #sources {
+  display: block;
+}
+/* activateView() (app.js) keeps data-boot-view pointed at the active view on
+   every navigation, not only at first paint -- the rule above is this
+   page's *only* visibility mechanism once JS has run. [hidden] is kept in
+   sync on every <section> for its own sake (semantics, no-JS fallback,
+   AC-30), but does not drive display here: html.has-js .view {display:none}
+   already covers every inactive view regardless of the attribute, and the
+   ID-specific rule above already covers the active one. This selector is
+   therefore redundant with that base rule, not a second, competing source
+   of truth -- kept only so a page loaded without has-js still honours a
+   stray hidden attribute if one is ever present. */
+.view[hidden] { display: none; }
 
 /* ---------- banners ---------- */
 
@@ -73,18 +160,24 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .banner-demo { border-color: var(--demo-line); background: var(--demo-bg); }
 .banner strong { display: block; margin-bottom: 4px; }
 
-/* ---------- nav ---------- */
+/* ---------- evidence regions (WO-030) ---------- */
 
-.section-nav {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  padding-top: 4px; padding-bottom: 4px;
+.region-demo {
+  border-left: 4px solid var(--demo-line);
+  background: var(--demo-bg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: var(--s5) 0 0;
+  padding: 0;
 }
-.section-nav a {
-  display: inline-block; padding: 7px 12px; border: 1px solid var(--line);
-  border-radius: 999px; background: var(--surface); text-decoration: none;
-  font-size: 0.86rem;
+.region-demo > summary {
+  cursor: pointer; padding: var(--s3) var(--s4); font-weight: 700;
+  font-size: 0.92rem; list-style: none;
 }
-.section-nav a:hover { background: var(--note-bg); }
+.region-demo > summary::-webkit-details-marker { display: none; }
+.region-demo > summary::before { content: "▸ "; }
+.region-demo[open] > summary::before { content: "▾ "; }
+.region-demo[open] > summary { border-bottom: 1px solid var(--demo-line); }
+.region-demo .region-body { padding: var(--s4); background: var(--surface); }
 
 /* ---------- sections ---------- */
 
@@ -97,6 +190,7 @@ section {
   padding: 20px;
   margin: 20px 0;
 }
+@media (min-width: 1440px) { section { padding: 24px; } }
 section > h2 { margin-top: 0; font-size: 1.3rem; border-bottom: 2px solid var(--line); padding-bottom: 8px; }
 section h3 { margin: 26px 0 8px; font-size: 1.03rem; }
 .demo-heading { padding-left: 10px; border-left: 4px solid var(--demo-line); }
@@ -119,15 +213,22 @@ section h3 { margin: 26px 0 8px; font-size: 1.03rem; }
   margin: -14px -14px 10px; padding: 6px 12px;
   border-radius: var(--radius) var(--radius) 0 0;
 }
-.section-intro { color: var(--ink-muted); max-width: 78ch; margin-top: 0; }
-.prose { max-width: 82ch; }
-.prose-list { max-width: 82ch; padding-left: 20px; }
+.section-intro { color: var(--ink-muted); max-width: var(--intro-max); margin-top: 0; }
+.prose { max-width: var(--prose-max); }
+.prose-list { max-width: var(--prose-max); padding-left: 20px; }
 .prose-list li { margin-bottom: 6px; }
 .gap-list li::marker { color: var(--warning-line); }
+
+/* Cross-reference note in a current lane row pointing at the relocated
+   demonstration assessment (WO-030 R-3). Carries no value, no attention
+   pill and no freshness pill of its own -- see AC-41. */
+.demo-cross-ref { color: var(--ink-muted); font-size: 0.86rem; margin: 8px 0 0; }
 
 /* ---------- cards ---------- */
 
 .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+@media (min-width: 1024px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1400px) { .cards { grid-template-columns: repeat(4, 1fr); } }
 .card {
   border: 1px solid var(--line); border-radius: var(--radius);
   padding: 12px 14px; background: var(--surface);
@@ -136,7 +237,6 @@ section h3 { margin: 26px 0 8px; font-size: 1.03rem; }
 .card .value { font-size: 1.25rem; font-weight: 700; margin: 4px 0; }
 .card .note { font-size: 0.84rem; color: var(--ink-muted); }
 
-.lane-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
 .lane-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
 .lane-card h4 { margin: 0 0 6px; font-size: 1rem; }
 .lane-card .meta { font-size: 0.82rem; color: var(--ink-muted); margin-bottom: 8px; }
@@ -157,14 +257,35 @@ section h3 { margin: 26px 0 8px; font-size: 1.03rem; }
 
 /* ---------- tables ---------- */
 
-.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
-table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 0.9rem; }
+.table-wrap {
+  overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius);
+}
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 caption { text-align: left; padding: 10px 12px; color: var(--ink-muted); font-size: 0.84rem; }
-th, td { text-align: left; padding: 8px 12px; border-top: 1px solid var(--line); vertical-align: top; }
-thead th { background: #eef1f5; border-top: none; font-size: 0.8rem; letter-spacing: 0.03em; }
-tbody tr:nth-child(even) { background: #fafbfc; }
+th, td { text-align: left; padding: 6px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+thead th {
+  background: var(--surface-2); border-top: none; font-size: 0.8rem; letter-spacing: 0.03em;
+  position: sticky; top: var(--navbar-h); z-index: 2;
+  border-bottom: 2px solid var(--line-strong);
+}
+tbody tr:nth-child(even) { background: var(--zebra); }
+tbody tr:hover { background: var(--row-hover); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .missing { color: var(--warning-line); font-style: italic; }
+
+/* Two-column period tables never need the old blanket 520px floor. */
+#situation-cost-table, .points-table table { min-width: 320px; }
+#lane-table table, #source-table table, .event table, .impact-table { min-width: 720px; }
+
+/* Expandable-row tables (WO-030 AC-24) */
+.row-expand-btn {
+  background: none; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  min-width: 32px; min-height: 32px; cursor: pointer; font-size: 0.8rem;
+  color: var(--accent);
+}
+.row-expand-btn[aria-expanded="true"] { background: var(--note-bg); }
+tr.detail-row > td { padding: var(--s4); background: var(--surface); }
+tr.detail-row[hidden] { display: none; }
 
 /* ---------- series blocks ---------- */
 
@@ -179,10 +300,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .figure .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); }
 .figure .value { font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.chart { width: 100%; height: 96px; display: block; background: #fbfcfd; border-radius: 6px; border: 1px solid var(--line); }
+.chart-wrap { max-width: 720px; }
+.chart { width: 100%; height: 120px; display: block; background: #fbfcfd; border-radius: 6px; border: 1px solid var(--line); }
 .chart .line { fill: none; stroke: var(--accent); stroke-width: 2; }
 .chart .gap { fill: none; stroke: var(--warning-line); stroke-width: 2; stroke-dasharray: 3 3; }
 .chart .dot { fill: var(--accent); }
+.chart-scale { font-size: 0.8rem; color: var(--ink-muted); margin: 4px 0 0; }
 
 details { margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; }
 details > summary { cursor: pointer; padding: 8px 12px; font-size: 0.87rem; font-weight: 600; }
@@ -213,6 +336,23 @@ details .details-body { padding: 10px 12px; }
 }
 .site-footer p { max-width: 88ch; }
 
+/* ---------- external links ---------- */
+
+.ext-link-note { font-size: 0; }
+
+/* ---------- scroll-margin for the sticky navbar (WO-030 AX-8) ---------- */
+
+h2[tabindex="-1"], h3, h4, [id] {
+  scroll-margin-top: calc(var(--navbar-h) + var(--s2));
+}
+
+@media (max-width: 767px) {
+  :root { --navbar-h: 88px; }
+  .navbar-inner { flex-direction: column; align-items: stretch; }
+  .nav-list { order: 2; }
+  .nav-status { order: 1; justify-content: flex-end; }
+}
+
 @media (max-width: 600px) {
   .site-header h1 { font-size: 1.35rem; }
   section { padding: 14px; }
@@ -220,8 +360,29 @@ details .details-body { padding: 10px 12px; }
 }
 
 @media print {
-  .section-nav, .skip-link { display: none; }
-  section { break-inside: avoid; border: none; }
-  details { display: block; }
-  details > div { display: block !important; }
+  .navbar, .skip-link, .row-expand-btn, #route-status, .load-all-control { display: none !important; }
+  section { border: none; }
+  /* Unconditional, not keyed on the `hidden` attribute: the beforeprint
+     handler in app.js removes `hidden` from every view (rather than adding
+     it), specifically so it does not rely on this selector matching an
+     attribute state the handler itself is clearing. A `[hidden]`-qualified
+     version of this rule would only ever match the boot view's own
+     data-boot-view show-rule accidentally winning -- not real coverage of
+     all seven views. */
+  .view { display: block !important; }
+  details, .region-demo { display: block !important; }
+  details > *:not(summary), .region-demo > *:not(summary) { display: block !important; }
+  details::details-content, .region-demo::details-content { content-visibility: visible !important; }
+  thead { display: table-header-group; }
+  h2 { break-after: avoid; }
+  h3, h4, caption { break-after: avoid; }
+  tr, .card, .event, .series, .demo-panel { break-inside: avoid; }
+  .site-header { background: #fff; color: var(--ink); border-bottom: 2px solid var(--accent); }
+  .pill, .banner, .demo-panel, .region-demo {
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.8em; }
+  #main a[href^="#"]::after { content: ""; }
+  .print-header { display: block !important; }
 }
+.print-header { display: none; }

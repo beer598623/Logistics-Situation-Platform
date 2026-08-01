@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Thailand Ocean Logistics Intelligence">
+  <rect width="32" height="32" rx="6" fill="#0b3d5c"/>
+  <path d="M4 21 Q10 15 16 21 T28 21" fill="none" stroke="#8fd0ff" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M4 25 Q10 20 16 25 T28 25" fill="none" stroke="#3a7ea6" stroke-width="2" stroke-linecap="round"/>
+  <rect x="14.4" y="6" width="3.2" height="12" fill="#f2b807"/>
+  <path d="M17.6 7 L24 10.5 L17.6 12.5 Z" fill="#f2f6fa"/>
+</svg>

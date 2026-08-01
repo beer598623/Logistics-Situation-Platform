@@ -8,6 +8,12 @@
  * If a payload fails to load the section says so and the coverage banner
  * stays at its most pessimistic reading. A dashboard that silently renders
  * an empty panel is worse than one that admits it could not load.
+ *
+ * Seven views live under one document (WO-030): a hash router shows exactly
+ * one <section class="view"> at a time via the `hidden` attribute, all eight
+ * payloads are still fetched eagerly and in parallel so a failure in a view
+ * nobody has visited is still caught, but each view's markup is only built
+ * the first time it becomes active.
  */
 (function () {
   'use strict';
@@ -68,6 +74,33 @@
     );
   }
 
+  /* Single escaping helper for every attribute value this file emits (ids,
+     aria-controls references, data-* values, hrefs after the scheme check
+     below). Text-content escaping uses the same rules, so attr() is esc()
+     under another name — the point is that every attribute site names this
+     function, not that the algorithm differs. */
+  function attr(value) { return esc(value); }
+
+  /* URL-scheme allowlist, checked before any href is ever emitted. A claim
+     string in a JSON payload is untrusted input as far as this file is
+     concerned; a `javascript:` or `data:` URL must never reach an <a href>.
+     Returns '' (render no link) for anything outside the allowlist. */
+  function safeHref(url) {
+    if (!url) return '';
+    var trimmed = String(url).trim();
+    var scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(trimmed);
+    if (scheme && ['http', 'https', 'mailto'].indexOf(scheme[1].toLowerCase()) === -1) {
+      return '';
+    }
+    return attr(trimmed);
+  }
+
+  function externalLink(url, label) {
+    var href = safeHref(url);
+    if (!href) return '';
+    return ' · <a href="' + href + '" rel="noopener noreferrer" target="_blank">' + esc(label || 'source') + '</a>';
+  }
+
   function el(id) { return document.getElementById(id); }
 
   function words(value) {
@@ -124,16 +157,18 @@
 
   /* ---------------- charts ---------------- */
 
-  /* Draws a sparkline in which missing periods are visible breaks. The same
-     numbers are always rendered as a table alongside, so the chart is never
-     the only way to read the series. */
+  /* Draws a sparkline in which missing periods are visible breaks, plus a
+     text line of min/max/latest/period-range/gap-count so the same reading
+     the chart shows is also available as text (WCAG 1.1.1, AC-22). The same
+     numbers are always rendered as a table alongside via pointsTable(), so
+     the chart is never the only way to read the series. */
   function sparkline(points) {
     var usable = points.filter(function (p) { return p.value !== null && p.value !== undefined; });
     if (usable.length < 2) {
       return '<p class="empty-state">Not enough usable observations to draw a chart. ' +
         'Missing periods are not plotted as zero.</p>';
     }
-    var width = 640, height = 96, padX = 6, padY = 10;
+    var width = 640, height = 120, padX = 6, padY = 10;
     var values = usable.map(function (p) { return p.value; });
     var min = Math.min.apply(null, values), max = Math.max.apply(null, values);
     var span = (max - min) || 1;
@@ -167,14 +202,22 @@
       (gapCount ? ', with ' + gapCount + ' missing period(s) shown as breaks in the line' : '') +
       '. The full numbers are in the table below.';
 
-    return '<svg class="chart" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" ' +
+    var svg = '<svg class="chart" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" ' +
       'role="img" aria-label="' + esc(label) + '">' + paths + dot + '</svg>';
+
+    var latest = usable[usable.length - 1];
+    var scale = '<p class="chart-scale">Min ' + num(min, 2) + ' · Max ' + num(max, 2) + ' · Latest ' +
+      num(latest.value, 2) + ' (' + esc(latest.period) + ') · ' + esc(points[0].period) + '–' +
+      esc(points[points.length - 1].period) + ' · ' + points.length + ' periods, ' + gapCount +
+      ' missing (drawn as breaks, never as zero)</p>';
+
+    return svg + scale;
   }
 
   function pointsTable(points, unit) {
     var rows = points.map(function (point) {
       var cell = point.value === null || point.value === undefined
-        ? '<td class="missing">' + esc(words(point.value_status)) + ' — not zero</td>'
+        ? '<td class="num missing">' + esc(words(point.value_status)) + ' — not zero</td>'
         : '<td class="num">' + num(point.value, 2) + '</td>';
       return '<tr><th scope="row">' + esc(point.period) + '</th>' + cell + '</tr>';
     }).join('');
@@ -214,7 +257,7 @@
     var limitations = (series.limitations || []).concat(series.source_limitations || []);
 
     return '<div class="series' + (DEMO_LABEL[series.dataset] ? ' is-demo' : '') + '"' +
-      (DEMO_LABEL[series.dataset] ? ' data-demo-label="' + esc(DEMO_LABEL[series.dataset]) + '"' : '') +
+      (DEMO_LABEL[series.dataset] ? ' data-demo-label="' + attr(DEMO_LABEL[series.dataset]) + '"' : '') +
       '>' +
       '<h4>' + esc(title || series.series_id) + ' ' + demoTag(series.dataset) + '</h4>' +
       '<p class="series-meta">' + (metaLines || []).concat(provenance).map(esc).join(' · ') +
@@ -250,28 +293,33 @@
     el('meta-methodology').textContent = 'v' + status.methodology_version;
     el('meta-coverage').textContent = words(status.live_coverage);
     el('meta-paid').textContent = status.paid_source_dependency === 0 ? '0 (free-only)' : 'review required';
+    el('chip-cutoff').textContent = 'Cutoff: ' + (status.data_cutoff_at || 'unknown');
+  }
+
+  function cardHtml(card) {
+    return '<div class="card"><div class="label">' + esc(card[0]) + '</div>' +
+      '<div class="value">' + esc(card[1]) + '</div>' +
+      '<div class="note">' + esc(card[2]) + '</div></div>';
   }
 
   function renderSituation(data) {
-    var banner = el('coverage-banner');
-    banner.className = 'banner ' + (data.evidence_coverage === 'sufficient' ? 'banner-note' : 'banner-critical');
-    banner.innerHTML = '<strong>Live coverage: ' + esc(words(data.evidence_coverage)) + '.</strong>' +
-      esc(data.live_coverage_statement) + ' <br><small>' + esc(data.coverage_message) +
-      ' Data cutoff ' + esc(data.data_cutoff_at) + '.</small>';
-
     el('situation-cards').innerHTML = [
       ['Overall direction', words(data.overall_direction), 'Transparent roll-up of the lane directions, not a composite score.'],
       ['Evidence coverage', words(data.evidence_coverage), data.coverage_message],
       ['Qualified observations', String(data.qualified_observation_count), 'Live-retrieved or human-reviewed records. Fixtures are excluded.'],
       ['Qualified events', String(data.qualified_event_count), 'Events with retrieved or human-reviewed evidence.'],
       ['Lanes needing attention', String(data.lanes_requiring_attention.length), 'Out of the published lane set.'],
-      ['Active verified events', String(data.active_verified_events.length), 'Confirmed still active at the data cutoff.'],
-      ['Demo lanes at attention', String(data.demo_summary.lanes_requiring_attention), 'Technical demonstration only — synthetic fixtures.']
-    ].map(function (card) {
-      return '<div class="card"><div class="label">' + esc(card[0]) + '</div>' +
-        '<div class="value">' + esc(card[1]) + '</div>' +
-        '<div class="note">' + esc(card[2]) + '</div></div>';
-    }).join('');
+      ['Active verified events', String(data.active_verified_events.length), 'Confirmed still active at the data cutoff.']
+    ].map(cardHtml).join('');
+
+    /* R-3 / AC-2: the demonstration count never sits in the same grid as the
+       current cards above. It gets its own card, in the demonstration
+       region, with its own item-level marker (AC-4). */
+    el('situation-demo-cards').innerHTML =
+      '<div class="card" data-demo-label="' + attr(DEMO_LABEL.technical_demo) + '">' +
+      '<div class="label">Demo lanes at attention ' + demoTag('technical_demo') + '</div>' +
+      '<div class="value">' + esc(String(data.demo_summary.lanes_requiring_attention)) + '</div>' +
+      '<div class="note">Technical demonstration only — synthetic fixtures.</div></div>';
 
     var attentionBody = el('attention-table').querySelector('tbody');
     attentionBody.innerHTML = data.lanes_requiring_attention.length
@@ -332,57 +380,104 @@
         '<td>' + esc(item.data_period || 'none') + '</td>' +
         '<td>' + freshnessCell(item.freshness) + '</td></tr>';
     }).join('');
-    return '<div class="table-wrap"><table><thead><tr><th scope="col">Domain</th><th scope="col">Direction</th>' +
+    return '<div class="table-wrap"><table>' +
+      '<caption>Domain-by-domain assessment. Each domain is independently sourced and freshness-stamped; none is inferred from another.</caption>' +
+      '<thead><tr><th scope="col">Domain</th><th scope="col">Direction</th>' +
       '<th scope="col">Threshold rule</th><th scope="col">Data period</th><th scope="col">Freshness</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div>';
   }
 
-  /* The demonstration assessment lives inside the lane card, in its own bordered
-     panel with its own label. Placing it beside the current assessment without a
-     marker of its own would let a reader carry a synthetic attention level away
-     as if it were the lane's real state. */
-  function demoPanel(demo) {
-    if (!demo) return '';
-    return '<div class="demo-panel">' +
-      '<span class="demo-tag">' + esc(DEMO_LABEL[demo.dataset] || 'Technical demonstration') + '</span>' +
-      '<div class="badges">' + pill(demo.attention_level, ATTENTION_PILL) +
-      pill(demo.overall_direction, DIRECTION_PILL) + '</div>' +
-      '<p class="meta">Derived from synthetic fixtures to exercise the threshold rules. ' +
-      'This attention level describes no real-world condition and must not be quoted as one.</p>' +
-      detailsBlock('Demonstration domain assessments (9)', domainTable(demo)) +
-      '</div>';
+  /* ---------------- ocean: lanes as an expandable-row table ---------------- */
+
+  function toggleRow(btn) {
+    var expanded = btn.getAttribute('aria-expanded') === 'true';
+    var detail = el(btn.getAttribute('aria-controls'));
+    btn.setAttribute('aria-expanded', String(!expanded));
+    if (detail) detail.hidden = expanded;
+    var glyph = btn.querySelector('[aria-hidden]');
+    if (glyph) glyph.textContent = expanded ? '+' : '−';
   }
 
-  function laneCard(lane) {
-    var assessment = lane.assessment;
+  function findExpandButtonFor(id) {
+    var btns = document.querySelectorAll('.row-expand-btn');
+    for (var i = 0; i < btns.length; i += 1) {
+      if (btns[i].getAttribute('aria-controls') === id) return btns[i];
+    }
+    return null;
+  }
 
-    return '<div class="lane-card">' +
-      '<div class="badges">' +
-      (assessment ? pill(assessment.attention_level, ATTENTION_PILL) : pill('insufficient_evidence', ATTENTION_PILL)) +
-      (assessment ? pill(assessment.overall_direction, DIRECTION_PILL) : '') +
-      '<span class="pill pill-note">current</span>' +
-      '<span class="pill pill-muted">' + esc(words(lane.resolution)) + ' resolution</span>' +
-      '<span class="pill pill-muted">mode: ' + esc(lane.mode) + '</span>' +
-      '</div>' +
-      '<h4>' + esc(lane.name) + '</h4>' +
+  function expandRowBtn(detailId, label) {
+    return '<button type="button" class="row-expand-btn" aria-expanded="false" aria-controls="' +
+      attr(detailId) + '"><span class="visually-hidden">Expand ' + esc(label) + '</span>' +
+      '<span aria-hidden="true">+</span></button>';
+  }
+
+  /* R-3 (AC-41): the current lane row carries no demonstration value of any
+     kind — no pill, no attention level, no direction. It only points at the
+     relocated demonstration block, which lives in the demonstration region
+     and is rendered by laneDemoBlock() below. */
+  function laneCrossReference(lane) {
+    if (!lane.demo_assessment) return '';
+    return '<p class="demo-cross-ref">A technical-demonstration assessment exists for this lane in the ' +
+      'demonstration region below. It describes no real-world condition and carries no current value. ' +
+      '<a href="#lane-demo-' + attr(lane.lane_id) + '">See the demonstration assessment</a>.</p>';
+  }
+
+  function laneRow(lane) {
+    var assessment = lane.assessment;
+    var detailId = 'lane-detail-' + lane.lane_id;
+
+    var row = '<tr>' +
+      '<td>' + expandRowBtn(detailId, lane.name) + '</td>' +
+      '<th scope="row">' + esc(lane.name) + '<br><small>' + esc(lane.lane_id) + '</small></th>' +
+      '<td>' + (assessment ? pill(assessment.attention_level, ATTENTION_PILL) : pill('insufficient_evidence', ATTENTION_PILL)) + '</td>' +
+      '<td>' + (assessment ? pill(assessment.overall_direction, DIRECTION_PILL) : '') + '</td>' +
+      '<td>' + esc(words(lane.resolution)) + '</td>' +
+      '<td>' + esc(lane.mode) + '</td>' +
+      '<td>' + (lane.chokepoint_ids.length ? esc(lane.chokepoint_ids.join(', ')) : 'none registered') + '</td>' +
+      '</tr>';
+
+    var selectionRows = lane.selection_evidence.map(function (item) {
+      return '<tr><th scope="row">' + esc(words(item.criterion)) + '</th><td>' + esc(item.statement) + '</td>' +
+        '<td>' + pill(item.evidence_class, {}) + '</td>' +
+        '<td>' + esc(item.source_reference || 'none') + '</td></tr>';
+    }).join('');
+
+    var detail = '<tr class="detail-row" id="' + attr(detailId) + '" hidden><td colspan="7">' +
       '<p class="meta">' + esc(lane.origin) + ' → ' + esc(lane.destination) +
-      ' · ' + esc(lane.lane_id) + ' · reviewed ' + esc(lane.review_date) + ' · ' + esc(lane.status) + '</p>' +
-      '<p class="meta">Chokepoints: ' + (lane.chokepoint_ids.length ? esc(lane.chokepoint_ids.join(', ')) : 'none registered') + '</p>' +
+      ' · reviewed ' + esc(lane.review_date) + ' · ' + esc(lane.status) + '</p>' +
+      '<p class="pill pill-note">current</p>' +
       detailsBlock('Current domain assessments (9)', domainTable(assessment)) +
       (assessment && assessment.data_gaps
         ? detailsBlock('Current data gaps (' + assessment.data_gaps.length + ')', list(assessment.data_gaps))
         : '') +
-      demoPanel(lane.demo_assessment) +
+      laneCrossReference(lane) +
       detailsBlock('Selection evidence (' + lane.selection_evidence.length + ')',
-        '<div class="table-wrap"><table><thead><tr><th scope="col">Criterion</th><th scope="col">Statement</th>' +
+        '<div class="table-wrap"><table><caption>Why this lane was selected, and on what basis.</caption>' +
+        '<thead><tr><th scope="col">Criterion</th><th scope="col">Statement</th>' +
         '<th scope="col">Evidence class</th><th scope="col">Reference</th></tr></thead><tbody>' +
-        lane.selection_evidence.map(function (item) {
-          return '<tr><th scope="row">' + esc(words(item.criterion)) + '</th><td>' + esc(item.statement) + '</td>' +
-            '<td>' + pill(item.evidence_class, {}) + '</td>' +
-            '<td>' + esc(item.source_reference || 'none') + '</td></tr>';
-        }).join('') + '</tbody></table></div>' +
+        selectionRows + '</tbody></table></div>' +
         '<p class="prose"><strong>Data period used:</strong> ' + esc(lane.data_period_used || 'none — no dated quantitative evidence was retrieved') + '</p>') +
       detailsBlock('Known limitations (' + lane.known_limitations.length + ')', list(lane.known_limitations)) +
+      '</td></tr>';
+
+    return row + detail;
+  }
+
+  /* Relocated demonstration lane assessment (was: the in-card demo panel).
+     Keeps the `demo-panel` class and its own data-demo-label so the existing
+     per-item-marking test keeps binding to live markup, per AC-41. */
+  function laneDemoBlock(lane) {
+    var demo = lane.demo_assessment;
+    if (!demo) return '';
+    return '<div class="lane-card demo-panel" id="lane-demo-' + attr(lane.lane_id) + '" ' +
+      'data-demo-label="' + attr(DEMO_LABEL[demo.dataset] || 'Technical demonstration') + '">' +
+      '<div class="badges">' + demoTag(demo.dataset) + pill(demo.attention_level, ATTENTION_PILL) +
+      pill(demo.overall_direction, DIRECTION_PILL) + '</div>' +
+      '<h4>' + esc(lane.name) + ' <small>' + esc(lane.lane_id) + '</small></h4>' +
+      '<p class="meta">Derived from synthetic fixtures to exercise the threshold rules. ' +
+      'This attention level describes no real-world condition and must not be quoted as one.</p>' +
+      detailsBlock('Demonstration domain assessments (9)', domainTable(demo)) +
       '</div>';
   }
 
@@ -414,7 +509,7 @@
               : '') +
             '<p class="prose">' + esc(notice.claim) + '</p>' +
             '<p class="meta"><small>Published ' + esc(notice.publication_date || 'unknown') +
-            (notice.source_url ? ' · <a href="' + esc(notice.source_url) + '" rel="noopener noreferrer" target="_blank">source</a>' : '') +
+            externalLink(notice.source_url, 'source') +
             '</small></p>' +
             detailsBlock('Known limitations', list(notice.known_limitations)) +
             '</div>';
@@ -434,16 +529,7 @@
         : '<tr><td colspan="6">No qualified capacity or service impact is recorded against a ' +
           'currently active event. This is a coverage gap, not an all-clear.</td></tr>';
 
-    el('port-series').innerHTML = data.demo_port_series.map(function (series) {
-      return seriesBlock(series, series.series_id, [
-        'Metric: ' + words(series.metric),
-        'Interpretation: ' + words(series.operational_interpretation),
-        'Resolution: ' + words(series.resolution),
-        series.node_id || 'country level'
-      ]);
-    }).join('') || '<p class="empty-state">No port series available.</p>';
-
-    el('lane-cards').innerHTML = data.lanes.map(laneCard).join('');
+    el('lane-cards').innerHTML = data.lanes.map(laneRow).join('');
 
     var laneByChokepoint = {};
     data.lanes.forEach(function (lane) {
@@ -468,10 +554,22 @@
         '<td>' + pill(status, { official_notice_active: 'pill-critical', no_notice: 'pill-muted' }) + '</td></tr>';
     }).join('');
 
+    el('port-series').innerHTML = data.demo_port_series.map(function (series) {
+      return seriesBlock(series, series.series_id, [
+        'Metric: ' + words(series.metric),
+        'Interpretation: ' + words(series.operational_interpretation),
+        'Resolution: ' + words(series.resolution),
+        series.node_id || 'country level'
+      ]);
+    }).join('') || '<p class="empty-state">No port series available.</p>';
+
+    el('lane-demo-cards').innerHTML = data.lanes.map(laneDemoBlock).join('') ||
+      '<p class="empty-state">No demonstration lane assessment was generated.</p>';
+
     el('notices').innerHTML = data.demo_operational_notices.length
       ? data.demo_operational_notices.map(function (notice) {
           return '<div class="event is-demo" data-demo-label="' +
-            esc(DEMO_LABEL[notice.dataset] || '') + '"><div class="badges">' +
+            attr(DEMO_LABEL[notice.dataset] || '') + '"><div class="badges">' +
             demoTag(notice.dataset) +
             (notice.assessment_cutoff
               ? '<span class="pill pill-muted">assessed at cutoff ' + esc(notice.assessment_cutoff.slice(0, 10)) + '</span>'
@@ -485,7 +583,7 @@
             '<p class="prose">' + esc(notice.claim) + '</p>' +
             '<p class="meta"><small>Published ' + esc(notice.publication_date || 'unknown') +
             ' · recorded ' + esc(notice.retrieved_at) +
-            (notice.source_url ? ' · <a href="' + esc(notice.source_url) + '" rel="noopener noreferrer" target="_blank">source</a>' : '') +
+            externalLink(notice.source_url, 'source') +
             '</small></p>' +
             detailsBlock('Known limitations', list(notice.known_limitations)) +
             '</div>';
@@ -609,15 +707,14 @@
         '<td>' + esc(words(item.retrieval_status)) + '</td>' +
         '<td>' + esc(item.publication_date || 'unknown') + '</td>' +
         '<td>' + (item.retrieved_at ? esc(item.retrieved_at) : '<span class="missing">never retrieved</span>') + '</td>' +
-        '<td>' + esc(item.claim) +
-        (item.source_url ? '<br><a href="' + esc(item.source_url) + '" rel="noopener noreferrer" target="_blank">source</a>' : '') +
+        '<td>' + esc(item.claim) + externalLink(item.source_url, 'source') +
         '</td></tr>';
     }).join('');
 
     var demoLabel = DEMO_LABEL[event.dataset] || '';
 
     return '<article class="event' + (demoLabel ? ' is-demo' : '') + '"' +
-      (demoLabel ? ' data-demo-label="' + esc(demoLabel) + '"' : '') + '>' +
+      (demoLabel ? ' data-demo-label="' + attr(demoLabel) + '"' : '') + '>' +
       '<div class="badges">' +
       demoTag(event.dataset) +
       (event.assessment_cutoff
@@ -649,13 +746,15 @@
       (event.closure_basis ? '<p class="prose"><strong>Closure basis:</strong> ' + esc(event.closure_basis) + '</p>' : '') +
       detailsBlock('Lane relevance (' + event.lane_relevance.length + ')',
         event.lane_relevance.length
-          ? '<div class="table-wrap"><table><thead><tr><th scope="col">Lane</th><th scope="col">Relevance</th><th scope="col">Basis</th></tr></thead><tbody>' +
+          ? '<div class="table-wrap"><table><caption>Which lanes this event is relevant to, and why.</caption>' +
+            '<thead><tr><th scope="col">Lane</th><th scope="col">Relevance</th><th scope="col">Basis</th></tr></thead><tbody>' +
             event.lane_relevance.map(function (entry) {
               return '<tr><th scope="row">' + esc(entry.lane_id) + '</th><td>' + esc(entry.relevance) + '</td><td>' + esc(entry.basis) + '</td></tr>';
             }).join('') + '</tbody></table></div>'
           : '<p class="empty-state">No lane relevance established.</p>') +
       detailsBlock('Nine-area impact assessment',
-        '<div class="table-wrap"><table><thead><tr><th scope="col">Area</th><th scope="col">Status</th>' +
+        '<div class="table-wrap"><table><caption>Impact by area. Event severity, impact severity, evidence strength and confidence are recorded separately.</caption>' +
+        '<thead><tr><th scope="col">Area</th><th scope="col">Status</th>' +
         '<th scope="col">Severity</th><th scope="col">Relevance</th><th scope="col">Evidence</th>' +
         '<th scope="col">Confidence</th><th scope="col">Horizon</th><th scope="col">Transmission mechanism</th></tr></thead>' +
         '<tbody>' + impactRows + '</tbody></table></div>' +
@@ -666,7 +765,8 @@
           : 'This event carries no negative operational evidence, so no area may report no material impact.') +
         '</small></p>') +
       detailsBlock('Evidence (' + event.evidence.length + ')',
-        '<div class="table-wrap"><table><thead><tr><th scope="col">Source</th><th scope="col">Claim type</th>' +
+        '<div class="table-wrap"><table><caption>Every evidence record behind this event, with its retrieval and publication status.</caption>' +
+        '<thead><tr><th scope="col">Source</th><th scope="col">Claim type</th>' +
         '<th scope="col">Role</th><th scope="col">Strength</th><th scope="col">Origin</th>' +
         '<th scope="col">Retrieval</th><th scope="col">Published</th>' +
         '<th scope="col">Retrieved</th><th scope="col">Claim</th></tr></thead><tbody>' + evidenceRows + '</tbody></table></div>' +
@@ -757,7 +857,7 @@
     var scenarios = entry.scenarios;
     var demoLabel = DEMO_LABEL[entry.dataset] || '';
     return '<div class="series' + (demoLabel ? ' is-demo' : '') + '"' +
-      (demoLabel ? ' data-demo-label="' + esc(demoLabel) + '"' : '') + '>' +
+      (demoLabel ? ' data-demo-label="' + attr(demoLabel) + '"' : '') + '>' +
       '<div class="badges">' + pill(entry.attention_level, ATTENTION_PILL) + demoTag(entry.dataset) + '</div>' +
       '<h4>' + esc(entry.lane_name || entry.lane_id) + '</h4>' +
       (scenarios
@@ -781,6 +881,84 @@
       '</div>';
   }
 
+  /* ---------------- sources: expandable-row table + payload manifest ---------------- */
+
+  function sourceRow(source) {
+    var health = source.health || {};
+    var detailId = 'source-detail-' + source.source_id;
+    var blockerCount = (source.blockers || []).length;
+
+    var row = '<tr>' +
+      '<td>' + expandRowBtn(detailId, source.name) + '</td>' +
+      '<th scope="row">' + esc(source.name) + '<br><small>' + esc(source.source_id) + '</small></th>' +
+      '<td>' + esc(source.owner) + '</td>' +
+      '<td>' + esc(words(source.source_class)) + '</td>' +
+      '<td>' + esc(words(source.licence_status)) + '</td>' +
+      '<td>' + (source.enabled ? 'yes' : 'no') + '</td>' +
+      '<td>' + pill(health.status || 'unknown', FRESHNESS_PILL) + '</td>' +
+      '<td>' + (blockerCount ? blockerCount + ' recorded' : 'none recorded') + '</td>' +
+      '</tr>';
+
+    var fieldRows = [
+      ['Owner', source.owner],
+      ['Class', words(source.source_class)],
+      ['Landing page', source.landing_url],
+      ['Endpoint', source.endpoint || 'none recorded'],
+      ['Access method', words(source.access_method) + ' · ' + source.format],
+      ['Machine readable', words(source.machine_readable_status)],
+      ['Licence status', words(source.licence_status)],
+      ['Terms', source.terms_url || 'not recorded'],
+      ['Access cost', words(source.access_cost || 'not recorded')],
+      ['Reuse status', words(source.reuse_status || 'not recorded')],
+      ['Redistribution', words(source.redistribution_status || 'not recorded')],
+      ['Publication cadence', source.publication_cadence || 'not recorded'],
+      ['Observed freshness', source.observed_freshness || 'never observed'],
+      ['Data period', source.data_period || 'not established'],
+      ['Logistics role', (source.logistics_role || []).map(words).join(', ') || 'not recorded'],
+      ['Prototype eligibility', words(source.prototype_eligibility || 'unknown')],
+      ['Live validation', words(source.live_validation_status || 'not recorded')],
+      ['Enabled', source.enabled ? 'yes' : 'no'],
+      ['Required for publication', source.required_for_publication ? 'yes' : 'no'],
+      ['Health status', words(health.status || 'unknown')]
+    ].map(function (pair) {
+      return '<tr><th scope="row">' + esc(pair[0]) + '</th><td>' + esc(pair[1]) + '</td></tr>';
+    }).join('');
+
+    var detail = '<tr class="detail-row" id="' + attr(detailId) + '" hidden><td colspan="8">' +
+      '<div class="table-wrap"><table><caption>Full registry record for ' + esc(source.name) + '.</caption>' +
+      '<thead><tr><th scope="col">Field</th><th scope="col">Value</th></tr></thead>' +
+      '<tbody>' + fieldRows + '</tbody></table></div>' +
+      detailsBlock('Enablement blockers (' + blockerCount + ')', list(source.blockers, 'No blocker recorded.')) +
+      detailsBlock('Known limitations (' + source.known_limitations.length + ')', list(source.known_limitations)) +
+      '</td></tr>';
+
+    return row + detail;
+  }
+
+  /* Static manifest, not fetched: every file this build publishes under
+     data/, whether this page consumes it, and its dataset classification.
+     indicators.json and source_status.json are generated for inspection and
+     reproducibility but are not read by this page (AC-37/AC-42/AC-43). */
+  var PAYLOAD_MANIFEST = [
+    ['thailand_situation.json', 'current + technical_demo', true],
+    ['ocean.json', 'current + technical_demo + historical_validation', true],
+    ['trade.json', 'current + technical_demo', true],
+    ['cost.json', 'current + technical_demo', true],
+    ['events.json', 'current + technical_demo + historical_validation', true],
+    ['ai_outlook.json', 'current + technical_demo', true],
+    ['sources.json', 'current', true],
+    ['build_status.json', 'current', true],
+    ['indicators.json', 'current (generated summary)', false],
+    ['source_status.json', 'current (generated summary)', false]
+  ];
+
+  function renderPayloadList() {
+    el('payload-list').innerHTML = PAYLOAD_MANIFEST.map(function (item) {
+      return '<tr><th scope="row"><code>' + esc(item[0]) + '</code></th><td>' + esc(item[1]) + '</td>' +
+        '<td>' + (item[2] ? 'yes' : 'no — generated for inspection and reproducibility, not fetched by this page') + '</td></tr>';
+    }).join('');
+  }
+
   function renderSources(data) {
     el('sources-cards').innerHTML = [
       ['Registry version', data.registry_version, 'Last reviewed ' + data.last_reviewed_at],
@@ -789,10 +967,7 @@
       ['Sources enabled', String(data.sources.filter(function (s) { return s.enabled; }).length), 'An enabled source has no unresolved blockers.'],
       ['Overall coverage', words(data.overall_status), data.coverage_message],
       ['Historical validation', words(data.validation_overall), 'Every documented case replayed through the analysis code.']
-    ].map(function (card) {
-      return '<div class="card"><div class="label">' + esc(card[0]) + '</div>' +
-        '<div class="value">' + esc(card[1]) + '</div><div class="note">' + esc(card[2]) + '</div></div>';
-    }).join('');
+    ].map(cardHtml).join('');
 
     el('capability-table').querySelector('tbody').innerHTML = data.capabilities.map(function (item) {
       return '<tr><th scope="row">' + esc(words(item.capability)) + '</th>' +
@@ -801,47 +976,7 @@
         '<td>' + esc(item.gap_reason || 'none') + '</td></tr>';
     }).join('');
 
-    el('source-list').innerHTML = data.sources.map(function (source) {
-      var health = source.health || {};
-      var rows = [
-        ['Owner', source.owner],
-        ['Class', words(source.source_class)],
-        ['Landing page', source.landing_url],
-        ['Endpoint', source.endpoint || 'none recorded'],
-        ['Access method', words(source.access_method) + ' · ' + source.format],
-        ['Machine readable', words(source.machine_readable_status)],
-        ['Licence status', words(source.licence_status)],
-        ['Terms', source.terms_url || 'not recorded'],
-        ['Access cost', words(source.access_cost || 'not recorded')],
-        ['Reuse status', words(source.reuse_status || 'not recorded')],
-        ['Redistribution', words(source.redistribution_status || 'not recorded')],
-        ['Publication cadence', source.publication_cadence || 'not recorded'],
-        ['Observed freshness', source.observed_freshness || 'never observed'],
-        ['Data period', source.data_period || 'not established'],
-        ['Logistics role', (source.logistics_role || []).map(words).join(', ') || 'not recorded'],
-        ['Prototype eligibility', words(source.prototype_eligibility || 'unknown')],
-        ['Live validation', words(source.live_validation_status || 'not recorded')],
-        ['Enabled', source.enabled ? 'yes' : 'no'],
-        ['Required for publication', source.required_for_publication ? 'yes' : 'no'],
-        ['Health status', words(health.status || 'unknown')]
-      ].map(function (pair) {
-        return '<tr><th scope="row">' + esc(pair[0]) + '</th><td>' + esc(pair[1]) + '</td></tr>';
-      }).join('');
-
-      return '<div class="series">' +
-        '<div class="badges">' +
-        (source.enabled ? '<span class="pill pill-ok">enabled</span>' : '<span class="pill pill-muted">disabled</span>') +
-        pill(health.status || 'unknown', FRESHNESS_PILL) +
-        '<span class="pill pill-note">licence: ' + esc(words(source.licence_status)) + '</span>' +
-        '</div>' +
-        '<h4>' + esc(source.name) + ' <small>(' + esc(source.source_id) + ')</small></h4>' +
-        '<div class="table-wrap"><table><tbody>' + rows + '</tbody></table></div>' +
-        detailsBlock('Enablement blockers (' + (source.blockers || []).length + ')',
-          list(source.blockers, 'No blocker recorded.')) +
-        detailsBlock('Known limitations (' + source.known_limitations.length + ')',
-          list(source.known_limitations)) +
-        '</div>';
-    }).join('');
+    el('source-list').innerHTML = data.sources.map(sourceRow).join('');
 
     el('validation-table').querySelector('tbody').innerHTML = Object.keys(data.validation_summary)
       .filter(function (key) { return key.indexOf('_examples') === -1; })
@@ -856,28 +991,318 @@
     el('methodology-docs').innerHTML = data.methodology.documents.map(function (doc) {
       return '<li><code>' + esc(doc) + '</code></li>';
     }).join('');
+
+    renderPayloadList();
   }
+
+  /* ---------------- coverage chip + banner: one function, two writers ---------------- */
+
+  var COVERAGE_MESSAGES = {
+    loading: ['pill-muted', 'banner-critical', 'Live coverage: loading…', 'Payloads are still loading.'],
+    load_failed: ['pill-critical', 'banner-critical', 'Live coverage: load failed',
+      'One or more dashboard payloads failed to load. Treat coverage as insufficient until the page loads completely.'],
+    insufficient: ['pill-critical', 'banner-critical', 'Live coverage: insufficient', null],
+    sufficient: ['pill-ok', 'banner-note', 'Live coverage: sufficient', null]
+  };
+
+  var coverageState = 'loading';
+
+  /* The single function that writes both the persistent navbar chip and the
+     Overview banner (AC-9). Once load_failed, there is no exit transition:
+     the chip stays pessimistic for the rest of the page's life. */
+  function paintCoverage() {
+    var chip = el('chip-coverage');
+    var config = COVERAGE_MESSAGES[coverageState];
+    chip.className = 'pill ' + config[0];
+    chip.textContent = config[2];
+
+    var banner = el('coverage-banner');
+    if (!banner) return;
+    banner.className = 'banner ' + config[1];
+    if (coverageState === 'sufficient' || coverageState === 'insufficient') {
+      var situation = payloadData['thailand_situation.json'];
+      banner.innerHTML = '<strong>Live coverage: ' + esc(words(situation.evidence_coverage)) + '.</strong> ' +
+        esc(situation.live_coverage_statement) + ' <br><small>' + esc(situation.coverage_message) +
+        ' Data cutoff ' + esc(situation.data_cutoff_at) + '.</small>';
+    } else {
+      banner.textContent = config[3];
+    }
+  }
+
+  function driveCoverage() {
+    if (coverageState === 'load_failed') { paintCoverage(); return; }
+    var anyFailed = PAYLOAD_FILES.some(function (f) { return loaded[f] && loaded[f].ok === false; });
+    if (anyFailed) { coverageState = 'load_failed'; paintCoverage(); return; }
+    var allSettled = PAYLOAD_FILES.every(function (f) { return loaded[f]; });
+    if (!allSettled) { coverageState = 'loading'; paintCoverage(); return; }
+    var situation = payloadData['thailand_situation.json'];
+    coverageState = situation.evidence_coverage === 'sufficient' ? 'sufficient' : 'insufficient';
+    paintCoverage();
+  }
+
+  /* ---------------- router ---------------- */
+
+  var VIEWS = [
+    { route: 'overview', id: 'situation', title: 'Overview', label: 'Overview view' },
+    { route: 'ocean', id: 'ocean', title: 'Ocean Operations', label: 'Ocean Operations view' },
+    { route: 'trade', id: 'trade', title: 'Trade & Flow', label: 'Trade & Flow view' },
+    { route: 'cost', id: 'cost', title: 'Cost & Freight', label: 'Cost & Freight view' },
+    { route: 'events', id: 'events', title: 'Events', label: 'Events view' },
+    { route: 'outlook', id: 'outlook', title: 'Outlook', label: 'Outlook view' },
+    { route: 'sources', id: 'sources', title: 'Sources & Methodology', label: 'Sources & Methodology view' }
+  ];
+  var ROUTE_TO_ID = {};
+  var VIEW_BY_ROUTE = {};
+  VIEWS.forEach(function (v) { ROUTE_TO_ID[v.route] = v.id; VIEW_BY_ROUTE[v.route] = v; });
+  var LEGACY_TO_ROUTE = { situation: 'overview' };
+
+  var currentRoute = null;
+  var renderedViews = {};
+  /* A sub-anchor whose target didn't exist yet because its view's payload
+     hadn't rendered when the hash was first resolved (AC-12 on a fresh page
+     load racing the async fetch). Retried once that view actually renders. */
+  var pendingSub = null;
+
+  var PAYLOAD_FILES = [
+    'thailand_situation.json', 'ocean.json', 'trade.json', 'cost.json',
+    'events.json', 'ai_outlook.json', 'sources.json', 'build_status.json'
+  ];
+  var ROUTE_FOR_FILE = {
+    'thailand_situation.json': 'overview',
+    'ocean.json': 'ocean',
+    'trade.json': 'trade',
+    'cost.json': 'cost',
+    'events.json': 'events',
+    'ai_outlook.json': 'outlook',
+    'sources.json': 'sources'
+  };
+  var RENDER_FN = {
+    'thailand_situation.json': renderSituation,
+    'ocean.json': renderOcean,
+    'trade.json': renderTrade,
+    'cost.json': renderCost,
+    'events.json': renderEvents,
+    'ai_outlook.json': renderOutlook,
+    'sources.json': renderSources
+  };
+  var FALLBACK_CONTAINER = {
+    'thailand_situation.json': 'situation-cards',
+    'ocean.json': 'port-series',
+    'trade.json': 'trade-lanes',
+    'cost.json': 'cost-series',
+    'events.json': 'events-operational',
+    'ai_outlook.json': 'outlooks',
+    'sources.json': 'source-list'
+  };
+
+  var loaded = {};
+  var payloadData = {};
+
+  function fileForRoute(route) {
+    var file = null;
+    Object.keys(ROUTE_FOR_FILE).forEach(function (f) { if (ROUTE_FOR_FILE[f] === route) file = f; });
+    return file;
+  }
+
+  /* Renders a view's payload unconditionally, once its data has settled.
+     Idempotent: a view is only ever rendered once (AC-27). Used directly by
+     print (AC-35, every view must be printable even if never visited) and,
+     gated by the active-route check in tryRenderRoute, by normal navigation
+     (AC-25, only the active view renders on first load). */
+  function doRenderRoute(route) {
+    if (renderedViews[route]) return;
+    var file = fileForRoute(route);
+    if (!file || !loaded[file]) return;
+    renderedViews[route] = true;
+    if (loaded[file].ok === false) {
+      failSection(el(FALLBACK_CONTAINER[file]), file, loaded[file].error);
+    } else {
+      RENDER_FN[file](payloadData[file]);
+    }
+    if (pendingSub && pendingSub.route === route) {
+      var id = pendingSub.id;
+      pendingSub = null;
+      revealAndFocus(id);
+    }
+  }
+
+  function tryRenderRoute(route) {
+    if (route === currentRoute) doRenderRoute(route);
+  }
+
+  function settlePayload(file) {
+    load(file).then(function (json) {
+      payloadData[file] = json;
+      loaded[file] = { ok: true };
+      if (file === 'build_status.json') renderBuild(json);
+      driveCoverage();
+      var route = ROUTE_FOR_FILE[file];
+      if (route) tryRenderRoute(route);
+    }).catch(function (error) {
+      payloadData[file] = null;
+      loaded[file] = { ok: false, error: error };
+      driveCoverage();
+      var route = ROUTE_FOR_FILE[file];
+      if (route) tryRenderRoute(route);
+    });
+  }
+
+  function resolveHash(hash) {
+    var raw = (hash || '').replace(/^#\/?/, '');
+    if (!raw) return { route: 'overview', sub: null };
+    var parts = raw.split('/');
+    var seg = parts[0];
+    if (ROUTE_TO_ID[seg]) return { route: seg, sub: parts[1] || null };
+    if (LEGACY_TO_ROUTE[seg]) return { route: LEGACY_TO_ROUTE[seg], sub: parts[1] || null, legacy: true };
+    var target = document.getElementById(seg);
+    if (target) {
+      var viewEl = target.closest ? target.closest('.view') : null;
+      if (viewEl) {
+        var matchRoute = null;
+        VIEWS.forEach(function (v) { if (v.id === viewEl.id) matchRoute = v.route; });
+        if (matchRoute) return { route: matchRoute, sub: seg, bare: true };
+      }
+    }
+    return { route: null, sub: raw };
+  }
+
+  function showRouteNotice(rawHash) {
+    el('route-notice-slot').innerHTML = '<div class="wrap"><p class="banner banner-warning">' +
+      'The address <code>#' + esc(rawHash) + '</code> does not match any view. Showing Overview instead. ' +
+      'Nothing has been silently substituted or withheld.</p></div>';
+  }
+
+  function clearRouteNotice() {
+    el('route-notice-slot').innerHTML = '';
+  }
+
+  function revealAndFocus(id) {
+    var target = el(id);
+    if (!target) return false;
+    var details = target.closest ? target.closest('details') : null;
+    if (details && !details.open) details.open = true;
+    var detailRow = target.closest ? target.closest('tr.detail-row') : null;
+    if (detailRow && detailRow.hidden) {
+      detailRow.hidden = false;
+      var btn = findExpandButtonFor(detailRow.id);
+      if (btn) btn.setAttribute('aria-expanded', 'true');
+    }
+    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'start' });
+    return true;
+  }
+
+  function canonicalize(route, sub) {
+    var newHash = '#/' + route + (sub ? '/' + sub : '');
+    if (location.hash !== newHash) history.replaceState(null, '', newHash);
+  }
+
+  function activateView(route, subId) {
+    var view = VIEW_BY_ROUTE[route];
+    VIEWS.forEach(function (v) { el(v.id).hidden = v.route !== route; });
+    /* The inline anti-flash boot script (index.html <head>) sets data-boot-view
+       once, before this file even loads, purely to avoid a flash of every view
+       stacked on first paint. Its CSS show-rule is deliberately ID-specific so
+       it outranks the generic "hide every view" rule -- but that only stays
+       correct if this attribute keeps tracking the active view. Without this
+       line the boot view stays pinned visible (and every other .view stays
+       display:none) for the rest of the page's life, no matter what `hidden`
+       says: hashchange navigation would update the DOM's `hidden` attribute
+       but never the one thing the CSS cascade actually keys visibility on. */
+    document.documentElement.setAttribute('data-boot-view', view.id);
+    document.querySelectorAll('.nav-list a[data-route]').forEach(function (link) {
+      if (link.getAttribute('data-route') === route) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+    document.title = view.title + ' — Thailand Ocean Logistics Intelligence';
+    currentRoute = route;
+    tryRenderRoute(route);
+    if (subId) {
+      /* The view's payload may not have rendered yet (a sub-anchor on a
+         fresh page load races the async fetch) -- doRenderRoute() retries
+         this once that view's markup actually lands. */
+      pendingSub = revealAndFocus(subId) ? null : { route: route, id: subId };
+    } else {
+      pendingSub = null;
+      var heading = el(view.id + '-h');
+      if (heading) heading.focus({ preventScroll: false });
+    }
+    el('route-status').textContent = view.label;
+  }
+
+  function applyHash() {
+    var resolved = resolveHash(location.hash);
+    if (!resolved.route) {
+      showRouteNotice(resolved.sub || '');
+      activateView('overview');
+      return;
+    }
+    clearRouteNotice();
+    activateView(resolved.route, resolved.sub);
+    if (resolved.legacy || resolved.bare) canonicalize(resolved.route, resolved.sub);
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('.row-expand-btn') : null;
+    if (btn) toggleRow(btn);
+  });
+
+  window.addEventListener('hashchange', applyHash);
+
+  /* ---------------- print ---------------- */
+
+  var printRestore = null;
+
+  function fillPrintHeader() {
+    var header = el('print-header');
+    if (!header) return;
+    var cutoff = (payloadData['build_status.json'] && payloadData['build_status.json'].data_cutoff_at) || 'unknown';
+    header.innerHTML = '<p><strong>Thailand Ocean Logistics Intelligence</strong> — printed ' + esc(new Date().toISOString()) + '</p>' +
+      '<p>Coverage: ' + esc(coverageState) + ' · Data cutoff: ' + esc(cutoff) + ' · ' + esc(location.href) + '</p>';
+  }
+
+  window.addEventListener('beforeprint', function () {
+    fillPrintHeader();
+    VIEWS.forEach(function (v) { doRenderRoute(v.route); });
+
+    var hiddenViews = [];
+    VIEWS.forEach(function (v) {
+      var section = el(v.id);
+      hiddenViews.push({ el: section, hidden: section.hidden });
+      section.hidden = false;
+    });
+
+    var openDetails = [];
+    document.querySelectorAll('details').forEach(function (d) {
+      openDetails.push({ el: d, open: d.open });
+      d.open = true;
+    });
+
+    var hiddenRows = [];
+    document.querySelectorAll('tr.detail-row[hidden]').forEach(function (tr) { hiddenRows.push(tr); tr.hidden = false; });
+
+    var expandedBtns = [];
+    document.querySelectorAll('.row-expand-btn[aria-expanded="false"]').forEach(function (b) {
+      expandedBtns.push(b);
+      b.setAttribute('aria-expanded', 'true');
+    });
+
+    printRestore = { hiddenViews: hiddenViews, openDetails: openDetails, hiddenRows: hiddenRows, expandedBtns: expandedBtns };
+  });
+
+  window.addEventListener('afterprint', function () {
+    if (!printRestore) return;
+    printRestore.hiddenViews.forEach(function (item) { item.el.hidden = item.hidden; });
+    printRestore.openDetails.forEach(function (item) { item.el.open = item.open; });
+    printRestore.hiddenRows.forEach(function (tr) { tr.hidden = true; });
+    printRestore.expandedBtns.forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
+    printRestore = null;
+  });
 
   /* ---------------- boot ---------------- */
 
-  var sections = [
-    ['build_status.json', renderBuild, null],
-    ['thailand_situation.json', renderSituation, 'situation-cards'],
-    ['ocean.json', renderOcean, 'port-series'],
-    ['trade.json', renderTrade, 'trade-lanes'],
-    ['cost.json', renderCost, 'cost-series'],
-    ['events.json', renderEvents, 'events-operational'],
-    ['ai_outlook.json', renderOutlook, 'outlooks'],
-    ['sources.json', renderSources, 'source-list']
-  ];
-
-  sections.forEach(function (entry) {
-    load(entry[0]).then(entry[1]).catch(function (error) {
-      failSection(el(entry[2]), entry[0], error);
-      var banner = el('coverage-banner');
-      banner.className = 'banner banner-critical';
-      banner.textContent = 'One or more dashboard payloads failed to load. Treat coverage as ' +
-        'insufficient until the page loads completely. (' + entry[0] + ')';
-    });
-  });
+  driveCoverage();
+  PAYLOAD_FILES.forEach(settlePayload);
+  applyHash();
 })();
