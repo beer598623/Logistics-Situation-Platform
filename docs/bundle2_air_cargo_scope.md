@@ -79,12 +79,13 @@ and this document deliberately does not make it in advance:
 **Evidence update (WO-034/WO-036, see `docs/known_data_gaps.md` §8):** a candidate for
 Option B was found and bounded-live-validated — `air-freight-pass` on `datagov.mot.go.th`,
 CAAT-sourced, airport-disaggregated, annual, DataStore-backed. It is not yet usable for
-either option: its licence names nothing real (`"Open Data Common"`, `isopen: false`), and
-its cargo-specific rows were never observed in the bounded read (only passenger rows
-returned), so neither its unit/scale nor its exact cargo field value is confirmed. This
-narrows, but does not close, the question — a future implementation WO still chooses between
-A and B, now with a concrete, partially-verified Option B candidate on record rather than a
-purely hypothetical one.
+either option: its licence names nothing real (`"Open Data Common"`, `isopen: false`); its
+schema carries no unit column at all, so its unit and scale may never be verifiable from the
+data alone regardless of which rows are read; and, separately, its cargo-specific rows were
+never observed in the bounded read (only passenger rows returned), so its exact cargo
+`Detail` field value is unconfirmed too. This narrows, but does not close, the question — a
+future implementation WO still chooses between A and B, now with a concrete,
+partially-verified Option B candidate on record rather than a purely hypothetical one.
 
 Neither option is authorized by this WO. The choice belongs to whichever future WO actually
 implements Bundle 2, made explicitly and reviewed, not defaulted into.

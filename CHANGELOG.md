@@ -79,8 +79,9 @@ WO-010 and is not bumped by every Work Order.
   bounded live validation) actually established, so this document doesn't drift from the Air
   Cargo record the way §7 corrected for Ocean. `docs/bundle2_air_cargo_scope.md` §3 and §4
   updated with the same findings: `air-freight-pass` on `datagov.mot.go.th` is a real,
-  DataStore-backed, field-contract-verified candidate blocked on an unresolved licence and on
-  its cargo-specific rows never having been observed; AEROTHAI Bangkok FIR is closed as NOT
+  DataStore-backed, field-contract-verified candidate blocked on an unresolved licence, on its
+  schema carrying no unit column at all, and on its cargo-specific rows never having been
+  observed; AEROTHAI Bangkok FIR is closed as NOT
   QUALIFIED (no cargo dimension, no aerodrome resolution); no free Thailand-scoped air freight
   rate source was found. Also corrected a stale "Bundle 1's 17 candidates" count in
   `bundle2_air_cargo_scope.md` §4 to 18. No `config/sources.yaml` change, no network request,
