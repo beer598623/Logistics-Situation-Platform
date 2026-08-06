@@ -73,9 +73,20 @@ def test_the_schema_covers_every_conceptual_entity():
 def test_clean_build_populates_every_table(built):
     _, counts, _ = built
     assert set(counts) == EXPECTED_TABLES
-    assert counts["dim_lane"] == 11
+    assert counts["dim_lane"] == 16  # 11 Ocean + 5 Air
     assert counts["fact_impact_assessment"] == counts["fact_event"] * 9
     assert all(count > 0 for count in counts.values())
+
+
+def test_the_warehouse_carries_both_ocean_and_air_lanes(built):
+    _, _, tables = built
+    lanes = tables["dim_lane"]
+    sea_rows = [row for row in lanes if row["mode"] == "sea"]
+    air_rows = [row for row in lanes if row["mode"] == "air"]
+    assert len(sea_rows) == 11
+    assert len(air_rows) == 5
+    for row in air_rows:
+        assert not row["data_period_used"]
 
 
 def test_rebuilding_over_an_existing_database_is_idempotent(bundle, built):

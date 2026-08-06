@@ -45,6 +45,17 @@ def test_the_registered_airport_node_matches_the_docs_description() -> None:
     assert airport["modes"] == ["air"]
 
 
+def test_the_airport_node_no_longer_claims_that_no_air_lane_exists() -> None:
+    """WO-039 delivered Air lanes and one historical validation case that
+    reference NODE-THBKKAIR, so the WO-010 claim that no Air lane or event
+    touches this node is now false and must not still appear."""
+    dimensions = _load_dimensions()
+    nodes = {node["node_id"]: node for node in dimensions["logistics_nodes"]}
+    limitations = " ".join(nodes["NODE-THBKKAIR"]["known_limitations"]).lower()
+    assert "lanes or events are delivered" not in limitations
+    assert "no air observation" in limitations
+
+
 def test_air_transport_mode_is_registered_as_planned() -> None:
     dimensions = _load_dimensions()
     modes = {mode["mode_id"]: mode for mode in dimensions["transport_modes"]}

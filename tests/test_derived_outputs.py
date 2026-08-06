@@ -209,6 +209,88 @@ def test_no_paid_source_is_registered_or_required():
 
 
 # ---------------------------------------------------------------------------
+# Air foundation — WO-039
+# ---------------------------------------------------------------------------
+
+
+def test_the_air_historical_case_replays_clean():
+    from scripts.run_historical_validation import run as run_historical_validation
+
+    failures, _metrics, case_results = run_historical_validation()
+    case = next(item for item in case_results if item["case_id"] == "HVC-009")
+    assert case["result"] == "pass"
+    assert case["failures"] == []
+    assert "LANE-AIR-TH-EUR" in case["lane_relevance"]
+    assert not any("HVC-009" in failure for failure in failures)
+
+
+def test_the_air_historical_event_resolves_no_ocean_lane():
+    events = json.loads((ROOT / "data/events/events.json").read_text(encoding="utf-8"))["events"]
+    event = next(item for item in events if item["event_id"] == "EVT-20190227-001")
+    assert event["modes"] == ["air"]
+    assert event["lane_relevance"]
+    assert all(entry["lane_id"].startswith("LANE-AIR-") for entry in event["lane_relevance"])
+
+
+def test_the_air_historical_event_matched_its_lane_through_the_airspace_chokepoint():
+    events = json.loads((ROOT / "data/events/events.json").read_text(encoding="utf-8"))["events"]
+    event = next(item for item in events if item["event_id"] == "EVT-20190227-001")
+    entry = next(item for item in event["lane_relevance"] if item["lane_id"] == "LANE-AIR-TH-EUR")
+    assert entry["relevance"] == "medium"
+    assert "chokepoint CHK-SASIA-AIRSPACE" in entry["basis"]
+
+
+def test_the_air_historical_case_quantifies_no_air_capacity_or_cost():
+    events = json.loads((ROOT / "data/events/events.json").read_text(encoding="utf-8"))["events"]
+    event = next(item for item in events if item["event_id"] == "EVT-20190227-001")
+    impacts_by_area = {item["area"]: item for item in event["impact_assessments"]}
+    for area, expected_phrase in (
+        ("capacity", "not a measured quantity"),
+        ("cost", "quantified"),
+    ):
+        impact = impacts_by_area[area]
+        assert impact["status"] == "potential"
+        assert any(expected_phrase in limitation for limitation in impact["known_limitations"])
+
+
+def test_the_air_foundation_added_no_observation_record():
+    families = (
+        "indicator_observations",
+        "trade_observations",
+        "port_observations",
+        "cost_observations",
+    )
+    total = 0
+    for family in families:
+        records = json.loads(
+            (ROOT / f"data/observations/{family}.json").read_text(encoding="utf-8")
+        )["records"]
+        total += len(records)
+        for record in records:
+            assert record.get("placement", {}).get("mode") != "air"
+            assert not str(record.get("lane_id", "")).startswith("LANE-AIR-")
+    assert total == 930
+
+
+def test_no_air_source_was_registered_or_enabled_by_this_work_order():
+    import re
+
+    import yaml
+
+    registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
+    for source in registry["sources"]:
+        assert source["enabled"] is False, source["id"]
+        fields = list(source.get("purposes", []))
+        fields.extend((source.get("qualification") or {}).get("logistics_role", []))
+        lowered = [field.lower() for field in fields]
+        words_seen = {word for field in lowered for word in re.split(r"[_\s]+", field)}
+        assert "air" not in words_seen, source["id"]
+        assert not any(
+            term in field for field in lowered for term in ("aviation", "aircraft", "airport")
+        ), source["id"]
+
+
+# ---------------------------------------------------------------------------
 # No network in the default path
 # ---------------------------------------------------------------------------
 

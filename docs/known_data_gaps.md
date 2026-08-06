@@ -261,5 +261,22 @@ API-decidable, or (b) one additional bounded `datastore_search` request with a `
 filter to observe the actual cargo rows before any adapter or contract is written. Writing a
 field contract for the cargo measure without that read would repeat the exact failure mode
 WO-026's wrong field-name guesses represented, which WO-027 had to correct — this repository
-does not repeat that shape a second time. No implementation Work Order is open for Air Cargo
-as of this record.
+does not repeat that shape a second time.
+
+- **WO-039 — Air Cargo foundation, Bundle 2 Option A (Issue #76).** Built the Air structural
+  scaffolding under Option A: five provisional `LANE-AIR-TH-*` lanes, one `airspace`
+  chokepoint (`CHK-SASIA-AIRSPACE`), zero new nodes, and one historical validation case
+  (`HVC-009`, the 27 February 2019 Pakistan airspace closure and the resulting
+  Thailand–Europe air service cancellations). **No source was registered, enabled, scheduled
+  or published, and no figure from `air-freight-pass`, from AEROTHAI, or from any
+  passenger-traffic series was used to select, rank or size any lane** — the selection rests
+  entirely on the recorded structural criteria, every lane carries `data_period_used: null`,
+  and every gap in this section stays open. `air-freight-pass` remains unregistered pending a
+  human licence determination on `"Open Data Common"`/`isopen: false`. The four
+  source-capability gaps in `docs/bundle2_air_cargo_scope.md` §4 are unchanged by this Work
+  Order and are now also stated on the Dashboard's Air Cargo section. See
+  `docs/air_lane_selection.md` for the full selection methodology.
+
+WO-039 is now the one implementation Work Order landed for Air Cargo; every gap this section
+records for `air-freight-pass`, the air freight rate benchmark, and the airport/airspace
+notice channel remains open regardless.

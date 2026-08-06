@@ -935,6 +935,19 @@ def build_coverage_only_outlook(
     }
 
 
+def _ocean_lanes() -> list[dict[str, Any]]:
+    """Ocean-only view of the shared lane registry.
+
+    Bundle 2 (WO-039) added Air lanes to the same ``data/reference/lanes.json``
+    this module has always treated as Ocean-only. Every assessment,
+    indicator, and scenario derivation here stays scoped to Ocean lanes so
+    an Air lane -- which carries no live observation and no source-backed
+    ranking -- never picks up a fabricated assessment; the Dashboard's
+    dedicated Air payload handles Air lane presentation on its own terms.
+    """
+    return [lane for lane in load_lanes()["lanes"] if lane["mode"] == "sea"]
+
+
 def build_lane_records(
     observations: Mapping[str, Sequence[Mapping[str, Any]]],
     events: Sequence[Mapping[str, Any]],
@@ -944,7 +957,7 @@ def build_lane_records(
     *,
     dataset: str = TECHNICAL_DEMO,
 ) -> list[dict[str, Any]]:
-    lanes = load_lanes()["lanes"]
+    lanes = _ocean_lanes()
     assessments: list[dict[str, Any]] = []
 
     coverage_limitation = (
@@ -1318,7 +1331,7 @@ def main() -> int:
     observations = load_observations()
     events = _load(EVENTS_PATH)["events"]
     evidence_records = _load(ROOT / "data/events/event_evidence.json")["evidence"]
-    lanes = load_lanes()["lanes"]
+    lanes = _ocean_lanes()
     load_dimensions()
 
     previous_context = _load(BUILD_CONTEXT_PATH) if BUILD_CONTEXT_PATH.exists() else None

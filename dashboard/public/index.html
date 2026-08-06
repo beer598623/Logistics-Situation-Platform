@@ -60,6 +60,7 @@
     <ul class="nav-list">
       <li><a href="#/overview" data-route="overview">Overview</a></li>
       <li><a href="#/ocean" data-route="ocean">Ocean Operations</a></li>
+      <li><a href="#/air" data-route="air">Air Cargo</a></li>
       <li><a href="#/trade" data-route="trade">Trade &amp; Flow</a></li>
       <li><a href="#/cost" data-route="cost">Cost &amp; Freight</a></li>
       <li><a href="#/events" data-route="events">Events</a></li>
@@ -163,6 +164,41 @@
           <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
           <tbody></tbody>
         </table></div>
+      </div>
+    </details>
+  </section>
+
+  <section id="air" class="view" data-view="air" aria-labelledby="air-h">
+    <h2 id="air-h" tabindex="-1">Air Cargo</h2>
+    <p class="section-intro">The provisional Thailand Air lane set, the registered air node and airspace chokepoint, and exactly what this platform does and does not know about Air cargo today.</p>
+    <p class="banner banner-critical" id="air-coverage-banner"></p>
+
+    <div data-evidence-region="current">
+      <h3>Air cargo coverage — current</h3>
+      <p class="banner banner-warning" id="air-coverage-message"></p>
+      <h3>Air lanes</h3>
+      <p class="section-intro" id="air-lane-note"></p>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="air-lane-table-caption"><table id="air-lane-table">
+        <caption id="air-lane-table-caption">Provisional Air lanes. Each row states the analytical resolution it actually supports. No lane carries a current assessment, because no Air source is enabled.</caption>
+        <thead><tr><th scope="col">Lane</th><th scope="col">Resolution</th><th scope="col">Status</th><th scope="col">Direction</th><th scope="col">Chokepoints</th><th scope="col">Current assessment</th></tr></thead>
+        <tbody id="air-lane-rows"></tbody>
+      </table></div>
+      <h3>Air nodes and airspace chokepoints</h3>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="air-reference-table-caption"><table id="air-reference-table">
+        <caption id="air-reference-table-caption">Registered Air reference records. Each carries no measured data; its known limitations are stated in full.</caption>
+        <thead><tr><th scope="col">Record</th><th scope="col">Type</th><th scope="col">Modes</th><th scope="col">Known limitations</th></tr></thead>
+        <tbody id="air-reference-rows"></tbody>
+      </table></div>
+      <h3>Air source coverage gaps</h3>
+      <ul id="air-gaps" class="prose-list gap-list"></ul>
+    </div>
+
+    <details class="region region-demo" data-evidence-region="historical" id="air-historical-region">
+      <summary>Historical validation material <span class="pill pill-demo">historical validation</span></summary>
+      <div class="region-body">
+        <p class="banner banner-demo" id="air-historical-label"></p>
+        <h3 class="demo-heading">Air historical validation cases <span class="pill pill-demo">historical validation</span></h3>
+        <div id="air-historical-cases"></div>
       </div>
     </details>
   </section>

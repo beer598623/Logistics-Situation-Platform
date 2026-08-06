@@ -74,7 +74,12 @@ LANE_ID = "LANE-OCEAN-TH-NEUR"
 
 
 def _lanes():
-    return json.loads((ROOT / "data/reference/lanes.json").read_text(encoding="utf-8"))["lanes"]
+    # WO-039 added Air lanes to the shared registry. build_current_lane_assessments
+    # (and _lane_slug within it) is Ocean-only, exactly like the production pipeline's
+    # own scoping (scripts/build_analysis.py::_ocean_lanes) -- these tests exercise that
+    # Ocean-only code path, so the fixture stays Ocean-scoped to match.
+    payload = json.loads((ROOT / "data/reference/lanes.json").read_text(encoding="utf-8"))
+    return [lane for lane in payload["lanes"] if lane["mode"] == "sea"]
 
 
 def _lane(lane_id=LANE_ID):

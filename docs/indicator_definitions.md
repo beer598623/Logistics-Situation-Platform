@@ -164,6 +164,14 @@ the event-derived domains, never `stable` — a lead is not an observation of ca
 `insufficient_evidence` may not cite a threshold rule, because citing a rule that could not
 be applied misrepresents how the answer was reached.
 
+**Air adds no threshold rule.** WO-039 delivered the Air lane, node and chokepoint foundation
+but no Air observation or indicator series, because no Air source is registered or enabled. A
+threshold rule with no series to apply it to would be a rule that cannot be applied, and
+`scripts/validate.py` already rejects a domain that cites a rule it could not apply. Air
+therefore uses only the three event-derived, rule-free domains above, which are mode-agnostic
+by construction. A new rule ID belongs in the Work Order that enables the first Air source,
+not in the one that registered the lanes.
+
 ## 8. Current data status
 
 Every series in this bundle is derived from a **labelled synthetic test fixture**

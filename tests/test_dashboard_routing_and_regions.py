@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "dashboard" / "public"
 
-VIEW_IDS = ("situation", "ocean", "trade", "cost", "events", "outlook", "sources")
+VIEW_IDS = ("situation", "ocean", "air", "trade", "cost", "events", "outlook", "sources")
 
 
 def _html() -> str:

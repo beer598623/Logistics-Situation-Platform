@@ -461,6 +461,39 @@ def test_evidence_records_separate_expected_strength_from_verified_strength(payl
 
 
 # ---------------------------------------------------------------------------
+# Air foundation — WO-039
+# ---------------------------------------------------------------------------
+
+
+def test_no_air_lane_carries_a_current_assessment(payloads):
+    for lane in payloads["air.json"]["lanes"]:
+        assert lane["assessment"] is None
+        assert "insufficient_evidence" in lane["assessment_note"]
+        assert "coverage gap" in lane["assessment_note"]
+
+
+def test_the_air_section_states_insufficient_live_coverage(payloads):
+    air = payloads["air.json"]
+    assert air["live_coverage"] == "insufficient"
+    assert air["module_status"] == "planned"
+    assert "INSUFFICIENT" in air["live_coverage_statement"]
+    assert "coverage gap, not a finding" in air["coverage_message"]
+    assert air["source_gaps"]
+
+
+def test_no_air_record_enters_the_current_publication_surface(payloads):
+    for event in payloads["air.json"]["historical_air_events"]:
+        assert event["dataset"] == HISTORICAL_VALIDATION
+    assert payloads["events.json"]["current_direct_operational_events"] == []
+    assert all(lane["mode"] != "air" for lane in payloads["ocean.json"]["lanes"])
+
+
+def test_the_ocean_payload_is_unchanged_in_size_by_the_air_foundation(payloads):
+    assert len(payloads["ocean.json"]["lanes"]) == 11
+    assert len(payloads["ai_outlook.json"]["current_outlooks"]) == 11
+
+
+# ---------------------------------------------------------------------------
 # §10: the label is on every panel, not only the page banner
 # ---------------------------------------------------------------------------
 

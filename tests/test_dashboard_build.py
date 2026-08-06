@@ -19,6 +19,7 @@ PUBLIC = ROOT / "dashboard" / "public"
 REQUIRED_OUTPUTS = {
     "thailand_situation.json",
     "ocean.json",
+    "air.json",
     "trade.json",
     "cost.json",
     "events.json",
@@ -348,3 +349,57 @@ def test_an_empty_current_panel_says_coverage_gap_not_all_clear():
     script = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
     assert script.count("coverage gap") >= 2
     assert "not an all-clear" in script
+
+
+# ---------------------------------------------------------------------------
+# Air foundation — WO-039
+# ---------------------------------------------------------------------------
+
+
+def _js_function_body(js_text: str, name: str) -> str:
+    """Balanced-brace body of a named top-level function, or '' if absent."""
+    match = re.search(r"function\s+" + re.escape(name) + r"\s*\([^)]*\)\s*\{", js_text)
+    if not match:
+        return ""
+    depth = 1
+    i = match.end()
+    while depth > 0 and i < len(js_text):
+        if js_text[i] == "{":
+            depth += 1
+        elif js_text[i] == "}":
+            depth -= 1
+        i += 1
+    return js_text[match.end() : i - 1]
+
+
+def test_the_air_payload_carries_every_air_reference_record(payloads):
+    air = payloads["air.json"]
+    assert len(air["lanes"]) == 5
+    for lane in air["lanes"]:
+        assert lane["mode"] == "air"
+        assert lane["known_limitations"]
+        assert lane["selection_evidence"]
+    assert [node["node_id"] for node in air["nodes"]] == ["NODE-THBKKAIR"]
+    assert [cp["chokepoint_id"] for cp in air["chokepoints"]] == ["CHK-SASIA-AIRSPACE"]
+
+
+def test_the_air_view_exists_and_is_wired_to_its_payload():
+    html = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    script = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
+    assert 'id="air"' in html and 'data-view="air"' in html
+    assert 'data-route="air"' in html
+    assert "'air.json': 'air'" in script
+    assert "'air.json': renderAir" in script
+    assert "'air.json'" in script
+    assert "function renderAir(" in script
+
+
+def test_the_air_view_emits_no_href():
+    """Checks renderAir and every helper it delegates markup-building to --
+    not just renderAir's own body, which calls out to airLaneRow,
+    airReferenceRow and airHistoricalCase for the actual row/card markup."""
+    script = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
+    for name in ("renderAir", "airLaneRow", "airReferenceRow", "airHistoricalCase"):
+        body = _js_function_body(script, name)
+        assert body, f"expected to resolve {name}'s body"
+        assert "href" not in body, f"{name} emits an href"

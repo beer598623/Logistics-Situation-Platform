@@ -108,6 +108,7 @@ def _lane_relevance(event: dict[str, Any], evidence_ids: list[str]) -> list[dict
         country_ids=event.get("country_ids", []),
         node_ids=event.get("node_ids", []),
         chokepoint_ids=event.get("chokepoint_ids", []),
+        modes=event.get("modes", []),
     )
     entries = []
     for lane_id in sorted(matches):

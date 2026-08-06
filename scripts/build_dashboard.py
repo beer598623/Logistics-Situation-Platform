@@ -44,6 +44,7 @@ from analysis.provenance import (  # noqa: E402
     record_origin,
     series_homogeneity_problems,
 )
+from analysis.reference import mode_index  # noqa: E402
 from scripts.build_analysis import GLOBAL_OR_PROXY_SERIES  # noqa: E402
 
 PUBLIC = ROOT / "dashboard/public"
@@ -452,8 +453,16 @@ def build_payloads() -> dict[str, Any]:
     mixed_series_gaps: list[str] = []
     registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
     dimensions = _load(ROOT / "data/reference/dimensions.json")
-    lanes = _load(ROOT / "data/reference/lanes.json")["lanes"]
-    lane_by_id = {lane["lane_id"]: lane for lane in lanes}
+    all_lanes = _load(ROOT / "data/reference/lanes.json")["lanes"]
+    lane_by_id = {lane["lane_id"]: lane for lane in all_lanes}
+    # WO-039: the shared lane registry now also carries Air lanes. Every
+    # payload below this point that was written before Air existed --
+    # Ocean, Trade -- stays scoped to Ocean lanes so it keeps working with
+    # the Ocean-only assumptions baked into it (e.g. _LANE_SLUGS, the
+    # th_{export,import}_value_{slug} series-id convention). Air gets its
+    # own payload built separately, from air_lanes, further down.
+    lanes = [lane for lane in all_lanes if lane["mode"] == "sea"]
+    air_lanes = [lane for lane in all_lanes if lane["mode"] == "air"]
     assessments = _load(ROOT / "data/assessments/lane_assessments.json")["assessments"]
     demo_assessments = _load(ROOT / "data/assessments/demo_lane_assessments.json")["assessments"]
     demo_thailand = _load(ROOT / "data/assessments/demo_thailand_assessment.json")
@@ -1125,6 +1134,91 @@ def build_payloads() -> dict[str, Any]:
         ),
     }
 
+    # ---- Air Cargo (WO-039 foundation: no live source, no observation) ----
+    air = {
+        "dataset": CURRENT_PUBLICATION,
+        "generated_at": current_as_of_iso,
+        "methodology_version": METHODOLOGY_VERSION,
+        "module_status": mode_index(dimensions)["air"]["module_status"],
+        "live_coverage": source_status["overall_status"],
+        "live_coverage_statement": _live_coverage_statement(
+            thailand["evidence_coverage"],
+            thailand["qualified_observation_count"],
+            thailand["current_indicator_count"],
+            thailand["qualified_event_count"],
+        ),
+        "coverage_message": (
+            "Air cargo live coverage is insufficient. No Air source is registered or enabled, "
+            "no Air observation or indicator series exists, and no Air lane carries a current "
+            "assessment. This is a coverage gap, not a finding that Air conditions are normal."
+        ),
+        "lane_selection_note": (
+            "Air lane selection methodology is documented in docs/air_lane_selection.md. No "
+            "quantitative Thailand air cargo ranking was retrieved or used, so lanes were "
+            "selected on the recorded structural criteria and every lane is provisional with "
+            "data_period_used null."
+        ),
+        "lanes": [
+            {
+                "lane_id": lane["lane_id"],
+                "name": lane["name"],
+                "mode": lane["mode"],
+                "direction": lane["direction"],
+                "resolution": lane["resolution"],
+                "origin": lane["origin_scope"]["label"],
+                "destination": lane["destination_scope"]["label"],
+                "country_ids": lane["country_ids"],
+                "node_ids": lane.get("node_ids", []),
+                "chokepoint_ids": lane.get("chokepoint_ids", []),
+                "selection_evidence": lane["selection_evidence"],
+                "data_period_used": lane["data_period_used"],
+                "known_limitations": lane["known_limitations"],
+                "review_date": lane["review_date"],
+                "status": lane["status"],
+                # Null by construction, and labelled -- not an empty object that
+                # could be mistaken for an assessment that came out neutral.
+                "assessment": None,
+                "assessment_note": (
+                    "insufficient_evidence: no Air source is enabled, so no current assessment "
+                    "is produced for this lane. This is a coverage gap, not a finding that "
+                    "conditions on this lane are normal."
+                ),
+            }
+            for lane in air_lanes
+        ],
+        "nodes": [n for n in dimensions["logistics_nodes"] if "air" in n["modes"]],
+        "chokepoints": [c for c in dimensions["chokepoints"] if "air" in c["modes"]],
+        "source_gaps": [
+            "Air cargo volume or route-significance source: none registered. The one Thai "
+            "candidate on record stays unregistered on an unresolved licence.",
+            "Air freight rate benchmark scoped to Thailand: none found at zero cost. "
+            "FBX_PUBLIC covers named east-west container routes only and cannot stand in.",
+            "Airport or airspace operational-notice channel: none registered. "
+            "MANUAL_NOTICE_INTAKE is the only honest interim path and holds no Air record.",
+            "Thailand airport authority statistics: none usable. See docs/known_data_gaps.md §8.",
+        ],
+        "historical_air_events": [
+            {
+                "dataset": dataset_of(event),
+                "event_id": event["event_id"],
+                "case_id": case_id_by_event.get(event["event_id"]),
+                "assessment_cutoff": cutoff_by_event.get(event["event_id"]),
+                "title": event["title"],
+                "event_type": event["event_type"],
+                "event_date": event["event_date"],
+                "lane_ids": [entry["lane_id"] for entry in event["lane_relevance"]],
+                "chokepoint_ids": event.get("chokepoint_ids", []),
+                "known_limitations": event.get("known_limitations", []),
+            }
+            for event in events
+            if "air" in event["modes"] and dataset_of(event) == HISTORICAL_VALIDATION
+        ],
+        "historical_label": (
+            "Historical validation — replayed through the analysis code to prove the Air "
+            "event chain works. These describe no current condition."
+        ),
+    }
+
     # ---- AI Outlook and Preparedness --------------------------------------
     approved_dir = ROOT / "data/assessments/approved"
     all_approved = [_load(path) for path in sorted(approved_dir.glob("*.json"))]
@@ -1298,6 +1392,7 @@ def build_payloads() -> dict[str, Any]:
     return {
         "thailand_situation.json": situation,
         "ocean.json": ocean,
+        "air.json": air,
         "trade.json": trade,
         "cost.json": cost,
         "events.json": event_payload,

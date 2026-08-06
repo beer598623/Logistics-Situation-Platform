@@ -1,11 +1,394 @@
 {
   "dataset": "current_publication",
-  "generated_at": "2026-07-31T14:20:00Z",
+  "generated_at": "2026-08-06T00:00:00Z",
   "current_direct_operational_events": [],
   "current_external_drivers": [],
   "current_statement": "No current event records exist. Every event the platform holds is a historical validation fixture with an assessment cutoff in the past; none is evidence of a current condition, and none appears above.",
   "demo_label": "Historical validation \u2014 each case is assessed at its own cutoff, shown on the card. These exercise the event model and describe no current condition.",
   "demo_direct_operational_events": [
+    {
+      "dataset": "historical_validation",
+      "evidence_origin": null,
+      "assessment_cutoff": "2019-03-06T00:00:00Z",
+      "case_id": "HVC-009",
+      "active_as_of": null,
+      "active_basis": null,
+      "event_id": "EVT-20190227-001",
+      "title": "Pakistan closes its airspace and Thailand\u2013Europe air services are cancelled or rerouted",
+      "event_class": "direct_operational_event",
+      "event_type": "airspace_closure",
+      "lifecycle_status": "operational_impact_observed",
+      "event_date": "2019-02-27",
+      "publication_date": "2019-02-27",
+      "retrieval_date": "2019-03-06T00:00:00Z",
+      "geography_ids": [
+        "GEO-RGN-SASIA",
+        "GEO-CTY-TH",
+        "GEO-RGN-NEUR"
+      ],
+      "chokepoint_ids": [
+        "CHK-SASIA-AIRSPACE"
+      ],
+      "node_ids": [
+        "NODE-THBKKAIR"
+      ],
+      "modes": [
+        "air"
+      ],
+      "thailand_relevance": "medium",
+      "thailand_relevance_basis": [
+        "Thailand\u2013Europe air services depart from the registered Thailand air cargo gateway and their routing crosses the closed airspace, so the closure acts directly on a registered Thailand air lane.",
+        "The relationship is a lane-transit and gateway relationship. Nothing here establishes an effect on any particular Thailand shipment, shipper or cargo category."
+      ],
+      "lane_relevance": [
+        {
+          "lane_id": "LANE-AIR-TH-ASEAN",
+          "relevance": "medium",
+          "basis": "lane includes country TH; lane includes node NODE-THBKKAIR",
+          "evidence_ids": [
+            "EVD-HVC-009-A",
+            "EVD-HVC-009-B",
+            "EVD-HVC-009-C",
+            "EVD-HVC-009-D"
+          ]
+        },
+        {
+          "lane_id": "LANE-AIR-TH-DOMESTIC",
+          "relevance": "medium",
+          "basis": "lane includes country TH; lane includes node NODE-THBKKAIR",
+          "evidence_ids": [
+            "EVD-HVC-009-A",
+            "EVD-HVC-009-B",
+            "EVD-HVC-009-C",
+            "EVD-HVC-009-D"
+          ]
+        },
+        {
+          "lane_id": "LANE-AIR-TH-EASIA",
+          "relevance": "medium",
+          "basis": "lane includes country TH; lane includes node NODE-THBKKAIR",
+          "evidence_ids": [
+            "EVD-HVC-009-A",
+            "EVD-HVC-009-B",
+            "EVD-HVC-009-C",
+            "EVD-HVC-009-D"
+          ]
+        },
+        {
+          "lane_id": "LANE-AIR-TH-EUR",
+          "relevance": "medium",
+          "basis": "lane includes country TH; lane includes node NODE-THBKKAIR; lane transits chokepoint CHK-SASIA-AIRSPACE",
+          "evidence_ids": [
+            "EVD-HVC-009-A",
+            "EVD-HVC-009-B",
+            "EVD-HVC-009-C",
+            "EVD-HVC-009-D"
+          ]
+        },
+        {
+          "lane_id": "LANE-AIR-TH-NAM",
+          "relevance": "medium",
+          "basis": "lane includes country TH; lane includes node NODE-THBKKAIR",
+          "evidence_ids": [
+            "EVD-HVC-009-A",
+            "EVD-HVC-009-B",
+            "EVD-HVC-009-C",
+            "EVD-HVC-009-D"
+          ]
+        }
+      ],
+      "transmission_chain": {
+        "external_driver": "A military-security escalation between two South Asian states.",
+        "operational_change": "The civil aviation authority closed its national airspace to civil traffic, and services on the Thailand\u2013Europe air corridor whose routing crosses it were cancelled or rerouted around it.",
+        "logistics_mechanism": "Air cargo on this corridor moves substantially in the belly holds of scheduled passenger widebodies, so cancelling those services withdraws cargo capacity from the corridor; a rerouting that avoids the closed airspace lengthens the sector, which raises block hours and fuel burn per rotation and shifts published arrival times.",
+        "observable_indicator": "Operator service announcements, the airspace authority's own restriction notices, and air freight rate benchmarks for Asia\u2013Europe routings.",
+        "outcome": "Observed cancellation and rerouting of Thailand\u2013Europe air services, with capacity and cost consequences that are stated as mechanisms and are not measured anywhere in this platform.",
+        "completeness": "complete",
+        "missing_links": [],
+        "supporting_indicator_ids": []
+      },
+      "event_severity": "high",
+      "impact_assessments": [
+        {
+          "area": "warehouse",
+          "status": "insufficient_evidence",
+          "severity": "none",
+          "relevance": "low",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "unknown",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [],
+          "evidence_ids": [
+            "EVD-HVC-009-A"
+          ],
+          "evidence_strength": "C",
+          "confidence": "low",
+          "known_limitations": [
+            "Not assessed for this area at the case cutoff; this is a gap, not a finding of no impact.",
+            "Lane relevance resolved through the shared Thailand gateway node is a registry-membership relationship. It records that the lanes share a node with this event, not that an effect on those lanes was established."
+          ]
+        },
+        {
+          "area": "logistics",
+          "status": "insufficient_evidence",
+          "severity": "none",
+          "relevance": "low",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "unknown",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [],
+          "evidence_ids": [
+            "EVD-HVC-009-A"
+          ],
+          "evidence_strength": "C",
+          "confidence": "low",
+          "known_limitations": [
+            "Not assessed for this area at the case cutoff; this is a gap, not a finding of no impact.",
+            "Lane relevance resolved through the shared Thailand gateway node is a registry-membership relationship. It records that the lanes share a node with this event, not that an effect on those lanes was established."
+          ]
+        },
+        {
+          "area": "transport",
+          "status": "observed",
+          "severity": "moderate",
+          "relevance": "high",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "immediate",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "Services on the Thailand\u2013Europe air corridor were cancelled outright or rerouted around the closed airspace on a longer sector."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-009-A",
+            "EVD-HVC-009-B"
+          ],
+          "evidence_strength": "A",
+          "confidence": "medium",
+          "known_limitations": [
+            "Established from the operator's own service announcement for named flights. No corridor-wide movement or routing series is qualified in this registry, so the extent beyond the named services is not measured."
+          ]
+        },
+        {
+          "area": "import_export",
+          "status": "potential",
+          "severity": "low",
+          "relevance": "medium",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "1-3_months",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "Cancelled and lengthened Thailand\u2013Europe air sectors shift delivery timing for the time-sensitive goods that move by air rather than by sea."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-009-B"
+          ],
+          "evidence_strength": "B",
+          "confidence": "low",
+          "known_limitations": [
+            "No Thailand air trade series was retrieved, so no flow effect is confirmed."
+          ]
+        },
+        {
+          "area": "inventory",
+          "status": "insufficient_evidence",
+          "severity": "none",
+          "relevance": "low",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "unknown",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [],
+          "evidence_ids": [
+            "EVD-HVC-009-A"
+          ],
+          "evidence_strength": "C",
+          "confidence": "low",
+          "known_limitations": [
+            "Not assessed for this area at the case cutoff; this is a gap, not a finding of no impact.",
+            "Lane relevance resolved through the shared Thailand gateway node is a registry-membership relationship. It records that the lanes share a node with this event, not that an effect on those lanes was established."
+          ]
+        },
+        {
+          "area": "cost",
+          "status": "potential",
+          "severity": "low",
+          "relevance": "medium",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "1-3_months",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "Withdrawn capacity and longer routings on the same fleet exert upward pressure on air freight rates for the affected corridor."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-009-B"
+          ],
+          "evidence_strength": "B",
+          "confidence": "low",
+          "known_limitations": [
+            "No free Thailand-scoped air freight rate benchmark exists, so no air cost effect is quantified anywhere in this platform. FBX_PUBLIC covers named east-west container routes only and cannot stand in for an air reading."
+          ]
+        },
+        {
+          "area": "capacity",
+          "status": "potential",
+          "severity": "moderate",
+          "relevance": "medium",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "1-4_weeks",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "Cargo on this corridor moves substantially in the belly holds of the cancelled passenger widebodies, so withdrawing those services withdraws cargo capacity from the corridor."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-009-B"
+          ],
+          "evidence_strength": "B",
+          "confidence": "low",
+          "known_limitations": [
+            "The capacity withdrawal is a stated mechanism, not a measured quantity. No air cargo capacity, tonnage or movement series is qualified in this registry, and none was used to produce this reading."
+          ]
+        },
+        {
+          "area": "service",
+          "status": "observed",
+          "severity": "moderate",
+          "relevance": "high",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "immediate",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "A cancelled or lengthened sector shifts published arrival times and breaks the connection windows a shipment booked against."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-009-B"
+          ],
+          "evidence_strength": "A",
+          "confidence": "medium",
+          "known_limitations": [
+            "Air schedule reliability is not measured by any source qualified in this registry."
+          ]
+        },
+        {
+          "area": "business_continuity",
+          "status": "insufficient_evidence",
+          "severity": "none",
+          "relevance": "low",
+          "geographic_scope": "South Asia, Thailand, Northern Europe",
+          "time_horizon": "unknown",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [],
+          "evidence_ids": [
+            "EVD-HVC-009-A"
+          ],
+          "evidence_strength": "C",
+          "confidence": "low",
+          "known_limitations": [
+            "Not assessed for this area at the case cutoff; this is a gap, not a finding of no impact.",
+            "Lane relevance resolved through the shared Thailand gateway node is a registry-membership relationship. It records that the lanes share a node with this event, not that an effect on those lanes was established."
+          ]
+        }
+      ],
+      "conflicting_evidence": [],
+      "negative_operational_evidence": false,
+      "publication_status": "Watchlist",
+      "human_review": {
+        "required": true,
+        "status": "pending",
+        "reviewer_record": null,
+        "reviewed_at": null
+      },
+      "closure_basis": null,
+      "last_reviewed_at": "2019-03-06T00:00:00Z",
+      "known_limitations": [
+        "Historical validation case HVC-009, assessed at cutoff 2019-03-06T00:00:00Z. Later knowledge is deliberately excluded.",
+        "How long the closure would last -- it ran until 15 July 2019 -- and its eventual effect on air freight rates and on Thailand trade volumes were all unknown at this cutoff and must not inform the assessment. This case exists to check that the Air foundation carries a real event end to end: that an airspace closure resolves to an Air lane through the airspace chokepoint that lane actually records and to no Ocean lane at all, and that the capacity and cost consequences -- for which no Air series is qualified anywhere -- stay 'potential' with the gap named rather than being quantified from a source the platform does not hold."
+      ],
+      "evidence": [
+        {
+          "evidence_id": "EVD-HVC-009-A",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "MANUAL_NOTICE_INTAKE",
+          "source_name": "Pakistan Civil Aviation Authority",
+          "source_class": "regulator",
+          "source_url": "https://caapakistan.com.pk/",
+          "claim": "The civil aviation authority issued a notice to airmen on 27 February 2019 closing Pakistan airspace to civil traffic until further notice.",
+          "claim_type": "official_notice",
+          "evidence_role": "confirming",
+          "strength": "A",
+          "publication_date": "2019-02-27",
+          "retrieved_at": null,
+          "known_limitations": [
+            "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2019-03-06 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
+          ]
+        },
+        {
+          "evidence_id": "EVD-HVC-009-B",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "MANUAL_NOTICE_INTAKE",
+          "source_name": "Thai Airways International PCL",
+          "source_class": "operator",
+          "source_url": "https://www.thaiairways.com/",
+          "claim": "The operator announced on 27 and 28 February 2019 that Bangkok\u2013Europe services whose routing crosses the closed airspace were cancelled, naming TG916 Bangkok\u2013London, TG926 Bangkok\u2013Phuket\u2013Frankfurt and TG974 Bangkok\u2013Moscow among them, and stated subsequently that a subset would resume on a rerouting cleared through Chinese airspace.",
+          "claim_type": "official_notice",
+          "evidence_role": "confirming",
+          "strength": "A",
+          "publication_date": "2019-02-28",
+          "retrieved_at": null,
+          "known_limitations": [
+            "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2019-03-06 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
+          ]
+        },
+        {
+          "evidence_id": "EVD-HVC-009-C",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "MANUAL_NOTICE_INTAKE",
+          "source_name": "Tourism Authority of Thailand",
+          "source_class": "official",
+          "source_url": "https://www.tatnews.org/2019/02/tat-updates-regarding-impact-on-thailand-europe-flights-due-to-pakistani-airspace-closure/",
+          "claim": "A Thai government agency published an update on 28 February 2019 recording that Thailand\u2013Europe flights were affected by the Pakistani airspace closure.",
+          "claim_type": "official_notice",
+          "evidence_role": "confirming",
+          "strength": "B",
+          "publication_date": "2019-02-28",
+          "retrieved_at": null,
+          "known_limitations": [
+            "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2019-03-06 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
+          ]
+        },
+        {
+          "evidence_id": "EVD-HVC-009-D",
+          "evidence_origin": "historical_validation_fixture",
+          "retrieval_status": "not_retrieved",
+          "strength_basis": "expected_at_cutoff",
+          "intended_source_id": "NEWS_DISCOVERY",
+          "source_name": "Public news discovery",
+          "source_class": "news",
+          "source_url": "https://www.cnbc.com/2019/02/28/travelers-scramble-thai-airways-cancels-flights-over-india-pakistan.html",
+          "claim": "Public reporting on 28 February 2019 described the Bangkok\u2013Europe cancellations and the wider disruption to Asia\u2013Europe air routings caused by the airspace closure.",
+          "claim_type": "discovery_lead",
+          "evidence_role": "discovery_only",
+          "strength": "D",
+          "publication_date": "2019-02-28",
+          "retrieved_at": null,
+          "known_limitations": [
+            "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
+            "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+            "'strength' is the grading the authored case asserts would have been available at its 2019-03-06 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
+          ]
+        }
+      ]
+    },
     {
       "dataset": "historical_validation",
       "evidence_origin": null,

@@ -57,7 +57,7 @@ can use these directly; no schema change remains outstanding for event typing.
   no change (`docs/air_land_extension_points.md` §2 confirms this and it holds on inspection
   of `analysis/thresholds.py`'s structure — rules are data, not mode-specific code paths).
 
-## 3. Air lane-selection criteria — the open question this WO does not resolve
+## 3. Air lane-selection criteria — resolved by WO-039
 
 `docs/ocean_lane_selection.md` §1 states plainly: **"No quantitative Thailand trade ranking
 was retrieved under WO-010."** Every Ocean lane's selection rests on structural reasoning
@@ -75,6 +75,12 @@ and this document deliberately does not make it in advance:
 - **Option B — wait for or seek a qualified ranking source.** Do not select Air lanes until
   an air cargo volume/route significance source is qualified per §4 below. This delays
   Bundle 2's start but avoids compounding the same limitation a second time.
+
+**Resolved by WO-039 (human decision, 2026-08-06): Option A.** The Air foundation was built
+on structural reasoning only, exactly as Ocean was, with the limitation repeated as plainly as
+`docs/ocean_lane_selection.md` states it — see `docs/air_lane_selection.md`. Option B stays
+open: `air-freight-pass` remains the concrete candidate, and enabling it remains gated on a
+human licence determination that WO-039 did not make and was not authorized to make.
 
 **Evidence update (WO-034/WO-036, see `docs/known_data_gaps.md` §8):** a candidate for
 Option B was found and bounded-live-validated — `air-freight-pass` on `datagov.mot.go.th`,
@@ -111,30 +117,39 @@ applies to every current source, none of which is waived for a new mode.
 ## 5. Acceptance gates for a Bundle 2 implementation Work Order
 
 Mirroring what Bundle 1 actually delivered and was reviewed against — not a new invented
-bar:
+bar. **Status column added post-WO-039** — the foundation delivered under Bundle 2 Option A,
+not a full Bundle 2 implementation:
 
 1. **Gate B/C equivalent** — a data-model and source-qualification pass for every new Air
    source candidate, following `docs/source_priority_framework.md`'s existing framework
-   rather than a Bundle-2-specific one.
+   rather than a Bundle-2-specific one. *Not applicable to WO-039: it registered no source at
+   all, so there was no candidate to qualify.*
 2. **No source enabled by default** — every new Air source contract ships `enabled: false`,
-   exactly like all 17 current entries.
+   exactly like all 17 current entries. *Not applicable to WO-039, for the same reason as
+   Gate 1: `config/sources.yaml` was not touched.*
 3. **Fixture/current separation preserved** — any Air fixture data is `evidence_origin`-tagged
    and dataset-scoped identically to Ocean's, never entering `current_publication` without a
-   genuine live source.
+   genuine live source. *Met by WO-039: the one Air historical-validation case is
+   `dataset: historical_validation`, and no Air record reaches `current_publication`.*
 4. **Publication-use enforcement extended, not bypassed** — the same `scripts/validate.py`
    checks that guard Ocean records (missing-as-zero, organization-neutral, benchmark/proxy
-   labelling) must hold for every new Air record with no mode-specific carve-out.
+   labelling) must hold for every new Air record with no mode-specific carve-out. *Unchanged
+   by WO-039: no new observation or publication-use surface was added for Air to bypass.*
 5. **At least one historical validation case** — mirroring the 8 Ocean cases
    `docs/known_data_gaps.md` and the validation suite already rely on, demonstrating the Air
-   event/impact/scenario chain end-to-end before any live data is claimed.
+   event/impact/scenario chain end-to-end before any live data is claimed. *Met by WO-039:
+   `HVC-009`, replayed through the same `scripts/run_historical_validation.py` machinery.*
 6. **Dashboard integration** — an Air section (or extension of an existing section) that
    states its coverage honestly, the same way the current Dashboard states
-   `live_coverage: insufficient` rather than implying completeness.
+   `live_coverage: insufficient` rather than implying completeness. *Met by WO-039: the Air
+   Cargo section states `live_coverage: insufficient` and `module_status: planned` explicitly.*
 7. **All existing tests continue to pass**, plus new tests for every new schema field,
    adapter, and validation rule — no reduction in `tests/test_reference_and_lanes.py`'s
-   existing mode-neutrality assertions.
+   existing mode-neutrality assertions. *Met by WO-039: no schema field or adapter was added
+   (§4 below), and every mode-neutrality assertion was kept or strengthened, never weakened.*
 8. **Independent review**, following this repository's standing process
-   (`CONTRIBUTING.md`): the implementer does not approve their own Bundle 2 work.
+   (`CONTRIBUTING.md`): the implementer does not approve their own Bundle 2 work. *Unchanged:
+   WO-039 went through the same independent-review process as every other Work Order.*
 
 ## 6. What this document explicitly does not do
 
@@ -142,6 +157,11 @@ bar:
 - It does not add an Air lane, node, chokepoint, observation, or event record.
 - It does not itself change any schema — the event-type enum gap this document (WO-017)
   identified in §1 was fixed separately, by WO-035, which also updated this section.
-- It does not decide between §3's Option A and Option B.
+- It does not itself decide between §3's Option A and Option B — that decision was made later,
+  by WO-039 (§3 records the resolution), not by this scoping document.
 - It does not authorize contacting any publisher or beginning a live validation for any
   candidate source named in §4.
+- **WO-039 registered, enabled, scheduled or published no source.** It built the Air lane,
+  node, chokepoint and historical-validation foundation described in §3 and
+  `docs/air_lane_selection.md` entirely from structural reasoning; `config/sources.yaml` was
+  not touched.

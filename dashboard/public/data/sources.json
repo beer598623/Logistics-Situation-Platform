@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-31T14:20:00Z",
+  "generated_at": "2026-08-06T00:00:00Z",
   "policy": "free_public_sources_only",
   "registry_version": "0.3",
   "last_reviewed_at": "2026-07-31",
@@ -1054,8 +1054,8 @@
   },
   "validation_summary": {
     "traceability_rate": 1.0,
-    "impacts_assessed": 72,
-    "material_impacts": 11,
+    "impacts_assessed": 81,
+    "material_impacts": 16,
     "unsupported_causation_count": 0,
     "unsupported_causation_rate": 0.0,
     "unsupported_causation_examples": [],
@@ -1064,6 +1064,7 @@
     "missing_as_zero_count": 0,
     "missing_as_zero_examples": [],
     "event_impact_separation_examples": [
+      "EVT-20190227-001: event severity high vs worst impact severity moderate",
       "EVT-20231030-001: event severity moderate vs worst impact severity low",
       "EVT-20231218-001: event severity high vs worst impact severity moderate",
       "EVT-20240326-001: event severity high vs worst impact severity none",
@@ -1073,7 +1074,7 @@
     "scenario_problems": [],
     "preparedness_overreach_count": 0,
     "preparedness_overreach_examples": [],
-    "insufficient_evidence_uses": 52,
+    "insufficient_evidence_uses": 56,
     "no_material_uses": 9,
     "no_material_without_negative_evidence": [],
     "material_impact_on_discovery_only_evidence": [],
