@@ -478,7 +478,12 @@ def test_the_air_section_states_insufficient_live_coverage(payloads):
     assert air["module_status"] == "planned"
     assert "INSUFFICIENT" in air["live_coverage_statement"]
     assert "coverage gap, not a finding" in air["coverage_message"]
-    assert air["source_gaps"]
+    gaps = " ".join(air["source_gaps"]).lower()
+    # A truthy-only check here would pass even if the two headline gaps this
+    # module stands on -- the unresolved air-freight-pass licence and the
+    # missing Thailand air freight rate benchmark -- were silently dropped.
+    assert "unresolved licence" in gaps
+    assert "air freight rate benchmark" in gaps
 
 
 def test_no_air_record_enters_the_current_publication_surface(payloads):
