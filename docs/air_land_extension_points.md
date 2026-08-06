@@ -2,16 +2,18 @@
 
 **Work Order:** WO-010 · **Status of Air and Land modules:** planned, not implemented
 
-WO-010 delivers the Ocean module only. What it also delivers is a shared foundation, most of
-which accepts Air, Road, Rail and Border without a schema change — and the claim is checkable,
-not merely asserted. The one exception is `logistics_event.schema.json`'s `event_type` enum
-(§1, table row 7; §2-3 below): most of its 18 values are already mode-agnostic, but two are
-Ocean-worded and need a small additive extension before a non-Ocean closure event has an
-exact-fit value — see `docs/bundle2_air_cargo_scope.md` §1, which verified this against the
-real schema during WO-017. Every other item below is covered by a test in
-`tests/test_reference_and_lanes.py`; the event-type row's claim is instead covered — and its
-gap documented rather than glossed over — by
-`tests/test_bundle2_scope_doc_claims.py::test_event_type_enum_covers_the_mode_agnostic_types_the_doc_cites`.
+WO-010 delivers the Ocean module only. What it also delivers is a shared foundation that
+accepts Air, Road, Rail and Border without a schema change — and the claim is checkable, not
+merely asserted. `logistics_event.schema.json`'s `event_type` enum (§1, table row 7; §2-3
+below) originally had one exception: two of its 18 values were Ocean-worded, with no
+exact-fit value for a non-Ocean closure event — see `docs/bundle2_air_cargo_scope.md` §1,
+which verified this against the real schema during WO-017. **WO-035 closed that exception**
+with a purely additive extension (`airspace_closure`, `terminal_or_facility_closure`), so the
+whole shared foundation now accepts a non-Ocean record without a schema change. Every item
+below is covered by a test in `tests/test_reference_and_lanes.py`; the event-type row's claim
+is covered by
+`tests/test_bundle2_scope_doc_claims.py::test_event_type_enum_covers_the_mode_agnostic_types_the_doc_cites`
+and `test_event_type_enum_covers_non_ocean_closure_events`.
 
 ## 1. What already accepts a non-Ocean record
 
@@ -23,7 +25,7 @@ gap documented rather than glossed over — by
 | `dim_chokepoint` | `chokepoint_type` includes `border_corridor`, `airspace`, `rail_gauge_break`. **A road/border corridor (`CHK-THSDK-BKH`) is already registered** |
 | `dim_lane` | Mode is carried as data. Adding an Air lane is a new record, not a schema change |
 | `port_transport_observation.schema.json` | Named for transport, not ports. Metric enum already includes `aircraft_movements`, `border_crossings`, `rail_movements` |
-| `logistics_event.schema.json` | `modes` is an array of the shared mode enum. `event_type` is mostly mode-agnostic (`carrier_rerouting`, `service_suspension`, `capacity_withdrawal`, `strike`, `customs_or_system_outage`, and more), but **`port_or_terminal_closure` and `canal_restriction` are Ocean-worded** and need a small additive extension for a non-Ocean closure event — see §2-3 |
+| `logistics_event.schema.json` | `modes` is an array of the shared mode enum. `event_type` is mode-agnostic (`carrier_rerouting`, `service_suspension`, `capacity_withdrawal`, `strike`, `customs_or_system_outage`, and more); **`port_or_terminal_closure` and `canal_restriction` stay Ocean-worded, and WO-035 added `airspace_closure`/`terminal_or_facility_closure`** so a non-Ocean closure event now has an exact-fit value too — see §2-3 |
 | `indicator`, `trade`, `cost` observations | All carry the shared placement block with its mode field |
 
 The three pre-registered non-Ocean records carry no data. They exist so that "the shared
@@ -38,9 +40,8 @@ entities are mode-neutral" is a testable statement rather than an intention.
   `metric: aircraft_movements` or `capacity_deployed`; air freight rate benchmarks via
   `cost_observation` with an appropriate `benchmark_class`.
 - **Events:** capacity withdrawal is already expressible. An airport/cargo-terminal
-  interruption or an airspace closure has the same Ocean-worded gap named in §1's table
-  (`port_or_terminal_closure`, `canal_restriction`) and needs the same small additive
-  extension.
+  interruption uses `terminal_or_facility_closure`; an airspace closure uses
+  `airspace_closure` — both added by WO-035, no further schema change needed.
 - **Threshold rules:** new IDs in `analysis/thresholds.py`, documented alongside in
   `docs/indicator_definitions.md`. The rule engine itself needs no change.
 
@@ -52,9 +53,8 @@ entities are mode-neutral" is a testable statement rather than an intention.
 - **Chokepoints:** border corridors beyond `CHK-THSDK-BKH`, plus rail gauge breaks.
 - **Observations:** border crossing counts, rail movements, road transit times.
 - **Events:** customs system outage is already in the event type enum. A road, rail or
-  border closure has the same Ocean-worded gap noted in §1's table and §2 above —
-  `port_or_terminal_closure` doesn't fit — and needs the same small additive extension, not
-  a separate one.
+  border closure uses `terminal_or_facility_closure` — the same WO-035 value §2 uses for
+  Air, not a separate one.
 
 ## 4. What must not change
 

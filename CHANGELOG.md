@@ -74,6 +74,15 @@ WO-010 and is not bumped by every Work Order.
 
 ### Added
 
+- WO-035: two purely additive `event_type` enum values in `schemas/logistics_event.schema.json`
+  — `airspace_closure` and `terminal_or_facility_closure` — closing the one schema gap
+  `docs/bundle2_air_cargo_scope.md` (WO-017) and `docs/air_land_extension_points.md` (WO-010)
+  had documented: `port_or_terminal_closure`/`canal_restriction` are Ocean-worded and had no
+  exact-fit value for a non-Ocean closure event. No existing value renamed or removed, so no
+  committed event record needed migration. Updated both docs and `README.md` to record the
+  gap as closed, and extended `tests/test_bundle2_scope_doc_claims.py` to lock it. No source
+  registered, no Air data added, no config change — the first step of WO-034's recommended
+  Bundle 2 sequencing (Issue #69).
 - `SECURITY.md`, `CONTRIBUTING.md`, `CODEOWNERS`, `CHANGELOG.md`,
   `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/work_order.md` and `config.yml`,
   `tests/test_oss_governance_files.py` (WO-012).

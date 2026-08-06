@@ -25,15 +25,15 @@ taken on that document's word:
 | `cost_observation.schema.json` needs no change for an air freight benchmark | `schemas/cost_observation.schema.json` → `benchmark_class` enum (`market_benchmark`, `route_proxy`, `directional_indicator`, `published_official_price`, `actual_quotation`) is transport-mode-agnostic already |
 | `dim_lane` needs no schema change to carry an Air lane | Mode is a data field on the lane record, not a schema branch |
 
-**What is not yet true**, contrary to a loose reading of `air_land_extension_points.md` §2: the
-event type enum does **not** fully cover Air-specific events as-is. `schemas/logistics_event.schema.json`'s
-`event_type` enum includes `capacity_withdrawal`, `service_suspension`, `carrier_rerouting`,
-and `customs_or_system_outage` — all genuinely mode-agnostic and directly usable for Air. But
-`port_or_terminal_closure` and `canal_restriction` are Ocean-worded; an airport/cargo-terminal
-closure or an airspace closure has no exact-fit existing value. This is a small, additive
-enum extension (e.g. generalizing `port_or_terminal_closure` to cover any node closure, or
-adding `airspace_closure`), not a redesign — but it is a real schema change a Bundle 2
-implementation WO must make, not something already delivered.
+**Closed by WO-035, ahead of any Bundle 2 implementation.** This section originally documented
+a real gap: `schemas/logistics_event.schema.json`'s `event_type` enum included
+`capacity_withdrawal`, `service_suspension`, `carrier_rerouting`, and `customs_or_system_outage`
+— all genuinely mode-agnostic and directly usable for Air — but `port_or_terminal_closure` and
+`canal_restriction` were Ocean-worded, with no exact-fit value for an airport/cargo-terminal
+closure or an airspace closure. WO-035 added two purely additive enum values —
+`airspace_closure` and `terminal_or_facility_closure` — with no existing value renamed or
+removed, so no committed event record needed migration. A future Bundle 2 implementation WO
+can use these directly; no schema change remains outstanding for event typing.
 
 ## 2. What Bundle 2 would add
 
@@ -50,8 +50,8 @@ implementation WO must make, not something already delivered.
   (almost certainly `market_benchmark` or `route_proxy` — an actual-quotation air freight
   source is exceptionally unlikely to be free-and-public, per the qualification framework
   §3).
-- **Events:** the additive `event_type` enum change from §1, plus reuse of the already-generic
-  types.
+- **Events:** the `airspace_closure`/`terminal_or_facility_closure` values added by §1's WO-035
+  extension, plus reuse of the already-generic types.
 - **Threshold rules:** new IDs in `analysis/thresholds.py`, documented in
   `docs/indicator_definitions.md` alongside the existing ones. The rule engine itself needs
   no change (`docs/air_land_extension_points.md` §2 confirms this and it holds on inspection
@@ -129,8 +129,8 @@ bar:
 
 - It does not add, modify, or enable any source in `config/sources.yaml`.
 - It does not add an Air lane, node, chokepoint, observation, or event record.
-- It does not change any schema (the event-type enum gap in §1 is documented, not fixed,
-  here).
+- It does not itself change any schema — the event-type enum gap this document (WO-017)
+  identified in §1 was fixed separately, by WO-035, which also updated this section.
 - It does not decide between §3's Option A and Option B.
 - It does not authorize contacting any publisher or beginning a live validation for any
   candidate source named in §4.
