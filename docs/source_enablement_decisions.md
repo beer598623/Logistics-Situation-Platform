@@ -50,7 +50,7 @@ rather than halting the bundle:
 
 | Source | To enable, a reviewer must additionally |
 |---|---|
-| `TH_CUSTOMS` | Reach `catalog.customs.go.th` (allowlisted but has never delivered a byte — TLS resets before any response, WO-029) and read the `ctm_06_18`/`ctm_06_17` field contract; decide whether to re-point `TH_CUSTOMS` at it or register a separate `TH_CUSTOMS_MODE` id; read and record reuse and redistribution terms |
+| `TH_CUSTOMS` | Reach `catalog.customs.go.th` (allowlisted in some environments but has never delivered a byte — TLS resets before any response, WO-029) and read the `ctm_06_18`/`ctm_06_17` field contract; decide whether to re-point `TH_CUSTOMS` at it or register a separate `TH_CUSTOMS_MODE` id; read and record reuse and redistribution terms |
 | `EPPO_FUEL` | Confirm a machine-readable extraction path; read and record reuse terms |
 | `GSCPI` | Confirm the published file URL; read and record reuse terms |
 | `BOT_FX` | Decide how an API key is stored and injected without entering the repository, then validate |

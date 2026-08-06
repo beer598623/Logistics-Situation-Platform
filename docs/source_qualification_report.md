@@ -128,12 +128,15 @@ dimension would be an invented precision, so every trade observation is recorded
 `transport_mode: not_applicable` and carries that limitation.
 
 **WO-029 (Issue #60, RESEARCH INCOMPLETE — ENVIRONMENT ACCESS BLOCKER):** identified
-`ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only located candidates carrying an
-explicit transport-mode dimension. That host is allowlisted in some environments but has
-never delivered a byte — CONNECT is accepted, then the TLS session resets before any
-response, reproducibly. Whether to re-point `TH_CUSTOMS` at this catalogue or register a
-separate `TH_CUSTOMS_MODE` id is a deferred registry-architecture decision, not yet made,
-and `landing_url`/`endpoint` are deliberately left unchanged until it is (see
+`ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only candidate found that
+plausibly satisfies the sea-mode requirement at its source (`datagov.mot.go.th`'s
+`freight-import-export` dataset also carries a publisher-declared mode-of-transport
+dimension but is a complementary cross-check, not a substitute, with its own unread
+licence). `catalog.customs.go.th` is allowlisted in some environments but has never
+delivered a byte — CONNECT is accepted, then the TLS session resets before any response,
+reproducibly across repeated attempts. Whether to re-point `TH_CUSTOMS` at this catalogue or
+register a separate `TH_CUSTOMS_MODE` id is a deferred registry-architecture decision, not
+yet made, and `landing_url`/`endpoint` are deliberately left unchanged until it is (see
 `docs/known_data_gaps.md` §7).
 
 ### `EPPO_FUEL` — domestic fuel cost

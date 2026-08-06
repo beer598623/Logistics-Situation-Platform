@@ -24,7 +24,7 @@ Consequences, all stated on the Dashboard's face:
 
 | Capability | Gap |
 |---|---|
-| **Thailand trade flow** | No live source. Published customs figures are all-mode totals, so even once enabled they cannot be attributed to ocean freight without a mode dimension the source does not provide. WO-029 identified `ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only located candidates carrying an explicit mode dimension; that host is allowlisted but has never delivered a byte (see §7) |
+| **Thailand trade flow** | No live source. Published customs figures are all-mode totals, so even once enabled they cannot be attributed to ocean freight without a mode dimension the source does not provide. WO-029 identified `ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only candidate that plausibly satisfies the sea-mode requirement at its source; that host is allowlisted in some environments but has never delivered a byte (see §7) |
 | **Thailand port activity** | No live source. `PAT_STATISTICS` — Port Authority of Thailand's own CKAN catalogue — is the strongest candidate found, not the vessel-tracking estimate: WO-032's mirror evidence shows monthly per-port vessel/cargo/container data through June 2026, but the primary host has never delivered a byte, and two publisher-side findings (a self-contradicting container unit, an unnamed licence) block it regardless of reachability (see §7). `IMF_PORTWATCH`'s model-derived vessel-tracking estimate remains a fallback candidate only |
 | **Port operational condition** | **No source of any kind is registered.** No waiting time, berth occupancy or yard measure exists, which is why no congestion statement is made anywhere |
 | **Transit time and schedule reliability** | No qualified source. Service quality is assessed only through recorded events |
@@ -139,11 +139,19 @@ Recorded here so this document's inventory doesn't drift from what those passes 
 found.
 
 - **WO-029 — Thai Customs transport-mode data (Issue #60, closed).** RESEARCH INCOMPLETE —
-  ENVIRONMENT ACCESS BLOCKER. 0 of 9 authorized requests completed; every candidate host
-  either rejected the CONNECT tunnel or reset the TLS session before any response.
-  Identified `ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only located
-  candidates carrying an explicit transport-mode dimension (published customs statistics
-  are otherwise all-mode totals).
+  ENVIRONMENT ACCESS BLOCKER. 0 of 9 authorized requests completed against the primary
+  candidate host, `catalog.customs.go.th`: request 1 failed at the transport layer
+  (connection reset before ServerHello) and, per the no-retry rule, requests 2–9 of that
+  package were never attempted against any host. Separately, outside the authorized package,
+  two other candidate hosts *were* read and did respond: `data.go.th` completed a full TLS
+  handshake and returned an HTTP 403 body (blocking the DGA licence text specifically, not a
+  connection failure), and `uncomtrade.org` completed TLS and returned HTTP 200. Neither read
+  counts toward completing the nine-request package or qualifies the customs dataset.
+  Identified `ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only candidate found
+  that plausibly satisfies the sea-mode requirement at its source (published customs
+  statistics are otherwise all-mode totals); `datagov.mot.go.th`'s `freight-import-export`
+  dataset also carries a publisher-declared mode-of-transport dimension but is a
+  complementary cross-check, not a substitute, with its own unread licence.
 - **WO-031 — Port Authority of Thailand statistics, research phase (Issue #63, closed).**
   RESEARCH INCOMPLETE — ENVIRONMENT ACCESS BLOCKER. Zero primary text read; that
   environment could not reach `catalog.port.co.th` at all. On the evidence available,
@@ -152,10 +160,13 @@ found.
 - **WO-032 — Port Authority of Thailand statistics, bounded live validation (Issue #65,
   closed).** A later session's environment allowlisted `catalog.port.co.th` and
   `datagov.mot.go.th`; the human-authorized six-request primary package plus two-request
-  mirror fallback (Issue #63 §5.1/§5.2) was executed. RESEARCH INCOMPLETE — ENVIRONMENT OR
-  EVIDENCE BLOCKER. `catalog.port.co.th`'s CONNECT tunnel is accepted but its TLS session
-  resets after ~12s on all four attempts (zero publisher bytes ever received — an upstream
-  transport problem, not a policy denial). The `datagov.mot.go.th` mirror fallback
+  mirror fallback (Issue #63 §5.1/§5.2) was attempted — 4 of the 6 primary requests were
+  issuable (requests 3–4 required a resource id read from request 1's response, which never
+  arrived, so they were correctly abandoned rather than substituted). RESEARCH INCOMPLETE —
+  ENVIRONMENT OR EVIDENCE BLOCKER. `catalog.port.co.th`'s CONNECT tunnel is accepted but its
+  TLS session resets after ~12s on all four issued attempts (zero publisher bytes ever
+  received — an upstream transport problem, not a policy denial). The `datagov.mot.go.th`
+  mirror fallback
   succeeded (2/2 requests) and shows the underlying candidate is genuinely promising:
   monthly per-port vessel/cargo/container data, harvested from `catalog.port.co.th` itself,
   spanning 01/2018–06/2026, `last_updated_date: 2026-07-27`. Mirror evidence can disqualify

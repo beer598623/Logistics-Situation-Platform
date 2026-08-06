@@ -241,9 +241,9 @@ silently.
 
 All items re-verified against the current tree; **none has become actionable**.
 
-1. **Enabling any source.** All 17 remain `enabled: false` (`tests/test_documentation_registry_coverage.py::test_no_source_became_enabled` locks this). Enablement is a licensing and operational-commitment decision, not an engineering one.
+1. **Enabling any source.** All 18 remain `enabled: false` (`tests/test_documentation_registry_coverage.py::test_no_source_became_enabled` locks this). Enablement is a licensing and operational-commitment decision, not an engineering one.
 2. **Dispatching a controlled live validation run.** `manual-live-source-test.yml` is `workflow_dispatch`-only by design and requires a human to trigger and review each run.
-3. **Licence review for 15 `pending_review` contracts.** Only `GDACS` and `MANUAL_NOTICE_INTAKE` are `reviewed`. Each remaining one needs a human reading actual terms.
+3. **Licence review for 15 `pending_review` contracts.** Only `GDACS`, `MANUAL_NOTICE_INTAKE` and `MPA_SG_STATISTICS` are `reviewed`. Each remaining one needs a human reading actual terms.
 4. **TMD_CAP governance sequence (Issue #15, still open).** WO-008B (send the permission inquiry), WO-008C (cadence observation), WO-008D (contract-architecture choice among Options A–D), WO-008E/F. Nothing in this backlog advances it; the HOLD disposition stands.
 5. **`BOT_FX` API credential.** `config/sources.yaml:380` and `:420` record that the developer portal requires account registration and an API key, and that no credential-handling mechanism exists in this repository. Needs a human to register **and** a secrets-handling decision.
 6. **Dependabot security-alert and branch-protection settings.** `.github/dependabot.yml` covers `pip` and `github-actions` on a monthly cadence, but security alerts, secret scanning and required-status-check branch protection are repository *settings*, not files — only a repo admin can set them.
