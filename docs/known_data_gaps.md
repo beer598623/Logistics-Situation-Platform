@@ -24,8 +24,8 @@ Consequences, all stated on the Dashboard's face:
 
 | Capability | Gap |
 |---|---|
-| **Thailand trade flow** | No live source. Published customs figures are all-mode totals, so even once enabled they cannot be attributed to ocean freight without a mode dimension the source does not provide |
-| **Thailand port activity** | No live source. The best candidate publishes model-derived estimates from vessel tracking, not port-authority reported throughput |
+| **Thailand trade flow** | No live source. Published customs figures are all-mode totals, so even once enabled they cannot be attributed to ocean freight without a mode dimension the source does not provide. WO-029 identified `ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only located candidates carrying an explicit mode dimension; that host is allowlisted but has never delivered a byte (see §7) |
+| **Thailand port activity** | No live source. `PAT_STATISTICS` — Port Authority of Thailand's own CKAN catalogue — is the strongest candidate found, not the vessel-tracking estimate: WO-032's mirror evidence shows monthly per-port vessel/cargo/container data through June 2026, but the primary host has never delivered a byte, and two publisher-side findings (a self-contradicting container unit, an unnamed licence) block it regardless of reachability (see §7). `IMF_PORTWATCH`'s model-derived vessel-tracking estimate remains a fallback candidate only |
 | **Port operational condition** | **No source of any kind is registered.** No waiting time, berth occupancy or yard measure exists, which is why no congestion statement is made anywhere |
 | **Transit time and schedule reliability** | No qualified source. Service quality is assessed only through recorded events |
 | **Deployed capacity** | No qualified source. Capacity effects are inferred from routing length and stated as potential |
@@ -117,10 +117,58 @@ committed under `data/assessments/` and `data/events/`, which is a separate, hum
 ## 6. What would close the largest gaps, in order
 
 1. **A controlled live validation of one Thailand trade source** — turns lane selection from
-   structural reasoning into evidence, and gives the trade domain a real reading.
+   structural reasoning into evidence, and gives the trade domain a real reading. WO-029
+   identified a mode-bearing candidate (`ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th`)
+   but has not yet reached it — see §7.
 2. **Any operational-condition source** — currently the single largest analytical hole. It
    is what stands between "volume pressure" and a supportable congestion statement.
 3. **A confirmed machine-readable official notice feed** — or a commitment to the manual
    intake path, which exists and is tested but has recorded nothing.
 4. **A transit-time or schedule-reliability source** — would let the service domain be
    measured rather than inferred from events.
+5. **A successful read of PAT's own port-statistics catalogue** — the strongest port-activity
+   candidate found; blocked on transport reachability and two publisher-side findings, not
+   on merit — see §7.
+
+## 7. Ocean-sequence research passes — what three research Work Orders established
+
+WO-029 (Issue #60), WO-031 (Issue #63) and WO-032 (Issue #65) — plus the consolidated
+egress-allowlist plan, Issue #64 — probed the Ocean sequence's two most promising
+Thailand-official candidates under successive rounds of human-authorized live access.
+Recorded here so this document's inventory doesn't drift from what those passes actually
+found.
+
+- **WO-029 — Thai Customs transport-mode data (Issue #60, closed).** RESEARCH INCOMPLETE —
+  ENVIRONMENT ACCESS BLOCKER. 0 of 9 authorized requests completed; every candidate host
+  either rejected the CONNECT tunnel or reset the TLS session before any response.
+  Identified `ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only located
+  candidates carrying an explicit transport-mode dimension (published customs statistics
+  are otherwise all-mode totals).
+- **WO-031 — Port Authority of Thailand statistics, research phase (Issue #63, closed).**
+  RESEARCH INCOMPLETE — ENVIRONMENT ACCESS BLOCKER. Zero primary text read; that
+  environment could not reach `catalog.port.co.th` at all. On the evidence available,
+  assessed PAT's own CKAN catalogue as "the best candidate found in either of the first two
+  Ocean sequence items… It fails on verification, not on substance."
+- **WO-032 — Port Authority of Thailand statistics, bounded live validation (Issue #65,
+  closed).** A later session's environment allowlisted `catalog.port.co.th` and
+  `datagov.mot.go.th`; the human-authorized six-request primary package plus two-request
+  mirror fallback (Issue #63 §5.1/§5.2) was executed. RESEARCH INCOMPLETE — ENVIRONMENT OR
+  EVIDENCE BLOCKER. `catalog.port.co.th`'s CONNECT tunnel is accepted but its TLS session
+  resets after ~12s on all four attempts (zero publisher bytes ever received — an upstream
+  transport problem, not a policy denial). The `datagov.mot.go.th` mirror fallback
+  succeeded (2/2 requests) and shows the underlying candidate is genuinely promising:
+  monthly per-port vessel/cargo/container data, harvested from `catalog.port.co.th` itself,
+  spanning 01/2018–06/2026, `last_updated_date: 2026-07-27`. Mirror evidence can disqualify
+  but never qualify the primary. Two publisher-side findings survive any future fix to
+  reachability: the container-unit field self-contradicts (Bangkok's `unit_of_measure`
+  states TEU; Laem Chabang's states boxes while its own `unit_of_multiplier_other` field
+  separately says "1 TEU"), with the authoritative data dictionary published as a JPEG
+  image rather than machine-readable text; and the licence field names no real licence
+  (`license_id: "Open Data Common"`, `license_url: null`, `isopen: false`).
+
+None of these three passes found either candidate unqualified on substance — in every case,
+the underlying data was never actually read. **It is a factual error to describe either
+candidate as low-value, rejected, or ruled out on data quality.** The correct framing,
+carried forward from Issue #64 §0, is that both remain the strongest candidates the Ocean
+sequence has found, blocked on transport reachability (and, for PAT, two additional
+publisher-side findings) rather than on merit.

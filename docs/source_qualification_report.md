@@ -127,6 +127,15 @@ figures are **all-mode totals** — attributing them to ocean freight without an
 dimension would be an invented precision, so every trade observation is recorded with
 `transport_mode: not_applicable` and carries that limitation.
 
+**WO-029 (Issue #60, RESEARCH INCOMPLETE — ENVIRONMENT ACCESS BLOCKER):** identified
+`ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only located candidates carrying an
+explicit transport-mode dimension. That host is allowlisted in some environments but has
+never delivered a byte — CONNECT is accepted, then the TLS session resets before any
+response, reproducibly. Whether to re-point `TH_CUSTOMS` at this catalogue or register a
+separate `TH_CUSTOMS_MODE` id is a deferred registry-architecture decision, not yet made,
+and `landing_url`/`endpoint` are deliberately left unchanged until it is (see
+`docs/known_data_gaps.md` §7).
+
 ### `EPPO_FUEL` — domestic fuel cost
 The page is client-rendered, so a machine-readable extraction path is unconfirmed. A retail
 pump price is **domestic cost context, not a bunker price**, and is labelled as such.
@@ -188,6 +197,25 @@ Reported throughput published by the port authority is a different measure from
 the same series, which is the correction this contract records. Throughput is a volume
 measure and can never on its own establish congestion, waiting time or berth delay. No
 machine-readable statistics endpoint has been confirmed.
+
+**WO-031 (Issue #63, RESEARCH INCOMPLETE — ENVIRONMENT ACCESS BLOCKER)** identified PAT's own
+CKAN catalogue (`catalog.port.co.th`, "PAT Data Catalog") as the best Ocean-sequence candidate
+found to that point, on the evidence available — "it fails on verification, not on
+substance." **WO-032 (Issue #65, RESEARCH INCOMPLETE — ENVIRONMENT OR EVIDENCE BLOCKER)**
+executed the human-authorized bounded live-validation package: `catalog.port.co.th`'s CONNECT
+tunnel is accepted but its TLS session resets after ~12s on all four attempts (zero publisher
+bytes ever received). The `datagov.mot.go.th` mirror fallback (2/2 requests, HTTP 200)
+corroborates that the underlying candidate is genuinely promising — monthly per-port
+vessel/cargo/container data, harvested from `catalog.port.co.th` itself, spanning
+01/2018–06/2026, `last_updated_date: 2026-07-27` — but mirror evidence can only disqualify,
+never qualify, the primary, and PAT's own field contract, DataStore status and licence text
+remain unread. Two publisher-side findings survive any future fix to reachability: the
+container-unit field self-contradicts (Bangkok's `unit_of_measure` states TEU; Laem Chabang's
+states boxes while its own `unit_of_multiplier_other` field separately says "1 TEU"), with the
+authoritative data dictionary published as a JPEG image rather than machine-readable text; and
+the licence field names no real licence (`license_id: "Open Data Common"`, `license_url:
+null`, `isopen: false`) — read access is well established but republication is not. See
+`docs/known_data_gaps.md` §7 for the full research-pass record.
 
 ### `FBX_PUBLIC` — container freight benchmark (WO-010-R1)
 A market benchmark for named east-west container routes. It is **not** a Thailand shipment
