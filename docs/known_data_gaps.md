@@ -229,9 +229,12 @@ found, so this inventory doesn't drift from the record the way §7 corrected for
     with **no year field anywhere in the data**. `license_id: "Open Data Common"` (the same
     non-licence string WO-032 found on `catalog.port.co.th`), `license_url: null`, and CKAN's
     own `isopen: false` — names no real licence, and blocks publication regardless of data
-    quality. Separately: **every one of the 5 returned records was a passenger row; no cargo
-    row was ever observed**, so the cargo measure's literal `Detail` value, unit, and scale
-    all stay unverified and fail-closed. All three sibling MOT air datasets checked in the
+    quality. Separately: **the schema has no unit column at all** — `Value` is a bare number
+    whose meaning depends entirely on which `Detail` the row carries, so unit and scale may
+    never be verifiable from data alone, regardless of which `Detail` rows are read. On top
+    of that structural gap, **every one of the 5 returned records was a passenger row; no
+    cargo row was ever observed**, so the cargo measure's literal `Detail` value stays
+    unverified too. Both stay fail-closed. All three sibling MOT air datasets checked in the
     same pass are unusable for unrelated reasons: `airports-dataset` (Department of Airports)
     is file-only (XLSX, no DataStore) and last updated 2021; `aot_traffic` (AOT) is an empty
     catalogue placeholder with no resource content at all; `domestic-air-freight` (CAAT) is
