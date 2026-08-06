@@ -203,13 +203,15 @@ found, so this inventory doesn't drift from the record the way §7 corrected for
   environment and containing real primary-source pages for two promising candidates, neither
   of which had its field-level data read at that stage — only catalogue metadata. Every
   publisher host for a commercial air-freight-rate or volume candidate (`iata.org`,
-  `aci.aero`, `tacindex.com`, `balticexchange.com`, and ICAO's data hosts) was blocked in
-  that environment, so Issue #69 labels these findings `[REPORTED]` — secondary evidence, not
-  a primary read. On that secondary evidence, every commercial candidate investigated (IATA
-  CargoIS/WATS, ACI's World Airport Traffic Dataset, TAC Index, the Baltic Air Freight Index)
-  is reported paid or membership-gated, and ICAO's data products are reported either paid or
-  a credential-gated trial tier — excluded by the zero-cost constraint if the reports hold.
-  No free official Thailand-scoped air-freight-rate series was found; that gap does not close
+  `aci.aero`, `tacindex.com`, `balticexchange.com`, `freightos.com`, and ICAO's data hosts)
+  was blocked in that environment, so Issue #69 labels these findings `[REPORTED]` —
+  secondary evidence, not a primary read. On that secondary evidence, every commercial
+  candidate investigated (IATA CargoIS/WATS, ACI's World Airport Traffic Dataset, TAC Index,
+  the Baltic Air Freight Index) is reported paid or membership-gated, ICAO's data products
+  are reported either paid or a credential-gated trial tier, and Freightos' free tier is
+  reported to be a regional aggregate that does not isolate a Thailand rate — excluded by the
+  zero-cost or Thailand-scope constraints if the reports hold. No free official
+  Thailand-scoped air-freight-rate series was found; that gap does not close
   (mirrors the same finding already recorded for ocean freight rates).
 - **WO-035 — additive `event_type` enum extension (Issue #70, PR #71, merged).** Closed the
   one schema gap `docs/bundle2_air_cargo_scope.md` §1 had documented — `port_or_terminal_closure`/
