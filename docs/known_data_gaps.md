@@ -201,15 +201,16 @@ found, so this inventory doesn't drift from the record the way §7 corrected for
 - **WO-034 — Air Cargo primary-source research (Issue #69, closed).** Found
   `datagov.mot.go.th` (Thailand's Ministry of Transport CKAN catalogue) reachable in this
   environment and containing real primary-source pages for two promising candidates, neither
-  of which had its field-level data read at that stage — only catalogue metadata. Established
-  from secondary evidence — every one of these publishers' hosts (`iata.org`, `aci.aero`,
-  `tacindex.com`, `balticexchange.com`, and ICAO's data hosts) was blocked in that
-  environment, so Issue #69 labels these findings `[REPORTED]`, not verified — that every
-  commercial air-freight-rate and volume candidate investigated (IATA CargoIS/WATS, ACI's
-  World Airport Traffic Dataset, TAC Index, the Baltic Air Freight Index) is reported paid or
-  membership-gated, and that ICAO's data products are reported either paid or a
-  credential-gated trial tier — all excluded by the zero-cost constraint if the reports hold. No free official Thailand-scoped air-freight-rate series was found; that gap
-  does not close (mirrors the same finding already recorded for ocean freight rates).
+  of which had its field-level data read at that stage — only catalogue metadata. Every
+  publisher host for a commercial air-freight-rate or volume candidate (`iata.org`,
+  `aci.aero`, `tacindex.com`, `balticexchange.com`, and ICAO's data hosts) was blocked in
+  that environment, so Issue #69 labels these findings `[REPORTED]` — secondary evidence, not
+  a primary read. On that secondary evidence, every commercial candidate investigated (IATA
+  CargoIS/WATS, ACI's World Airport Traffic Dataset, TAC Index, the Baltic Air Freight Index)
+  is reported paid or membership-gated, and ICAO's data products are reported either paid or
+  a credential-gated trial tier — excluded by the zero-cost constraint if the reports hold.
+  No free official Thailand-scoped air-freight-rate series was found; that gap does not close
+  (mirrors the same finding already recorded for ocean freight rates).
 - **WO-035 — additive `event_type` enum extension (Issue #70, PR #71, merged).** Closed the
   one schema gap `docs/bundle2_air_cargo_scope.md` §1 had documented — `port_or_terminal_closure`/
   `canal_restriction` are Ocean-worded — by adding `airspace_closure` and
@@ -228,20 +229,20 @@ found, so this inventory doesn't drift from the record the way §7 corrected for
     own `isopen: false` — names no real licence, and blocks publication regardless of data
     quality. Separately: **every one of the 5 returned records was a passenger row; no cargo
     row was ever observed**, so the cargo measure's literal `Detail` value, unit, and scale
-    all stay unverified and fail-closed. All three sibling MOT air datasets checked in
-    the same pass are unusable for unrelated reasons: `airports-dataset` (Department of
-    Airports) is file-only (XLSX, no DataStore) and last updated 2021; `aot_traffic` (AOT) is
-    an empty catalogue placeholder with no resource content at all; `domestic-air-freight`
-    (CAAT) is DataStore-backed but abandoned since
-    2020 with an empty licence field.
+    all stay unverified and fail-closed. All three sibling MOT air datasets checked in the
+    same pass are unusable for unrelated reasons: `airports-dataset` (Department of Airports)
+    is file-only (XLSX, no DataStore) and last updated 2021; `aot_traffic` (AOT) is an empty
+    catalogue placeholder with no resource content at all; `domestic-air-freight` (CAAT) is
+    DataStore-backed but abandoned since 2020 with an empty licence field.
   - **AEROTHAI Bangkok FIR monthly flight volumes: NOT QUALIFIED — DOCUMENTED COVERAGE
     GAP.** The highest-value open question WO-034 identified — whether the "type of
     operation" cut separates cargo from passenger flights — has a decisive negative answer
     read directly from the data: the field is a scheduled/non-scheduled/general-aviation/
-    military classification (`Schedule`, `General`, `Others`, `Military`, `Non-Schedule`
-    observed; a sixth value exists in the resource's 6-row total but was not returned at the
-    bounded `limit=5`), with **no cargo dimension of any kind** among the five observed. The resource also carries **no aerodrome or
-    location field** — it is Bangkok FIR-wide only and can never attach to `NODE-THBKKAIR`.
+    military classification, with the five observed values (`Schedule`, `General`, `Others`,
+    `Military`, `Non-Schedule`) carrying **no cargo dimension of any kind**. A sixth row
+    exists in the resource's 6-row total and was not returned at the bounded `limit=5`, so
+    its value was never observed. The resource also carries **no aerodrome or location
+    field** — it is Bangkok FIR-wide only and can never attach to `NODE-THBKKAIR`.
     Flight counts are not cargo weight in any case. This closes the candidate on substance,
     not on access — transport and DataStore both worked. (Also confirmed, as a secondary
     finding: `bangkok-june-2569` and `bangkok-june-25691` are duplicate catalogue records of

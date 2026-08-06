@@ -82,7 +82,7 @@ WO-010 and is not bumped by every Work Order.
   DataStore-backed, field-contract-verified candidate blocked on an unresolved licence and on
   its cargo-specific rows never having been observed; AEROTHAI Bangkok FIR is closed as NOT
   QUALIFIED (no cargo dimension, no aerodrome resolution); no free Thailand-scoped air freight
-  rate source exists. Also corrected a stale "Bundle 1's 17 candidates" count in
+  rate source was found. Also corrected a stale "Bundle 1's 17 candidates" count in
   `bundle2_air_cargo_scope.md` §4 to 18. No `config/sources.yaml` change, no network request,
   no code — the licence determination and the one additional bounded request needed to observe
   `air-freight-pass`'s cargo rows both remain open, separately-authorizable next steps.
