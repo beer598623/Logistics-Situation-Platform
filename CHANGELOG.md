@@ -9,6 +9,28 @@ WO-010 and is not bumped by every Work Order.
 
 ### Fixed
 
+- WO-033: `docs/known_data_gaps.md` §2 named `IMF_PORTWATCH`'s model-derived vessel-tracking
+  estimate as the best Thailand port-activity candidate; three research Work Orders
+  (WO-029/Issue #60, WO-031/Issue #63, WO-032/Issue #65) had already established `PAT_STATISTICS`
+  (Port Authority of Thailand's own CKAN catalogue) as the stronger candidate — monthly per-port
+  data confirmed fresh through June 2026 via a corroborating mirror, blocked on transport
+  reachability plus a self-contradicting container-unit field and an unnamed licence, not on
+  substance. Corrected `known_data_gaps.md` (added §7 recording all three passes),
+  `source_qualification_report.md`, `source_enablement_decisions.md` (`PAT_STATISTICS` and
+  `TH_CUSTOMS` entries), `port_pressure_interpretation.md`, and `production_readiness_roadmap.md`
+  (stale "17 registered sources" corrected to 18 at five occurrences across three locations,
+  including one an initial pass of this same Work Order missed; the reviewed-sources list was
+  also missing `MPA_SG_STATISTICS`; closed gate 9's health-check operational-proof gap — the
+  post-WO-014 workflow has now fired 5 consecutive successful scheduled runs). A fresh
+  independent review of the initial PR head also found two overstated claims carried over from
+  WO-029's findings (Issue #60): "every candidate host" rejected or reset the connection, when
+  two of three actually delivered a response (`data.go.th` 403, `uncomtrade.org` 200); and
+  `catalog.customs.go.th` described as the "only" mode-bearing candidate, when
+  `datagov.mot.go.th`'s `freight-import-export` dataset also carries a mode dimension (as a
+  complementary cross-check, not a substitute) — both narrowed to match the source issue.
+  Added a `registry-source-count` marker to `production_readiness_roadmap.md`, enforced by an
+  extended `tests/test_documentation_registry_coverage.py`. Documentation and test only — no
+  change to `config/sources.yaml`, no network request, no source enabled.
 - WO-011: `docs/source_qualification_report.md` and `docs/bundle1_architecture.md` named only
   15 of the 17 registered source contracts, omitting the two WO-010-R1 additions
   (`PAT_STATISTICS`, `FBX_PUBLIC`). Both docs corrected, a machine-readable

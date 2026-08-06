@@ -44,7 +44,11 @@ def test_enablement_decisions_names_every_registered_source() -> None:
 def test_documented_contract_count_matches_registry() -> None:
     registry = load_registry()
     expected = len(registry["sources"])
-    for name in ("source_qualification_report.md", "bundle1_architecture.md"):
+    for name in (
+        "source_qualification_report.md",
+        "bundle1_architecture.md",
+        "production_readiness_roadmap.md",
+    ):
         text = _doc_text(name)
         assert _registry_source_count_marker(text) == expected, (
             f"{name}'s registry-source-count marker is stale (registry has {expected} sources)"

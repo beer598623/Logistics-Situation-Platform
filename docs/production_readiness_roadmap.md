@@ -1,5 +1,7 @@
 # Production-readiness roadmap — third audit
 
+<!-- registry-source-count: 18 -->
+
 **Audit date:** 2026-07-31
 **Baseline audited:** `main` @ `1bd1d9a` (WO-023 merge, PR #49)
 **Previous audit baselines:** `main` @ `49bb9c4` (second audit, WO-016 merge, PR #31); `main` @
@@ -32,7 +34,7 @@ date is closed.
   WO-024 (this document, plus `CHANGELOG.md` and `docs/deployment_verification.md`, had gone
   stale after the volume of merges above).
 - **Nothing touched `config/sources.yaml`, any schema, or any data file** across any of the seven
-  Work Orders above. All 17 registered sources remain `enabled: false`; 15 of 17 remain
+  Work Orders above. All 18 registered sources remain `enabled: false`; 15 of 18 remain
   `licence_status: pending_review`. Live coverage is still "insufficient" by design.
 - No List B item became actionable. Issue #15 (TMD_CAP governance HOLD) is still open, unchanged
   since 2026-07-24.
@@ -45,11 +47,11 @@ date is closed.
 | 2 | Verified-source provenance | PARTIAL | Provenance machinery is complete and tested — acquisition binding (`tests/test_acquisition_binding.py`), collection manifests (`tests/test_r7_manifest_contract.py`), content hashes, retrieval-time fail-closed. Exercised only against fixtures, because no source is enabled. Unchanged since audit 1. |
 | 3 | Fixture/current separation | **PASS (regression found and fixed this audit)** | Enforced by `tests/test_current_publication_boundary.py`, `tests/test_review_package_isolation.py`, `tests/test_current_positive_path.py`, and now also `tests/test_dashboard_build.py::test_no_orphaned_json_file_sits_in_the_published_data_directory`. This audit found a real violation — `current_events.json`, an unlabelled legacy record, was reaching the published site outside every one of these boundary tests — and closed it as WO-022. |
 | 4 | Acquisition/review binding | PASS | `tests/test_review_decision_transactions.py` and the WO-010-R5/R6/R7 record-level acquisition proof and approval-hash closure. Unchanged. |
-| 5 | Licensing/enablement review | PARTIAL (human-blocked) | 15 of 17 contracts are `licence_status: pending_review`; `docs/source_enablement_decisions.md` registers all 17 with a decision record. Blocked on List B items 1 and 3. Unchanged. |
+| 5 | Licensing/enablement review | PARTIAL (human-blocked) | 15 of 18 contracts are `licence_status: pending_review`; `docs/source_enablement_decisions.md` registers all 18 with a decision record. Blocked on List B items 1 and 3. Unchanged. |
 | 6 | Controlled live validation, offline-default CI | PASS | `collect.yml` and `manual-live-source-test.yml` are `workflow_dispatch:`-only with no `schedule:`/`push:`/`pull_request:` trigger, enforced by `tests/test_workflow_consistency.py::test_collect_workflow_has_no_schedule_or_push_trigger` and `tests/test_manual_workflow.py`. Unchanged since audit 2. |
 | 7 | Deterministic / auditable / fail-closed pipelines | PASS | `scripts/validate.py` semantic checks, a real `--check` mode on the three generators that have one (`ingest_fixtures`, `build_events_from_cases`, `build_analysis`) plus an equivalent CI/byte-comparison reproducibility check on the other two (`build_dashboard`, `generate_synthetic_fixtures` — WO-025), cross-version determinism fix, warehouse rebuild tests. |
 | 8 | Dashboard accurate / accessible / organization-neutral | **PASS (regression found and fixed this audit)** | `tests/test_dashboard_accessibility.py` covers heading structure, `lang`, skip-link target, landmark names, WCAG AA contrast computed from the real CSS, and payload budgets; WO-018 closed the runtime `<h2>`→`<h4>` heading-skip (Issue #32) with a mutation-verified regression test. Organization-neutrality is enforced by `analysis/assessments.py`'s `validate_preparedness_option`/`_MANDATORY_PHRASES`/`_ORGANIZATION_SPECIFIC`. This audit found the same publication-boundary gap as gate 3 above (an unlabelled legacy record on the published site, contradicting the properly-derived Dashboard content) and closed it as WO-022. Known residual gap, unchanged from audit 2: the accessibility regression test's regex doesn't resolve the `events-*` containers (a different, array-driven render pattern); manually verified correct, but a regression there wouldn't be caught by this suite. |
-| 9 | Operational deployment / monitoring / backup / runbooks | **PASS (hardened this audit, one operational-proof gap noted)** | `health-check.yml` runs daily (`17 3 * * *`) with automated issue open-on-failure/close-on-recovery, now binding its content marker to the real committed `index.html` (WO-020) and excluding pull requests from its issue-dedupe lookup (WO-021); `docs/deployment_verification.md` and runbook §6/§8/§9. WO-013 added weekly `pip-audit`. **Noted, not fixed:** as of this audit, `health-check.yml` has run exactly once ever — `run_number: 1`, 2026-07-27, against `e2acb77` — and that run predates WO-014's merge (`bb73501`, 2026-07-30), which is when the daily liveness fetch and issue-automation steps were added. The current (post-WO-014) form of the workflow has completed **zero** runs: it is structurally tested but has not yet fired even once, let alone been empirically proven in production. Not autonomously actionable; the workflow runs on its own schedule. |
+| 9 | Operational deployment / monitoring / backup / runbooks | **PASS** | `health-check.yml` runs daily (`17 3 * * *`) with automated issue open-on-failure/close-on-recovery, binding its content marker to the real committed `index.html` (WO-020) and excluding pull requests from its issue-dedupe lookup (WO-021); `docs/deployment_verification.md` and runbook §6/§8/§9. WO-013 added weekly `pip-audit`. **Operational-proof gap closed:** the post-WO-014 form of the workflow (daily liveness fetch + issue automation, merged `bb73501` 2026-07-30) has now fired 5 consecutive successful scheduled runs (`run_number` 3–7, 2026-08-01 through 2026-08-05), all against the current head `9bc1942` — the empirical production proof this gate previously lacked. |
 | 10 | No unresolved Critical/High blocker | PASS | Two open issues as of this baseline: #15 (deliberate TMD_CAP governance HOLD, by design) and #52 (this WO-025, open until this PR merges — self-counting, the same convention prior roadmap refreshes used for their own tracking issue). Every other issue this and the prior audits opened (#32, #33, #35, #38, #40, #42, #44, #46, #48, #50) is closed. None was, or is, Critical or High. |
 
 ---
@@ -239,9 +241,9 @@ silently.
 
 All items re-verified against the current tree; **none has become actionable**.
 
-1. **Enabling any source.** All 17 remain `enabled: false` (`tests/test_documentation_registry_coverage.py::test_no_source_became_enabled` locks this). Enablement is a licensing and operational-commitment decision, not an engineering one.
+1. **Enabling any source.** All 18 remain `enabled: false` (`tests/test_documentation_registry_coverage.py::test_no_source_became_enabled` locks this). Enablement is a licensing and operational-commitment decision, not an engineering one.
 2. **Dispatching a controlled live validation run.** `manual-live-source-test.yml` is `workflow_dispatch`-only by design and requires a human to trigger and review each run.
-3. **Licence review for 15 `pending_review` contracts.** Only `GDACS` and `MANUAL_NOTICE_INTAKE` are `reviewed`. Each remaining one needs a human reading actual terms.
+3. **Licence review for 15 `pending_review` contracts.** Only `GDACS`, `MANUAL_NOTICE_INTAKE` and `MPA_SG_STATISTICS` are `reviewed`. Each remaining one needs a human reading actual terms.
 4. **TMD_CAP governance sequence (Issue #15, still open).** WO-008B (send the permission inquiry), WO-008C (cadence observation), WO-008D (contract-architecture choice among Options A–D), WO-008E/F. Nothing in this backlog advances it; the HOLD disposition stands.
 5. **`BOT_FX` API credential.** `config/sources.yaml:380` and `:420` record that the developer portal requires account registration and an API key, and that no credential-handling mechanism exists in this repository. Needs a human to register **and** a secrets-handling decision.
 6. **Dependabot security-alert and branch-protection settings.** `.github/dependabot.yml` covers `pip` and `github-actions` on a monthly cadence, but security alerts, secret scanning and required-status-check branch protection are repository *settings*, not files — only a repo admin can set them.

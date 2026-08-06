@@ -78,4 +78,8 @@ the platform reaches a congestion conclusion only through the right kind of evid
 
 `IMF_PORTWATCH` figures are model-derived estimates from vessel tracking, not
 port-authority reported throughput. They are labelled as estimates in the source contract's
-limitations and must never be presented as official port statistics.
+limitations and must never be presented as official port statistics. `IMF_PORTWATCH` is no
+longer the leading port-activity candidate — WO-031/WO-032 identified `PAT_STATISTICS`
+(Port Authority of Thailand's own CKAN catalogue) as the stronger candidate, currently
+blocked on transport reachability and two publisher-side findings rather than on substance
+(`docs/known_data_gaps.md` §7).

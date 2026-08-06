@@ -9,7 +9,7 @@ source in `config/sources.yaml` and summarised in `docs/source_qualification_rep
 
 | Source | Decision | Primary reason |
 |---|---|---|
-| `TH_CUSTOMS` | **Keep disabled** | No stable machine-readable export confirmed; no live validation; reuse terms unreviewed |
+| `TH_CUSTOMS` | **Keep disabled** (WO-010, research carried by WO-029) | No stable machine-readable export confirmed; the mode-bearing candidate host (`catalog.customs.go.th`) has never delivered a byte (WO-029, environment access blocker); reuse terms unreviewed |
 | `EPPO_FUEL` | **Keep disabled** | Client-rendered page, extraction path unconfirmed; no live validation; reuse terms unreviewed |
 | `GSCPI` | **Keep disabled** | No published download URL confirmed by observation; no live validation; reuse terms unreviewed |
 | `BOT_FX` | **Keep disabled** | Requires an API key; no credential-handling mechanism exists and WO-010 introduces none |
@@ -50,7 +50,7 @@ rather than halting the bundle:
 
 | Source | To enable, a reviewer must additionally |
 |---|---|
-| `TH_CUSTOMS` | Confirm a stable machine-readable export URL by controlled live test; read and record the reuse and redistribution terms |
+| `TH_CUSTOMS` | Reach `catalog.customs.go.th` (allowlisted in some environments but has never delivered a byte — TLS resets before any response, WO-029) and read the `ctm_06_18`/`ctm_06_17` field contract; decide whether to re-point `TH_CUSTOMS` at it or register a separate `TH_CUSTOMS_MODE` id; read and record reuse and redistribution terms |
 | `EPPO_FUEL` | Confirm a machine-readable extraction path; read and record reuse terms |
 | `GSCPI` | Confirm the published file URL; read and record reuse terms |
 | `BOT_FX` | Decide how an API key is stored and injected without entering the repository, then validate |
@@ -59,7 +59,7 @@ rather than halting the bundle:
 | `UNCTAD_MARITIME` | Confirm a stable download URL; read and record reuse terms |
 | Notice channels | Confirm a machine-readable feed **or** commit to the manual intake path; establish cadence before configuring any schedule |
 | `NEWS_DISCOVERY` | Confirm the query endpoint and rate limits; confirm link-level redistribution is permitted |
-| `PAT_STATISTICS` | Confirm a stable machine-readable throughput publication and its scope (TEU vs tonnes, port vs terminal); read and record reuse terms |
+| `PAT_STATISTICS` | Reach `catalog.port.co.th` (allowlisted but TLS resets before any response on all attempts so far, WO-032) and read its field contract and DataStore status directly, not via the `datagov.mot.go.th` mirror; resolve the container-unit contradiction between Bangkok (TEU) and Laem Chabang (boxes, self-contradicting its own multiplier field) from primary text, plausibly requiring a human to read the JPEG-format data dictionary; identify the specific Open Data Commons variant behind `license_id: "Open Data Common"` (`license_url` is currently null) and confirm it permits republication |
 | `FBX_PUBLIC` | Confirm which figures are publicly reusable versus subscription-only; record route scope, unit and redistribution position before any value is committed |
 | `MPA_SG_STATISTICS` | WO-027 Part B (live validation) is done. The personal-data check is only *partially* done: none of the fields the field-projected Part B requests actually returned can carry personal data, but that projected response cannot itself confirm either resource's complete schema — the broader confirmation still rests on the earlier human primary-source dataset-page reading (`docs/mpa_sg_statistics_qualification.md` §1 item 4), and a corresponding `enablement.blockers` entry remains. Remaining: that full-schema confirmation, plus a separately-authorized primary-source read of data.gov.sg's own field/dataset unit documentation for `container_throughput` — the scale-elimination reconciliation against official MPA annual totals (WO-027 Part C) corroborates but does not itself confirm the unit, so `unit_verified` stays `False` until that primary-source read happens |
 | `TMD_CAP`, `GDACS` | Out of scope, and explicitly excluded from WO-010-R1. A separate Work Order and their own governance records apply. Neither was contacted |
