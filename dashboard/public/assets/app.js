@@ -618,7 +618,7 @@
       '<td>' + esc(words(lane.status)) + '</td>' +
       '<td>' + esc(words(lane.direction)) + '</td>' +
       '<td>' + (lane.chokepoint_ids.length ? esc(lane.chokepoint_ids.join(', ')) : 'none registered') + '</td>' +
-      '<td>' + pill('insufficient_evidence', { insufficient_evidence: 'pill-critical' }) + '</td>' +
+      '<td>' + pill('insufficient_evidence', ATTENTION_PILL) + '</td>' +
       '</tr>';
 
     var selectionRows = lane.selection_evidence.map(function (item) {

@@ -1199,7 +1199,7 @@ def build_payloads() -> dict[str, Any]:
         ],
         "historical_air_events": [
             {
-                "dataset": HISTORICAL_VALIDATION,
+                "dataset": dataset_of(event),
                 "event_id": event["event_id"],
                 "case_id": case_id_by_event.get(event["event_id"]),
                 "assessment_cutoff": cutoff_by_event.get(event["event_id"]),
@@ -1211,7 +1211,7 @@ def build_payloads() -> dict[str, Any]:
                 "known_limitations": event.get("known_limitations", []),
             }
             for event in events
-            if "air" in event["modes"]
+            if "air" in event["modes"] and dataset_of(event) == HISTORICAL_VALIDATION
         ],
         "historical_label": (
             "Historical validation — replayed through the analysis code to prove the Air "

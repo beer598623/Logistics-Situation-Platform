@@ -395,7 +395,11 @@ def test_the_air_view_exists_and_is_wired_to_its_payload():
 
 
 def test_the_air_view_emits_no_href():
+    """Checks renderAir and every helper it delegates markup-building to --
+    not just renderAir's own body, which calls out to airLaneRow,
+    airReferenceRow and airHistoricalCase for the actual row/card markup."""
     script = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
-    body = _js_function_body(script, "renderAir")
-    assert body, "expected to resolve renderAir's body"
-    assert "href" not in body
+    for name in ("renderAir", "airLaneRow", "airReferenceRow", "airHistoricalCase"):
+        body = _js_function_body(script, name)
+        assert body, f"expected to resolve {name}'s body"
+        assert "href" not in body, f"{name} emits an href"
