@@ -147,6 +147,7 @@ def resolve_lane_relevance(
     country_ids: Sequence[str] = (),
     node_ids: Sequence[str] = (),
     chokepoint_ids: Sequence[str] = (),
+    modes: Sequence[str] = (),
     lane_source: Mapping[str, Any] | None = None,
 ) -> dict[str, list[str]]:
     """Map each touched Lane to the concrete reasons it was matched.
@@ -155,9 +156,18 @@ def resolve_lane_relevance(
     that matched only because it shares a country with the event is weaker
     evidence than one matched on a chokepoint it actually transits, and the
     caller must be able to tell those apart.
+
+    ``modes`` restricts matching to lanes of the given transport mode(s) --
+    an event tagged ``modes: ["air"]`` must not resolve to an Ocean lane
+    just because both share a country ID. An empty ``modes`` leaves every
+    lane eligible, preserving the historical (mode-blind) behaviour for
+    callers that do not pass it.
     """
+    mode_filter = set(modes)
     matches: dict[str, list[str]] = {}
     for lane in lanes(lane_source):
+        if mode_filter and lane["mode"] not in mode_filter:
+            continue
         reasons: list[str] = []
         for country_id in country_ids:
             if country_id in lane["country_ids"]:

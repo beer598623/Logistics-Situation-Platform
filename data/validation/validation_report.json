@@ -175,12 +175,37 @@
       "hindsight_limitation": "This case exists to check that a discovery lead is representable, visible, and structurally unable to support a conclusion.",
       "result": "pass",
       "failures": []
+    },
+    {
+      "case_id": "HVC-009",
+      "event_id": "EVT-20190227-001",
+      "title": "Pakistan closes its airspace and Thailand\u2013Europe air services are cancelled or rerouted",
+      "assessment_cutoff": "2019-03-06T00:00:00Z",
+      "event_class": "direct_operational_event",
+      "transmission_completeness": "complete",
+      "thailand_relevance": "medium",
+      "lane_relevance": [
+        "LANE-AIR-TH-ASEAN",
+        "LANE-AIR-TH-DOMESTIC",
+        "LANE-AIR-TH-EASIA",
+        "LANE-AIR-TH-EUR",
+        "LANE-AIR-TH-NAM"
+      ],
+      "facts_known_at_cutoff": [
+        "The civil aviation authority had closed its national airspace to civil traffic on 27 February 2019.",
+        "The operator had publicly cancelled named Bangkok\u2013Europe services because their routing crosses that airspace, and had stated that a subset would resume on a rerouting through Chinese airspace.",
+        "A Thai government agency had published that Thailand\u2013Europe flights were affected.",
+        "The registered Thailand\u2013Europe air lane records that its routing crosses South Asian airspace."
+      ],
+      "hindsight_limitation": "How long the closure would last -- it ran until 15 July 2019 -- and its eventual effect on air freight rates and on Thailand trade volumes were all unknown at this cutoff and must not inform the assessment. This case exists to check that the Air foundation carries a real event end to end: that an airspace closure resolves to an Air lane through the airspace chokepoint that lane actually records and to no Ocean lane at all, and that the capacity and cost consequences -- for which no Air series is qualified anywhere -- stay 'potential' with the gap named rather than being quantified from a source the platform does not hold.",
+      "result": "pass",
+      "failures": []
     }
   ],
   "metrics": {
     "traceability_rate": 1.0,
-    "impacts_assessed": 72,
-    "material_impacts": 11,
+    "impacts_assessed": 81,
+    "material_impacts": 16,
     "unsupported_causation_count": 0,
     "unsupported_causation_rate": 0.0,
     "unsupported_causation_examples": [],
@@ -189,6 +214,7 @@
     "missing_as_zero_count": 0,
     "missing_as_zero_examples": [],
     "event_impact_separation_examples": [
+      "EVT-20190227-001: event severity high vs worst impact severity moderate",
       "EVT-20231030-001: event severity moderate vs worst impact severity low",
       "EVT-20231218-001: event severity high vs worst impact severity moderate",
       "EVT-20240326-001: event severity high vs worst impact severity none",
@@ -198,7 +224,7 @@
     "scenario_problems": [],
     "preparedness_overreach_count": 0,
     "preparedness_overreach_examples": [],
-    "insufficient_evidence_uses": 52,
+    "insufficient_evidence_uses": 56,
     "no_material_uses": 9,
     "no_material_without_negative_evidence": [],
     "material_impact_on_discovery_only_evidence": [],

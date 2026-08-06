@@ -33,6 +33,11 @@ entities are mode-neutral" is a testable statement rather than an intention.
 
 ## 2. What a future Air module would add
 
+**WO-039 delivered the first three items** (lanes, the airspace chokepoint, and the event
+types this section names) as the Air foundation under Bundle 2 Option A — see
+`docs/air_lane_selection.md`. Observations and threshold rules remain undelivered because no
+Air source is enabled.
+
 - **Lanes:** `LANE-AIR-TH-*` records with `mode: air`, origin and destination airport
   groups, and airspace chokepoints where relevant.
 - **Nodes:** cargo terminals beyond `NODE-THBKKAIR`.

@@ -88,17 +88,25 @@ The published site must retain the latest successful version when validation or 
 
 **Implementation v0.3.0 (WO-010, Bundle 1).** The common multimodal data foundation and the
 Ocean Logistics Intelligence MVP are implemented: 18 conceptual entities, 11 Thailand-centred
-Ocean lane groups, deterministic indicators with seven documented threshold rules, an event
-model with lifecycle/clustering/transmission chains, nine-area impact assessment, scenario
-outlooks with conditional preparedness options, a human-triggered ChatGPT review package with
-its rejection rules and human-approval gate, eight historical validation cases, a derived
-DuckDB warehouse, and a seven-section static Dashboard.
+Ocean lane groups and 5 provisional Air lane groups, deterministic indicators with seven
+documented threshold rules, an event model with lifecycle/clustering/transmission chains,
+nine-area impact assessment, scenario outlooks with conditional preparedness options, a
+human-triggered ChatGPT review package with its rejection rules and human-approval gate, nine
+historical validation cases, a derived DuckDB warehouse, and an eight-section static
+Dashboard.
 
 **Live coverage is insufficient and the Dashboard says so on its face.** No source in the
 registry is enabled and none has completed a controlled live validation, so the platform
 holds no live-retrieved or human-reviewed evidence at all. `Paid-source dependency = 0`; no
 AI API is called. See [`docs/source_qualification_report.md`](docs/source_qualification_report.md)
 and [`docs/known_data_gaps.md`](docs/known_data_gaps.md).
+
+**Air Cargo is a foundation, not a module (WO-039).** Five provisional Air lanes, one
+airspace chokepoint and one historical validation case are registered so the shared entities
+carry a real second mode. No Air source is registered or enabled, no Air observation or
+indicator exists, and no Air lane carries a current assessment — the Dashboard's Air Cargo
+section says exactly that. Selection methodology and its evidence limitation are in
+[`docs/air_lane_selection.md`](docs/air_lane_selection.md).
 
 **Fixtures and current intelligence are separated (WO-010-R1).** Every observation and
 evidence record carries a machine-readable `evidence_origin`, and only `live_retrieved` or

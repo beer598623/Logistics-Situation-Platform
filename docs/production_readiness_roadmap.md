@@ -249,7 +249,12 @@ All items re-verified against the current tree; **none has become actionable**.
 6. **Dependabot security-alert and branch-protection settings.** `.github/dependabot.yml` covers `pip` and `github-actions` on a monthly cadence, but security alerts, secret scanning and required-status-check branch protection are repository *settings*, not files — only a repo admin can set them.
 7. **XLSX / PDF parser dependency decision.** `WB_COMMODITY` is `format: xlsx` (`config/sources.yaml:433`) and several qualification/terms references are PDFs. Parsing either adds a runtime dependency to a repository that currently has a deliberately minimal lockfile. Needs an explicit accept/reject.
 8. **Destructive data migration.** Any rename of the impact-area or measurement-domain vocabularies (see WO-019's reconciliation table in `docs/known_data_gaps.md` §5) rewrites committed data under `data/assessments/` and `data/events/`. Requires human sign-off before it is attempted.
-9. **Air cargo lane-selection source (new, from the WO-017 scope work).** Selecting Bundle 2 Air lanes needs either a qualified air-cargo volume/route source — none is registered — or an explicit reviewed decision to repeat WO-010's structural-reasoning-only approach, which `docs/known_data_gaps.md` §3 already records as a limitation for Ocean. That is a scope decision, not an implementation task.
+9. **Air cargo lane-selection source (new, from the WO-017 scope work).** The scope decision
+   itself is now taken: WO-039 selected five provisional Air lanes by repeating WO-010's
+   structural-reasoning-only approach (Option A), documented in `docs/air_lane_selection.md`.
+   What remains is the *source* gap this item originally named — no qualified air-cargo
+   volume/route source is registered, so the lanes stay provisional and unranked. Re-selection
+   against measured data, not a new scope decision, is what a qualified source would enable.
 
 Audit-1 List B items not repeated above were either folded into items 1–8 or were resolved by
 WO-012 / WO-013 / WO-014 (governance files, vulnerability scanning, deployment monitoring).

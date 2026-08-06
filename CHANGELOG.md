@@ -7,6 +7,49 @@ WO-010 and is not bumped by every Work Order.
 
 ## [Unreleased]
 
+### Added
+
+- WO-039: Air Cargo foundation (Bundle 2 Option A, Issue #76). Added five provisional
+  `LANE-AIR-TH-*` lanes (East Asia, ASEAN and Singapore, Europe, North America, and a domestic
+  gateway lane) to `data/reference/lanes.json`, selected by named structural reasoning exactly
+  as WO-010 selected the eleven Ocean lanes — Air gets five instead of eleven because most of
+  Ocean's splitting decisions (China/Hong Kong vs Japan/Korea, North Europe vs Mediterranean,
+  US West Coast vs East/Gulf Coast) rest on structural facts (shared service strings, a
+  post-Suez discharge order, a genuine Panama-vs-Suez routing choice) that have no Air
+  analogue; see `docs/air_lane_selection.md` for the full reasoning and the corridors
+  deliberately left out. Added one new chokepoint, `CHK-SASIA-AIRSPACE` (an `airspace`-type
+  South Asian overflight corridor, reusing the existing `GEO-RGN-SASIA` geography rather than
+  minting a new one), transited only by `LANE-AIR-TH-EUR`; its chokepoint-exposure evidence is
+  deliberately classified `analytical_inference`, not `verified_fact` as Ocean's is, because an
+  aircraft's routing is a filed flight plan this platform does not observe. Added zero new
+  nodes — every Air lane anchors only on the already-registered `NODE-THBKKAIR`. Added one
+  historical validation case, `HVC-009` (the 27 February 2019 Pakistan airspace closure and
+  the resulting Thai Airways Bangkok–Europe cancellations), which resolves to `LANE-AIR-TH-EUR`
+  through the new chokepoint and to no Ocean lane; its transport and service impacts are
+  `observed` from the operator's own cancellation announcement, while capacity and cost stay
+  `potential` with the measurement gap named explicitly. `analysis/reference.py::resolve_lane_relevance`
+  gained a `modes` parameter so an event's stated modes gate lane matching by mode as well as
+  by country/node/chokepoint — behaviour-preserving for every previously committed event,
+  since all eight Ocean cases list `sea` and the parameter defaults to the old mode-blind
+  behaviour when omitted, but now required to stop an Air event resolving an Ocean lane (or
+  vice versa) purely because both happen to share Thailand as a country. `scripts/build_analysis.py`
+  and `scripts/build_dashboard.py` scope their Ocean lane-assessment, indicator and outlook
+  derivations to `mode == "sea"` lanes only, so no Air lane receives a fabricated current or
+  demonstration assessment; the Thailand roll-up stays `subject: thailand_ocean`. Added a new
+  Dashboard payload, `air.json`, and an eighth routed view (`#/air`, "Air Cargo") stating
+  `live_coverage: insufficient` and `module_status: planned`, with every lane's current
+  assessment explicitly `null` and labelled as a coverage gap rather than a neutral reading.
+  New `docs/air_lane_selection.md` documents the methodology; `docs/bundle2_air_cargo_scope.md`,
+  `docs/known_data_gaps.md`, `docs/production_readiness_roadmap.md`, `docs/historical_validation.md`,
+  `docs/indicator_definitions.md`, `docs/dashboard_user_guide.md`, `docs/air_land_extension_points.md`
+  and `README.md` were updated to match. **No schema file under `schemas/` changed** — the
+  design review found every field WO-039 needed (mode-tagged lanes, the `airspace` chokepoint
+  type, the `airspace_closure`/`terminal_or_facility_closure` event types WO-035 already added)
+  already present. **No source was registered, enabled, scheduled or published** —
+  `config/sources.yaml` was not touched, and no `air-freight-pass`, AEROTHAI or
+  passenger-traffic figure was used to select, rank, order or size any lane, node or
+  chokepoint. No live network request was made by this Work Order or by any test it added.
+
 ### Fixed
 
 - WO-033: `docs/known_data_gaps.md` §2 named `IMF_PORTWATCH`'s model-derived vessel-tracking

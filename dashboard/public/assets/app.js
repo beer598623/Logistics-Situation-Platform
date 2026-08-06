@@ -9,11 +9,11 @@
  * stays at its most pessimistic reading. A dashboard that silently renders
  * an empty panel is worse than one that admits it could not load.
  *
- * Seven views live under one document (WO-030): a hash router shows exactly
- * one <section class="view"> at a time via the `hidden` attribute, all eight
- * payloads are still fetched eagerly and in parallel so a failure in a view
- * nobody has visited is still caught, but each view's markup is only built
- * the first time it becomes active.
+ * Eight views live under one document (WO-030, WO-039): a hash router shows
+ * exactly one <section class="view"> at a time via the `hidden` attribute,
+ * every payload is still fetched eagerly and in parallel so a failure in a
+ * view nobody has visited is still caught, but each view's markup is only
+ * built the first time it becomes active.
  */
 (function () {
   'use strict';
@@ -604,6 +604,85 @@
       : '<tr><td colspan="6">No capacity or service impact is recorded.</td></tr>';
   }
 
+  /* WO-039: the Air foundation carries no observation and no current
+     assessment for any lane, so this renderer never calls domainTable() or
+     laneCrossReference() -- there is nothing for either to describe. It also
+     emits no `href` anywhere, unlike renderOcean/renderSources, because the
+     Air section links to nothing external and nothing on-page. */
+  function airLaneRow(lane) {
+    var detailId = 'air-lane-detail-' + lane.lane_id;
+
+    var row = '<tr>' +
+      '<th scope="row">' + esc(lane.name) + '<br><small>' + esc(lane.lane_id) + '</small></th>' +
+      '<td>' + esc(words(lane.resolution)) + '</td>' +
+      '<td>' + esc(words(lane.status)) + '</td>' +
+      '<td>' + esc(words(lane.direction)) + '</td>' +
+      '<td>' + (lane.chokepoint_ids.length ? esc(lane.chokepoint_ids.join(', ')) : 'none registered') + '</td>' +
+      '<td>' + pill('insufficient_evidence', { insufficient_evidence: 'pill-critical' }) + '</td>' +
+      '</tr>';
+
+    var selectionRows = lane.selection_evidence.map(function (item) {
+      return '<tr><th scope="row">' + esc(words(item.criterion)) + '</th><td>' + esc(item.statement) + '</td>' +
+        '<td>' + pill(item.evidence_class, {}) + '</td>' +
+        '<td>' + esc(item.source_reference || 'none') + '</td></tr>';
+    }).join('');
+
+    var detail = '<tr class="detail-row" id="' + attr(detailId) + '"><td colspan="6">' +
+      '<p class="meta">' + esc(lane.origin) + ' → ' + esc(lane.destination) +
+      ' · reviewed ' + esc(lane.review_date) + '</p>' +
+      '<p class="prose">' + esc(lane.assessment_note) + '</p>' +
+      detailsBlock('Selection evidence (' + lane.selection_evidence.length + ')',
+        '<div class="table-wrap"><table><caption>Why this lane was selected, and on what basis.</caption>' +
+        '<thead><tr><th scope="col">Criterion</th><th scope="col">Statement</th>' +
+        '<th scope="col">Evidence class</th><th scope="col">Reference</th></tr></thead><tbody>' +
+        selectionRows + '</tbody></table></div>' +
+        '<p class="prose"><strong>Data period used:</strong> ' + esc(lane.data_period_used || 'none — no dated quantitative evidence was retrieved') + '</p>') +
+      detailsBlock('Known limitations (' + lane.known_limitations.length + ')', list(lane.known_limitations)) +
+      '</td></tr>';
+
+    return row + detail;
+  }
+
+  function airReferenceRow(record, idField, typeField) {
+    return '<tr><th scope="row">' + esc(record.name) + '<br><small>' + esc(record[idField]) + '</small></th>' +
+      '<td>' + esc(words(record[typeField])) + '</td>' +
+      '<td>' + esc(record.modes.join(', ')) + '</td>' +
+      '<td>' + list(record.known_limitations) + '</td></tr>';
+  }
+
+  function airHistoricalCase(item) {
+    return '<div class="event is-demo" data-demo-label="' + attr(DEMO_LABEL.historical_validation) + '">' +
+      '<div class="badges">' + demoTag(item.dataset) +
+      (item.case_id ? '<span class="pill pill-muted">' + esc(item.case_id) + '</span>' : '') +
+      (item.assessment_cutoff
+        ? '<span class="pill pill-muted">assessed at cutoff ' + esc(item.assessment_cutoff.slice(0, 10)) + '</span>'
+        : '') +
+      '<span class="pill pill-muted">' + esc(words(item.event_type)) + '</span></div>' +
+      '<h4>' + esc(item.title) + '</h4>' +
+      '<p class="meta"><small>Event date ' + esc(item.event_date || 'unknown') +
+      ' · lanes: ' + esc(item.lane_ids.join(', ') || 'none') +
+      ' · chokepoints: ' + esc(item.chokepoint_ids.join(', ') || 'none') + '</small></p>' +
+      detailsBlock('Known limitations', list(item.known_limitations)) +
+      '</div>';
+  }
+
+  function renderAir(data) {
+    el('air-coverage-banner').textContent = data.live_coverage_statement;
+    el('air-coverage-message').textContent = data.coverage_message;
+    el('air-lane-note').textContent = data.lane_selection_note;
+    el('air-lane-rows').innerHTML = data.lanes.map(airLaneRow).join('');
+    el('air-reference-rows').innerHTML =
+      data.nodes.map(function (n) { return airReferenceRow(n, 'node_id', 'node_type'); }).join('') +
+      data.chokepoints.map(function (c) { return airReferenceRow(c, 'chokepoint_id', 'chokepoint_type'); }).join('');
+    el('air-gaps').innerHTML = data.source_gaps.map(function (item) {
+      return '<li>' + esc(item) + '</li>';
+    }).join('');
+    el('air-historical-label').textContent = data.historical_label;
+    el('air-historical-cases').innerHTML = data.historical_air_events.length
+      ? data.historical_air_events.map(airHistoricalCase).join('')
+      : '<p class="empty-state">No Air historical validation case is recorded.</p>';
+  }
+
   function renderTrade(data) {
     el('trade-current').textContent = data.current_statement;
     el('trade-demo-label').textContent = data.demo_label;
@@ -942,6 +1021,7 @@
   var PAYLOAD_MANIFEST = [
     ['thailand_situation.json', 'current + technical_demo', true],
     ['ocean.json', 'current + technical_demo + historical_validation', true],
+    ['air.json', 'current + historical_validation', true],
     ['trade.json', 'current + technical_demo', true],
     ['cost.json', 'current + technical_demo', true],
     ['events.json', 'current + technical_demo + historical_validation', true],
@@ -1045,6 +1125,7 @@
   var VIEWS = [
     { route: 'overview', id: 'situation', title: 'Overview', label: 'Overview view' },
     { route: 'ocean', id: 'ocean', title: 'Ocean Operations', label: 'Ocean Operations view' },
+    { route: 'air', id: 'air', title: 'Air Cargo', label: 'Air Cargo view' },
     { route: 'trade', id: 'trade', title: 'Trade & Flow', label: 'Trade & Flow view' },
     { route: 'cost', id: 'cost', title: 'Cost & Freight', label: 'Cost & Freight view' },
     { route: 'events', id: 'events', title: 'Events', label: 'Events view' },
@@ -1064,12 +1145,13 @@
   var pendingSub = null;
 
   var PAYLOAD_FILES = [
-    'thailand_situation.json', 'ocean.json', 'trade.json', 'cost.json',
+    'thailand_situation.json', 'ocean.json', 'air.json', 'trade.json', 'cost.json',
     'events.json', 'ai_outlook.json', 'sources.json', 'build_status.json'
   ];
   var ROUTE_FOR_FILE = {
     'thailand_situation.json': 'overview',
     'ocean.json': 'ocean',
+    'air.json': 'air',
     'trade.json': 'trade',
     'cost.json': 'cost',
     'events.json': 'events',
@@ -1079,6 +1161,7 @@
   var RENDER_FN = {
     'thailand_situation.json': renderSituation,
     'ocean.json': renderOcean,
+    'air.json': renderAir,
     'trade.json': renderTrade,
     'cost.json': renderCost,
     'events.json': renderEvents,
@@ -1088,6 +1171,7 @@
   var FALLBACK_CONTAINER = {
     'thailand_situation.json': 'situation-cards',
     'ocean.json': 'port-series',
+    'air.json': 'air-lane-rows',
     'trade.json': 'trade-lanes',
     'cost.json': 'cost-series',
     'events.json': 'events-operational',

@@ -144,6 +144,7 @@ def measure(
                 country_ids=event.get("country_ids", []),
                 node_ids=event.get("node_ids", []),
                 chokepoint_ids=event.get("chokepoint_ids", []),
+                modes=event.get("modes", []),
             )
         )
         for entry in event["lane_relevance"]:

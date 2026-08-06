@@ -1,14 +1,14 @@
 {
   "version": "0.8",
   "dataset": "current_publication",
-  "generated_at": "2026-07-31T14:20:00Z",
+  "generated_at": "2026-08-06T00:00:00Z",
   "note": "Current-publication lane assessments, built from qualified (live-retrieved or human-reviewed) evidence only.",
   "assessments": [
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-EASIA-CN-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-EASIA-CN-20260806",
       "lane_id": "LANE-OCEAN-TH-EASIA-CN",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -182,8 +182,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-EASIA-CN",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-EASIA-CN",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 Mainland China and Hong Kong. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -282,10 +282,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-JPKR-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-JPKR-20260806",
       "lane_id": "LANE-OCEAN-TH-JPKR",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -459,8 +459,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-JPKR",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-JPKR",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 Japan and Korea. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -559,10 +559,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-ASEAN-SG-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-ASEAN-SG-20260806",
       "lane_id": "LANE-OCEAN-TH-ASEAN-SG",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -747,8 +747,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-ASEAN-SG",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-ASEAN-SG",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 ASEAN and Singapore transshipment. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -864,10 +864,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-SASIA-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-SASIA-20260806",
       "lane_id": "LANE-OCEAN-TH-SASIA",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -1047,8 +1047,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-SASIA",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-SASIA",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 South Asia. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -1162,10 +1162,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-MEGULF-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-MEGULF-20260806",
       "lane_id": "LANE-OCEAN-TH-MEGULF",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -1350,8 +1350,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-MEGULF",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-MEGULF",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 Middle East and Gulf. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -1465,10 +1465,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-NEUR-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-NEUR-20260806",
       "lane_id": "LANE-OCEAN-TH-NEUR",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -1658,8 +1658,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-NEUR",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-NEUR",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 Northern Europe. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -1773,10 +1773,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-MED-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-MED-20260806",
       "lane_id": "LANE-OCEAN-TH-MED",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -1966,8 +1966,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-MED",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-MED",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 Mediterranean. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -2081,10 +2081,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-USWC-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-USWC-20260806",
       "lane_id": "LANE-OCEAN-TH-USWC",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -2258,8 +2258,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-USWC",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-USWC",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 United States West Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -2358,10 +2358,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-USEC-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-USEC-20260806",
       "lane_id": "LANE-OCEAN-TH-USEC",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -2551,8 +2551,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-USEC",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-USEC",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 United States East and Gulf Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -2666,10 +2666,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-OCEANIA-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-OCEANIA-20260806",
       "lane_id": "LANE-OCEAN-TH-OCEANIA",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -2843,8 +2843,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-OCEANIA",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-OCEANIA",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand \u2194 Australia and New Zealand. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",
@@ -2943,10 +2943,10 @@
       ]
     },
     {
-      "assessment_id": "LAS-CUR-OCEAN-TH-DOMESTIC-20260731",
+      "assessment_id": "LAS-CUR-OCEAN-TH-DOMESTIC-20260806",
       "lane_id": "LANE-OCEAN-TH-DOMESTIC",
-      "generated_at": "2026-07-31T14:20:00Z",
-      "data_cutoff_at": "2026-07-31T14:20:00Z",
+      "generated_at": "2026-08-06T00:00:00Z",
+      "data_cutoff_at": "2026-08-06T00:00:00Z",
       "overall_direction": "insufficient_evidence",
       "attention_level": "insufficient_evidence",
       "domain_assessments": [
@@ -3120,8 +3120,8 @@
         "outlook_id": "OUT-CUR-OCEAN-TH-DOMESTIC",
         "subject_type": "lane",
         "subject_id": "LANE-OCEAN-TH-DOMESTIC",
-        "generated_at": "2026-07-31T14:20:00Z",
-        "data_cutoff_at": "2026-07-31T14:20:00Z",
+        "generated_at": "2026-08-06T00:00:00Z",
+        "data_cutoff_at": "2026-08-06T00:00:00Z",
         "base_case": {
           "narrative": "No outlook can be offered for Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland). The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
           "time_horizon": "1-4_weeks",

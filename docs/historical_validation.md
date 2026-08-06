@@ -1,6 +1,6 @@
 # Historical analytical validation cases and results
 
-**Work Order:** WO-010 Gate J · **Status:** implemented, 8/8 cases pass
+**Work Order:** WO-010 Gate J · **Status:** implemented, 9/9 cases pass
 **Authored cases:** `data/validation/historical_cases.json`
 **Runner:** `scripts/run_historical_validation.py` · **Report:** `data/validation/validation_report.json`
 
@@ -29,7 +29,7 @@ independent verification, `evidence_class: historical_validation_fixture`, and a
 statement that the content was not retrieved. Content hashes cover this repository's record
 of the claim, not a retrieved publisher response.
 
-## 3. The eight cases
+## 3. The nine cases
 
 | Case | Event | Cutoff | Class | Chain | Thailand relevance | Lanes | Result |
 |---|---|---|---|---|---|---|---|
@@ -41,6 +41,7 @@ of the claim, not a retrieved publisher response.
 | `HVC-006` | Baltic subsea cable damage | 2024-12-01 | external driver | **incomplete** | **none established** | 1 | **pass** |
 | `HVC-007` | Pasir Panjang oil spill | 2024-06-20 | direct operational event | complete | low | 5 | **pass** |
 | `HVC-008` | Unverified SE Asia terminal lead | 2026-07-24 | discovery lead | **not applicable** | **none established** | 0 | **pass** |
+| `HVC-009` | Pakistan airspace closure / Thailand–Europe air services | 2019-03-06 | direct operational event | complete | medium | 5 | **pass** |
 
 ### Case mix against the Gate J requirement
 
@@ -53,6 +54,7 @@ of the claim, not a retrieved publisher response.
 | Thailand relevance indirect or not established | HVC-003, HVC-006 |
 | Insufficient evidence is the correct result | HVC-006, HVC-008 |
 | No material impact is the correct result | HVC-007 |
+| Airspace closure and Air-mode propagation | HVC-009 |
 
 ### What each negative case is for
 
@@ -73,21 +75,28 @@ of the claim, not a retrieved publisher response.
   operational-condition notice and never from throughput. The case explicitly records that
   port-call estimates did *not* fall during the period — the pressure was invisible in
   volume data.
+- **HVC-009 — Pakistan airspace closure.** The Air foundation's end-to-end proof case: an
+  `airspace_closure` event resolves to `LANE-AIR-TH-EUR` through the airspace chokepoint that
+  lane actually records (`CHK-SASIA-AIRSPACE`), and to no Ocean lane at all. Transport and
+  service impacts, backed by the operator's own cancellation announcement, are `observed`;
+  capacity and cost consequences stay `potential` with the gap named, never quantified from a
+  source the platform does not hold. No `air-freight-pass`, AEROTHAI or passenger-traffic
+  figure is used anywhere in the record.
 
 ## 4. Measured behaviours
 
-Measured across all eight cases at once, 72 impact assessments in total:
+Measured across all nine cases at once, 81 impact assessments in total:
 
 | Measure | Result |
 |---|---|
 | Traceability rate | **1.0** — every impact's evidence references resolve |
-| Impacts assessed | 72 |
-| Material impacts | 11 |
+| Impacts assessed | 81 |
+| Material impacts | 16 |
 | Unsupported-causation count | **0** |
 | Unsupported-causation rate | **0.0** |
 | Geography leakage count | **0** — no lane relevance without a shared reference entity |
 | Missing-as-zero count | **0** |
-| Insufficient-evidence uses | 52 |
+| Insufficient-evidence uses | 56 |
 | No-material uses | 9 |
 | No-material without negative evidence | **none** |
 | Material impact on discovery-only evidence | **none** |
@@ -99,8 +108,9 @@ Measured across all eight cases at once, 72 impact assessments in total:
 ### Event / impact separation
 
 Event severity and impact severity are stored as separate fields and neither is inferred
-from the other. Four cases demonstrate them genuinely diverging:
+from the other. Five cases demonstrate them genuinely diverging:
 
+- `EVT-20190227-001` — event severity high, worst impact severity moderate
 - `EVT-20231030-001` — event severity moderate, worst impact severity low
 - `EVT-20231218-001` — event severity high, worst impact severity moderate
 - `EVT-20240326-001` — event severity **high**, worst impact severity **none**

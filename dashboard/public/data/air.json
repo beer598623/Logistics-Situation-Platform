@@ -1,0 +1,371 @@
+{
+  "dataset": "current_publication",
+  "generated_at": "2026-08-06T00:00:00Z",
+  "methodology_version": "0.8",
+  "module_status": "planned",
+  "live_coverage": "insufficient",
+  "live_coverage_statement": "Live coverage is INSUFFICIENT. No source in the registry is enabled and none has completed a controlled live validation, so the platform holds no live-retrieved or human-reviewed evidence at all. Every current reading below is therefore 'insufficient evidence' -- which is a coverage gap, not a finding that conditions are normal. Synthetic and historical-validation fixtures are shown only in the separately labelled Technical demonstration panels and never contribute to a current reading.",
+  "coverage_message": "Air cargo live coverage is insufficient. No Air source is registered or enabled, no Air observation or indicator series exists, and no Air lane carries a current assessment. This is a coverage gap, not a finding that Air conditions are normal.",
+  "lane_selection_note": "Air lane selection methodology is documented in docs/air_lane_selection.md. No quantitative Thailand air cargo ranking was retrieved or used, so lanes were selected on the recorded structural criteria and every lane is provisional with data_period_used null.",
+  "lanes": [
+    {
+      "lane_id": "LANE-AIR-TH-EASIA",
+      "name": "Thailand \u2194 East Asia air cargo",
+      "mode": "air",
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "origin": "Thailand air cargo gateway",
+      "destination": "East Asia",
+      "country_ids": [
+        "TH",
+        "CN",
+        "HK",
+        "TW",
+        "JP",
+        "KR"
+      ],
+      "node_ids": [
+        "NODE-THBKKAIR"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "strategic_trade_relevance",
+          "statement": "East Asia carries Thailand's manufacturing component flows in both directions, and time-sensitive electronics and component movements are the category most commonly carried by air rather than sea, giving this grouping continuity relevance distinct from its ocean counterpart.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "A medium-haul intra-Asia grouping whose routing crosses no registered airspace chokepoint, so it responds differently from the long-haul lanes to the same corridor event.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No air cargo volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "No registered source covers this lane. The one Thai air-cargo candidate on record stays unregistered on an unresolved licence; no air freight rate benchmark scoped to Thailand exists at zero cost.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/bundle2_air_cargo_scope.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand air cargo ranking was retrieved or used under WO-039; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "Resolution is not airport-pair: the platform holds no Thailand airport-pair statistics and the lane contract has no airport_pair value, so this lane must never be displayed as an airport-pair lane.",
+        "Mainland China, Hong Kong SAR, Taiwan, Japan and the Republic of Korea are grouped into one lane because the platform holds no air network or schedule reference data that would justify splitting them; a disruption affecting only one of them will be understated by this grouping.",
+        "Only the Thailand end of this lane has a registered logistics node (NODE-THBKKAIR). No destination airport node is registered, so an event at a foreign airport cannot resolve to this lane by node."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Air source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-AIR-TH-ASEAN",
+      "name": "Thailand \u2194 ASEAN and Singapore air cargo",
+      "mode": "air",
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "origin": "Thailand air cargo gateway",
+      "destination": "ASEAN and Singapore",
+      "country_ids": [
+        "TH",
+        "SG",
+        "MY",
+        "VN",
+        "ID",
+        "PH",
+        "KH",
+        "MM",
+        "LA"
+      ],
+      "node_ids": [
+        "NODE-THBKKAIR"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "Short-haul regional flows and the intra-ASEAN transfer leg that a Thailand long-haul air shipment may use, so a disruption here can propagate into the long-haul lanes as well as affecting the lane itself.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "geographic_coverage",
+          "statement": "Included so the set is not composed only of long-haul groupings, mirroring how the Ocean lane set keeps a regional lane alongside its long-haul ones.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No air cargo volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "No registered source covers this lane. The one Thai air-cargo candidate on record stays unregistered on an unresolved licence; no air freight rate benchmark scoped to Thailand exists at zero cost.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/bundle2_air_cargo_scope.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand air cargo ranking was retrieved or used under WO-039; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "Resolution is not airport-pair: the platform holds no Thailand airport-pair statistics and the lane contract has no airport_pair value, so this lane must never be displayed as an airport-pair lane.",
+        "Whether any given Thailand long-haul air shipment actually transfers through an ASEAN point is not observed by this platform; the transfer relationship is a structural statement, not a measured routing."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Air source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-AIR-TH-EUR",
+      "name": "Thailand \u2194 Europe air cargo",
+      "mode": "air",
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "origin": "Thailand air cargo gateway",
+      "destination": "Europe",
+      "country_ids": [
+        "TH",
+        "GB",
+        "DE",
+        "FR",
+        "NL",
+        "BE",
+        "IT",
+        "ES"
+      ],
+      "node_ids": [
+        "NODE-THBKKAIR"
+      ],
+      "chokepoint_ids": [
+        "CHK-SASIA-AIRSPACE"
+      ],
+      "selection_evidence": [
+        {
+          "criterion": "chokepoint_exposure",
+          "statement": "The only lane in this set whose routing is recorded as crossing a registered airspace chokepoint: a Thailand\u2013Europe air routing crosses South Asian airspace. This is stated as structural reasoning, not as a verified fact \u2014 unlike the Ocean lanes' chokepoint exposure, which was derived from routing that is fixed by geography, an air routing is a filed flight plan the platform does not observe.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "The only lane in the set with a stated corridor exposure, so it is the only one that can be moved by an airspace event rather than only by a gateway or capacity event.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No air cargo volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "No registered source covers this lane. The one Thai air-cargo candidate on record stays unregistered on an unresolved licence; no air freight rate benchmark scoped to Thailand exists at zero cost.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/bundle2_air_cargo_scope.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand air cargo ranking was retrieved or used under WO-039; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "Resolution is not airport-pair: the platform holds no Thailand airport-pair statistics and the lane contract has no airport_pair value, so this lane must never be displayed as an airport-pair lane.",
+        "Northern Europe and the Mediterranean are grouped into one lane, unlike the Ocean lane set which separates them. The Ocean split rests on Mediterranean ports being the first discharge after Suez; no air routing analogue to that sequencing exists, so splitting here would assert a distinction this platform cannot support.",
+        "This lane's airspace-chokepoint exposure is analytical inference, not an observed routing. No flight-plan, NOTAM or route source is registered, and CHK-SASIA-AIRSPACE has no registered notice channel.",
+        "Only the Thailand end of this lane has a registered logistics node (NODE-THBKKAIR). No destination airport node is registered."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Air source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-AIR-TH-NAM",
+      "name": "Thailand \u2194 North America air cargo",
+      "mode": "air",
+      "direction": "bidirectional",
+      "resolution": "regional",
+      "origin": "Thailand air cargo gateway",
+      "destination": "North America",
+      "country_ids": [
+        "TH",
+        "US",
+        "CA"
+      ],
+      "node_ids": [
+        "NODE-THBKKAIR"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "A long-haul lane with no registered airspace-chokepoint exposure, kept in the set so the effect of a corridor event on LANE-AIR-TH-EUR can be read against a long-haul lane that does not share that corridor.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "geographic_coverage",
+          "statement": "Without it the set's only long-haul grouping would be the one lane that carries a chokepoint, and every long-haul reading would be confounded with corridor exposure.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No air cargo volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "No registered source covers this lane. The one Thai air-cargo candidate on record stays unregistered on an unresolved licence; no air freight rate benchmark scoped to Thailand exists at zero cost.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/bundle2_air_cargo_scope.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand air cargo ranking was retrieved or used under WO-039; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "Resolution is not airport-pair: the platform holds no Thailand airport-pair statistics and the lane contract has no airport_pair value, so this lane must never be displayed as an airport-pair lane.",
+        "North America is grouped as one lane, unlike the Ocean lane set which separates the West Coast from the East and Gulf Coast. The Ocean split rests on a genuine Panama-versus-Suez routing choice; no equivalent competing air routing is registered, so splitting here would be an invented distinction.",
+        "Only the Thailand end of this lane has a registered logistics node (NODE-THBKKAIR). No destination airport node is registered."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Air source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-AIR-TH-DOMESTIC",
+      "name": "Thailand air cargo gateway and domestic connection",
+      "mode": "air",
+      "direction": "domestic",
+      "resolution": "corridor",
+      "origin": "Thailand air cargo gateway",
+      "destination": "Thailand domestic air network and airport landside",
+      "country_ids": [
+        "TH"
+      ],
+      "node_ids": [
+        "NODE-THBKKAIR"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "Every international Air lane in this set terminates at the same single registered Thailand airport node, so gateway condition is a shared dependency of all of them and is assessed once here rather than duplicated into each lane.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No air cargo volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "No registered source covers this lane. The one Thai air-cargo candidate on record stays unregistered on an unresolved licence; no air freight rate benchmark scoped to Thailand exists at zero cost.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/bundle2_air_cargo_scope.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand air cargo ranking was retrieved or used under WO-039; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "Resolution is not airport-pair: the platform holds no Thailand airport-pair statistics and the lane contract has no airport_pair value, so this lane must never be displayed as an airport-pair lane.",
+        "Only one Thailand airport node is registered (NODE-THBKKAIR). Other Thai airports handle air cargo and are not represented; this lane therefore describes a single gateway, not the Thai air-cargo network.",
+        "This lane is mode-tagged 'air' because only its air and airport-terminal leg is in scope. Landside road drayage to and from the airport is a Land-module concern and is explicitly not assessed by WO-039; it will require a separate road lane record when the Land module is built.",
+        "No Thai domestic air-freight series is qualified. The one CAAT domestic candidate examined (domestic-air-freight) was found abandoned since 2020 with an empty licence field; see docs/known_data_gaps.md \u00a78."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Air source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    }
+  ],
+  "nodes": [
+    {
+      "node_id": "NODE-THBKKAIR",
+      "name": "Suvarnabhumi Airport cargo terminal",
+      "node_type": "airport",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": "THBKK",
+      "modes": [
+        "air"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "Registered to demonstrate that dim_logistics_node is mode-neutral and already accepts an Air node.",
+        "Anchors all five provisional Air lanes selected under WO-039; see docs/air_lane_selection.md. It is the only Thai airport node registered."
+      ],
+      "known_limitations": [
+        "No Air observation, indicator or live event is delivered by WO-039; this node carries no measured data. It appears in the provisional Air lane set and in one historical-validation case only.",
+        "Air cargo throughput for this airport is not measured by any enabled source. The one Thai air-cargo candidate on record stays unregistered on an unresolved licence; see docs/known_data_gaps.md \u00a78.",
+        "Other Thai airports handle air cargo and are not registered, so this node is a single gateway and not a representation of the Thai air-cargo network."
+      ]
+    }
+  ],
+  "chokepoints": [
+    {
+      "chokepoint_id": "CHK-SASIA-AIRSPACE",
+      "name": "South Asian overflight corridor",
+      "chokepoint_type": "airspace",
+      "geography_id": "GEO-RGN-SASIA",
+      "modes": [
+        "air"
+      ],
+      "operating_authority": null,
+      "authority_notice_source_ids": [],
+      "thailand_relationship": "transit_or_chokepoint",
+      "known_limitations": [
+        "Registered because a Thailand\u2013Europe air routing crosses South Asian airspace. That exposure is analytical inference, not an observed routing: no flight-plan, route or airspace source is registered, so which services use this corridor on any given day is not measured by this platform.",
+        "This is a corridor grouping, not a single named flight information region. Several national FIRs lie within it, each administered by a different authority, and the platform holds no FIR-level reference data.",
+        "No NOTAM, AIP or airspace-restriction notice channel is registered for any authority in this corridor, so authority_notice_source_ids is empty and no official notice source backs this chokepoint. AEROTHAI's NOTAM office was identified as the correct primary channel for Thai airspace but was not qualified \u2014 see docs/known_data_gaps.md \u00a78.",
+        "No Air observations, indicators or live events are delivered by WO-039; this chokepoint carries no data."
+      ]
+    }
+  ],
+  "source_gaps": [
+    "Air cargo volume or route-significance source: none registered. The one Thai candidate on record stays unregistered on an unresolved licence.",
+    "Air freight rate benchmark scoped to Thailand: none found at zero cost. FBX_PUBLIC covers named east-west container routes only and cannot stand in.",
+    "Airport or airspace operational-notice channel: none registered. MANUAL_NOTICE_INTAKE is the only honest interim path and holds no Air record.",
+    "Thailand airport authority statistics: none usable. See docs/known_data_gaps.md \u00a78."
+  ],
+  "historical_air_events": [
+    {
+      "dataset": "historical_validation",
+      "event_id": "EVT-20190227-001",
+      "case_id": "HVC-009",
+      "assessment_cutoff": "2019-03-06T00:00:00Z",
+      "title": "Pakistan closes its airspace and Thailand\u2013Europe air services are cancelled or rerouted",
+      "event_type": "airspace_closure",
+      "event_date": "2019-02-27",
+      "lane_ids": [
+        "LANE-AIR-TH-ASEAN",
+        "LANE-AIR-TH-DOMESTIC",
+        "LANE-AIR-TH-EASIA",
+        "LANE-AIR-TH-EUR",
+        "LANE-AIR-TH-NAM"
+      ],
+      "chokepoint_ids": [
+        "CHK-SASIA-AIRSPACE"
+      ],
+      "known_limitations": [
+        "Historical validation case HVC-009, assessed at cutoff 2019-03-06T00:00:00Z. Later knowledge is deliberately excluded.",
+        "How long the closure would last -- it ran until 15 July 2019 -- and its eventual effect on air freight rates and on Thailand trade volumes were all unknown at this cutoff and must not inform the assessment. This case exists to check that the Air foundation carries a real event end to end: that an airspace closure resolves to an Air lane through the airspace chokepoint that lane actually records and to no Ocean lane at all, and that the capacity and cost consequences -- for which no Air series is qualified anywhere -- stay 'potential' with the gap named rather than being quantified from a source the platform does not hold."
+      ]
+    }
+  ],
+  "historical_label": "Historical validation \u2014 replayed through the analysis code to prove the Air event chain works. These describe no current condition."
+}
