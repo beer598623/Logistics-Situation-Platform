@@ -139,14 +139,21 @@ Recorded here so this document's inventory doesn't drift from what those passes 
 found.
 
 - **WO-029 — Thai Customs transport-mode data (Issue #60, closed).** RESEARCH INCOMPLETE —
-  ENVIRONMENT ACCESS BLOCKER. 0 of 9 authorized requests completed against the primary
-  candidate host, `catalog.customs.go.th`: request 1 failed at the transport layer
-  (connection reset before ServerHello) and, per the no-retry rule, requests 2–9 of that
-  package were never attempted against any host. Separately, outside the authorized package,
-  two other candidate hosts *were* read and did respond: `data.go.th` completed a full TLS
-  handshake and returned an HTTP 403 body (blocking the DGA licence text specifically, not a
-  connection failure), and `uncomtrade.org` completed TLS and returned HTTP 200. Neither read
-  counts toward completing the nine-request package or qualifies the customs dataset.
+  ENVIRONMENT ACCESS BLOCKER. The authorized nine-request package (§A4) spans three hosts —
+  `catalog.customs.go.th` (requests 1–7), `data.go.th` (request 8), `uncomtrade.org`
+  (request 9). **0 of 9 completed.** Request 1, against `catalog.customs.go.th`, failed at
+  the transport layer (connection reset before ServerHello) and, per the no-retry rule,
+  requests 2–7 against that same host were never attempted. Requests 8 and 9 *were* later
+  issued, verbatim, in a separate authorized pass, and did respond: request 8
+  (`https://data.go.th/en/pages/dga-open-government-license`, the actual DGA licence-page
+  URL, not a root-path probe) returned an HTTP 403 access-denial body from Cloudflare — a
+  finding about an access control in front of `data.go.th`, and about nothing else; zero
+  words of licence text were obtained. Request 9
+  (`https://uncomtrade.org/docs/data-availability/`) returned HTTP 200 and was read in full,
+  establishing that the page is documentation about *how* to check data availability and
+  contains no per-reporter table and zero mentions of Thailand — a genuine correction to the
+  candidate register, but not a mode-of-transport answer. Neither reception counts toward
+  completing the nine-request package or qualifies the customs dataset.
   Identified `ctm_06_18`/`ctm_06_17` on `catalog.customs.go.th` as the only candidate found
   that plausibly satisfies the sea-mode requirement at its source (published customs
   statistics are otherwise all-mode totals); `datagov.mot.go.th`'s `freight-import-export`
