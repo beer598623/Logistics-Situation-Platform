@@ -74,6 +74,18 @@ WO-010 and is not bumped by every Work Order.
 
 ### Added
 
+- WO-037: `docs/known_data_gaps.md` §8 recording what WO-034 (Issue #69, Air Cargo
+  primary-source research), WO-035 (Issue #70/PR #71, schema extension) and WO-036 (Issue #72,
+  bounded live validation) actually established, so this document doesn't drift from the Air
+  Cargo record the way §7 corrected for Ocean. `docs/bundle2_air_cargo_scope.md` §3 and §4
+  updated with the same findings: `air-freight-pass` on `datagov.mot.go.th` is a real,
+  DataStore-backed, field-contract-verified candidate blocked on an unresolved licence and on
+  its cargo-specific rows never having been observed; AEROTHAI Bangkok FIR is closed as NOT
+  QUALIFIED (no cargo dimension, no aerodrome resolution); no free Thailand-scoped air freight
+  rate source exists. Also corrected a stale "Bundle 1's 17 candidates" count in
+  `bundle2_air_cargo_scope.md` §4 to 18. No `config/sources.yaml` change, no network request,
+  no code — the licence determination and the one additional bounded request needed to observe
+  `air-freight-pass`'s cargo rows both remain open, separately-authorizable next steps.
 - WO-035: two purely additive `event_type` enum values in `schemas/logistics_event.schema.json`
   — `airspace_closure` and `terminal_or_facility_closure` — closing the one schema gap
   `docs/bundle2_air_cargo_scope.md` (WO-017) and `docs/air_land_extension_points.md` (WO-010)

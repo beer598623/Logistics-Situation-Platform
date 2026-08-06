@@ -59,7 +59,7 @@ Consequences, all stated on the Dashboard's face:
 These are out of WO-010's scope, not oversights:
 
 - Air Cargo, and Land/Rail/Border — the shared entities accept them, but no data, lane or
-  event exists for any of them.
+  event exists for any of them. Air Cargo's research-pass record is at §8.
 - Inland drayage on the domestic lane — the Ocean module covers only the seaport leg.
 - The Private Decision Overlay — company-specific exposure, capacity and inventory remain
   local-only and outside the public core.
@@ -190,3 +190,66 @@ candidate as low-value, rejected, or ruled out on data quality.** The correct fr
 carried forward from Issue #64 §0, is that both remain the strongest candidates the Ocean
 sequence has found, blocked on transport reachability (and, for PAT, two additional
 publisher-side findings) rather than on merit.
+
+## 8. Air Cargo (Bundle 2) research passes — what WO-034/035/036 established
+
+Ocean Minimum Live Core was accepted before Air Cargo research began (see the acceptance
+record on Issue #68). `docs/bundle2_air_cargo_scope.md` (WO-017) is the standing Bundle 2
+scope document; this section records what the three Work Orders that followed it actually
+found, so this inventory doesn't drift from the record the way §7 corrected for Ocean.
+
+- **WO-034 — Air Cargo primary-source research (Issue #69, closed).** Found
+  `datagov.mot.go.th` (Thailand's Ministry of Transport CKAN catalogue) reachable in this
+  environment and containing real primary-source pages for two promising candidates, neither
+  of which had its field-level data read at that stage — only catalogue metadata. Confirmed,
+  by direct verification rather than assumption, that every commercial air-freight-rate and
+  volume candidate investigated (IATA CargoIS/WATS, ACI's World Airport Traffic Dataset, TAC
+  Index, the Baltic Air Freight Index) is paid or membership-gated, and that ICAO's data
+  products are either paid or a credential-gated trial tier — all excluded by the zero-cost
+  constraint. No free official Thailand-scoped air-freight-rate series was found; that gap
+  does not close (mirrors the same finding already recorded for ocean freight rates).
+- **WO-035 — additive `event_type` enum extension (Issue #70, PR #71, merged).** Closed the
+  one schema gap `docs/bundle2_air_cargo_scope.md` §1 had documented — `port_or_terminal_closure`/
+  `canal_restriction` are Ocean-worded — by adding `airspace_closure` and
+  `terminal_or_facility_closure`, purely additive, no existing value renamed or removed. No
+  schema change remains outstanding for event typing in any future Bundle 2 implementation.
+- **WO-036 — bounded live validation, MOT Data Catalog (Issue #72, closed).** Human-authorized
+  8-request package (Issue #69 Part 4 §5.1/§5.2), executed in full — every slot returned HTTP
+  200, nothing abandoned. Two candidates, two different outcomes:
+  - **`air-freight-pass` (CAAT-sourced, via MOT-ICT): VERIFIED DATA SHAPE, BUT
+    LICENCE/PUBLICATION GATE REMAINS.** A live, DataStore-backed, 2,592-row CKAN resource. Its
+    field contract is now known exactly: a long/tidy layout (`Detail`, `Airport`, `Month`,
+    `Type`, `Value`), airport identity as free-text English names with no code (joining to
+    `NODE-THBKKAIR` needs a hand-confirmed name mapping), `Month` as an English month name
+    with **no year field anywhere in the data**. `license_id: "Open Data Common"` (the same
+    non-licence string WO-032 found on `catalog.port.co.th`), `license_url: null`, and CKAN's
+    own `isopen: false` — names no real licence, and blocks publication regardless of data
+    quality. Separately: **every one of the 5 returned records was a passenger row; no cargo
+    row was ever observed**, so the cargo measure's literal `Detail` value, unit, and scale
+    all stay unverified and fail-closed. Two of the three sibling MOT air datasets checked in
+    the same pass are unusable for unrelated reasons: `airports-dataset` is file-only (XLSX,
+    no DataStore) and last updated 2021; `aot_traffic` is an empty catalogue placeholder with
+    no resource content at all; `domestic-air-freight` is DataStore-backed but abandoned since
+    2020 with an empty licence field.
+  - **AEROTHAI Bangkok FIR monthly flight volumes: NOT QUALIFIED — DOCUMENTED COVERAGE
+    GAP.** The highest-value open question WO-034 identified — whether the "type of
+    operation" cut separates cargo from passenger flights — has a decisive negative answer
+    read directly from the data: the field is a scheduled/non-scheduled/general-aviation/
+    military classification (`Schedule`, `General`, `Others`, `Military`, `Non-Schedule`),
+    with **no cargo dimension of any kind**. The resource also carries **no aerodrome or
+    location field** — it is Bangkok FIR-wide only and can never attach to `NODE-THBKKAIR`.
+    Flight counts are not cargo weight in any case. This closes the candidate on substance,
+    not on access — transport and DataStore both worked. (Also confirmed, as a secondary
+    finding: `bangkok-june-2569` and `bangkok-june-25691` are duplicate catalogue records of
+    the same month with no supersession marker between them — a real identity hazard for any
+    future collector, moot now that the candidate itself is closed.)
+
+**What remains open for `air-freight-pass`, not executed by any Work Order to date:** two
+independent next steps, each requiring its own separate human authorization — (a) a human
+licence determination on `"Open Data Common"`/`isopen: false`, since that question is not
+API-decidable, or (b) one additional bounded `datastore_search` request with a `Detail`
+filter to observe the actual cargo rows before any adapter or contract is written. Writing a
+field contract for the cargo measure without that read would repeat the exact failure mode
+WO-026's wrong field-name guesses represented, which WO-027 had to correct — this repository
+does not repeat that shape a second time. No implementation Work Order is open for Air Cargo
+as of this record.
