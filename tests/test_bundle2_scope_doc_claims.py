@@ -86,6 +86,17 @@ def test_event_type_enum_covers_the_mode_agnostic_types_the_doc_cites() -> None:
     assert already_usable <= set(event_type_enum)
 
 
+def test_event_type_enum_covers_non_ocean_closure_events() -> None:
+    """WO-035: the doc's §1 originally documented a gap -- no exact-fit event_type
+    value for an airport/cargo-terminal closure or an airspace closure, since
+    port_or_terminal_closure/canal_restriction are Ocean-worded. Closed by a
+    purely additive extension; this locks the gap closed."""
+    schema = _load_schema("logistics_event.schema.json")
+    event_type_enum = schema["properties"]["event_type"]["enum"]
+    assert {"airspace_closure", "terminal_or_facility_closure"} <= set(event_type_enum)
+    assert {"port_or_terminal_closure", "canal_restriction"} <= set(event_type_enum)
+
+
 def test_no_air_source_is_registered_yet() -> None:
     """Locks in the doc's §4 claim that config/sources.yaml has zero air-cargo
     candidates today. This is expected to start failing the moment a real

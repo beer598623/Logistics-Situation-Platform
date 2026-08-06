@@ -63,6 +63,8 @@
         "port_or_terminal_closure",
         "port_restriction",
         "canal_restriction",
+        "airspace_closure",
+        "terminal_or_facility_closure",
         "carrier_rerouting",
         "service_suspension",
         "capacity_withdrawal",
