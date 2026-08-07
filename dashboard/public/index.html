@@ -61,6 +61,7 @@
       <li><a href="#/overview" data-route="overview">Overview</a></li>
       <li><a href="#/ocean" data-route="ocean">Ocean Operations</a></li>
       <li><a href="#/air" data-route="air">Air Cargo</a></li>
+      <li><a href="#/land" data-route="land">Land, Rail &amp; Border</a></li>
       <li><a href="#/trade" data-route="trade">Trade &amp; Flow</a></li>
       <li><a href="#/cost" data-route="cost">Cost &amp; Freight</a></li>
       <li><a href="#/events" data-route="events">Events</a></li>
@@ -199,6 +200,41 @@
         <p class="banner banner-demo" id="air-historical-label"></p>
         <h3 class="demo-heading">Air historical validation cases <span class="pill pill-demo">historical validation</span></h3>
         <div id="air-historical-cases"></div>
+      </div>
+    </details>
+  </section>
+
+  <section id="land" class="view" data-view="land" aria-labelledby="land-h">
+    <h2 id="land-h" tabindex="-1">Land, Rail &amp; Border</h2>
+    <p class="section-intro">The provisional Thailand Road, Rail and Border lane set, the registered land crossing nodes and corridor chokepoints, and exactly what this platform does and does not know about land freight today.</p>
+    <p class="banner banner-critical" id="land-coverage-banner"></p>
+
+    <div data-evidence-region="current">
+      <h3>Land, Rail and Border coverage — current</h3>
+      <p class="banner banner-warning" id="land-coverage-message"></p>
+      <h3>Land lanes</h3>
+      <p class="section-intro" id="land-lane-note"></p>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="land-lane-table-caption"><table id="land-lane-table">
+        <caption id="land-lane-table-caption">Provisional Road, Rail and Border lanes. Each row states the analytical resolution it actually supports. No lane carries a current assessment, because no Land source is enabled.</caption>
+        <thead><tr><th scope="col">Lane</th><th scope="col">Mode</th><th scope="col">Resolution</th><th scope="col">Status</th><th scope="col">Direction</th><th scope="col">Chokepoints</th><th scope="col">Current assessment</th></tr></thead>
+        <tbody id="land-lane-rows"></tbody>
+      </table></div>
+      <h3>Land nodes and corridor chokepoints</h3>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="land-reference-table-caption"><table id="land-reference-table">
+        <caption id="land-reference-table-caption">Registered Land reference records. Each carries no measured data; its known limitations are stated in full.</caption>
+        <thead><tr><th scope="col">Record</th><th scope="col">Type</th><th scope="col">Modes</th><th scope="col">Known limitations</th></tr></thead>
+        <tbody id="land-reference-rows"></tbody>
+      </table></div>
+      <h3>Land source coverage gaps</h3>
+      <ul id="land-gaps" class="prose-list gap-list"></ul>
+    </div>
+
+    <details class="region region-demo" data-evidence-region="historical" id="land-historical-region">
+      <summary>Historical validation material <span class="pill pill-demo">historical validation</span></summary>
+      <div class="region-body">
+        <p class="banner banner-demo" id="land-historical-label"></p>
+        <h3 class="demo-heading">Land historical validation cases <span class="pill pill-demo">historical validation</span></h3>
+        <div id="land-historical-cases"></div>
       </div>
     </details>
   </section>

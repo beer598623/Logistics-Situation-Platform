@@ -493,6 +493,51 @@ def test_no_air_record_enters_the_current_publication_surface(payloads):
     assert all(lane["mode"] != "air" for lane in payloads["ocean.json"]["lanes"])
 
 
+# ---------------------------------------------------------------------------
+# Land foundation (Road, Rail, Border) — WO-041
+# ---------------------------------------------------------------------------
+
+
+def test_no_land_lane_carries_a_current_assessment(payloads):
+    for lane in payloads["land.json"]["lanes"]:
+        assert lane["assessment"] is None
+        assert "insufficient_evidence" in lane["assessment_note"]
+        assert "coverage gap" in lane["assessment_note"]
+
+
+def test_the_land_section_states_insufficient_live_coverage(payloads):
+    land = payloads["land.json"]
+    assert land["live_coverage"] == "insufficient"
+    assert land["module_status"] == {"road": "planned", "rail": "planned", "border": "planned"}
+    assert "INSUFFICIENT" in land["live_coverage_statement"]
+    assert "coverage gap, not a finding" in land["coverage_message"]
+    gaps = " ".join(land["source_gaps"]).lower()
+    # A truthy-only check here would pass even if the headline gaps this
+    # module stands on were silently dropped -- see PR #78's fix for the
+    # equivalent Air oversight.
+    assert "unresolved licence" in gaps
+    assert "no dataset of any kind" in gaps
+    assert "cross-cutting" in gaps
+
+
+def test_no_land_record_enters_the_current_publication_surface(payloads):
+    for event in payloads["land.json"]["historical_land_events"]:
+        assert event["dataset"] == HISTORICAL_VALIDATION
+    assert payloads["events.json"]["current_direct_operational_events"] == []
+    assert all(
+        lane["mode"] not in {"road", "rail", "border"} for lane in payloads["ocean.json"]["lanes"]
+    )
+    assert all(
+        lane["mode"] not in {"road", "rail", "border"} for lane in payloads["air.json"]["lanes"]
+    )
+
+
+def test_the_ocean_and_air_payloads_are_unchanged_in_size_by_the_land_foundation(payloads):
+    assert len(payloads["ocean.json"]["lanes"]) == 11
+    assert len(payloads["air.json"]["lanes"]) == 5
+    assert len(payloads["ai_outlook.json"]["current_outlooks"]) == 11
+
+
 def test_the_ocean_payload_is_unchanged_in_size_by_the_air_foundation(payloads):
     assert len(payloads["ocean.json"]["lanes"]) == 11
     assert len(payloads["ai_outlook.json"]["current_outlooks"]) == 11

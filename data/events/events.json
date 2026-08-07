@@ -3,7 +3,7 @@
   "generated_by": "scripts/build_events_from_cases.py",
   "dataset": "historical_validation",
   "source_note": "Expanded from data/validation/historical_cases.json. Every record belongs to the historical-validation dataset and is excluded from the current-publication view. Evidence content was not retrieved; source_id is the reserved synthetic identifier, the publisher is recorded in intended_source_id, and the original publisher URL is retained for independent verification.",
-  "record_count": 9,
+  "record_count": 10,
   "events": [
     {
       "event_id": "EVT-20190227-001",
@@ -327,6 +327,332 @@
       "supersedes": []
     },
     {
+      "event_id": "EVT-20200318-001",
+      "dataset": "historical_validation",
+      "active_as_of": null,
+      "active_basis": null,
+      "canonical_event_id": "CEVT-15cf7ed1a96e5e95",
+      "title": "Malaysia's Movement Control Order closes the Thailand\u2013Malaysia land border to general movement while goods traffic continues",
+      "event_class": "direct_operational_event",
+      "event_type": "terminal_or_facility_closure",
+      "lifecycle_status": "operational_impact_observed",
+      "event_date": "2020-03-18",
+      "event_end_date": null,
+      "publication_date": "2020-03-16",
+      "retrieval_date": "2020-03-25T00:00:00Z",
+      "geography_ids": [
+        "GEO-CTY-TH",
+        "GEO-CTY-MY",
+        "GEO-ADM-TH-SONGKHLA"
+      ],
+      "country_ids": [
+        "TH",
+        "MY"
+      ],
+      "node_ids": [
+        "NODE-THSDK"
+      ],
+      "chokepoint_ids": [
+        "CHK-THSDK-BKH"
+      ],
+      "modes": [
+        "road",
+        "border"
+      ],
+      "operator_or_entity": "Government of Malaysia",
+      "lane_relevance": [
+        {
+          "lane_id": "LANE-BORDER-TH-CROSSINGS",
+          "relevance": "medium",
+          "basis": "lane includes country TH; lane includes country MY; lane includes node NODE-THSDK; lane transits chokepoint CHK-THSDK-BKH",
+          "evidence_ids": [
+            "EVD-HVC-010-A",
+            "EVD-HVC-010-B",
+            "EVD-HVC-010-C"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-DOMESTIC",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-010-A",
+            "EVD-HVC-010-B",
+            "EVD-HVC-010-C"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-KH",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-010-A",
+            "EVD-HVC-010-B",
+            "EVD-HVC-010-C"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-LA",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-010-A",
+            "EVD-HVC-010-B",
+            "EVD-HVC-010-C"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-MM",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-010-A",
+            "EVD-HVC-010-B",
+            "EVD-HVC-010-C"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-MY",
+          "relevance": "medium",
+          "basis": "lane includes country TH; lane includes country MY; lane includes node NODE-THSDK; lane transits chokepoint CHK-THSDK-BKH",
+          "evidence_ids": [
+            "EVD-HVC-010-A",
+            "EVD-HVC-010-B",
+            "EVD-HVC-010-C"
+          ]
+        }
+      ],
+      "thailand_relevance": "medium",
+      "thailand_relevance_basis": [
+        "The order closed the Malaysian side of a border corridor this platform registers and on which a Thailand road lane is anchored.",
+        "The relationship is corridor-transit and node membership. Nothing here establishes an effect on any particular Thai shipment or shipper."
+      ],
+      "evidence_ids": [
+        "EVD-HVC-010-A",
+        "EVD-HVC-010-B",
+        "EVD-HVC-010-C"
+      ],
+      "conflicting_evidence": [],
+      "transmission_chain": {
+        "external_driver": "A national public-health emergency order in Malaysia.",
+        "operational_change": "The border closed to general movement of persons and vehicles while goods traffic continued at designated checkpoints under reduced staffing.",
+        "logistics_mechanism": "Reduced staffing and restricted hours lengthen clearance at a single corridor through which Thailand\u2013Malaysia road freight is funnelled, and the driver-exchange and escort arrangements imposed on goods vehicles add handling steps per crossing.",
+        "observable_indicator": "The border agencies' own operating notices and crossing-level throughput.",
+        "outcome": "Observed restriction of movement at the corridor, with freight-flow and cost consequences stated as mechanisms and measured nowhere in this platform.",
+        "completeness": "complete",
+        "missing_links": [],
+        "supporting_indicator_ids": []
+      },
+      "impact_assessments": [
+        {
+          "area": "warehouse",
+          "status": "insufficient_evidence",
+          "severity": "none",
+          "relevance": "low",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "unknown",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [],
+          "evidence_ids": [
+            "EVD-HVC-010-A"
+          ],
+          "evidence_strength": "C",
+          "confidence": "low",
+          "known_limitations": [
+            "Not assessed for this area at the case cutoff; this is a gap, not a finding of no impact.",
+            "Lane relevance resolved through shared country membership is a registry-membership relationship. It records that lanes share a country with this event, not that an effect on those lanes was established."
+          ]
+        },
+        {
+          "area": "logistics",
+          "status": "insufficient_evidence",
+          "severity": "none",
+          "relevance": "low",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "unknown",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [],
+          "evidence_ids": [
+            "EVD-HVC-010-A"
+          ],
+          "evidence_strength": "C",
+          "confidence": "low",
+          "known_limitations": [
+            "Not assessed for this area at the case cutoff; this is a gap, not a finding of no impact.",
+            "Lane relevance resolved through shared country membership is a registry-membership relationship. It records that lanes share a country with this event, not that an effect on those lanes was established."
+          ]
+        },
+        {
+          "area": "transport",
+          "status": "observed",
+          "severity": "moderate",
+          "relevance": "high",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "immediate",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "The corridor closed to general movement while goods traffic continued at designated checkpoints under reduced staffing."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-010-A",
+            "EVD-HVC-010-B"
+          ],
+          "evidence_strength": "A",
+          "confidence": "medium",
+          "known_limitations": [
+            "This event must never be read as a stoppage of freight across this corridor; goods movement was expressly exempted and no freight volume effect is measured by this platform."
+          ]
+        },
+        {
+          "area": "import_export",
+          "status": "potential",
+          "severity": "low",
+          "relevance": "medium",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "1-3_months",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "Restricted movement at the corridor can shift delivery timing for goods moving by road between Thailand and Malaysia, even though goods movement itself was exempted from the order."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-010-B"
+          ],
+          "evidence_strength": "B",
+          "confidence": "low",
+          "known_limitations": [
+            "No Thailand road or border trade series was retrieved, so no flow effect is confirmed. This event must never be read as a stoppage of freight across this corridor."
+          ]
+        },
+        {
+          "area": "inventory",
+          "status": "insufficient_evidence",
+          "severity": "none",
+          "relevance": "low",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "unknown",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [],
+          "evidence_ids": [
+            "EVD-HVC-010-A"
+          ],
+          "evidence_strength": "C",
+          "confidence": "low",
+          "known_limitations": [
+            "Not assessed for this area at the case cutoff; this is a gap, not a finding of no impact.",
+            "Lane relevance resolved through shared country membership is a registry-membership relationship. It records that lanes share a country with this event, not that an effect on those lanes was established."
+          ]
+        },
+        {
+          "area": "cost",
+          "status": "potential",
+          "severity": "low",
+          "relevance": "medium",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "1-3_months",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "Longer clearance times and additional handling steps at the crossing can exert upward pressure on road freight rates for the corridor."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-010-B"
+          ],
+          "evidence_strength": "B",
+          "confidence": "low",
+          "known_limitations": [
+            "No Thailand-origin road freight rate source is qualified, so no Thailand cost effect is quantified anywhere in this platform."
+          ]
+        },
+        {
+          "area": "capacity",
+          "status": "potential",
+          "severity": "moderate",
+          "relevance": "medium",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "1-4_weeks",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "Reduced staffing and additional per-vehicle handling steps at a single corridor reduce the effective throughput available to Thailand\u2013Malaysia road freight."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-010-B"
+          ],
+          "evidence_strength": "B",
+          "confidence": "low",
+          "known_limitations": [
+            "The capacity reduction is a stated mechanism, not a measured quantity. No road or border crossing capacity series is qualified in this registry, and none was used to produce this reading."
+          ]
+        },
+        {
+          "area": "service",
+          "status": "observed",
+          "severity": "moderate",
+          "relevance": "high",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "immediate",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [
+            "Reduced staffing and driver-exchange/escort arrangements at the crossing add handling steps and lengthen clearance time per vehicle."
+          ],
+          "evidence_ids": [
+            "EVD-HVC-010-B"
+          ],
+          "evidence_strength": "A",
+          "confidence": "medium",
+          "known_limitations": [
+            "Crossing-level clearance time is not measured by any source qualified in this registry."
+          ]
+        },
+        {
+          "area": "business_continuity",
+          "status": "insufficient_evidence",
+          "severity": "none",
+          "relevance": "low",
+          "geographic_scope": "Thailand, Malaysia, Songkhla Province",
+          "time_horizon": "unknown",
+          "expected_duration": "unknown",
+          "transmission_mechanism": [],
+          "evidence_ids": [
+            "EVD-HVC-010-A"
+          ],
+          "evidence_strength": "C",
+          "confidence": "low",
+          "known_limitations": [
+            "Not assessed for this area at the case cutoff; this is a gap, not a finding of no impact.",
+            "Lane relevance resolved through shared country membership is a registry-membership relationship. It records that lanes share a country with this event, not that an effect on those lanes was established."
+          ]
+        }
+      ],
+      "event_severity": "high",
+      "scenarios": null,
+      "preparedness_options": [],
+      "negative_operational_evidence": false,
+      "known_limitations": [
+        "Historical validation case HVC-010, assessed at cutoff 2020-03-25T00:00:00Z. Later knowledge is deliberately excluded.",
+        "How long the restriction would last, and that on 17 June 2020 Malaysia ended 24-hour operations at Bukit Kayu Hitam for heavy vehicles, were both unknown at this cutoff and must not inform the assessment. This case exists to prove two things: that a border closure is not a freight stoppage -- goods movement was expressly exempted, so import_export must never be read as observed collapse -- and that mode scoping holds for Land: this event carries country_ids ['TH','MY'], which every Ocean lane touching Malaysia also carries, yet tagged modes ['road','border'] it must resolve no Ocean lane and no Air lane at all."
+      ],
+      "last_reviewed_at": "2020-03-25T00:00:00Z",
+      "closure_basis": null,
+      "publication_status": "Watchlist",
+      "human_review": {
+        "required": true,
+        "status": "pending",
+        "reviewer_record": null,
+        "reviewed_at": null
+      },
+      "clustering": {
+        "cluster_id": "CLU-15cf7ed1a96e5e95",
+        "cluster_key": "15cf7ed1a96e5e9570dfeee9de51b649c663a63138ce7ce5be832b91c36894bc",
+        "canonical_source_url": "https://www.pmo.gov.my/",
+        "title_normalized": "malaysia's movement control order closes the thailand\u2013malaysia land border to general movement while goods traffic continues",
+        "merge_status": "unmatched",
+        "merged_event_ids": []
+      },
+      "methodology_version": "0.8",
+      "first_seen_at": "2020-03-25T00:00:00Z",
+      "last_seen_at": "2020-03-25T00:00:00Z",
+      "supersedes": []
+    },
+    {
       "event_id": "EVT-20220301-001",
       "dataset": "historical_validation",
       "active_as_of": null,
@@ -438,6 +764,46 @@
         },
         {
           "lane_id": "LANE-OCEAN-TH-USWC",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-005-A"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-DOMESTIC",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-005-A"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-KH",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-005-A"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-LA",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-005-A"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-MM",
+          "relevance": "low",
+          "basis": "lane includes country TH",
+          "evidence_ids": [
+            "EVD-HVC-005-A"
+          ]
+        },
+        {
+          "lane_id": "LANE-ROAD-TH-MY",
           "relevance": "low",
           "basis": "lane includes country TH",
           "evidence_ids": [

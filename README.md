@@ -88,12 +88,12 @@ The published site must retain the latest successful version when validation or 
 
 **Implementation v0.3.0 (WO-010, Bundle 1).** The common multimodal data foundation and the
 Ocean Logistics Intelligence MVP are implemented: 18 conceptual entities, 11 Thailand-centred
-Ocean lane groups and 5 provisional Air lane groups, deterministic indicators with seven
-documented threshold rules, an event model with lifecycle/clustering/transmission chains,
-nine-area impact assessment, scenario outlooks with conditional preparedness options, a
-human-triggered ChatGPT review package with its rejection rules and human-approval gate, nine
-historical validation cases, a derived DuckDB warehouse, and an eight-section static
-Dashboard.
+Ocean lane groups, 5 provisional Air lane groups and 8 provisional Land (Road/Rail/Border)
+lane groups, deterministic indicators with seven documented threshold rules, an event model
+with lifecycle/clustering/transmission chains, nine-area impact assessment, scenario outlooks
+with conditional preparedness options, a human-triggered ChatGPT review package with its
+rejection rules and human-approval gate, ten historical validation cases, a derived DuckDB
+warehouse, and a nine-section static Dashboard.
 
 **Live coverage is insufficient and the Dashboard says so on its face.** No source in the
 registry is enabled and none has completed a controlled live validation, so the platform
@@ -107,6 +107,19 @@ carry a real second mode. No Air source is registered or enabled, no Air observa
 indicator exists, and no Air lane carries a current assessment — the Dashboard's Air Cargo
 section says exactly that. Selection methodology and its evidence limitation are in
 [`docs/air_lane_selection.md`](docs/air_lane_selection.md).
+
+**Land, Rail and Border is a foundation, not a module (WO-041).** Eight provisional lanes
+(four cross-border road lanes, one domestic road lane, one international rail lane, one
+domestic rail lane, and one border-crossing-operations lane), one rail gauge break
+chokepoint, four registered land-crossing/inland-terminal nodes and one historical validation
+case are registered so the shared entities carry a real third mode group. No Road, Rail or
+Border source is registered or enabled, no observation or indicator exists for any of the
+three modes, and no Land lane carries a current assessment — the Dashboard's Land, Rail &
+Border section says exactly that. Every Thai road and rail candidate identified is blocked by
+the same unresolved open-data licence question that also blocks the Air and Ocean candidates
+on record; no border-crossing dataset was found at all. Selection methodology and its
+evidence limitation are in
+[`docs/land_rail_border_lane_selection.md`](docs/land_rail_border_lane_selection.md).
 
 **Fixtures and current intelligence are separated (WO-010-R1).** Every observation and
 evidence record carries a machine-readable `evidence_origin`, and only `live_retrieved` or

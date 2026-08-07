@@ -455,14 +455,18 @@ def build_payloads() -> dict[str, Any]:
     dimensions = _load(ROOT / "data/reference/dimensions.json")
     all_lanes = _load(ROOT / "data/reference/lanes.json")["lanes"]
     lane_by_id = {lane["lane_id"]: lane for lane in all_lanes}
-    # WO-039: the shared lane registry now also carries Air lanes. Every
-    # payload below this point that was written before Air existed --
-    # Ocean, Trade -- stays scoped to Ocean lanes so it keeps working with
-    # the Ocean-only assumptions baked into it (e.g. _LANE_SLUGS, the
-    # th_{export,import}_value_{slug} series-id convention). Air gets its
-    # own payload built separately, from air_lanes, further down.
+    # WO-039/WO-041: the shared lane registry now also carries Air and Land
+    # (Road/Rail/Border) lanes. Every payload below this point that was
+    # written before they existed -- Ocean, Trade -- stays scoped to Ocean
+    # lanes so it keeps working with the Ocean-only assumptions baked into
+    # it (e.g. _LANE_SLUGS, the th_{export,import}_value_{slug} series-id
+    # convention). Air and Land each get their own payload built
+    # separately, further down. The Land filter is an explicit allowlist,
+    # not "not sea and not air": a denylist would sweep NODE-THBKK's
+    # inland_waterway mode into the Land payload.
     lanes = [lane for lane in all_lanes if lane["mode"] == "sea"]
     air_lanes = [lane for lane in all_lanes if lane["mode"] == "air"]
+    land_lanes = [lane for lane in all_lanes if lane["mode"] in ("road", "rail", "border")]
     assessments = _load(ROOT / "data/assessments/lane_assessments.json")["assessments"]
     demo_assessments = _load(ROOT / "data/assessments/demo_lane_assessments.json")["assessments"]
     demo_thailand = _load(ROOT / "data/assessments/demo_thailand_assessment.json")
@@ -1219,6 +1223,113 @@ def build_payloads() -> dict[str, Any]:
         ),
     }
 
+    # ---- Land, Rail and Border (WO-041 foundation: no live source, no observation) --
+    land_mode_status = mode_index(dimensions)
+    land = {
+        "dataset": CURRENT_PUBLICATION,
+        "generated_at": current_as_of_iso,
+        "methodology_version": METHODOLOGY_VERSION,
+        "module_status": {
+            "road": land_mode_status["road"]["module_status"],
+            "rail": land_mode_status["rail"]["module_status"],
+            "border": land_mode_status["border"]["module_status"],
+        },
+        "live_coverage": source_status["overall_status"],
+        "live_coverage_statement": _live_coverage_statement(
+            thailand["evidence_coverage"],
+            thailand["qualified_observation_count"],
+            thailand["current_indicator_count"],
+            thailand["qualified_event_count"],
+        ),
+        "coverage_message": (
+            "Land, Rail and Border live coverage is insufficient. No Road, Rail or Border "
+            "source is registered or enabled, no observation or indicator series exists for "
+            "any of the three modes, and no Land lane carries a current assessment. This is "
+            "a coverage gap, not a finding that Land conditions are normal."
+        ),
+        "lane_selection_note": (
+            "Land lane selection methodology is documented in "
+            "docs/land_rail_border_lane_selection.md. No quantitative Thailand road, rail or "
+            "border freight ranking was retrieved or used, so lanes were selected on the "
+            "recorded structural criteria and every lane is provisional with "
+            "data_period_used null."
+        ),
+        "lanes": [
+            {
+                "lane_id": lane["lane_id"],
+                "name": lane["name"],
+                "mode": lane["mode"],
+                "direction": lane["direction"],
+                "resolution": lane["resolution"],
+                "origin": lane["origin_scope"]["label"],
+                "destination": lane["destination_scope"]["label"],
+                "country_ids": lane["country_ids"],
+                "node_ids": lane.get("node_ids", []),
+                "chokepoint_ids": lane.get("chokepoint_ids", []),
+                "selection_evidence": lane["selection_evidence"],
+                "data_period_used": lane["data_period_used"],
+                "known_limitations": lane["known_limitations"],
+                "review_date": lane["review_date"],
+                "status": lane["status"],
+                # Null by construction, and labelled -- not an empty object that
+                # could be mistaken for an assessment that came out neutral.
+                "assessment": None,
+                "assessment_note": (
+                    "insufficient_evidence: no Road, Rail or Border source is enabled, so no "
+                    "current assessment is produced for this lane. This is a coverage gap, "
+                    "not a finding that conditions on this lane are normal."
+                ),
+            }
+            for lane in land_lanes
+        ],
+        "nodes": [
+            n for n in dimensions["logistics_nodes"] if set(n["modes"]) & {"road", "rail", "border"}
+        ],
+        "chokepoints": [
+            c for c in dimensions["chokepoints"] if set(c["modes"]) & {"road", "rail", "border"}
+        ],
+        "source_gaps": [
+            "Cross-border road freight and border-crossing activity: no dataset of any kind "
+            "found in the Ministry of Transport's open-data catalogue.",
+            "Rail freight movements and international rail corridors: a candidate exists "
+            "(the Department of Rail Transport's stat_freight_rail) but it stays unregistered "
+            "on an unresolved licence and is reachable only through a harvest mirror.",
+            "Customs or border operational status: no source identified on any reachable host.",
+            "Land, rail or border operational-notice channel: none registered. "
+            "MANUAL_NOTICE_INTAKE is the only honest interim path and holds no Land record.",
+            "Thailand import/export evidence with a genuine land or rail dimension: a "
+            "candidate exists (freight-import-export, freight-dom) but it stays unregistered "
+            "on the same unresolved licence, and its resolution is national-annual only.",
+            "Transit time, queue, capacity and service reliability for any land corridor: no "
+            "qualified source at any resolution.",
+            "Land, rail or border freight cost or rate benchmark: none found at zero cost.",
+            "The unresolved 'Open Data Common' / isopen: false licence question is a "
+            "cross-cutting gap, not specific to Land: it also blocks the Ocean and Air "
+            "candidates on record. See docs/known_data_gaps.md §9.",
+        ],
+        "historical_land_events": [
+            {
+                "dataset": dataset_of(event),
+                "event_id": event["event_id"],
+                "case_id": case_id_by_event.get(event["event_id"]),
+                "assessment_cutoff": cutoff_by_event.get(event["event_id"]),
+                "title": event["title"],
+                "event_type": event["event_type"],
+                "event_date": event["event_date"],
+                "lane_ids": [entry["lane_id"] for entry in event["lane_relevance"]],
+                "chokepoint_ids": event.get("chokepoint_ids", []),
+                "known_limitations": event.get("known_limitations", []),
+            }
+            for event in events
+            if set(event["modes"]) & {"road", "rail", "border"}
+            and dataset_of(event) == HISTORICAL_VALIDATION
+        ],
+        "historical_label": (
+            "Historical validation — replayed through the analysis code to prove the Land "
+            "event chain works. These describe no current condition."
+        ),
+    }
+
     # ---- AI Outlook and Preparedness --------------------------------------
     approved_dir = ROOT / "data/assessments/approved"
     all_approved = [_load(path) for path in sorted(approved_dir.glob("*.json"))]
@@ -1393,6 +1504,7 @@ def build_payloads() -> dict[str, Any]:
         "thailand_situation.json": situation,
         "ocean.json": ocean,
         "air.json": air,
+        "land.json": land,
         "trade.json": trade,
         "cost.json": cost,
         "events.json": event_payload,

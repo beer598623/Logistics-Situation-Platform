@@ -9,7 +9,7 @@
  * stays at its most pessimistic reading. A dashboard that silently renders
  * an empty panel is worse than one that admits it could not load.
  *
- * Eight views live under one document (WO-030, WO-039): a hash router shows
+ * Nine views live under one document (WO-030, WO-039, WO-041): a hash router shows
  * exactly one <section class="view"> at a time via the `hidden` attribute,
  * every payload is still fetched eagerly and in parallel so a failure in a
  * view nobody has visited is still caught, but each view's markup is only
@@ -683,6 +683,86 @@
       : '<p class="empty-state">No Air historical validation case is recorded.</p>';
   }
 
+  /* WO-041: the Land (Road/Rail/Border) foundation carries no observation
+     and no current assessment for any lane, mirroring renderAir exactly.
+     Land lanes span three modes, so its table carries one extra "Mode"
+     column Air's single-mode table does not need. Emits no `href`,
+     matching renderAir's convention. */
+  function landLaneRow(lane) {
+    var detailId = 'land-lane-detail-' + lane.lane_id;
+
+    var row = '<tr>' +
+      '<th scope="row">' + esc(lane.name) + '<br><small>' + esc(lane.lane_id) + '</small></th>' +
+      '<td>' + esc(lane.mode) + '</td>' +
+      '<td>' + esc(words(lane.resolution)) + '</td>' +
+      '<td>' + esc(words(lane.status)) + '</td>' +
+      '<td>' + esc(words(lane.direction)) + '</td>' +
+      '<td>' + (lane.chokepoint_ids.length ? esc(lane.chokepoint_ids.join(', ')) : 'none registered') + '</td>' +
+      '<td>' + pill('insufficient_evidence', ATTENTION_PILL) + '</td>' +
+      '</tr>';
+
+    var selectionRows = lane.selection_evidence.map(function (item) {
+      return '<tr><th scope="row">' + esc(words(item.criterion)) + '</th><td>' + esc(item.statement) + '</td>' +
+        '<td>' + pill(item.evidence_class, {}) + '</td>' +
+        '<td>' + esc(item.source_reference || 'none') + '</td></tr>';
+    }).join('');
+
+    var detail = '<tr class="detail-row" id="' + attr(detailId) + '"><td colspan="7">' +
+      '<p class="meta">' + esc(lane.origin) + ' → ' + esc(lane.destination) +
+      ' · reviewed ' + esc(lane.review_date) + '</p>' +
+      '<p class="prose">' + esc(lane.assessment_note) + '</p>' +
+      detailsBlock('Selection evidence (' + lane.selection_evidence.length + ')',
+        '<div class="table-wrap"><table><caption>Why this lane was selected, and on what basis.</caption>' +
+        '<thead><tr><th scope="col">Criterion</th><th scope="col">Statement</th>' +
+        '<th scope="col">Evidence class</th><th scope="col">Reference</th></tr></thead><tbody>' +
+        selectionRows + '</tbody></table></div>' +
+        '<p class="prose"><strong>Data period used:</strong> ' + esc(lane.data_period_used || 'none — no dated quantitative evidence was retrieved') + '</p>') +
+      detailsBlock('Known limitations (' + lane.known_limitations.length + ')', list(lane.known_limitations)) +
+      '</td></tr>';
+
+    return row + detail;
+  }
+
+  function landReferenceRow(record, idField, typeField) {
+    return '<tr><th scope="row">' + esc(record.name) + '<br><small>' + esc(record[idField]) + '</small></th>' +
+      '<td>' + esc(words(record[typeField])) + '</td>' +
+      '<td>' + esc(record.modes.join(', ')) + '</td>' +
+      '<td>' + list(record.known_limitations) + '</td></tr>';
+  }
+
+  function landHistoricalCase(item) {
+    return '<div class="event is-demo" data-demo-label="' + attr(DEMO_LABEL.historical_validation) + '">' +
+      '<div class="badges">' + demoTag(item.dataset) +
+      (item.case_id ? '<span class="pill pill-muted">' + esc(item.case_id) + '</span>' : '') +
+      (item.assessment_cutoff
+        ? '<span class="pill pill-muted">assessed at cutoff ' + esc(item.assessment_cutoff.slice(0, 10)) + '</span>'
+        : '') +
+      '<span class="pill pill-muted">' + esc(words(item.event_type)) + '</span></div>' +
+      '<h4>' + esc(item.title) + '</h4>' +
+      '<p class="meta"><small>Event date ' + esc(item.event_date || 'unknown') +
+      ' · lanes: ' + esc(item.lane_ids.join(', ') || 'none') +
+      ' · chokepoints: ' + esc(item.chokepoint_ids.join(', ') || 'none') + '</small></p>' +
+      detailsBlock('Known limitations', list(item.known_limitations)) +
+      '</div>';
+  }
+
+  function renderLand(data) {
+    el('land-coverage-banner').textContent = data.live_coverage_statement;
+    el('land-coverage-message').textContent = data.coverage_message;
+    el('land-lane-note').textContent = data.lane_selection_note;
+    el('land-lane-rows').innerHTML = data.lanes.map(landLaneRow).join('');
+    el('land-reference-rows').innerHTML =
+      data.nodes.map(function (n) { return landReferenceRow(n, 'node_id', 'node_type'); }).join('') +
+      data.chokepoints.map(function (c) { return landReferenceRow(c, 'chokepoint_id', 'chokepoint_type'); }).join('');
+    el('land-gaps').innerHTML = data.source_gaps.map(function (item) {
+      return '<li>' + esc(item) + '</li>';
+    }).join('');
+    el('land-historical-label').textContent = data.historical_label;
+    el('land-historical-cases').innerHTML = data.historical_land_events.length
+      ? data.historical_land_events.map(landHistoricalCase).join('')
+      : '<p class="empty-state">No Land historical validation case is recorded.</p>';
+  }
+
   function renderTrade(data) {
     el('trade-current').textContent = data.current_statement;
     el('trade-demo-label').textContent = data.demo_label;
@@ -1022,6 +1102,7 @@
     ['thailand_situation.json', 'current + technical_demo', true],
     ['ocean.json', 'current + technical_demo + historical_validation', true],
     ['air.json', 'current + historical_validation', true],
+    ['land.json', 'current + historical_validation', true],
     ['trade.json', 'current + technical_demo', true],
     ['cost.json', 'current + technical_demo', true],
     ['events.json', 'current + technical_demo + historical_validation', true],
@@ -1126,6 +1207,7 @@
     { route: 'overview', id: 'situation', title: 'Overview', label: 'Overview view' },
     { route: 'ocean', id: 'ocean', title: 'Ocean Operations', label: 'Ocean Operations view' },
     { route: 'air', id: 'air', title: 'Air Cargo', label: 'Air Cargo view' },
+    { route: 'land', id: 'land', title: 'Land, Rail & Border', label: 'Land, Rail & Border view' },
     { route: 'trade', id: 'trade', title: 'Trade & Flow', label: 'Trade & Flow view' },
     { route: 'cost', id: 'cost', title: 'Cost & Freight', label: 'Cost & Freight view' },
     { route: 'events', id: 'events', title: 'Events', label: 'Events view' },
@@ -1145,13 +1227,14 @@
   var pendingSub = null;
 
   var PAYLOAD_FILES = [
-    'thailand_situation.json', 'ocean.json', 'air.json', 'trade.json', 'cost.json',
+    'thailand_situation.json', 'ocean.json', 'air.json', 'land.json', 'trade.json', 'cost.json',
     'events.json', 'ai_outlook.json', 'sources.json', 'build_status.json'
   ];
   var ROUTE_FOR_FILE = {
     'thailand_situation.json': 'overview',
     'ocean.json': 'ocean',
     'air.json': 'air',
+    'land.json': 'land',
     'trade.json': 'trade',
     'cost.json': 'cost',
     'events.json': 'events',
@@ -1162,6 +1245,7 @@
     'thailand_situation.json': renderSituation,
     'ocean.json': renderOcean,
     'air.json': renderAir,
+    'land.json': renderLand,
     'trade.json': renderTrade,
     'cost.json': renderCost,
     'events.json': renderEvents,
@@ -1172,6 +1256,7 @@
     'thailand_situation.json': 'situation-cards',
     'ocean.json': 'port-series',
     'air.json': 'air-lane-rows',
+    'land.json': 'land-lane-rows',
     'trade.json': 'trade-lanes',
     'cost.json': 'cost-series',
     'events.json': 'events-operational',

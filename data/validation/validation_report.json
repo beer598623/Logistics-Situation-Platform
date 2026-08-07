@@ -107,7 +107,12 @@
         "LANE-OCEAN-TH-OCEANIA",
         "LANE-OCEAN-TH-SASIA",
         "LANE-OCEAN-TH-USEC",
-        "LANE-OCEAN-TH-USWC"
+        "LANE-OCEAN-TH-USWC",
+        "LANE-ROAD-TH-DOMESTIC",
+        "LANE-ROAD-TH-KH",
+        "LANE-ROAD-TH-LA",
+        "LANE-ROAD-TH-MM",
+        "LANE-ROAD-TH-MY"
       ],
       "facts_known_at_cutoff": [
         "International crude and refined product prices had risen sharply.",
@@ -200,12 +205,37 @@
       "hindsight_limitation": "How long the closure would last -- it ran until 15 July 2019 -- and its eventual effect on air freight rates and on Thailand trade volumes were all unknown at this cutoff and must not inform the assessment. This case exists to check that the Air foundation carries a real event end to end: that an airspace closure resolves to an Air lane through the airspace chokepoint that lane actually records and to no Ocean lane at all, and that the capacity and cost consequences -- for which no Air series is qualified anywhere -- stay 'potential' with the gap named rather than being quantified from a source the platform does not hold.",
       "result": "pass",
       "failures": []
+    },
+    {
+      "case_id": "HVC-010",
+      "event_id": "EVT-20200318-001",
+      "title": "Malaysia's Movement Control Order closes the Thailand\u2013Malaysia land border to general movement while goods traffic continues",
+      "assessment_cutoff": "2020-03-25T00:00:00Z",
+      "event_class": "direct_operational_event",
+      "transmission_completeness": "complete",
+      "thailand_relevance": "medium",
+      "lane_relevance": [
+        "LANE-BORDER-TH-CROSSINGS",
+        "LANE-ROAD-TH-DOMESTIC",
+        "LANE-ROAD-TH-KH",
+        "LANE-ROAD-TH-LA",
+        "LANE-ROAD-TH-MM",
+        "LANE-ROAD-TH-MY"
+      ],
+      "facts_known_at_cutoff": [
+        "The Prime Minister of Malaysia had announced a Movement Control Order effective 18-31 March 2020, closing the country's borders to general movement of persons.",
+        "Customs and border agencies had stated that goods movement continued at designated checkpoints, including Bukit Kayu Hitam, under reduced staffing.",
+        "Public reporting described Thailand\u2013Malaysia border checkpoints as closed to general crossing."
+      ],
+      "hindsight_limitation": "How long the restriction would last, and that on 17 June 2020 Malaysia ended 24-hour operations at Bukit Kayu Hitam for heavy vehicles, were both unknown at this cutoff and must not inform the assessment. This case exists to prove two things: that a border closure is not a freight stoppage -- goods movement was expressly exempted, so import_export must never be read as observed collapse -- and that mode scoping holds for Land: this event carries country_ids ['TH','MY'], which every Ocean lane touching Malaysia also carries, yet tagged modes ['road','border'] it must resolve no Ocean lane and no Air lane at all.",
+      "result": "pass",
+      "failures": []
     }
   ],
   "metrics": {
     "traceability_rate": 1.0,
-    "impacts_assessed": 81,
-    "material_impacts": 16,
+    "impacts_assessed": 90,
+    "material_impacts": 21,
     "unsupported_causation_count": 0,
     "unsupported_causation_rate": 0.0,
     "unsupported_causation_examples": [],
@@ -215,6 +245,7 @@
     "missing_as_zero_examples": [],
     "event_impact_separation_examples": [
       "EVT-20190227-001: event severity high vs worst impact severity moderate",
+      "EVT-20200318-001: event severity high vs worst impact severity moderate",
       "EVT-20231030-001: event severity moderate vs worst impact severity low",
       "EVT-20231218-001: event severity high vs worst impact severity moderate",
       "EVT-20240326-001: event severity high vs worst impact severity none",
@@ -224,7 +255,7 @@
     "scenario_problems": [],
     "preparedness_overreach_count": 0,
     "preparedness_overreach_examples": [],
-    "insufficient_evidence_uses": 56,
+    "insufficient_evidence_uses": 60,
     "no_material_uses": 9,
     "no_material_without_negative_evidence": [],
     "material_impact_on_discovery_only_evidence": [],

@@ -8,6 +8,7 @@ these same records.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -360,3 +361,196 @@ def test_no_air_reference_record_names_a_registered_source():
             assert item["source_reference"] not in registered_ids
     chokepoint = chokepoint_index()["CHK-SASIA-AIRSPACE"]
     assert not set(chokepoint["authority_notice_source_ids"]) & registered_ids
+
+
+# ---------------------------------------------------------------------------
+# Land foundation (Road, Rail, Border) — WO-041
+# ---------------------------------------------------------------------------
+
+_LAND_MODES = {"road", "rail", "border"}
+_LAND_CHOKEPOINTS = ("CHK-THSDK-BKH", "CHK-THNKI-TNL")
+
+
+def _land_lanes():
+    return [lane for lane in lanes() if lane["mode"] in _LAND_MODES]
+
+
+def test_every_land_lane_is_mode_tagged_provisional_and_undated():
+    for lane in _land_lanes():
+        assert lane["mode"] in _LAND_MODES
+        assert lane["status"] == "provisional"
+        assert lane["data_period_used"] is None
+    for lane in lanes():
+        if lane["lane_id"].startswith(("LANE-ROAD-", "LANE-RAIL-", "LANE-BORDER-")):
+            assert lane["mode"] in _LAND_MODES
+
+
+def test_no_land_lane_claims_a_resolution_it_does_not_have():
+    for lane in _land_lanes():
+        assert lane["resolution"] == "corridor"
+    schema = json.loads((ROOT / "schemas/lane.schema.json").read_text(encoding="utf-8"))
+    resolution_enum = set(schema["properties"]["resolution"]["enum"])
+    assert resolution_enum == {"port_pair", "port_group", "country", "regional", "corridor"}
+
+
+def test_every_land_lane_states_the_no_ranking_limitation():
+    for lane in _land_lanes():
+        limitations = [item.lower() for item in lane["known_limitations"]]
+        assert any("no quantitative" in item for item in limitations)
+
+
+def test_no_land_lane_claims_a_measured_ranking():
+    for lane in _land_lanes():
+        for item in lane["selection_evidence"]:
+            if item["criterion"] == "trade_value_or_volume":
+                assert item["evidence_class"] == "insufficient_evidence"
+            if item["source_reference"] is None:
+                assert item["evidence_class"] in {"analytical_inference", "insufficient_evidence"}
+
+
+def test_land_chokepoint_exposure_is_inference_not_verified_fact():
+    for lane in _land_lanes():
+        for item in lane["selection_evidence"]:
+            if item["criterion"] == "chokepoint_exposure":
+                assert item["evidence_class"] == "analytical_inference"
+
+
+def test_no_land_lane_claims_a_source_backed_criterion():
+    for lane in _land_lanes():
+        criteria = {item["criterion"] for item in lane["selection_evidence"]}
+        assert "source_backed_analysis_support" not in criteria
+
+
+def test_the_land_chokepoints_are_registered_and_land_only():
+    chokepoints = chokepoint_index()
+    sadao = chokepoints["CHK-THSDK-BKH"]
+    assert sadao["chokepoint_type"] == "border_corridor"
+    assert set(sadao["modes"]) <= _LAND_MODES
+    assert sadao["authority_notice_source_ids"] == []
+
+    gauge_break = chokepoints["CHK-THNKI-TNL"]
+    assert gauge_break["chokepoint_type"] == "rail_gauge_break"
+    assert set(gauge_break["modes"]) <= _LAND_MODES
+    assert gauge_break["operating_authority"] is None
+    assert gauge_break["authority_notice_source_ids"] == []
+    assert gauge_break["known_limitations"]
+
+
+def test_only_the_relevant_lanes_transit_each_land_chokepoint():
+    assert set(lanes_for_chokepoint("CHK-THSDK-BKH")) == {
+        "LANE-ROAD-TH-MY",
+        "LANE-BORDER-TH-CROSSINGS",
+    }
+    assert set(lanes_for_chokepoint("CHK-THNKI-TNL")) == {
+        "LANE-RAIL-TH-LA",
+        "LANE-BORDER-TH-CROSSINGS",
+    }
+
+
+def test_every_land_lane_anchors_only_on_registered_land_nodes():
+    nodes = node_index()
+    for lane in _land_lanes():
+        assert lane["node_ids"], lane["lane_id"]
+        for node_id in lane["node_ids"]:
+            assert set(nodes[node_id]["modes"]) & _LAND_MODES, lane["lane_id"]
+
+
+def test_no_ocean_or_air_lane_gained_a_land_reference_record():
+    for lane in lanes():
+        if lane["mode"] in {"sea", "air"}:
+            assert not set(lane.get("node_ids", [])) & {
+                "NODE-THNKI",
+                "NODE-THARY",
+                "NODE-THMST",
+                "NODE-THLKB",
+            }
+            assert not set(lane.get("chokepoint_ids", [])) & set(_LAND_CHOKEPOINTS)
+
+
+def test_lane_relevance_respects_land_event_modes():
+    road_only = resolve_lane_relevance(country_ids=["TH"], modes=["road"])
+    assert road_only
+    assert all(lane_by_id(lane_id)["mode"] == "road" for lane_id in road_only)
+
+    rail_only = resolve_lane_relevance(country_ids=["TH"], modes=["rail"])
+    assert rail_only
+    assert all(lane_by_id(lane_id)["mode"] == "rail" for lane_id in rail_only)
+
+    border_only = resolve_lane_relevance(country_ids=["TH"], modes=["border"])
+    assert border_only
+    assert all(lane_by_id(lane_id)["mode"] == "border" for lane_id in border_only)
+
+    sea_only = resolve_lane_relevance(country_ids=["TH"], modes=["sea", "multimodal"])
+    assert not any(lane_by_id(lane_id)["mode"] in _LAND_MODES for lane_id in sea_only)
+
+    mode_blind = resolve_lane_relevance(country_ids=["TH"])
+    assert any(lane_by_id(lane_id)["mode"] == "road" for lane_id in mode_blind)
+
+
+def test_the_three_new_country_geographies_resolve():
+    geographies = geography_index()
+    for geo_id, country_id in (
+        ("GEO-CTY-KH", "KH"),
+        ("GEO-CTY-LA", "LA"),
+        ("GEO-CTY-MM", "MM"),
+    ):
+        record = geographies[geo_id]
+        assert record["level"] == "country"
+        assert record["parent_geography_id"] == "GEO-RGN-SEASIA"
+        assert record["country_ids"] == [country_id]
+        assert record["thailand_relationship"] == "direct_trade_partner"
+
+
+def test_road_rail_and_border_modules_stay_planned_while_no_source_is_enabled():
+    modes = mode_index()
+    for mode_id in ("road", "rail", "border"):
+        assert modes[mode_id]["module_status"] == "planned"
+        assert mode_id not in implemented_modes()
+
+
+def test_no_land_reference_record_names_a_registered_source():
+    registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
+    registered_ids = {source["id"] for source in registry["sources"]}
+    for lane in _land_lanes():
+        for item in lane["selection_evidence"]:
+            assert item["source_reference"] not in registered_ids
+    for chokepoint_id in _LAND_CHOKEPOINTS:
+        chokepoint = chokepoint_index()[chokepoint_id]
+        assert not set(chokepoint["authority_notice_source_ids"]) & registered_ids
+
+
+def test_no_land_rail_or_border_source_is_registered_yet():
+    registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
+    tokens = {
+        "road",
+        "rail",
+        "border",
+        "truck",
+        "trucking",
+        "crossing",
+        "checkpoint",
+        "inland",
+        "highway",
+        "customs",
+    }
+    fields: list[str] = []
+    for source in registry["sources"]:
+        fields.extend(source.get("purposes", []))
+        fields.extend((source.get("qualification") or {}).get("logistics_role", []))
+    lowered = [field.lower() for field in fields]
+    words_seen = {word for field in lowered for word in re.split(r"[_\s]+", field)}
+    hits = words_seen & tokens
+    assert not hits, hits
+
+
+def test_event_type_enum_still_lacks_a_mode_neutral_restriction_value():
+    """WO-040 identified a real gap this Work Order deliberately does not
+    close: port_restriction/canal_restriction are Ocean-worded, and no
+    mode-neutral 'facility_or_corridor_restriction' value exists for a
+    road, rail or border restriction as distinct from a full closure.
+    Recorded in docs/known_data_gaps.md §9. A trip-wire: the day someone
+    closes this gap, this test forces the documentation to keep up."""
+    schema = json.loads((ROOT / "schemas/logistics_event.schema.json").read_text(encoding="utf-8"))
+    event_type_enum = set(schema["properties"]["event_type"]["enum"])
+    assert {"port_restriction", "canal_restriction"} <= event_type_enum
+    assert "facility_or_corridor_restriction" not in event_type_enum

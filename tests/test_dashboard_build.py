@@ -20,6 +20,7 @@ REQUIRED_OUTPUTS = {
     "thailand_situation.json",
     "ocean.json",
     "air.json",
+    "land.json",
     "trade.json",
     "cost.json",
     "events.json",
@@ -400,6 +401,52 @@ def test_the_air_view_emits_no_href():
     airReferenceRow and airHistoricalCase for the actual row/card markup."""
     script = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
     for name in ("renderAir", "airLaneRow", "airReferenceRow", "airHistoricalCase"):
+        body = _js_function_body(script, name)
+        assert body, f"expected to resolve {name}'s body"
+        assert "href" not in body, f"{name} emits an href"
+
+
+# ---------------------------------------------------------------------------
+# Land foundation (Road, Rail, Border) — WO-041
+# ---------------------------------------------------------------------------
+
+
+def test_the_land_payload_carries_every_land_reference_record(payloads):
+    land = payloads["land.json"]
+    assert len(land["lanes"]) == 8
+    for lane in land["lanes"]:
+        assert lane["mode"] in {"road", "rail", "border"}
+        assert lane["known_limitations"]
+        assert lane["selection_evidence"]
+    assert {node["node_id"] for node in land["nodes"]} == {
+        "NODE-THSDK",
+        "NODE-THNKI",
+        "NODE-THARY",
+        "NODE-THMST",
+        "NODE-THLKB",
+    }
+    assert {cp["chokepoint_id"] for cp in land["chokepoints"]} == {
+        "CHK-THSDK-BKH",
+        "CHK-THNKI-TNL",
+    }
+
+
+def test_the_land_view_exists_and_is_wired_to_its_payload():
+    html = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    script = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
+    assert 'id="land"' in html and 'data-view="land"' in html
+    assert 'data-route="land"' in html
+    assert "'land.json': 'land'" in script
+    assert "'land.json': renderLand" in script
+    assert "'land.json'" in script
+    assert "function renderLand(" in script
+
+
+def test_the_land_view_emits_no_href():
+    """Mirrors the Air view's guard, checking renderLand and every helper it
+    delegates markup-building to."""
+    script = (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
+    for name in ("renderLand", "landLaneRow", "landReferenceRow", "landHistoricalCase"):
         body = _js_function_body(script, name)
         assert body, f"expected to resolve {name}'s body"
         assert "href" not in body, f"{name} emits an href"

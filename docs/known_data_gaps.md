@@ -198,6 +198,16 @@ record on Issue #68). `docs/bundle2_air_cargo_scope.md` (WO-017) is the standing
 scope document; this section records what the three Work Orders that followed it actually
 found, so this inventory doesn't drift from the record the way §7 corrected for Ocean.
 
+**Correction (WO-040):** the `license_id: "Open Data Common"`, `license_url: null`,
+`isopen: false` non-licence string this section originally framed as an Air-specific blocker
+on `air-freight-pass` is not Air-specific. WO-040's Land, Rail and Border research (§9) found
+the identical string on every Thai road and rail candidate examined, and it already also
+blocks PAT's Ocean candidate (`catalog.port.co.th`, WO-032). It is a **cross-cutting Thai
+government open-data licensing question**, not a per-mode or per-dataset one — one human
+legal determination would potentially unblock candidates in three modules at once. Treat
+every mention of this licence question below, and in §9, as describing the same standing
+question.
+
 - **WO-034 — Air Cargo primary-source research (Issue #69, closed).** Found
   `datagov.mot.go.th` (Thailand's Ministry of Transport CKAN catalogue) reachable in this
   environment and containing real primary-source pages for two promising candidates, neither
@@ -280,3 +290,72 @@ does not repeat that shape a second time.
 WO-039 is now the one implementation Work Order landed for Air Cargo; every gap this section
 records for `air-freight-pass`, the air freight rate benchmark, and the airport/airspace
 notice channel remains open regardless.
+
+## 9. Land, Rail and Border (Bundle 3) research passes — what WO-040/041 established
+
+Air Cargo Foundation was accepted, with documented gaps, before Land, Rail and Border
+research began (see the WO-040 architecture review posted to Issue #79). This section
+records what that review, and the WO-041 implementation that followed it, actually found.
+
+- **WO-040 — Land, Rail and Border architecture and source-capability review (Issue #79,
+  closed).** Independently verified every structural claim in `docs/air_land_extension_points.md`
+  §3 against the live schema and data, and found four omissions: no mode-neutral event-type
+  *restriction* value exists (only `port_restriction`/`canal_restriction`, both Ocean-worded
+  — deliberately left open, see below); three neighbour-country geography records
+  (`GEO-CTY-KH`, `GEO-CTY-LA`, `GEO-CTY-MM`) did not exist; the lane `resolution` enum has no
+  border-specific value (the honest value is `corridor`, and none was added); and a Land mode
+  filter written as a denylist ("not sea and not air") would incorrectly sweep `NODE-THBKK`'s
+  `inland_waterway` mode into a Land payload.
+  Researched Thai road, rail and border candidates on the one reachable host
+  (`datagov.mot.go.th`) using catalogue-metadata requests only — no `datastore_search` call,
+  no data row read. Found real, fresh, mode-bearing candidates for Road and Rail:
+  `freight-import-export` and `freight-dom` (MOT-ICT, national trade volume disaggregated by
+  transport mode including road and rail) and `stat_freight_rail` (Department of Rail
+  Transport, monthly and **province-resolved**, with a machine-readable CSV data dictionary —
+  the best Thai logistics candidate any Work Order has identified). **Every one is blocked by
+  the same cross-cutting open-data licence question** that blocks Air and Ocean candidates
+  (§8 correction, above); `stat_freight_rail` is additionally reachable only through a
+  harvest mirror (`drt.gdcatalog.go.th` is not allowlisted). **No border-crossing dataset of
+  any kind was found** in the Ministry of Transport's catalogue — two independent
+  Thai-language searches returned zero hits, a documented negative research result. Examined
+  and refused on substance: `gps-freight-transport-analytics` (truck-GPS analysis output, not
+  an observation; no unit; non-machine-readable data dictionary; same licence block) and
+  `dataset_13_011` (a transport-demand *model* output, not measured flow). Decided: one
+  bundle, all three modes; Road and Border first within it (on engineering readiness — their
+  anchor node and corridor already existed from WO-010), Rail second, despite Rail having the
+  strongest *source* position of the three; structural-foundation-first, mirroring
+  `docs/air_lane_selection.md`'s methodology exactly; zero schema changes; no new hostname
+  allowlist requested. Fully specified the WO-041 implementation in the same review.
+- **WO-041 — Land, Rail and Border foundation, Bundle 3 structural-foundation-first (Issue
+  #79).** Built the Land structural scaffolding on the WO-040 specification: eight
+  provisional lanes (`LANE-ROAD-TH-MY`, `-LA`, `-KH`, `-MM`, `-DOMESTIC`; `LANE-RAIL-TH-LA`,
+  `-DOMESTIC`; `LANE-BORDER-TH-CROSSINGS`), one new chokepoint (`CHK-THNKI-TNL`, the first
+  `rail_gauge_break` this platform registers), four new nodes (`NODE-THNKI`, `NODE-THARY`,
+  `NODE-THMST`, `NODE-THLKB`), three new country geographies (`GEO-CTY-KH`, `GEO-CTY-LA`,
+  `GEO-CTY-MM`), and one historical validation case (`HVC-010`, the 18 March 2020 Malaysian
+  Movement Control Order closing the Thailand–Malaysia land border to general movement while
+  goods traffic continued). **No source was registered, enabled, scheduled or published, and
+  no figure from any candidate named above was used to select, rank or size any lane** — the
+  selection rests entirely on the recorded structural criteria, every lane carries
+  `data_period_used: null`, and every gap WO-040 identified stays open. See
+  `docs/land_rail_border_lane_selection.md` for the full selection methodology.
+
+**One schema gap is named and deliberately left open by WO-041, matching the same discipline
+WO-017 → WO-035 used for Air's closure-event gap:** there is no mode-neutral `event_type`
+*restriction* value. `port_restriction` and `canal_restriction` are both Ocean-worded, and a
+road, rail or border restriction that falls short of a full closure — reduced operating
+hours, an axle-load limit, a speed restriction — has no exact-fit value. WO-041 did not need
+one, because `HVC-010` is a full closure (`terminal_or_facility_closure`). A future Work Order
+should propose an additive `facility_or_corridor_restriction` value only when a real
+restriction event needs recording, not speculatively.
+
+**What remains open for Land, Rail and Border, not executed by any Work Order to date:** the
+same cross-cutting licence determination named in §8's correction, above, which would
+potentially unblock `freight-import-export`, `freight-dom` and `stat_freight_rail`
+simultaneously; qualifying `stat_freight_rail` at its primary catalogue
+(`drt.gdcatalog.go.th`) rather than through the `datagov.mot.go.th` harvest mirror; and
+identifying a border-crossing or customs-operational dataset at all — the Ministry of
+Commerce's border-trade reporting (`tradereport.moc.go.th`) is the one candidate reported by
+secondary evidence but never reached from this environment. WO-041 is now the one
+implementation Work Order landed for Land, Rail and Border; every gap this section records
+stays open regardless.

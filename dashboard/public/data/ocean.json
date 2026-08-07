@@ -1,6 +1,6 @@
 {
   "dataset": "current_publication",
-  "generated_at": "2026-08-06T00:00:00Z",
+  "generated_at": "2026-08-06T21:00:00Z",
   "current_port_series": [],
   "demo_port_series": [
     {
@@ -1239,8 +1239,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-EASIA-CN",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-EASIA-CN",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 Mainland China and Hong Kong. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -1875,8 +1875,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-JPKR",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-JPKR",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 Japan and Korea. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -2575,8 +2575,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-ASEAN-SG",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-ASEAN-SG",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 ASEAN and Singapore transshipment. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -3259,8 +3259,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-SASIA",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-SASIA",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 South Asia. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -3944,8 +3944,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-MEGULF",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-MEGULF",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 Middle East and Gulf. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -4678,8 +4678,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-NEUR",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-NEUR",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 Northern Europe. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -5408,8 +5408,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-MED",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-MED",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 Mediterranean. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -6084,8 +6084,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-USWC",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-USWC",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 United States West Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -6822,8 +6822,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-USEC",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-USEC",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 United States East and Gulf Coast. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -7473,8 +7473,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-OCEANIA",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-OCEANIA",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand \u2194 Australia and New Zealand. The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -8110,8 +8110,8 @@
           "outlook_id": "OUT-CUR-OCEAN-TH-DOMESTIC",
           "subject_type": "lane",
           "subject_id": "LANE-OCEAN-TH-DOMESTIC",
-          "generated_at": "2026-08-06T00:00:00Z",
-          "data_cutoff_at": "2026-08-06T00:00:00Z",
+          "generated_at": "2026-08-06T21:00:00Z",
+          "data_cutoff_at": "2026-08-06T21:00:00Z",
           "base_case": {
             "narrative": "No outlook can be offered for Thailand domestic port and inland connection (Laem Chabang \u2194 Bangkok hinterland). The platform holds no qualified evidence for this lane, so its current state is unknown rather than unchanged. The trigger below is what would have to happen before any assessment could begin.",
             "time_horizon": "1-4_weeks",
@@ -8356,7 +8356,25 @@
       "thailand_relationship": "is_thailand",
       "known_limitations": [
         "Registered to demonstrate that dim_chokepoint is mode-neutral and already accepts a Road/Border corridor.",
-        "No Land or Border data, lanes or events are delivered by WO-010; this chokepoint carries no data yet."
+        "Transited by LANE-ROAD-TH-MY and LANE-BORDER-TH-CROSSINGS, and by one historical validation case (HVC-010), under WO-041; see docs/land_rail_border_lane_selection.md.",
+        "No Road or Border observation, indicator or live event is delivered by WO-041; this chokepoint carries no measured data. No notice channel is registered: authority_notice_source_ids stays empty."
+      ]
+    },
+    {
+      "chokepoint_id": "CHK-THNKI-TNL",
+      "name": "Nong Khai\u2013Thanaleng rail gauge break",
+      "chokepoint_type": "rail_gauge_break",
+      "geography_id": "GEO-CTY-TH",
+      "modes": [
+        "rail",
+        "border"
+      ],
+      "operating_authority": null,
+      "authority_notice_source_ids": [],
+      "thailand_relationship": "is_thailand",
+      "known_limitations": [
+        "Thailand's metre-gauge network meets standard gauge at the Lao side of this crossing, so a through container must be transhipped -- a physical constraint, not an inferred one. It is nonetheless classified analytical_inference on the lane that transits it, not verified_fact, because this platform holds no rail network reference data and observes no train.",
+        "No Rail or Border observation, indicator or live event is delivered by WO-041; this chokepoint carries no measured data. No notice channel is registered: authority_notice_source_ids stays empty."
       ]
     },
     {
@@ -8486,10 +8504,97 @@
       ],
       "thailand_relationship": "is_thailand",
       "role_notes": [
-        "Registered to demonstrate that dim_logistics_node is mode-neutral and already accepts a Road/Border node."
+        "Registered to demonstrate that dim_logistics_node is mode-neutral and already accepts a Road/Border node.",
+        "Anchors LANE-ROAD-TH-MY and LANE-BORDER-TH-CROSSINGS, and one historical validation case (HVC-010), under WO-041; see docs/land_rail_border_lane_selection.md."
       ],
       "known_limitations": [
-        "No Land or Border observations, lanes or events are delivered by WO-010; this node carries no data yet."
+        "No Road or Border observation, indicator or live event is delivered by WO-041; this node carries no measured data. It appears in the provisional Land lane set and in one historical-validation case only.",
+        "Crossing-level activity for this border is not measured by any enabled source. No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; see docs/known_data_gaps.md \u00a79."
+      ]
+    },
+    {
+      "node_id": "NODE-THNKI",
+      "name": "Nong Khai border crossing (Thai\u2013Lao Friendship Bridge I)",
+      "node_type": "border_crossing",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": null,
+      "modes": [
+        "road",
+        "rail",
+        "border"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "The only registered Thai land crossing carrying both road and rail.",
+        "Anchors LANE-ROAD-TH-LA, LANE-RAIL-TH-LA and LANE-BORDER-TH-CROSSINGS under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road, Rail or Border observation, indicator or live event is delivered by WO-041; this node carries no measured data.",
+        "No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; see docs/known_data_gaps.md \u00a79."
+      ]
+    },
+    {
+      "node_id": "NODE-THARY",
+      "name": "Aranyaprathet border crossing",
+      "node_type": "border_crossing",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": null,
+      "modes": [
+        "road",
+        "border"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "Principal Thailand\u2013Cambodia land crossing.",
+        "Anchors LANE-ROAD-TH-KH and LANE-BORDER-TH-CROSSINGS under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road or Border observation, indicator or live event is delivered by WO-041; this node carries no measured data.",
+        "No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; see docs/known_data_gaps.md \u00a79."
+      ]
+    },
+    {
+      "node_id": "NODE-THMST",
+      "name": "Mae Sot border crossing",
+      "node_type": "border_crossing",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": null,
+      "modes": [
+        "road",
+        "border"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "Principal Thailand\u2013Myanmar land crossing.",
+        "Anchors LANE-ROAD-TH-MM and LANE-BORDER-TH-CROSSINGS under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road or Border observation, indicator or live event is delivered by WO-041; this node carries no measured data.",
+        "No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; see docs/known_data_gaps.md \u00a79."
+      ]
+    },
+    {
+      "node_id": "NODE-THLKB",
+      "name": "Lat Krabang Inland Container Depot",
+      "node_type": "inland_terminal",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": null,
+      "modes": [
+        "rail",
+        "road"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "The first inland_terminal registered in this platform; the rail-linked inland anchor for the domestic road and rail lanes.",
+        "Anchors LANE-ROAD-TH-DOMESTIC, LANE-RAIL-TH-LA and LANE-RAIL-TH-DOMESTIC under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road or Rail observation, indicator or live event is delivered by WO-041; this node carries no measured data.",
+        "The strongest Thai rail candidate identified (DRT's stat_freight_rail) is blocked by an unresolved open-data licence question; see docs/known_data_gaps.md \u00a79."
       ]
     },
     {
@@ -9047,6 +9152,50 @@
         "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
         "'strength' is the grading the authored case asserts would have been available at its 2019-03-06 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
       ]
+    },
+    {
+      "dataset": "historical_validation",
+      "evidence_id": "EVD-HVC-010-A",
+      "evidence_origin": "historical_validation_fixture",
+      "retrieval_status": "not_retrieved",
+      "intended_source_id": "MANUAL_NOTICE_INTAKE",
+      "assessment_cutoff": "2020-03-25T00:00:00Z",
+      "case_id": "HVC-010",
+      "event_id": "EVT-20200318-001",
+      "source_name": "Government of Malaysia",
+      "source_class": "official",
+      "source_url": "https://www.pmo.gov.my/",
+      "claim": "The Prime Minister announced on 16 March 2020 a Movement Control Order effective 18-31 March 2020, closing the country's borders to inbound and outbound movement of persons, with essential services exempt.",
+      "publication_date": "2020-03-16",
+      "retrieved_at": null,
+      "licence_status": "pending_review",
+      "known_limitations": [
+        "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
+        "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+        "'strength' is the grading the authored case asserts would have been available at its 2020-03-25 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
+      ]
+    },
+    {
+      "dataset": "historical_validation",
+      "evidence_id": "EVD-HVC-010-B",
+      "evidence_origin": "historical_validation_fixture",
+      "retrieval_status": "not_retrieved",
+      "intended_source_id": "MANUAL_NOTICE_INTAKE",
+      "assessment_cutoff": "2020-03-25T00:00:00Z",
+      "case_id": "HVC-010",
+      "event_id": "EVT-20200318-001",
+      "source_name": "Royal Malaysian Customs Department",
+      "source_class": "regulator",
+      "source_url": "https://www.customs.gov.my/",
+      "claim": "Customs operations at ports, airports and land entry points continued under the order with reduced staffing, and movement of goods continued at designated checkpoints including Bukit Kayu Hitam.",
+      "publication_date": "2020-03-18",
+      "retrieved_at": null,
+      "licence_status": "pending_review",
+      "known_limitations": [
+        "Historical validation fixture. The publisher's content was NOT retrieved under WO-010 because no source was reachable from the execution environment; the original source URL is retained so the claim can be verified independently.",
+        "The content hash is a claim-record hash over this repository's own authored text. It is not a hash of any publisher response and is not evidence about one.",
+        "'strength' is the grading the authored case asserts would have been available at its 2020-03-25 cutoff (strength_basis 'expected_at_cutoff'), not a verified assessment of retrieved content."
+      ]
     }
   ],
   "current_capacity_and_service_evidence": [],
@@ -9077,6 +9226,34 @@
       "confidence": "medium",
       "known_limitations": [
         "Air schedule reliability is not measured by any source qualified in this registry."
+      ]
+    },
+    {
+      "dataset": "historical_validation",
+      "assessment_cutoff": "2020-03-25T00:00:00Z",
+      "event_id": "EVT-20200318-001",
+      "title": "Malaysia's Movement Control Order closes the Thailand\u2013Malaysia land border to general movement while goods traffic continues",
+      "area": "capacity",
+      "status": "potential",
+      "severity": "moderate",
+      "evidence_strength": "B",
+      "confidence": "low",
+      "known_limitations": [
+        "The capacity reduction is a stated mechanism, not a measured quantity. No road or border crossing capacity series is qualified in this registry, and none was used to produce this reading."
+      ]
+    },
+    {
+      "dataset": "historical_validation",
+      "assessment_cutoff": "2020-03-25T00:00:00Z",
+      "event_id": "EVT-20200318-001",
+      "title": "Malaysia's Movement Control Order closes the Thailand\u2013Malaysia land border to general movement while goods traffic continues",
+      "area": "service",
+      "status": "observed",
+      "severity": "moderate",
+      "evidence_strength": "A",
+      "confidence": "medium",
+      "known_limitations": [
+        "Crossing-level clearance time is not measured by any source qualified in this registry."
       ]
     },
     {
