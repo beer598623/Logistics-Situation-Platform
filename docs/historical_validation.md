@@ -47,7 +47,7 @@ of the claim, not a retrieved publisher response.
 | `HVC-007` | Pasir Panjang oil spill | 2024-06-20 | direct operational event | complete | low | 5 | **pass** |
 | `HVC-008` | Unverified SE Asia terminal lead | 2026-07-24 | discovery lead | **not applicable** | **none established** | 0 | **pass** |
 | `HVC-009` | Pakistan airspace closure / Thailand–Europe air services | 2019-03-06 | direct operational event | complete | medium | 5 | **pass** |
-| `HVC-010` | Malaysia MCO closes the Thailand–Malaysia land border to general movement | 2020-03-18 | direct operational event | complete | medium | 6 | **pass** |
+| `HVC-010` | Malaysia MCO closes the Thailand–Malaysia land border to general movement | 2020-03-25 | direct operational event | complete | medium | 6 | **pass** |
 
 `HVC-005`'s lane count grew from 11 to 16 without any change to the case itself: it carries
 `modes: ["sea", "road", "multimodal"]` from its original WO-010 authoring, so once WO-041
@@ -103,8 +103,9 @@ its lane relevance at country-membership strength — the same registry-membersh
   `country_ids: ["TH","MY"]`, which every Ocean lane touching Malaysia also carries, yet
   tagged `modes: ["road","border"]` it resolves `LANE-ROAD-TH-MY` and
   `LANE-BORDER-TH-CROSSINGS` at `medium` relevance (via `NODE-THSDK`/`CHK-THSDK-BKH`) and the
-  other three cross-border/domestic Road lanes at `low` (via country membership only), and
-  resolves **no Ocean lane and no Air lane at all**.
+  other four cross-border/domestic Road lanes (`LANE-ROAD-TH-KH`, `-LA`, `-MM`,
+  `LANE-ROAD-TH-DOMESTIC`) at `low` (via country membership only), and resolves **no Ocean
+  lane and no Air lane at all**.
 
 ## 4. Measured behaviours
 

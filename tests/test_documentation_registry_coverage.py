@@ -101,6 +101,52 @@ def test_historical_validation_doc_counts_match_the_report() -> None:
         )
 
 
+def test_historical_validation_doc_visible_prose_matches_the_report() -> None:
+    """The marker test above binds only the hidden HTML-comment marker.
+    Reverting the *visible* prose/table numbers back to the stale 9/81
+    figures while leaving the marker untouched would still pass that test --
+    verified by mutation during WO-042 review. This binds the reader-facing
+    numbers directly."""
+    import json
+
+    report = json.loads((ROOT / "data" / "validation" / "validation_report.json").read_text())
+    text = _doc_text("historical_validation.md")
+    metrics = report["metrics"]
+
+    intro_match = re.search(
+        r"Measured across all (\w+) cases at once, (\d+) impact assessments in total",
+        text,
+    )
+    assert intro_match, "expected the '## 4. Measured behaviours' intro sentence"
+    assert int(intro_match.group(2)) == metrics["impacts_assessed"], (
+        f"intro sentence says {intro_match.group(2)} impact assessments; "
+        f"report says {metrics['impacts_assessed']}"
+    )
+
+    table_checks = {
+        "Impacts assessed": metrics["impacts_assessed"],
+        "Material impacts": metrics["material_impacts"],
+        "Insufficient-evidence uses": metrics["insufficient_evidence_uses"],
+        "No-material uses": metrics["no_material_uses"],
+    }
+    for row_label, expected in table_checks.items():
+        row_match = re.search(rf"\|\s*{re.escape(row_label)}\s*\|\s*(\d+)\s*\|", text)
+        assert row_match, f"expected a '| {row_label} | N |' table row"
+        assert int(row_match.group(1)) == expected, (
+            f"'{row_label}' row says {row_match.group(1)}; report says {expected}"
+        )
+
+    separation_match = re.search(r"([A-Za-z]+) cases demonstrate them genuinely diverging", text)
+    assert separation_match, "expected the event/impact separation count sentence"
+    _WORDS_TO_INT = {"five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+    word = separation_match.group(1).lower()
+    assert word in _WORDS_TO_INT, f"unrecognised count word '{word}'"
+    assert _WORDS_TO_INT[word] == len(metrics["event_impact_separation_examples"]), (
+        f"doc says '{word}' cases diverge; report lists "
+        f"{len(metrics['event_impact_separation_examples'])}"
+    )
+
+
 def test_historical_validation_doc_lists_every_case_id() -> None:
     import json
 
