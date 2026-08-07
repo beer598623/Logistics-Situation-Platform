@@ -7,6 +7,25 @@ WO-010 and is not bumped by every Work Order.
 
 ## [Unreleased]
 
+### Fixed
+
+- WO-042: cross-modal documentation and display hygiene (Issue #81), found by the first
+  independent readiness assessment to cover Ocean, Air and Land together. `ocean.json` had
+  no mode filter on its `chokepoints`/`nodes` fields, unlike Air and Land — harmless while
+  every registered chokepoint was `sea`, but once `CHK-SASIA-AIRSPACE`, `CHK-THSDK-BKH` and
+  `CHK-THNKI-TNL` were registered it caused the published Ocean Chokepoints table to state
+  "no lane exposed" for three chokepoints that do expose a lane. `scripts/build_dashboard.py`
+  now scopes `ocean.json["chokepoints"]` to `sea`-mode records (mirroring the existing
+  Air/Land filters) and drops the unused, unscoped `ocean.json["nodes"]` field entirely.
+  `docs/historical_validation.md` still reported nine cases / 81 impact assessments after
+  WO-041 added `HVC-010` as the tenth case; regenerated every count from
+  `data/validation/validation_report.json` and added a machine-checked marker binding the
+  doc to the report. `docs/dashboard_user_guide.md` omitted the `#/land` view entirely after
+  WO-041 added it as the platform's ninth view; added its route-table row and a full Land,
+  Rail & Border subsection mirroring the existing Air Cargo one, and added a test binding the
+  guide's route table to `index.html`'s own routes. No source registered/enabled, no schema
+  change, no new lane/node/chokepoint/geography record.
+
 ### Added
 
 - WO-041: Land, Rail and Border foundation (Bundle 3, structural-foundation-first, Issue

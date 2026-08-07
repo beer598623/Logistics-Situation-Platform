@@ -755,8 +755,13 @@ def build_payloads() -> dict[str, Any]:
             }
             for lane in lanes
         ],
-        "chokepoints": dimensions["chokepoints"],
-        "nodes": dimensions["logistics_nodes"],
+        # WO-042: scoped to sea, mirroring the Air (:1194) and Land (:1289)
+        # filters below. Before Air/Land existed every chokepoint was sea, so
+        # this filter was harmless to omit; it is not once a non-sea
+        # chokepoint (CHK-SASIA-AIRSPACE, CHK-THSDK-BKH, CHK-THNKI-TNL)
+        # exists, since an unfiltered list renders those with a false
+        # "no lane exposed" cell in the Ocean Chokepoints table.
+        "chokepoints": [c for c in dimensions["chokepoints"] if "sea" in c["modes"]],
         # Derived by filtering, not written as an empty list. A qualified
         # notice on a currently active event appears here the moment one
         # exists; today the filter matches nothing.

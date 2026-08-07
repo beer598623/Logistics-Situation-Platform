@@ -58,3 +58,53 @@ def test_documented_contract_count_matches_registry() -> None:
 def test_no_source_became_enabled() -> None:
     registry = load_registry()
     assert all(source["enabled"] is False for source in registry["sources"])
+
+
+# ---------------------------------------------------------------------------
+# WO-042: historical_validation.md's headline counts vs. the validation report
+#
+# docs/historical_validation.md still said "nine cases" / "81 impact
+# assessments" after WO-041 added HVC-010 as its tenth case -- the doc was
+# simply never regenerated. This binds it to the machine-generated report the
+# same way the tests above bind the qualification docs to the registry.
+# ---------------------------------------------------------------------------
+
+
+def _historical_validation_metrics_marker(text: str) -> dict[str, int]:
+    match = re.search(
+        r"<!--\s*historical-validation-metrics:\s*"
+        r"cases=(\d+)\s+impacts_assessed=(\d+)\s+material_impacts=(\d+)\s+"
+        r"insufficient_evidence_uses=(\d+)\s*-->",
+        text,
+    )
+    assert match, "expected a '<!-- historical-validation-metrics: ... -->' marker"
+    return {
+        "cases": int(match.group(1)),
+        "impacts_assessed": int(match.group(2)),
+        "material_impacts": int(match.group(3)),
+        "insufficient_evidence_uses": int(match.group(4)),
+    }
+
+
+def test_historical_validation_doc_counts_match_the_report() -> None:
+    import json
+
+    report = json.loads((ROOT / "data" / "validation" / "validation_report.json").read_text())
+    marker = _historical_validation_metrics_marker(_doc_text("historical_validation.md"))
+    assert marker["cases"] == len(report["cases"]), (
+        f"doc claims {marker['cases']} cases; report has {len(report['cases'])}"
+    )
+    for key in ("impacts_assessed", "material_impacts", "insufficient_evidence_uses"):
+        assert marker[key] == report["metrics"][key], (
+            f"historical_validation.md's {key} marker is stale "
+            f"(doc says {marker[key]}, report says {report['metrics'][key]})"
+        )
+
+
+def test_historical_validation_doc_lists_every_case_id() -> None:
+    import json
+
+    report = json.loads((ROOT / "data" / "validation" / "validation_report.json").read_text())
+    text = _doc_text("historical_validation.md")
+    missing = [c["case_id"] for c in report["cases"] if c["case_id"] not in text]
+    assert not missing, f"historical_validation.md omits: {missing}"
