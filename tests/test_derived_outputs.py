@@ -291,6 +291,122 @@ def test_no_air_source_was_registered_or_enabled_by_this_work_order():
 
 
 # ---------------------------------------------------------------------------
+# Land foundation (Road, Rail, Border) — WO-041
+# ---------------------------------------------------------------------------
+
+
+def test_the_land_historical_case_replays_clean():
+    from scripts.run_historical_validation import run as run_historical_validation
+
+    failures, _metrics, case_results = run_historical_validation()
+    case = next(item for item in case_results if item["case_id"] == "HVC-010")
+    assert case["result"] == "pass"
+    assert case["failures"] == []
+    assert "LANE-ROAD-TH-MY" in case["lane_relevance"]
+    assert "LANE-BORDER-TH-CROSSINGS" in case["lane_relevance"]
+    assert not any("HVC-010" in failure for failure in failures)
+
+
+def test_the_land_historical_event_resolves_no_ocean_or_air_lane():
+    events = json.loads((ROOT / "data/events/events.json").read_text(encoding="utf-8"))["events"]
+    event = next(item for item in events if item["event_id"] == "EVT-20200318-001")
+    assert set(event["modes"]) == {"road", "border"}
+    assert event["lane_relevance"]
+    assert all(
+        entry["lane_id"].startswith(("LANE-ROAD-", "LANE-RAIL-", "LANE-BORDER-"))
+        for entry in event["lane_relevance"]
+    )
+
+
+def test_the_land_historical_event_matched_its_primary_lanes_through_node_and_chokepoint():
+    events = json.loads((ROOT / "data/events/events.json").read_text(encoding="utf-8"))["events"]
+    event = next(item for item in events if item["event_id"] == "EVT-20200318-001")
+    by_lane = {entry["lane_id"]: entry for entry in event["lane_relevance"]}
+    for lane_id in ("LANE-ROAD-TH-MY", "LANE-BORDER-TH-CROSSINGS"):
+        entry = by_lane[lane_id]
+        assert entry["relevance"] == "medium"
+        assert "chokepoint CHK-THSDK-BKH" in entry["basis"]
+        assert "node NODE-THSDK" in entry["basis"]
+    # The other three cross-border road lanes match only through shared
+    # country membership, at low relevance -- the same registry-membership
+    # effect HVC-005 and HVC-009 already exercise.
+    for lane_id in ("LANE-ROAD-TH-LA", "LANE-ROAD-TH-KH", "LANE-ROAD-TH-MM"):
+        assert by_lane[lane_id]["relevance"] == "low"
+
+
+def test_the_land_historical_case_never_reads_a_closure_as_a_freight_stoppage():
+    events = json.loads((ROOT / "data/events/events.json").read_text(encoding="utf-8"))["events"]
+    event = next(item for item in events if item["event_id"] == "EVT-20200318-001")
+    impacts_by_area = {item["area"]: item for item in event["impact_assessments"]}
+    import_export = impacts_by_area["import_export"]
+    assert import_export["status"] != "observed"
+    assert any(
+        "stoppage of freight" in limitation for limitation in import_export["known_limitations"]
+    )
+
+
+def test_the_land_historical_case_quantifies_no_land_capacity_or_cost():
+    events = json.loads((ROOT / "data/events/events.json").read_text(encoding="utf-8"))["events"]
+    event = next(item for item in events if item["event_id"] == "EVT-20200318-001")
+    impacts_by_area = {item["area"]: item for item in event["impact_assessments"]}
+    for area, expected_phrase in (
+        ("capacity", "not a measured quantity"),
+        ("cost", "quantified"),
+    ):
+        impact = impacts_by_area[area]
+        assert impact["status"] == "potential"
+        assert any(expected_phrase in limitation for limitation in impact["known_limitations"])
+
+
+def test_the_land_foundation_added_no_observation_record():
+    families = (
+        "indicator_observations",
+        "trade_observations",
+        "port_observations",
+        "cost_observations",
+    )
+    total = 0
+    for family in families:
+        records = json.loads(
+            (ROOT / f"data/observations/{family}.json").read_text(encoding="utf-8")
+        )["records"]
+        total += len(records)
+        for record in records:
+            assert record.get("placement", {}).get("mode") not in {"road", "rail", "border"}
+            assert not str(record.get("lane_id", "")).startswith(
+                ("LANE-ROAD-", "LANE-RAIL-", "LANE-BORDER-")
+            )
+    assert total == 930
+
+
+def test_no_land_source_was_registered_or_enabled_by_this_work_order():
+    import re
+
+    import yaml
+
+    registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
+    tokens = {
+        "road",
+        "rail",
+        "border",
+        "truck",
+        "trucking",
+        "crossing",
+        "checkpoint",
+        "inland",
+        "highway",
+        "customs",
+    }
+    for source in registry["sources"]:
+        assert source["enabled"] is False, source["id"]
+        fields = list(source.get("purposes", []))
+        fields.extend((source.get("qualification") or {}).get("logistics_role", []))
+        lowered = [field.lower() for field in fields]
+        words_seen = {word for field in lowered for word in re.split(r"[_\s]+", field)}
+        assert not (words_seen & tokens), source["id"]
+
+
+# ---------------------------------------------------------------------------
 # No network in the default path
 # ---------------------------------------------------------------------------
 

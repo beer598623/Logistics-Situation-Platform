@@ -52,14 +52,32 @@ Air source is enabled.
 
 ## 3. What a future Land, Rail and Border module would add
 
+**WO-041 delivered the lanes, nodes, chokepoints and closure event typing** as the Land
+foundation under Bundle 3, structural-foundation-first — see
+`docs/land_rail_border_lane_selection.md`. Observations remain undelivered because no Road,
+Rail or Border source is enabled; a mode-neutral *restriction* event type (as distinct from a
+closure) also remains undelivered — see `docs/known_data_gaps.md` §9 for why that gap was
+left open on purpose.
+
 - **Lanes:** `LANE-ROAD-TH-*`, `LANE-RAIL-TH-*`, `LANE-BORDER-TH-*` with corridor
-  resolution.
+  resolution. **Delivered:** eight lanes — four cross-border road lanes (one per Thai land
+  neighbour), one domestic road lane, one international rail lane, one domestic rail lane,
+  and one border-crossing-operations lane covering all four registered crossings.
 - **Nodes:** border crossings beyond `NODE-THSDK`, inland terminals, rail terminals.
+  **Delivered:** `NODE-THNKI` (Nong Khai, the only registered crossing carrying both road and
+  rail), `NODE-THARY` (Aranyaprathet), `NODE-THMST` (Mae Sot), and `NODE-THLKB` (Lat Krabang
+  Inland Container Depot, the first `inland_terminal` this platform registers).
 - **Chokepoints:** border corridors beyond `CHK-THSDK-BKH`, plus rail gauge breaks.
-- **Observations:** border crossing counts, rail movements, road transit times.
+  **Delivered:** `CHK-THNKI-TNL`, the Nong Khai–Thanaleng rail gauge break — the first
+  `rail_gauge_break` this platform registers.
+- **Observations:** border crossing counts, rail movements, road transit times. **Still
+  undelivered.** No qualified source exists for any of them; every Thai road and rail
+  candidate identified is blocked by an unresolved open-data licence question, and no
+  border-crossing dataset was found at all. See `docs/known_data_gaps.md` §9.
 - **Events:** customs system outage is already in the event type enum. A road, rail or
   border closure uses `terminal_or_facility_closure` — the same WO-035 value §2 uses for
-  Air, not a separate one.
+  Air, not a separate one. **Delivered:** one historical validation case, `HVC-010`, uses
+  exactly this value for a real border closure.
 
 ## 4. What must not change
 

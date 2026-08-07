@@ -73,7 +73,7 @@ def test_the_schema_covers_every_conceptual_entity():
 def test_clean_build_populates_every_table(built):
     _, counts, _ = built
     assert set(counts) == EXPECTED_TABLES
-    assert counts["dim_lane"] == 16  # 11 Ocean + 5 Air
+    assert counts["dim_lane"] == 24  # 11 Ocean + 5 Air + 8 Land
     assert counts["fact_impact_assessment"] == counts["fact_event"] * 9
     assert all(count > 0 for count in counts.values())
 

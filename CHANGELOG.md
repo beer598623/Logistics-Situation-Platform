@@ -9,6 +9,55 @@ WO-010 and is not bumped by every Work Order.
 
 ### Added
 
+- WO-041: Land, Rail and Border foundation (Bundle 3, structural-foundation-first, Issue
+  #79). Added eight provisional lanes to `data/reference/lanes.json`: four cross-border road
+  lanes (`LANE-ROAD-TH-MY`, `-LA`, `-KH`, `-MM`, one per Thai land neighbour — a complete
+  partition, not a selection), one domestic road lane, one international rail lane
+  (`LANE-RAIL-TH-LA`), one domestic rail lane, and one border-crossing-operations lane
+  (`LANE-BORDER-TH-CROSSINGS`) covering all four registered crossings at once because its
+  subject is the crossing process itself, not any one country pair; see
+  `docs/land_rail_border_lane_selection.md` for the full per-lane rationale. Added one new
+  chokepoint, `CHK-THNKI-TNL` (the first `rail_gauge_break` this platform registers, at the
+  Nong Khai–Thanaleng crossing where Thailand's metre-gauge network meets standard gauge),
+  classified `analytical_inference` rather than `verified_fact` on the lane that transits it
+  because this platform observes no train. Updated the existing WO-010 placeholder records
+  `NODE-THSDK` and `CHK-THSDK-BKH` to anchor real lanes for the first time. Added four new
+  nodes: `NODE-THNKI` (Nong Khai, the only registered crossing carrying both road and rail),
+  `NODE-THARY` (Aranyaprathet), `NODE-THMST` (Mae Sot), and `NODE-THLKB` (Lat Krabang Inland
+  Container Depot, the first `inland_terminal` this platform registers). Added three new
+  country geographies (`GEO-CTY-KH`, `GEO-CTY-LA`, `GEO-CTY-MM`) required before any
+  Thailand–Cambodia/Laos/Myanmar land lane could be written. Added one historical validation
+  case, `HVC-010` (the 18 March 2020 Malaysian Movement Control Order closing the
+  Thailand–Malaysia land border to general movement while goods traffic continued), chosen to
+  prove two things at once: that a border closure is not read as a freight stoppage (goods
+  movement was expressly exempted, so `import_export` stays `potential`, never `observed`),
+  and that the mode-scoping guard WO-039 built for Air also holds for a genuine Land event —
+  `HVC-010` shares `country_ids: ["TH","MY"]` with several Ocean lanes yet resolves no Ocean
+  or Air lane at all. `analysis/reference.py::resolve_lane_relevance`'s `modes` parameter
+  (added under WO-039) already required both call sites to pass an event's stated modes
+  before this Work Order began, so no code change was required to prevent that leakage — this
+  Work Order only had to prove the existing guard holds for Land. Added a new Dashboard
+  payload, `land.json`, and a ninth routed view (`#/land`, "Land, Rail & Border") stating
+  `live_coverage: insufficient` and a per-mode `module_status` map (`road`/`rail`/`border`,
+  all `planned`) explicitly, with every lane's current assessment explicitly `null`. The Land
+  node/chokepoint filters use an explicit allowlist (`{road, rail, border}`), not a denylist,
+  so `NODE-THBKK`'s `inland_waterway` mode is never swept into the Land payload. New
+  `docs/land_rail_border_lane_selection.md` documents the methodology; `docs/known_data_gaps.md`
+  (new §9, plus a correction re-scoping the `"Open Data Common"`/`isopen: false` open-data
+  licence question as a cross-cutting gap across Ocean, Air and Land rather than an
+  Air-specific one — it now blocks a real, fresh, machine-readable Thai rail candidate too),
+  `docs/air_land_extension_points.md`, and `README.md` were updated to match. **No schema
+  file under `schemas/` changed** — every field needed (mode-tagged lanes, the
+  `border_crossing`/`inland_terminal` node types, the `border_corridor`/`rail_gauge_break`
+  chokepoint types, the `terminal_or_facility_closure` event type WO-035 already added) was
+  already present. One schema gap is named and deliberately left open: there is no
+  mode-neutral event-type value for a road/rail/border *restriction* as distinct from a full
+  closure; `HVC-010` did not need one, and a future Work Order should add one additively only
+  when a real restriction event needs recording. **No source was registered, enabled,
+  scheduled or published** — `config/sources.yaml` was not touched, and no figure from any
+  candidate examined during WO-040's research (Thai MOT road/rail trade statistics, DRT rail
+  freight, truck-GPS analytics) was used to select, rank, order or size any lane, node or
+  chokepoint. No live network request was made by this Work Order or by any test it added.
 - WO-039: Air Cargo foundation (Bundle 2 Option A, Issue #76). Added five provisional
   `LANE-AIR-TH-*` lanes (East Asia, ASEAN and Singapore, Europe, North America, and a domestic
   gateway lane) to `data/reference/lanes.json`, selected by named structural reasoning exactly

@@ -1,0 +1,649 @@
+{
+  "dataset": "current_publication",
+  "generated_at": "2026-08-06T21:00:00Z",
+  "methodology_version": "0.8",
+  "module_status": {
+    "road": "planned",
+    "rail": "planned",
+    "border": "planned"
+  },
+  "live_coverage": "insufficient",
+  "live_coverage_statement": "Live coverage is INSUFFICIENT. No source in the registry is enabled and none has completed a controlled live validation, so the platform holds no live-retrieved or human-reviewed evidence at all. Every current reading below is therefore 'insufficient evidence' -- which is a coverage gap, not a finding that conditions are normal. Synthetic and historical-validation fixtures are shown only in the separately labelled Technical demonstration panels and never contribute to a current reading.",
+  "coverage_message": "Land, Rail and Border live coverage is insufficient. No Road, Rail or Border source is registered or enabled, no observation or indicator series exists for any of the three modes, and no Land lane carries a current assessment. This is a coverage gap, not a finding that Land conditions are normal.",
+  "lane_selection_note": "Land lane selection methodology is documented in docs/land_rail_border_lane_selection.md. No quantitative Thailand road, rail or border freight ranking was retrieved or used, so lanes were selected on the recorded structural criteria and every lane is provisional with data_period_used null.",
+  "lanes": [
+    {
+      "lane_id": "LANE-ROAD-TH-MY",
+      "name": "Thailand \u2194 Malaysia cross-border road freight",
+      "mode": "road",
+      "direction": "bidirectional",
+      "resolution": "corridor",
+      "origin": "Thailand land gateway",
+      "destination": "Malaysia",
+      "country_ids": [
+        "TH",
+        "MY"
+      ],
+      "node_ids": [
+        "NODE-THSDK"
+      ],
+      "chokepoint_ids": [
+        "CHK-THSDK-BKH"
+      ],
+      "selection_evidence": [
+        {
+          "criterion": "chokepoint_exposure",
+          "statement": "The only Thai land corridor with a chokepoint already registered in this platform (CHK-THSDK-BKH, WO-010), transiting the Sadao\u2013Bukit Kayu Hitam crossing.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "The only cross-border road lane whose destination country also hosts major container ports, so a road-corridor disruption here has an ocean alternative the other three land-neighbour lanes lack.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No road, rail or border freight volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "Candidates were identified for this mode (see docs/known_data_gaps.md \u00a79) but every one is blocked before qualification by an unresolved Thai government open-data licence question that also blocks Ocean and Air candidates; no row of any of them was ever read.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand road, rail or border freight ranking was retrieved or used under WO-041; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "No Road observation, indicator or live event is delivered by WO-041; this lane carries no measured data.",
+        "Lane relevance resolved through shared country membership is a registry-membership relationship, not an established effect.",
+        "Only the Thailand end of this lane has a registered logistics node. No Malaysian crossing node is registered, so an event on the far side of the crossing cannot resolve to this lane by node."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Road, Rail or Border source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-ROAD-TH-LA",
+      "name": "Thailand \u2194 Lao PDR cross-border road freight",
+      "mode": "road",
+      "direction": "bidirectional",
+      "resolution": "corridor",
+      "origin": "Thailand land gateway",
+      "destination": "Lao PDR",
+      "country_ids": [
+        "TH",
+        "LA"
+      ],
+      "node_ids": [
+        "NODE-THNKI"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "strategic_trade_relevance",
+          "statement": "This repository's own registry records Lao PDR as a landlocked neighbour dependent on Thailand ports for ocean access, with the limitation that land and rail transit is a Land-module concern the Ocean module does not assess. This lane closes that limitation.",
+          "evidence_class": "analytical_inference",
+          "source_reference": "data/reference/dimensions.json"
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No road, rail or border freight volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "Candidates were identified for this mode (see docs/known_data_gaps.md \u00a79) but every one is blocked before qualification by an unresolved Thai government open-data licence question that also blocks Ocean and Air candidates; no row of any of them was ever read.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand road, rail or border freight ranking was retrieved or used under WO-041; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "No Road observation, indicator or live event is delivered by WO-041; this lane carries no measured data.",
+        "Lane relevance resolved through shared country membership is a registry-membership relationship, not an established effect.",
+        "Only the Thailand end of this lane has a registered logistics node. No Lao crossing node is registered, so an event on the far side of the crossing cannot resolve to this lane by node."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Road, Rail or Border source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-ROAD-TH-KH",
+      "name": "Thailand \u2194 Cambodia cross-border road freight",
+      "mode": "road",
+      "direction": "bidirectional",
+      "resolution": "corridor",
+      "origin": "Thailand land gateway",
+      "destination": "Cambodia",
+      "country_ids": [
+        "TH",
+        "KH"
+      ],
+      "node_ids": [
+        "NODE-THARY"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "strategic_trade_relevance",
+          "statement": "This repository's own registry records Cambodia as an adjacent ASEAN partner with combined ocean and cross-border flows, with the limitation that cross-border road flows are a Land-module concern the Ocean module does not assess. This lane closes that limitation.",
+          "evidence_class": "analytical_inference",
+          "source_reference": "data/reference/dimensions.json"
+        },
+        {
+          "criterion": "geographic_coverage",
+          "statement": "Thailand has exactly four land neighbours; the four cross-border road lanes in this set are a complete partition of them, not a selection, so omitting any one would be arbitrary in a way this platform's other omissions are not.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No road, rail or border freight volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "Candidates were identified for this mode (see docs/known_data_gaps.md \u00a79) but every one is blocked before qualification by an unresolved Thai government open-data licence question that also blocks Ocean and Air candidates; no row of any of them was ever read.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand road, rail or border freight ranking was retrieved or used under WO-041; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "No Road observation, indicator or live event is delivered by WO-041; this lane carries no measured data.",
+        "Lane relevance resolved through shared country membership is a registry-membership relationship, not an established effect.",
+        "Only the Thailand end of this lane has a registered logistics node. No Cambodian crossing node is registered, so an event on the far side of the crossing cannot resolve to this lane by node."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Road, Rail or Border source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-ROAD-TH-MM",
+      "name": "Thailand \u2194 Myanmar cross-border road freight",
+      "mode": "road",
+      "direction": "bidirectional",
+      "resolution": "corridor",
+      "origin": "Thailand land gateway",
+      "destination": "Myanmar",
+      "country_ids": [
+        "TH",
+        "MM"
+      ],
+      "node_ids": [
+        "NODE-THMST"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "strategic_trade_relevance",
+          "statement": "This repository's own registry records Myanmar as an adjacent ASEAN partner with combined ocean and cross-border flows, with the limitation that cross-border road flows are a Land-module concern the Ocean module does not assess. This lane closes that limitation.",
+          "evidence_class": "analytical_inference",
+          "source_reference": "data/reference/dimensions.json"
+        },
+        {
+          "criterion": "geographic_coverage",
+          "statement": "Thailand has exactly four land neighbours; the four cross-border road lanes in this set are a complete partition of them, not a selection, so omitting any one would be arbitrary in a way this platform's other omissions are not.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No road, rail or border freight volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "Candidates were identified for this mode (see docs/known_data_gaps.md \u00a79) but every one is blocked before qualification by an unresolved Thai government open-data licence question that also blocks Ocean and Air candidates; no row of any of them was ever read.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand road, rail or border freight ranking was retrieved or used under WO-041; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "No Road observation, indicator or live event is delivered by WO-041; this lane carries no measured data.",
+        "Lane relevance resolved through shared country membership is a registry-membership relationship, not an established effect.",
+        "Only the Thailand end of this lane has a registered logistics node. No Myanmar crossing node is registered, so an event on the far side of the crossing cannot resolve to this lane by node."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Road, Rail or Border source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-ROAD-TH-DOMESTIC",
+      "name": "Thailand domestic road freight and gateway drayage",
+      "mode": "road",
+      "direction": "domestic",
+      "resolution": "corridor",
+      "origin": "Thailand land gateway",
+      "destination": "Thailand domestic road network",
+      "country_ids": [
+        "TH"
+      ],
+      "node_ids": [
+        "NODE-THLKB"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "Closes two limitations already recorded in this repository: LANE-AIR-TH-DOMESTIC's landside road drayage leg, explicitly deferred to a future Land-module road lane, and the Ocean module's inland drayage gap on the seaport leg.",
+          "evidence_class": "analytical_inference",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No road, rail or border freight volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "Candidates were identified for this mode (see docs/known_data_gaps.md \u00a79) but every one is blocked before qualification by an unresolved Thai government open-data licence question that also blocks Ocean and Air candidates; no row of any of them was ever read.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand road, rail or border freight ranking was retrieved or used under WO-041; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "No Road observation, indicator or live event is delivered by WO-041; this lane carries no measured data.",
+        "This lane is anchored on Lat Krabang Inland Container Depot as the registered inland gateway. It does not represent every domestic road movement in Thailand, only the gateway-connected leg this platform has a node for."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Road, Rail or Border source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-RAIL-TH-LA",
+      "name": "Thailand \u2194 Lao PDR international rail freight",
+      "mode": "rail",
+      "direction": "bidirectional",
+      "resolution": "corridor",
+      "origin": "Thailand rail network",
+      "destination": "Lao PDR",
+      "country_ids": [
+        "TH",
+        "LA"
+      ],
+      "node_ids": [
+        "NODE-THNKI",
+        "NODE-THLKB"
+      ],
+      "chokepoint_ids": [
+        "CHK-THNKI-TNL"
+      ],
+      "selection_evidence": [
+        {
+          "criterion": "chokepoint_exposure",
+          "statement": "The only physically continuous international rail connection out of Thailand, and it crosses a gauge break where a through container must be transhipped. This is stated as analytical inference, not as a verified fact -- unlike the gauge break's physical existence, which is fixed infrastructure, this platform holds no rail network reference data and observes no train, so which services actually use this crossing on any given day is not measured here.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "The only lane in the Land set that can be moved by a transhipment-capacity event at a gauge break, rather than only by a road-corridor or crossing event.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No road, rail or border freight volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "Candidates were identified for this mode (see docs/known_data_gaps.md \u00a79) but every one is blocked before qualification by an unresolved Thai government open-data licence question that also blocks Ocean and Air candidates; no row of any of them was ever read.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand road, rail or border freight ranking was retrieved or used under WO-041; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "No Rail observation, indicator or live event is delivered by WO-041; this lane carries no measured data.",
+        "Lane relevance resolved through shared country membership is a registry-membership relationship, not an established effect.",
+        "Only the Thailand end of this lane has a registered logistics node. No Lao crossing node is registered, so an event on the far side of the crossing cannot resolve to this lane by node.",
+        "The strongest Thai rail candidate identified (the Department of Rail Transport's stat_freight_rail, monthly and province-resolved) is blocked by an unresolved open-data licence question and is additionally reachable only through a harvest mirror; see docs/known_data_gaps.md \u00a79. No figure from it was used to select, rank or size this lane."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Road, Rail or Border source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-RAIL-TH-DOMESTIC",
+      "name": "Thailand domestic rail freight and port connection",
+      "mode": "rail",
+      "direction": "domestic",
+      "resolution": "corridor",
+      "origin": "Thailand rail network",
+      "destination": "Thailand domestic rail network",
+      "country_ids": [
+        "TH"
+      ],
+      "node_ids": [
+        "NODE-THLKB"
+      ],
+      "chokepoint_ids": [],
+      "selection_evidence": [
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "The port-to-inland-container-depot rail leg is a shared dependency of Thai rail freight, assessed once here rather than duplicated across other lanes.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No road, rail or border freight volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "Candidates were identified for this mode (see docs/known_data_gaps.md \u00a79) but every one is blocked before qualification by an unresolved Thai government open-data licence question that also blocks Ocean and Air candidates; no row of any of them was ever read.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand road, rail or border freight ranking was retrieved or used under WO-041; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "No Rail observation, indicator or live event is delivered by WO-041; this lane carries no measured data.",
+        "This is the lane most exposed to re-selection if the Department of Rail Transport's province-resolved freight series is ever qualified; see docs/known_data_gaps.md \u00a79."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Road, Rail or Border source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    },
+    {
+      "lane_id": "LANE-BORDER-TH-CROSSINGS",
+      "name": "Thailand land border crossing operations",
+      "mode": "border",
+      "direction": "bidirectional",
+      "resolution": "corridor",
+      "origin": "Thailand land border",
+      "destination": "Thailand's four land neighbours",
+      "country_ids": [
+        "TH",
+        "MY",
+        "LA",
+        "KH",
+        "MM"
+      ],
+      "node_ids": [
+        "NODE-THSDK",
+        "NODE-THNKI",
+        "NODE-THARY",
+        "NODE-THMST"
+      ],
+      "chokepoint_ids": [
+        "CHK-THSDK-BKH",
+        "CHK-THNKI-TNL"
+      ],
+      "selection_evidence": [
+        {
+          "criterion": "operational_distinctiveness",
+          "statement": "Its subject is the crossing process itself -- customs, immigration, inspection, opening hours -- not any particular vehicle movement or country pair. A customs-system outage or a bilateral closure acts on that process at every registered crossing at once and is not attributable to one country pair, so it is assessed once here rather than duplicated into the four road lanes. This gives mode 'border' a distinct analytical subject rather than a duplicate of the road lanes, mirroring how the Ocean and Air domestic lanes use the same shared-dependency reasoning.",
+          "evidence_class": "analytical_inference",
+          "source_reference": null
+        },
+        {
+          "criterion": "trade_value_or_volume",
+          "statement": "No road, rail or border freight volume or route-significance source is registered or enabled, so no lane in this set was ranked, ordered or sized against measured data.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        },
+        {
+          "criterion": "data_availability",
+          "statement": "No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; this is a documented negative research result, not an incomplete search.",
+          "evidence_class": "insufficient_evidence",
+          "source_reference": "docs/known_data_gaps.md"
+        }
+      ],
+      "data_period_used": null,
+      "known_limitations": [
+        "No quantitative Thailand road, rail or border freight ranking was retrieved or used under WO-041; the trade-value criterion is recorded as insufficient evidence, not as a measured ranking.",
+        "No Border observation, indicator or live event is delivered by WO-041; this lane carries no measured data.",
+        "Lane relevance resolved through shared country membership is a registry-membership relationship, not an established effect.",
+        "No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; this is a documented negative research result, not zero crossing activity."
+      ],
+      "review_date": "2026-08-06",
+      "status": "provisional",
+      "assessment": null,
+      "assessment_note": "insufficient_evidence: no Road, Rail or Border source is enabled, so no current assessment is produced for this lane. This is a coverage gap, not a finding that conditions on this lane are normal."
+    }
+  ],
+  "nodes": [
+    {
+      "node_id": "NODE-THSDK",
+      "name": "Sadao border crossing",
+      "node_type": "border_crossing",
+      "country_id": "TH",
+      "geography_id": "GEO-ADM-TH-SONGKHLA",
+      "unlocode": null,
+      "modes": [
+        "road",
+        "border"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "Registered to demonstrate that dim_logistics_node is mode-neutral and already accepts a Road/Border node.",
+        "Anchors LANE-ROAD-TH-MY and LANE-BORDER-TH-CROSSINGS, and one historical validation case (HVC-010), under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road or Border observation, indicator or live event is delivered by WO-041; this node carries no measured data. It appears in the provisional Land lane set and in one historical-validation case only.",
+        "Crossing-level activity for this border is not measured by any enabled source. No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; see docs/known_data_gaps.md \u00a79."
+      ]
+    },
+    {
+      "node_id": "NODE-THNKI",
+      "name": "Nong Khai border crossing (Thai\u2013Lao Friendship Bridge I)",
+      "node_type": "border_crossing",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": null,
+      "modes": [
+        "road",
+        "rail",
+        "border"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "The only registered Thai land crossing carrying both road and rail.",
+        "Anchors LANE-ROAD-TH-LA, LANE-RAIL-TH-LA and LANE-BORDER-TH-CROSSINGS under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road, Rail or Border observation, indicator or live event is delivered by WO-041; this node carries no measured data.",
+        "No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; see docs/known_data_gaps.md \u00a79."
+      ]
+    },
+    {
+      "node_id": "NODE-THARY",
+      "name": "Aranyaprathet border crossing",
+      "node_type": "border_crossing",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": null,
+      "modes": [
+        "road",
+        "border"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "Principal Thailand\u2013Cambodia land crossing.",
+        "Anchors LANE-ROAD-TH-KH and LANE-BORDER-TH-CROSSINGS under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road or Border observation, indicator or live event is delivered by WO-041; this node carries no measured data.",
+        "No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; see docs/known_data_gaps.md \u00a79."
+      ]
+    },
+    {
+      "node_id": "NODE-THMST",
+      "name": "Mae Sot border crossing",
+      "node_type": "border_crossing",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": null,
+      "modes": [
+        "road",
+        "border"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "Principal Thailand\u2013Myanmar land crossing.",
+        "Anchors LANE-ROAD-TH-MM and LANE-BORDER-TH-CROSSINGS under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road or Border observation, indicator or live event is delivered by WO-041; this node carries no measured data.",
+        "No border-crossing dataset of any kind was found in the Ministry of Transport's open-data catalogue; see docs/known_data_gaps.md \u00a79."
+      ]
+    },
+    {
+      "node_id": "NODE-THLKB",
+      "name": "Lat Krabang Inland Container Depot",
+      "node_type": "inland_terminal",
+      "country_id": "TH",
+      "geography_id": "GEO-CTY-TH",
+      "unlocode": null,
+      "modes": [
+        "rail",
+        "road"
+      ],
+      "thailand_relationship": "is_thailand",
+      "role_notes": [
+        "The first inland_terminal registered in this platform; the rail-linked inland anchor for the domestic road and rail lanes.",
+        "Anchors LANE-ROAD-TH-DOMESTIC, LANE-RAIL-TH-LA and LANE-RAIL-TH-DOMESTIC under WO-041; see docs/land_rail_border_lane_selection.md."
+      ],
+      "known_limitations": [
+        "No Road or Rail observation, indicator or live event is delivered by WO-041; this node carries no measured data.",
+        "The strongest Thai rail candidate identified (DRT's stat_freight_rail) is blocked by an unresolved open-data licence question; see docs/known_data_gaps.md \u00a79."
+      ]
+    }
+  ],
+  "chokepoints": [
+    {
+      "chokepoint_id": "CHK-THSDK-BKH",
+      "name": "Sadao\u2013Bukit Kayu Hitam border corridor",
+      "chokepoint_type": "border_corridor",
+      "geography_id": "GEO-ADM-TH-SONGKHLA",
+      "modes": [
+        "road",
+        "border"
+      ],
+      "operating_authority": null,
+      "authority_notice_source_ids": [],
+      "thailand_relationship": "is_thailand",
+      "known_limitations": [
+        "Registered to demonstrate that dim_chokepoint is mode-neutral and already accepts a Road/Border corridor.",
+        "Transited by LANE-ROAD-TH-MY and LANE-BORDER-TH-CROSSINGS, and by one historical validation case (HVC-010), under WO-041; see docs/land_rail_border_lane_selection.md.",
+        "No Road or Border observation, indicator or live event is delivered by WO-041; this chokepoint carries no measured data. No notice channel is registered: authority_notice_source_ids stays empty."
+      ]
+    },
+    {
+      "chokepoint_id": "CHK-THNKI-TNL",
+      "name": "Nong Khai\u2013Thanaleng rail gauge break",
+      "chokepoint_type": "rail_gauge_break",
+      "geography_id": "GEO-CTY-TH",
+      "modes": [
+        "rail",
+        "border"
+      ],
+      "operating_authority": null,
+      "authority_notice_source_ids": [],
+      "thailand_relationship": "is_thailand",
+      "known_limitations": [
+        "Thailand's metre-gauge network meets standard gauge at the Lao side of this crossing, so a through container must be transhipped -- a physical constraint, not an inferred one. It is nonetheless classified analytical_inference on the lane that transits it, not verified_fact, because this platform holds no rail network reference data and observes no train.",
+        "No Rail or Border observation, indicator or live event is delivered by WO-041; this chokepoint carries no measured data. No notice channel is registered: authority_notice_source_ids stays empty."
+      ]
+    }
+  ],
+  "source_gaps": [
+    "Cross-border road freight and border-crossing activity: no dataset of any kind found in the Ministry of Transport's open-data catalogue.",
+    "Rail freight movements and international rail corridors: a candidate exists (the Department of Rail Transport's stat_freight_rail) but it stays unregistered on an unresolved licence and is reachable only through a harvest mirror.",
+    "Customs or border operational status: no source identified on any reachable host.",
+    "Land, rail or border operational-notice channel: none registered. MANUAL_NOTICE_INTAKE is the only honest interim path and holds no Land record.",
+    "Thailand import/export evidence with a genuine land or rail dimension: a candidate exists (freight-import-export, freight-dom) but it stays unregistered on the same unresolved licence, and its resolution is national-annual only.",
+    "Transit time, queue, capacity and service reliability for any land corridor: no qualified source at any resolution.",
+    "Land, rail or border freight cost or rate benchmark: none found at zero cost.",
+    "The unresolved 'Open Data Common' / isopen: false licence question is a cross-cutting gap, not specific to Land: it also blocks the Ocean and Air candidates on record. See docs/known_data_gaps.md \u00a79."
+  ],
+  "historical_land_events": [
+    {
+      "dataset": "historical_validation",
+      "event_id": "EVT-20200318-001",
+      "case_id": "HVC-010",
+      "assessment_cutoff": "2020-03-25T00:00:00Z",
+      "title": "Malaysia's Movement Control Order closes the Thailand\u2013Malaysia land border to general movement while goods traffic continues",
+      "event_type": "terminal_or_facility_closure",
+      "event_date": "2020-03-18",
+      "lane_ids": [
+        "LANE-BORDER-TH-CROSSINGS",
+        "LANE-ROAD-TH-DOMESTIC",
+        "LANE-ROAD-TH-KH",
+        "LANE-ROAD-TH-LA",
+        "LANE-ROAD-TH-MM",
+        "LANE-ROAD-TH-MY"
+      ],
+      "chokepoint_ids": [
+        "CHK-THSDK-BKH"
+      ],
+      "known_limitations": [
+        "Historical validation case HVC-010, assessed at cutoff 2020-03-25T00:00:00Z. Later knowledge is deliberately excluded.",
+        "How long the restriction would last, and that on 17 June 2020 Malaysia ended 24-hour operations at Bukit Kayu Hitam for heavy vehicles, were both unknown at this cutoff and must not inform the assessment. This case exists to prove two things: that a border closure is not a freight stoppage -- goods movement was expressly exempted, so import_export must never be read as observed collapse -- and that mode scoping holds for Land: this event carries country_ids ['TH','MY'], which every Ocean lane touching Malaysia also carries, yet tagged modes ['road','border'] it must resolve no Ocean lane and no Air lane at all."
+      ]
+    },
+    {
+      "dataset": "historical_validation",
+      "event_id": "EVT-20220301-001",
+      "case_id": "HVC-005",
+      "assessment_cutoff": "2022-06-30T00:00:00Z",
+      "title": "Crude and refined product prices rise sharply, raising bunker and domestic fuel costs",
+      "event_type": "energy_shock",
+      "event_date": "2022-03-01",
+      "lane_ids": [
+        "LANE-OCEAN-TH-ASEAN-SG",
+        "LANE-OCEAN-TH-DOMESTIC",
+        "LANE-OCEAN-TH-EASIA-CN",
+        "LANE-OCEAN-TH-JPKR",
+        "LANE-OCEAN-TH-MED",
+        "LANE-OCEAN-TH-MEGULF",
+        "LANE-OCEAN-TH-NEUR",
+        "LANE-OCEAN-TH-OCEANIA",
+        "LANE-OCEAN-TH-SASIA",
+        "LANE-OCEAN-TH-USEC",
+        "LANE-OCEAN-TH-USWC",
+        "LANE-ROAD-TH-DOMESTIC",
+        "LANE-ROAD-TH-KH",
+        "LANE-ROAD-TH-LA",
+        "LANE-ROAD-TH-MM",
+        "LANE-ROAD-TH-MY"
+      ],
+      "chokepoint_ids": [],
+      "known_limitations": [
+        "Historical validation case HVC-005, assessed at cutoff 2022-06-30T00:00:00Z. Later knowledge is deliberately excluded.",
+        "The eventual peak and duration of the price movement were unknown at this cutoff. This case exists to check that an external driver with a complete chain produces potential cost pressure rather than a quantified cost figure."
+      ]
+    }
+  ],
+  "historical_label": "Historical validation \u2014 replayed through the analysis code to prove the Land event chain works. These describe no current condition."
+}
