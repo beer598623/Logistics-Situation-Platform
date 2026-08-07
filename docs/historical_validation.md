@@ -1,8 +1,13 @@
 # Historical analytical validation cases and results
 
-**Work Order:** WO-010 Gate J · **Status:** implemented, 9/9 cases pass
+**Work Order:** WO-010 Gate J, extended by WO-039 (HVC-009) and WO-041 (HVC-010) · **Status:** implemented, 10/10 cases pass
 **Authored cases:** `data/validation/historical_cases.json`
 **Runner:** `scripts/run_historical_validation.py` · **Report:** `data/validation/validation_report.json`
+
+<!-- historical-validation-metrics: cases=10 impacts_assessed=90 material_impacts=21 insufficient_evidence_uses=60 -->
+<!-- The marker above is checked against data/validation/validation_report.json by
+     tests/test_documentation_registry_coverage.py so this doc's counts cannot drift
+     silently again the way they did between WO-039 and WO-041 (see WO-042). -->
 
 ## 1. What this validates
 
@@ -29,7 +34,7 @@ independent verification, `evidence_class: historical_validation_fixture`, and a
 statement that the content was not retrieved. Content hashes cover this repository's record
 of the claim, not a retrieved publisher response.
 
-## 3. The nine cases
+## 3. The ten cases
 
 | Case | Event | Cutoff | Class | Chain | Thailand relevance | Lanes | Result |
 |---|---|---|---|---|---|---|---|
@@ -37,11 +42,18 @@ of the claim, not a retrieved publisher response.
 | `HVC-002` | Panama Canal transit restrictions | 2023-11-15 | direct operational event | complete | low | 1 | **pass** |
 | `HVC-003` | Baltimore bridge collapse | 2024-04-05 | direct operational event | complete | **none established** | 2 | **pass** |
 | `HVC-004` | Singapore elevated waiting times | 2024-06-10 | direct operational event | complete | medium | 5 | **pass** |
-| `HVC-005` | Crude and product price shock | 2022-06-30 | external driver | complete | medium | 11 | **pass** |
+| `HVC-005` | Crude and product price shock | 2022-06-30 | external driver | complete | medium | 16 | **pass** |
 | `HVC-006` | Baltic subsea cable damage | 2024-12-01 | external driver | **incomplete** | **none established** | 1 | **pass** |
 | `HVC-007` | Pasir Panjang oil spill | 2024-06-20 | direct operational event | complete | low | 5 | **pass** |
 | `HVC-008` | Unverified SE Asia terminal lead | 2026-07-24 | discovery lead | **not applicable** | **none established** | 0 | **pass** |
 | `HVC-009` | Pakistan airspace closure / Thailand–Europe air services | 2019-03-06 | direct operational event | complete | medium | 5 | **pass** |
+| `HVC-010` | Malaysia MCO closes the Thailand–Malaysia land border to general movement | 2020-03-25 | direct operational event | complete | medium | 6 | **pass** |
+
+`HVC-005`'s lane count grew from 11 to 16 without any change to the case itself: it carries
+`modes: ["sea", "road", "multimodal"]` from its original WO-010 authoring, so once WO-041
+registered Land lanes, the five new Road lanes sharing its `country_ids` legitimately entered
+its lane relevance at country-membership strength — the same registry-membership pattern
+`HVC-009` already demonstrated for Air. This is expected behaviour, not drift in the case.
 
 ### Case mix against the Gate J requirement
 
@@ -55,6 +67,7 @@ of the claim, not a retrieved publisher response.
 | Insufficient evidence is the correct result | HVC-006, HVC-008 |
 | No material impact is the correct result | HVC-007 |
 | Airspace closure and Air-mode propagation | HVC-009 |
+| Border closure and Land-mode propagation, with no Ocean or Air leakage | HVC-010 |
 
 ### What each negative case is for
 
@@ -82,21 +95,32 @@ of the claim, not a retrieved publisher response.
   capacity and cost consequences stay `potential` with the gap named, never quantified from a
   source the platform does not hold. No `air-freight-pass`, AEROTHAI or passenger-traffic
   figure is used anywhere in the record.
+- **HVC-010 — Malaysia MCO border closure.** The Land foundation's end-to-end proof case,
+  proving two things at once. First, that a border closure is not a freight stoppage: goods
+  movement was expressly exempted at Bukit Kayu Hitam under reduced staffing, so
+  `import_export` resolves `potential`, never `observed`, everywhere in the record. Second,
+  that mode scoping holds for Land exactly as it does for Air: the event carries
+  `country_ids: ["TH","MY"]`, which every Ocean lane touching Malaysia also carries, yet
+  tagged `modes: ["road","border"]` it resolves `LANE-ROAD-TH-MY` and
+  `LANE-BORDER-TH-CROSSINGS` at `medium` relevance (via `NODE-THSDK`/`CHK-THSDK-BKH`) and the
+  other four cross-border/domestic Road lanes (`LANE-ROAD-TH-KH`, `-LA`, `-MM`,
+  `LANE-ROAD-TH-DOMESTIC`) at `low` (via country membership only), and resolves **no Ocean
+  lane and no Air lane at all**.
 
 ## 4. Measured behaviours
 
-Measured across all nine cases at once, 81 impact assessments in total:
+Measured across all ten cases at once, 90 impact assessments in total:
 
 | Measure | Result |
 |---|---|
 | Traceability rate | **1.0** — every impact's evidence references resolve |
-| Impacts assessed | 81 |
-| Material impacts | 16 |
+| Impacts assessed | 90 |
+| Material impacts | 21 |
 | Unsupported-causation count | **0** |
 | Unsupported-causation rate | **0.0** |
 | Geography leakage count | **0** — no lane relevance without a shared reference entity |
 | Missing-as-zero count | **0** |
-| Insufficient-evidence uses | 56 |
+| Insufficient-evidence uses | 60 |
 | No-material uses | 9 |
 | No-material without negative evidence | **none** |
 | Material impact on discovery-only evidence | **none** |
@@ -108,9 +132,10 @@ Measured across all nine cases at once, 81 impact assessments in total:
 ### Event / impact separation
 
 Event severity and impact severity are stored as separate fields and neither is inferred
-from the other. Five cases demonstrate them genuinely diverging:
+from the other. Six cases demonstrate them genuinely diverging:
 
 - `EVT-20190227-001` — event severity high, worst impact severity moderate
+- `EVT-20200318-001` — event severity high, worst impact severity moderate
 - `EVT-20231030-001` — event severity moderate, worst impact severity low
 - `EVT-20231218-001` — event severity high, worst impact severity moderate
 - `EVT-20240326-001` — event severity **high**, worst impact severity **none**

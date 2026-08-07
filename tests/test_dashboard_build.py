@@ -450,3 +450,26 @@ def test_the_land_view_emits_no_href():
         body = _js_function_body(script, name)
         assert body, f"expected to resolve {name}'s body"
         assert "href" not in body, f"{name} emits an href"
+
+
+# ---------------------------------------------------------------------------
+# Ocean payload mode scoping — WO-042
+# ---------------------------------------------------------------------------
+
+
+def test_the_ocean_payload_chokepoints_are_sea_scoped(payloads):
+    """Mirrors the Air (:384) and Land (:428) node/chokepoint scoping
+    checks. Before Air/Land existed every chokepoint was sea, so this
+    scoping was safe to omit; once CHK-SASIA-AIRSPACE, CHK-THSDK-BKH and
+    CHK-THNKI-TNL were registered, an unfiltered ocean.json rendered them
+    on the Ocean Chokepoints table with a false "no lane exposed" cell,
+    since only Ocean lanes are counted as exposing a chokepoint there."""
+    ocean = payloads["ocean.json"]
+    assert ocean["chokepoints"]
+    for cp in ocean["chokepoints"]:
+        assert "sea" in cp["modes"], f"{cp['chokepoint_id']} is not a sea chokepoint"
+    assert "nodes" not in ocean, (
+        "ocean.json carries no rendered use of a 'nodes' key (unlike air.json/land.json, "
+        "which app.js actually renders); an unscoped one is a dead and potentially "
+        "mode-leaking payload field, not a harmless extra"
+    )

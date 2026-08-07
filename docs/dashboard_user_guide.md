@@ -1,7 +1,7 @@
 # Dashboard user guide
 
 **Work Order:** WO-010 Gate K, corrected by WO-010-R1, restructured into seven
-routed views by WO-030, extended to eight by WO-039 · **Status:** implemented
+routed views by WO-030, extended to eight by WO-039 and nine by WO-041 · **Status:** implemented
 **Source:** `dashboard/public/` · **Build:** `python scripts/build_dashboard.py`
 
 ## 1. The page has two kinds of panel, and they are not the same thing
@@ -50,23 +50,25 @@ view is open. Once a payload fails, the chip stays at its most pessimistic
 reading for the rest of the page's life — a later view that happens to load
 cleanly does not relax it back.
 
-## 3. Navigating the eight views
+## 3. Navigating the nine views
 
 WO-030 split the page from one long scroll into seven separate views; WO-039
-added an eighth. Each view has its own `#/<route>` address:
+added an eighth (Air Cargo); WO-041 added a ninth (Land, Rail & Border). Each
+view has its own `#/<route>` address:
 
 | Route | View |
 |---|---|
 | `#/overview` | Thailand Logistics Situation |
 | `#/ocean` | Ocean Logistics |
 | `#/air` | Air Cargo |
+| `#/land` | Land, Rail & Border |
 | `#/trade` | Trade and Flow |
 | `#/cost` | Cost and Freight Pressure |
 | `#/events` | Events and External Drivers |
 | `#/outlook` | AI Outlook and Preparedness |
 | `#/sources` | Sources and Methodology |
 
-Only one view is visible at a time; the other seven sit behind the HTML
+Only one view is visible at a time; the other eight sit behind the HTML
 `hidden` attribute rather than being scrolled past. The nav bar at the top is
 sticky and always shows the current view (an underline on the active link)
 and the coverage chip described above. Switching views moves keyboard focus
@@ -88,14 +90,14 @@ pasted, bookmarked, or shared, and reopens exactly the same place.
 id — never substitutes silently. The page falls back to the Overview view and
 shows a visible notice naming the address it couldn't match.
 
-**Browser Ctrl+F only searches the visible view.** Because the other seven
+**Browser Ctrl+F only searches the visible view.** Because the other eight
 views are hidden rather than merely scrolled off-screen, the browser's
 built-in find-in-page will not match text in a view you haven't opened. If
 you're looking for something and aren't sure which view it's in, check
 Sources & Methodology's payload list (§4) for the underlying JSON, or open
 each view in turn.
 
-## 4. The eight views
+## 4. The nine views
 
 Within every view below, current material always comes first, in its own
 region. Demonstration and historical material — where the view has any —
@@ -146,20 +148,40 @@ Ocean lane table's expandable rows work. Below the current material, a labelled 
 region shows `HVC-009` (the 2019 Pakistan airspace closure), replayed through the same
 analysis code as every Ocean case.
 
-### 4 — Trade and Flow
+### 4 — Land, Rail & Border
+The provisional Land lane set (WO-041): four cross-border road lanes (one per Thai land
+neighbour), one domestic road lane, one international rail lane, one domestic rail lane, and
+one border-crossing-operations lane covering all four registered crossings. Also the
+registered Land nodes (`NODE-THSDK`, `NODE-THNKI`, `NODE-THARY`, `NODE-THMST`, `NODE-THLKB`)
+and chokepoints (`CHK-THSDK-BKH`, `CHK-THNKI-TNL`, the latter the registry's first rail gauge
+break), and two historical validation cases. States `live_coverage: insufficient` and
+`module_status` as a **per-mode map** — `{"road": "planned", "rail": "planned", "border":
+"planned"}`, not a single string, because Land covers three distinct modes at once: no
+Road, Rail or Border source is registered or enabled, no observation or indicator series
+exists for any of the three, and **no lane carries a current assessment** — every lane's
+current row shows `insufficient_evidence` rather than a fabricated attention level or
+direction. A lane's expanded row shows its selection evidence, evidence class, data period
+used (always none) and its known limitations, mirroring the Ocean and Air lane tables'
+expandable rows, with an added Mode column since a Land lane can be road, rail or border.
+Below the current material, a labelled historical region shows `HVC-010` (the 2020 Malaysia
+MCO border closure) and `HVC-005` (the 2022 energy-price shock, which legitimately resolves
+into this view too because it carries `road` among its own tagged modes), both replayed
+through the same analysis code as every Ocean and Air case.
+
+### 5 — Trade and Flow
 Thailand import and export value by lane group, each with a chart, a full period table,
 month-over-month and year-over-year change, rolling average, revision status and freshness.
 Trade value is an all-mode total; it is not ocean freight volume. This view covers Ocean
-lanes only — Air carries no trade-value series of any kind.
+lanes only — neither Air nor Land carries a trade-value series of any kind.
 
-### 5 — Cost and Freight Pressure
+### 6 — Cost and Freight Pressure
 Fuel, crude, freight benchmark and FX. Every series states its `benchmark_class`, its
 quotation claim, its route scope and its Thailand applicability. The freight series is a
 **route proxy for a third route**, published as a directional indicator only. No Thailand
-freight average is published anywhere, for Ocean or for Air. No surcharge series is
+freight average is published anywhere, for Ocean, Air or Land. No surcharge series is
 published, and the page says why.
 
-### 6 — Events and External Drivers
+### 7 — Events and External Drivers
 Four separate lists: direct operational events, external drivers with a stated transmission
 mechanism, contextual external drivers with none, and discovery leads.
 
@@ -170,7 +192,7 @@ the evidence with claim type and role, conflicting evidence, and limitations.
 Where Thailand relevance is `none established`, the card says the platform found no basis to
 assess an effect — which is different from finding there is none.
 
-### 7 — AI Outlook and Preparedness
+### 8 — AI Outlook and Preparedness
 Shows **only human-approved AI assessments**. It is currently empty, and says so in words
 rather than showing a blank panel: the workflow is implemented and tested, but producing an
 assessment requires a human to run a package through ChatGPT out-of-band.
@@ -180,13 +202,13 @@ deterioration and improvement cases generated from the documented threshold rule
 events and data gaps. These are explicitly labelled as not being an AI assessment. Each
 case carries its horizon, confidence, data gaps and a trigger table stating what would have
 to be observed and where. This roll-up covers Ocean lanes only (`subject: thailand_ocean`);
-Air lanes carry no scenario outlook, because no Air observation or event feed exists to
-derive one from.
+neither Air nor Land lanes carry a scenario outlook, because no Air or Land observation or
+event feed exists to derive one from.
 
 Conditional preparedness options appear per lane. They are organization-neutral and always
 carry a trigger and an exit condition.
 
-### 8 — Sources and Methodology
+### 9 — Sources and Methodology
 Every source: owner, class, landing page, endpoint, access method, machine-readable status,
 licence status, terms, access cost, reuse and redistribution status, publication cadence,
 observed freshness, data period, logistics role, prototype eligibility, live-validation
@@ -243,7 +265,7 @@ implies that an old reading — or a generated one — is current.
 - Every table — including the source-detail table, which previously had none — has a
   `<caption>` and a `<thead>` with scoped header cells. The header row is sticky, offset
   below the sticky nav bar so it never overlaps the row beneath it.
-- With scripting disabled, all eight views render in full, in document order, as one long
+- With scripting disabled, all nine views render in full, in document order, as one long
   page; a banner states that JavaScript is disabled and that coverage should be treated as
   insufficient, before any other content.
 - Wide tables scroll inside their own container; the page body never scrolls horizontally.
@@ -279,7 +301,7 @@ page background — the previous value was close enough to white to be functiona
 colours, recording the stricter of the two.)
 
 **Printing.** A `beforeprint` handler expands every collapsed demonstration/historical region
-and every expandable table row, makes all eight views visible, and fills in a print-only
+and every expandable table row, makes all nine views visible, and fills in a print-only
 header (title, coverage state, data cutoff, the page's URL) before the browser renders the
 page; an `afterprint` handler restores whatever was open or hidden beforehand. This was
 verified with a real print-to-PDF in Chromium — not simulated, not inferred from the

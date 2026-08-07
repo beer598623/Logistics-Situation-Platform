@@ -421,3 +421,25 @@ def test_print_forces_every_view_visible_without_depending_on_the_hidden_attribu
         "a .view[hidden]-qualified print rule matches nothing once beforeprint has already "
         "removed the hidden attribute from every view -- this is the exact regression"
     )
+
+
+def test_the_user_guide_route_table_matches_index_html() -> None:
+    """WO-042: docs/dashboard_user_guide.md still documented eight views and
+    omitted the #/land route entirely after WO-041 added a ninth -- the doc
+    was simply never updated. Binds its §3 route table to index.html's own
+    data-route attributes so this class of drift fails CI, mirroring how
+    tests/test_documentation_registry_coverage.py binds doc claims to the
+    source registry."""
+    html = _html()
+    routes_in_html = set(re.findall(r'data-route="([a-z]+)"', html))
+    assert len(routes_in_html) == len(VIEW_IDS), (
+        f"index.html has {len(routes_in_html)} data-route attributes "
+        f"{sorted(routes_in_html)}; VIEW_IDS names {len(VIEW_IDS)} views "
+        f"{sorted(VIEW_IDS)} -- update whichever one is stale"
+    )
+    guide = (ROOT / "docs" / "dashboard_user_guide.md").read_text(encoding="utf-8")
+    routes_in_guide = set(re.findall(r"`#/([a-z]+)`", guide))
+    assert routes_in_guide == routes_in_html, (
+        f"docs/dashboard_user_guide.md's route table {sorted(routes_in_guide)} does not match "
+        f"index.html's routes {sorted(routes_in_html)}"
+    )
