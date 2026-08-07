@@ -16,6 +16,16 @@ from collectors.registry import load_registry
 
 ROOT = Path(__file__).resolve().parents[1]
 
+_WORDS_TO_INT = {
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
+
 
 def _doc_text(name: str) -> str:
     return (ROOT / "docs" / name).read_text(encoding="utf-8")
@@ -118,6 +128,11 @@ def test_historical_validation_doc_visible_prose_matches_the_report() -> None:
         text,
     )
     assert intro_match, "expected the '## 4. Measured behaviours' intro sentence"
+    case_count_word = intro_match.group(1).lower()
+    assert case_count_word in _WORDS_TO_INT, f"unrecognised count word '{case_count_word}'"
+    assert _WORDS_TO_INT[case_count_word] == len(report["cases"]), (
+        f"intro sentence says '{case_count_word}' cases; report has {len(report['cases'])}"
+    )
     assert int(intro_match.group(2)) == metrics["impacts_assessed"], (
         f"intro sentence says {intro_match.group(2)} impact assessments; "
         f"report says {metrics['impacts_assessed']}"
@@ -138,7 +153,6 @@ def test_historical_validation_doc_visible_prose_matches_the_report() -> None:
 
     separation_match = re.search(r"([A-Za-z]+) cases demonstrate them genuinely diverging", text)
     assert separation_match, "expected the event/impact separation count sentence"
-    _WORDS_TO_INT = {"five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
     word = separation_match.group(1).lower()
     assert word in _WORDS_TO_INT, f"unrecognised count word '{word}'"
     assert _WORDS_TO_INT[word] == len(metrics["event_impact_separation_examples"]), (
