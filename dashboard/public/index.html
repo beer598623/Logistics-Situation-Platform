@@ -119,38 +119,130 @@
 
   <section id="ocean" class="view" data-view="ocean" aria-labelledby="ocean-h">
     <h2 id="ocean-h" tabindex="-1">Ocean Operations</h2>
-    <p class="section-intro">Thailand port and maritime indicators, the lane set, chokepoint exposure, official notices, and the capacity and service evidence that exists.</p>
-    <p class="banner banner-warning" id="port-note"></p>
+
+    <!-- ============ Tier A -- Current Thailand Ocean status ============
+         Static markup, not JS-injected: a reader with scripting disabled, or
+         hitting a data/ocean.json load failure, still sees this statement
+         rather than a blank first screen (WO-045). -->
+    <p class="banner banner-critical" id="ocean-headline">
+      <strong>Current Thailand Ocean conditions cannot be assessed reliably because no
+      qualified live source is enabled.</strong> This is a coverage gap, not an all-clear.
+    </p>
 
     <div data-evidence-region="current">
-      <h3>Thailand port and maritime indicators — current</h3>
-      <div id="current-port-series"></div>
-      <h3>Current official operational notices</h3>
+
+      <!-- ============ Tier B -- What the platform knows ============ -->
+      <h3 id="ocean-known-h">What the platform knows</h3>
+      <p class="section-intro" id="ocean-known-intro">Everything below is a statement about the
+        platform's own evidence, not about conditions at sea. Where a number is zero it counts
+        records the platform holds — never a measurement of how busy, delayed or congested
+        anything is.</p>
+      <div class="cards" id="ocean-summary-cards"></div>
+
+      <!-- ============ Tier C -- What the platform does not know ============ -->
+      <h3 id="ocean-unknown-h">What the platform does not know</h3>
+      <p class="section-intro" id="ocean-unknown-intro">These are the questions a reader would
+        reasonably expect this page to answer, and it cannot. Each one is a documented absence of
+        a source, recorded in this repository's known-gaps register. None of them is a reading of
+        zero, and none of them means the answer is "nothing is wrong".</p>
+      <ul class="prose-list gap-list" id="ocean-major-gaps"></ul>
+      <p class="banner banner-note" id="ocean-what-would-change"></p>
+
+      <!-- ============ Tier D -- Thailand maritime coverage structure ============ -->
+      <h3 id="ocean-structure-h">Thailand maritime coverage structure</h3>
+      <p class="section-intro">This is the map of what the platform is set up to watch: the
+        eleven ocean lanes it tracks, the chokepoints those lanes pass through, and the current
+        records it holds against them. It describes the platform's own structure. None of it is a
+        measurement of current conditions.</p>
+
+      <h4 id="ocean-lanes-h">Ocean lanes</h4>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="lane-table-caption"><table id="lane-table">
+        <caption id="lane-table-caption">The eleven ocean lanes the platform tracks, listed
+          alphabetically. This is not a ranking, and the order carries no meaning — no lane can
+          currently be ranked, because none has a current assessment to rank by. Each lane states
+          how precisely it can be measured; a lane covering a whole region is never presented as a
+          single port-to-port route.</caption>
+        <thead><tr><th scope="col">Lane</th><th scope="col">What it covers</th><th scope="col">How precisely it can be measured</th><th scope="col">Current status</th><th scope="col">Technical record</th></tr></thead>
+        <tbody id="lane-cards"></tbody>
+      </table></div>
+
+      <h4 id="ocean-chokepoints-h">Chokepoints on Thailand's ocean routes</h4>
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="chokepoint-table-caption"><table id="chokepoint-table">
+        <caption id="chokepoint-table-caption">Chokepoints on the sea routes Thailand's lanes use,
+          and whether any official notice is currently recorded against them. A chokepoint being
+          listed here means shipping on that route could be affected by a disruption there — it
+          is not a statement that anything is happening now.</caption>
+        <thead><tr><th scope="col">Chokepoint</th><th scope="col">Type</th><th scope="col">Why it matters to Thailand</th><th scope="col">Exposed lanes</th><th scope="col">Notice status</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+
+      <!-- Tier D, second block. This <h3> must be immediately followed by the
+           two containers app.js fills with <h4> content via seriesBlock,
+           with no <h4> in between -- test_dynamically_injected_headings_
+           never_skip_a_level resolves both containers' nearest preceding
+           heading as this <h3>, and both inject <h4>. Moving #ocean-capacity-h
+           above either container would break that. -->
+      <h3 id="ocean-current-records-h">What current Thailand ocean records exist</h3>
+      <p class="banner banner-warning" id="port-note"></p>
       <p class="banner banner-note" id="current-notice-statement"></p>
       <div id="current-notices"></div>
-      <h3>Current capacity and service evidence</h3>
+      <div id="current-port-series"></div>
+      <h4 id="ocean-capacity-h">Capacity and service impacts</h4>
       <div class="table-wrap" tabindex="0" role="region" aria-labelledby="current-capacity-table-caption"><table id="current-capacity-table">
         <caption id="current-capacity-table-caption">Capacity and service impacts recorded against a currently active event, each backed by qualified evidence.</caption>
         <thead><tr><th scope="col">Event</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Severity</th><th scope="col">Evidence</th><th scope="col">Confidence</th></tr></thead>
         <tbody></tbody>
       </table></div>
-      <h3>Ocean lanes</h3>
-      <p class="section-intro">Each lane states the analytical resolution it actually supports. A regional lane is never displayed as a port-pair lane.</p>
-      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="lane-table-caption"><table id="lane-table">
-        <caption id="lane-table-caption">Current lane assessments. Expand a row for the full domain assessment, data gaps, selection evidence and known limitations.</caption>
-        <thead><tr><th scope="col"><span class="visually-hidden">Expand</span></th><th scope="col">Lane</th><th scope="col">Attention</th><th scope="col">Direction</th><th scope="col">Resolution</th><th scope="col">Mode</th><th scope="col">Chokepoints</th></tr></thead>
-        <tbody id="lane-cards"></tbody>
-      </table></div>
-      <h3>Chokepoints</h3>
-      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="chokepoint-table-caption"><table id="chokepoint-table">
-        <caption id="chokepoint-table-caption">Registered chokepoints, the lanes exposed to each, and whether an official notice is recorded.</caption>
-        <thead><tr><th scope="col">Chokepoint</th><th scope="col">Type</th><th scope="col">Modes</th><th scope="col">Operating authority</th><th scope="col">Exposed lanes</th><th scope="col">Notice status</th></tr></thead>
-        <tbody></tbody>
-      </table></div>
+
+      <!-- ============ Tier F -- Technical details, collapsed by default ============
+           Current-publication material, so it lives inside the current
+           region and before the historical region (Issue #85 deviation D-1):
+           test_current_evidence_region_precedes_non_current_in_every_view
+           forbids a data-evidence-region="demonstration"|"historical"
+           wrapper appearing before the last "current" wrapper in a view. -->
+      <details class="region region-technical" id="ocean-technical-region">
+        <summary>Technical details — lane records, evidence, thresholds and provenance</summary>
+        <div class="region-body">
+          <p class="prose" id="ocean-technical-intro">Everything the platform holds behind the
+            statements above: the full record for each lane, the nine measurement domains and the
+            threshold rule behind each, why each lane was selected and on what evidence, the
+            internal identifiers, and where the published data comes from. Nothing here is hidden
+            — it is collapsed so the summary above stays readable. All of it is current-publication
+            material.</p>
+
+          <h3>Lane technical records</h3>
+          <div class="table-wrap" tabindex="0" role="region" aria-labelledby="lane-technical-table-caption"><table id="lane-technical-table">
+            <caption id="lane-technical-table-caption">Every field the platform records for each
+              lane, including internal identifiers, the full nine-domain current assessment,
+              selection evidence and known limitations.</caption>
+            <thead><tr><th scope="col"><span class="visually-hidden">Expand</span></th><th scope="col">Lane</th><th scope="col">Lane ID</th><th scope="col">Attention</th><th scope="col">Direction</th><th scope="col">Resolution</th><th scope="col">Mode</th><th scope="col">Chokepoint IDs</th><th scope="col">Reviewed</th><th scope="col">Record status</th></tr></thead>
+            <tbody id="lane-technical-rows"></tbody>
+          </table></div>
+
+          <h3>Chokepoint technical records</h3>
+          <div class="table-wrap" tabindex="0" role="region" aria-labelledby="chokepoint-technical-table-caption"><table id="chokepoint-technical-table">
+            <caption id="chokepoint-technical-table-caption">Every field the platform records for
+              each chokepoint, including internal identifiers, registered modes and the exposed-lane
+              ID list.</caption>
+            <thead><tr><th scope="col">Chokepoint</th><th scope="col">Chokepoint ID</th><th scope="col">Modes</th><th scope="col">Operating authority</th><th scope="col">Exposed lane IDs</th><th scope="col">Notice status</th></tr></thead>
+            <tbody id="chokepoint-technical-rows"></tbody>
+          </table></div>
+
+          <h3>How a current status is decided</h3>
+          <div id="ocean-method-note"></div>
+
+          <h3>Provenance and payload</h3>
+          <div id="ocean-provenance"></div>
+        </div>
+      </details>
     </div>
 
+    <!-- ============ Tier E -- Historical examples, collapsed by default ============
+         Mechanism unchanged from WO-030: same <details class="region
+         region-demo">, same data-evidence-region="demonstration", same id,
+         closed by default. Only the <summary> wording changes. -->
     <details class="region region-demo" data-evidence-region="demonstration" id="ocean-demo-region">
-      <summary>Demonstration &amp; historical material <span class="pill pill-demo">technical demonstration</span> <span class="pill pill-demo">historical validation</span></summary>
+      <summary>Historical examples &amp; demonstration material — not current <span class="pill pill-demo">technical demonstration</span> <span class="pill pill-demo">historical validation</span></summary>
       <div class="region-body">
         <p class="banner banner-demo" id="ocean-demo-label"></p>
         <h3 class="demo-heading">Port and maritime indicators — demonstration <span class="pill pill-demo">technical demonstration</span></h3>

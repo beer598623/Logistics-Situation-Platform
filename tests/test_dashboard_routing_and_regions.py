@@ -443,3 +443,223 @@ def test_the_user_guide_route_table_matches_index_html() -> None:
         f"docs/dashboard_user_guide.md's route table {sorted(routes_in_guide)} does not match "
         f"index.html's routes {sorted(routes_in_html)}"
     )
+
+
+# ---------------------------------------------------------------------------
+# WO-045: Ocean Dashboard Simplification
+# ---------------------------------------------------------------------------
+
+
+def _ocean_payload() -> dict:
+    import json
+
+    return json.loads((PUBLIC / "data" / "ocean.json").read_text(encoding="utf-8"))
+
+
+def test_the_ocean_lane_table_hides_ids_and_domain_detail_until_expansion() -> None:
+    """The tier D reader-facing row must not leak an internal id, a
+    nine-domain detail, selection evidence, known limitations or an
+    attention/direction pill -- all of that stays in tier F, one keyboard-
+    reachable disclosure away."""
+    script = _js()
+    row_body = _js_function_body(script, "oceanLaneRow")
+    assert row_body, "expected to resolve oceanLaneRow's body"
+    # attr(lane.lane_id) is allowed -- it only ever builds the "Lane record"
+    # link's href (#/ocean/lane-detail-<id>), never visible text. esc() is
+    # what this file uses to render visible text, so that specific call is
+    # what must be absent.
+    assert "esc(lane.lane_id)" not in row_body, "oceanLaneRow must not display the lane id as text"
+    assert "attr(lane.lane_id)" in row_body, (
+        "expected the Technical record link to target the lane id"
+    )
+    for forbidden in (
+        "domainTable(",
+        "selection_evidence",
+        "known_limitations",
+        "threshold_rule_id",
+        "ATTENTION_PILL",
+        "DIRECTION_PILL",
+    ):
+        assert forbidden not in row_body, f"oceanLaneRow leaks {forbidden!r} before expansion"
+
+    technical_body = _js_function_body(script, "oceanLaneTechnicalRow")
+    assert technical_body, "expected to resolve oceanLaneTechnicalRow's body"
+    assert "domainTable(" in technical_body
+    assert "lane.lane_id" in technical_body
+
+    # domainTable() is called from exactly the tier F lane record and from
+    # the tier E demonstration block -- nowhere else in the Ocean path.
+    demo_body = _js_function_body(script, "laneDemoBlock")
+    assert "domainTable(" in demo_body
+    cards_body = _js_function_body(script, "oceanEvidenceCards")
+    gap_body = _js_function_body(script, "oceanMajorGapItem")
+    assert "domainTable(" not in cards_body
+    assert "domainTable(" not in gap_body
+
+    html = _html()
+    assert '<details class="region region-technical" id="ocean-technical-region">' in html, (
+        "tier F must be collapsed by default (no open attribute)"
+    )
+    assert (
+        '<details class="region region-demo" data-evidence-region="demonstration" '
+        'id="ocean-demo-region">' in html
+    ), "tier E must be collapsed by default (no open attribute)"
+
+
+def test_every_ocean_technical_field_remains_reachable() -> None:
+    """Frozen field-coverage list: every key the pre-WO-045 renderer emitted
+    must still appear somewhere in the Ocean render path. A field being
+    absent here would mean it was silently dropped, not relocated."""
+    script = _js()
+
+    lane_path = "\n".join(
+        _js_function_body(script, name)
+        for name in ("oceanLaneRow", "oceanLaneTechnicalRow", "domainTable", "laneCrossReference")
+    )
+    for field in (
+        "lane_id",
+        "mode",
+        "chokepoint_ids",
+        "origin",
+        "destination",
+        "review_date",
+        "status",
+        "resolution",
+        "selection_evidence",
+        "data_period_used",
+        "known_limitations",
+        "domain_assessments",
+        "data_gaps",
+    ):
+        assert field in lane_path, (
+            f"{field!r} no longer appears anywhere in the Ocean lane render path"
+        )
+
+    chokepoint_path = "\n".join(
+        _js_function_body(script, name)
+        for name in ("oceanChokepointRow", "oceanChokepointTechnicalRow")
+    )
+    for field in (
+        "chokepoint_id",
+        "chokepoint_type",
+        "modes",
+        "operating_authority",
+        "thailand_relationship",
+    ):
+        assert field in chokepoint_path, (
+            f"{field!r} no longer appears anywhere in the Ocean chokepoint render path"
+        )
+
+    assert "function laneCrossReference(" in script
+    cross_body = _js_function_body(script, "laneCrossReference")
+    assert cross_body
+    assert "pill(" not in cross_body, "laneCrossReference must still carry no pill (AC-41(d))"
+
+    # Data-driven: the technical row and demo block build the exact ids
+    # every existing deep link targets.
+    technical_body = _js_function_body(script, "oceanLaneTechnicalRow")
+    assert "'lane-detail-' + lane.lane_id" in technical_body
+    demo_body = _js_function_body(script, "laneDemoBlock")
+    assert "id=\"lane-demo-' + attr(lane.lane_id)" in demo_body
+
+
+def test_every_pre_wo045_ocean_anchor_still_resolves() -> None:
+    """A frozen list of every id the Ocean view emitted before WO-045, plus
+    the per-lane technical/demo ids. Each must still exist -- either as a
+    literal id="..." in index.html or as an id the renderer demonstrably
+    still emits -- per Issue #85's requirement that existing routes and deep
+    links keep working, and docs/dashboard_user_guide.md §3's standing
+    'old links keep working' property."""
+    html = _html()
+    script = _js()
+    frozen_static_ids = (
+        "ocean",
+        "ocean-h",
+        "port-note",
+        "ocean-demo-label",
+        "current-notice-statement",
+        "current-port-series",
+        "current-notices",
+        "current-capacity-table",
+        "current-capacity-table-caption",
+        "lane-table",
+        "lane-table-caption",
+        "lane-cards",
+        "chokepoint-table",
+        "chokepoint-table-caption",
+        "port-series",
+        "lane-demo-cards",
+        "notices",
+        "capacity-table",
+        "capacity-table-caption",
+        "ocean-demo-region",
+    )
+    for id_ in frozen_static_ids:
+        assert f'id="{id_}"' in html, f"expected id={id_!r} to still exist in index.html"
+
+    ocean = _ocean_payload()
+    assert ocean["lanes"], "expected at least one Ocean lane to check ids against"
+    technical_body = _js_function_body(script, "oceanLaneTechnicalRow")
+    assert "'lane-detail-' + lane.lane_id" in technical_body
+    demo_body = _js_function_body(script, "laneDemoBlock")
+    assert "id=\"lane-demo-' + attr(lane.lane_id)" in demo_body
+    for lane in ocean["lanes"]:
+        if lane.get("demo_assessment"):
+            assert lane["lane_id"], "every lane with a demo assessment must carry a lane_id"
+
+
+def test_reveal_and_focus_opens_every_ancestor_disclosure() -> None:
+    """Regression for the tier F nesting risk: a lane's technical record now
+    sits inside ocean-technical-region's <details>, which itself sits inside
+    a nested detailsBlock() <details> (selection evidence, etc.). A single
+    closest('details') call only opens the nearest one; revealAndFocus must
+    walk every ancestor disclosure so a deep link two levels deep is not
+    left hidden inside a still-closed outer region."""
+    script = _js()
+    body = _js_function_body(script, "revealAndFocus")
+    assert body, "expected to resolve revealAndFocus's body"
+    assert "while (node" in body.replace(" ", " "), (
+        "revealAndFocus must loop over ancestor <details> elements, not stop at the nearest one"
+    )
+    assert "details.open = true" in body
+    assert "var details = target.closest ? target.closest('details') : null;" not in body, (
+        "must not regress to the pre-WO-045 single-closest('details') pattern"
+    )
+
+
+def test_the_ocean_lane_table_actually_renders_in_alphabetical_order() -> None:
+    """Regression for a review finding on PR #86: the tier D caption
+    (index.html #lane-table-caption) tells the reader the eleven lanes are
+    'listed alphabetically' -- the first of the plan's anti-ranking
+    mechanisms -- but the initial implementation never sorted them, so the
+    page asserted something untrue. renderOcean must sort a copy of
+    data.lanes by name before feeding it to oceanLaneRow; the technical
+    tier (tier F) carries no such claim and is free to keep registry order."""
+    html = _html()
+    assert "listed" in html and "alphabetically" in html, (
+        "expected the lane-table-caption's alphabetical-order claim to still be present"
+    )
+
+    script = _js()
+    body = _js_function_body(script, "renderOcean")
+    assert body, "expected to resolve renderOcean's body"
+
+    sort_match = re.search(r"var\s+(\w+)\s*=\s*data\.lanes\.slice\(\)\.sort\(", body)
+    assert sort_match, (
+        "expected renderOcean to build a sorted copy of data.lanes "
+        "(data.lanes.slice().sort(...)) rather than rendering registry order "
+        "under an 'alphabetically' claim"
+    )
+    sorted_var = sort_match.group(1)
+    assert re.search(
+        r"el\('lane-cards'\)\.innerHTML\s*=\s*" + re.escape(sorted_var) + r"\.map\(oceanLaneRow\)",
+        body,
+    ), "expected #lane-cards to be populated from the sorted lane list, not data.lanes directly"
+
+    ocean = _ocean_payload()
+    names = [lane["name"] for lane in ocean["lanes"]]
+    assert names != sorted(names), (
+        "fixture data happens to already be alphabetical -- this test would pass "
+        "vacuously even without a real sort; the payload should be reordered so the "
+        "regression it guards against is actually exercised"
+    )

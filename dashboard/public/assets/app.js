@@ -423,18 +423,52 @@
       '<a href="#lane-demo-' + attr(lane.lane_id) + '">See the demonstration assessment</a>.</p>';
   }
 
-  function laneRow(lane) {
+  /* WO-045: plain-language resolution labels for the tier D lane table. The
+     raw enum (country/regional/corridor) is still shown, unchanged, in the
+     tier F technical table via words(). */
+  var OCEAN_RESOLUTION_LABEL = {
+    country: 'Country level',
+    regional: 'Region level',
+    corridor: 'Thailand domestic corridor'
+  };
+
+  /* Tier D -- the reader-facing lane row. No expand control, no internal ID,
+     no attention/direction pill and no chokepoint-ID list: Issue #85
+     forbids ranking a provisional lane, and every lane here reads the
+     identical status string, so no row can look worse than another. The raw
+     insufficient_evidence enum and every other technical field are retained,
+     unchanged, in oceanLaneTechnicalRow() below -- never removed, only
+     relocated. */
+  function oceanLaneRow(lane) {
+    return '<tr>' +
+      '<th scope="row">' + esc(lane.name) + '</th>' +
+      '<td>' + esc(lane.origin) + ' to ' + esc(lane.destination) + '</td>' +
+      '<td>' + esc(OCEAN_RESOLUTION_LABEL[lane.resolution] || words(lane.resolution)) + '</td>' +
+      '<td><span class="missing">Cannot be assessed — no qualified evidence</span></td>' +
+      '<td><a href="#/ocean/lane-detail-' + attr(lane.lane_id) + '">Lane record</a></td>' +
+      '</tr>';
+  }
+
+  /* Tier F -- the full technical record for a lane. Unchanged in substance
+     from the pre-WO-045 laneRow(): same fields, same detail-row mechanism,
+     same ids (so every existing #lane-detail-<id> deep link still
+     resolves), only reorganised into its own columns rather than one
+     combined name+id cell. */
+  function oceanLaneTechnicalRow(lane) {
     var assessment = lane.assessment;
     var detailId = 'lane-detail-' + lane.lane_id;
 
     var row = '<tr>' +
       '<td>' + expandRowBtn(detailId, lane.name) + '</td>' +
-      '<th scope="row">' + esc(lane.name) + '<br><small>' + esc(lane.lane_id) + '</small></th>' +
+      '<th scope="row">' + esc(lane.name) + '</th>' +
+      '<td>' + esc(lane.lane_id) + '</td>' +
       '<td>' + (assessment ? pill(assessment.attention_level, ATTENTION_PILL) : pill('insufficient_evidence', ATTENTION_PILL)) + '</td>' +
       '<td>' + (assessment ? pill(assessment.overall_direction, DIRECTION_PILL) : '') + '</td>' +
       '<td>' + esc(words(lane.resolution)) + '</td>' +
       '<td>' + esc(lane.mode) + '</td>' +
       '<td>' + (lane.chokepoint_ids.length ? esc(lane.chokepoint_ids.join(', ')) : 'none registered') + '</td>' +
+      '<td>' + esc(lane.review_date) + '</td>' +
+      '<td>' + esc(lane.status) + '</td>' +
       '</tr>';
 
     var selectionRows = lane.selection_evidence.map(function (item) {
@@ -443,9 +477,8 @@
         '<td>' + esc(item.source_reference || 'none') + '</td></tr>';
     }).join('');
 
-    var detail = '<tr class="detail-row" id="' + attr(detailId) + '" hidden><td colspan="7">' +
-      '<p class="meta">' + esc(lane.origin) + ' → ' + esc(lane.destination) +
-      ' · reviewed ' + esc(lane.review_date) + ' · ' + esc(lane.status) + '</p>' +
+    var detail = '<tr class="detail-row" id="' + attr(detailId) + '" hidden><td colspan="10">' +
+      '<p class="meta">' + esc(lane.origin) + ' → ' + esc(lane.destination) + '</p>' +
       '<p class="pill pill-note">current</p>' +
       detailsBlock('Current domain assessments (9)', domainTable(assessment)) +
       (assessment && assessment.data_gaps
@@ -462,6 +495,38 @@
       '</td></tr>';
 
     return row + detail;
+  }
+
+  /* Tier D -- the reader-facing chokepoint row. Exposed lanes render as
+     names, not ids; "why it matters to Thailand" is the previously
+     unrendered thailand_relationship field. The official_notice_active
+     branch is untouched; only the no_notice case is reworded to plain
+     text instead of a muted pill, matching the tier D lane table's single
+     plain-language status treatment. */
+  function oceanChokepointRow(cp, laneNamesByChokepoint, noticeStatus) {
+    var status = noticeStatus[cp.chokepoint_id] || 'no_notice';
+    var names = laneNamesByChokepoint[cp.chokepoint_id] || [];
+    return '<tr><th scope="row">' + esc(cp.name) + '</th>' +
+      '<td>' + esc(words(cp.chokepoint_type)) + '</td>' +
+      '<td>' + esc(words(cp.thailand_relationship)) + '</td>' +
+      '<td>' + (names.length ? esc(names.join(', ')) : 'no lane exposed') + '</td>' +
+      '<td>' + (status === 'no_notice'
+        ? 'No official notice is recorded'
+        : pill(status, { official_notice_active: 'pill-critical' })) + '</td></tr>';
+  }
+
+  /* Tier F -- the full technical record for a chokepoint: internal id,
+     registered modes, and the exposed-lane id list, unchanged from
+     pre-WO-045 except split into its own columns rather than a combined
+     name+id cell. Notice-status pill mapping is exactly as before. */
+  function oceanChokepointTechnicalRow(cp, laneIdsByChokepoint, noticeStatus) {
+    var status = noticeStatus[cp.chokepoint_id] || 'no_notice';
+    return '<tr><th scope="row">' + esc(cp.name) + '</th>' +
+      '<td>' + esc(cp.chokepoint_id) + '</td>' +
+      '<td>' + esc(cp.modes.join(', ')) + '</td>' +
+      '<td>' + esc(cp.operating_authority || 'none registered') + '</td>' +
+      '<td>' + ((laneIdsByChokepoint[cp.chokepoint_id] || []).join(', ') || 'none registered') + '</td>' +
+      '<td>' + pill(status, { official_notice_active: 'pill-critical', no_notice: 'pill-muted' }) + '</td></tr>';
   }
 
   /* Relocated demonstration lane assessment (was: the in-card demo panel).
@@ -481,21 +546,66 @@
       '</div>';
   }
 
+  /* WO-045 tier B: the four evidence-status cards. Numbers and dates come
+     from data.evidence_summary (derived, never authored); labels and notes
+     are the ratified copy from Issue #85 (card 4 per copy amendment 1). */
+  function oceanEvidenceCards(summary) {
+    var dateValue = summary.latest_evidence_date
+      ? esc(summary.latest_evidence_date)
+      : '<span class="missing">Not available</span>';
+    return [
+      cardHtml([
+        'Current evidence status',
+        'Cannot be assessed',
+        'No qualified live source is enabled, so the platform holds no current measurement of ' +
+          'Thailand ocean activity. Nothing on this page should be read as saying conditions are normal.'
+      ]),
+      '<div class="card"><div class="label">Latest available evidence</div>' +
+        '<div class="value">' + dateValue + '</div>' +
+        '<div class="note">There is no qualified current record of any date for Thailand ocean ' +
+        'activity. This is missing evidence, not a date on which nothing happened.</div></div>',
+      cardHtml([
+        'Verified current operational events',
+        String(summary.verified_current_event_count),
+        'This counts operational events that are confirmed by qualified evidence and still ' +
+          'active. Zero means nothing has been verified — not that nothing is happening.'
+      ]),
+      cardHtml([
+        'Thailand-relevant current capabilities',
+        summary.capabilities_available + ' of ' + summary.capabilities_total,
+        'None of the five capabilities needed to support a current Thailand ocean reading has a ' +
+          'qualified current record: trade flow, port and maritime activity, operational event ' +
+          'evidence, cost and freight context, and global baseline context.'
+      ])
+    ].join('');
+  }
+
+  /* WO-045 tier C: each gap is a bolded headline sentence followed by its
+     plain-language reason. Membership (which gaps appear at all) is derived
+     server-side in scripts/build_dashboard.py; only the wording is authored,
+     and every entry's `basis` traces to a specific docs/known_data_gaps.md
+     §2 row (see tests/test_current_publication_boundary.py). */
+  function oceanMajorGapItem(gap) {
+    return '<li><strong>' + esc(gap.headline) + '</strong> ' + esc(gap.explanation) + '</li>';
+  }
+
   function renderOcean(data) {
+    el('ocean-summary-cards').innerHTML = oceanEvidenceCards(data.evidence_summary);
+    el('ocean-major-gaps').innerHTML = data.major_gaps.map(oceanMajorGapItem).join('');
+
+    /* The payload sentence starts with the exact lead phrase this bolds, so
+       no wording is authored twice -- see OCEAN_WHAT_WOULD_CHANGE_THIS in
+       scripts/build_dashboard.py (copy amendment 2). */
+    var changeText = data.what_would_change_this || '';
+    var changeLead = 'What would change this.';
+    var changeRest = changeText.indexOf(changeLead) === 0
+      ? changeText.slice(changeLead.length).replace(/^\s+/, '')
+      : changeText;
+    el('ocean-what-would-change').innerHTML = '<strong>' + esc(changeLead) + '</strong> ' + esc(changeRest);
+
     el('port-note').textContent = data.port_interpretation_note;
     el('ocean-demo-label').textContent = data.demo_label;
     el('current-notice-statement').textContent = data.current_notice_statement;
-
-    el('current-port-series').innerHTML = data.current_port_series.length
-      ? data.current_port_series.map(function (series) {
-          return seriesBlock(series, series.series_id, [
-            'Metric: ' + words(series.metric || ''),
-            'Interpretation: volume only'
-          ]);
-        }).join('')
-      : '<p class="empty-state">No qualified port or maritime observation exists, so no ' +
-        'current reading is published. This is a coverage gap, not a finding that activity ' +
-        'is normal.</p>';
 
     el('current-notices').innerHTML = data.current_operational_notices.length
       ? data.current_operational_notices.map(function (notice) {
@@ -514,7 +624,22 @@
             detailsBlock('Known limitations', list(notice.known_limitations)) +
             '</div>';
         }).join('')
-      : '';
+      /* WO-045 defect fix: this branch previously rendered '' -- a silent
+         blank, unlike every other empty current panel on the page. */
+      : '<p class="empty-state">No current official operational notice is recorded. No notice ' +
+        'channel is monitored live and no notice has been transcribed by a named human, so this ' +
+        'is an absence of records — not evidence that no notice was published.</p>';
+
+    el('current-port-series').innerHTML = data.current_port_series.length
+      ? data.current_port_series.map(function (series) {
+          return seriesBlock(series, series.series_id, [
+            'Metric: ' + words(series.metric || ''),
+            'Interpretation: volume only'
+          ]);
+        }).join('')
+      : '<p class="empty-state">No qualified port or maritime observation exists, so no ' +
+        'current reading is published. This is a coverage gap, not a finding that activity ' +
+        'is normal.</p>';
 
     el('current-capacity-table').querySelector('tbody').innerHTML =
       data.current_capacity_and_service_evidence.length
@@ -529,12 +654,18 @@
         : '<tr><td colspan="6">No qualified capacity or service impact is recorded against a ' +
           'currently active event. This is a coverage gap, not an all-clear.</td></tr>';
 
-    el('lane-cards').innerHTML = data.lanes.map(laneRow).join('');
+    var lanesAlphabetical = data.lanes.slice().sort(function (a, b) {
+      return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+    });
+    el('lane-cards').innerHTML = lanesAlphabetical.map(oceanLaneRow).join('');
+    el('lane-technical-rows').innerHTML = data.lanes.map(oceanLaneTechnicalRow).join('');
 
-    var laneByChokepoint = {};
+    var laneNamesByChokepoint = {};
+    var laneIdsByChokepoint = {};
     data.lanes.forEach(function (lane) {
       lane.chokepoint_ids.forEach(function (id) {
-        (laneByChokepoint[id] = laneByChokepoint[id] || []).push(lane.lane_id);
+        (laneNamesByChokepoint[id] = laneNamesByChokepoint[id] || []).push(lane.name);
+        (laneIdsByChokepoint[id] = laneIdsByChokepoint[id] || []).push(lane.lane_id);
       });
     });
     var noticeStatus = {};
@@ -545,14 +676,28 @@
     });
 
     el('chokepoint-table').querySelector('tbody').innerHTML = data.chokepoints.map(function (cp) {
-      var status = noticeStatus[cp.chokepoint_id] || 'no_notice';
-      return '<tr><th scope="row">' + esc(cp.name) + '<br><small>' + esc(cp.chokepoint_id) + '</small></th>' +
-        '<td>' + esc(words(cp.chokepoint_type)) + '</td>' +
-        '<td>' + esc(cp.modes.join(', ')) + '</td>' +
-        '<td>' + esc(cp.operating_authority || 'none registered') + '</td>' +
-        '<td>' + esc((laneByChokepoint[cp.chokepoint_id] || []).join(', ') || 'no lane exposed') + '</td>' +
-        '<td>' + pill(status, { official_notice_active: 'pill-critical', no_notice: 'pill-muted' }) + '</td></tr>';
+      return oceanChokepointRow(cp, laneNamesByChokepoint, noticeStatus);
     }).join('');
+    el('chokepoint-technical-rows').innerHTML = data.chokepoints.map(function (cp) {
+      return oceanChokepointTechnicalRow(cp, laneIdsByChokepoint, noticeStatus);
+    }).join('');
+
+    el('ocean-method-note').innerHTML =
+      '<p class="prose">Each lane’s current status is derived from nine independently sourced ' +
+      'measurement domains, each governed by its own documented threshold rule. A domain reads ' +
+      '<code>insufficient_evidence</code> when its inputs are missing or too few to apply that ' +
+      'rule — never when a rule was applied and found nothing notable. A lane’s overall ' +
+      'attention level and direction are derived from its domains the same way; today every ' +
+      'domain on every lane reads <code>insufficient_evidence</code>, because no source feeding ' +
+      'any domain is enabled. Port and vessel-activity series are VOLUME measures: rising ' +
+      'throughput means more cargo moved, not less congestion, and no threshold rule in this ' +
+      'platform infers congestion, waiting time or berth occupancy from a volume series.</p>';
+
+    el('ocean-provenance').innerHTML =
+      '<p class="prose">This section is generated from <code>data/ocean.json</code> (dataset: ' +
+      esc(data.dataset) + ', generated ' + esc(data.generated_at) + '). See ' +
+      '<a href="#/sources">Sources &amp; Methodology</a> for the full source registry and ' +
+      'licence status behind every record on this page.</p>';
 
     el('port-series').innerHTML = data.demo_port_series.map(function (series) {
       return seriesBlock(series, series.series_id, [
@@ -1254,7 +1399,11 @@
   };
   var FALLBACK_CONTAINER = {
     'thailand_situation.json': 'situation-cards',
-    'ocean.json': 'port-series',
+    /* WO-045: was 'port-series', which sits inside the collapsed tier E
+       disclosure -- a failed ocean.json load wrote its error into a closed
+       region nobody would see. ocean-summary-cards is tier B's first
+       container, on the first screen next to the coverage statement. */
+    'ocean.json': 'ocean-summary-cards',
     'air.json': 'air-lane-rows',
     'land.json': 'land-lane-rows',
     'trade.json': 'trade-lanes',
@@ -1348,8 +1497,21 @@
   function revealAndFocus(id) {
     var target = el(id);
     if (!target) return false;
-    var details = target.closest ? target.closest('details') : null;
-    if (details && !details.open) details.open = true;
+    /* WO-045: opens every ancestor <details>, not just the nearest one.
+       Tier F (docs/dashboard_user_guide.md's "Technical details" region)
+       nests a per-lane <details> (selection evidence, etc.) inside the
+       outer #ocean-technical-region <details> -- a single closest('details')
+       call only ever opens the innermost one, leaving the outer disclosure
+       shut and the just-focused target hidden inside it. */
+    if (target.closest) {
+      var node = target;
+      while (node) {
+        var details = node.closest('details');
+        if (!details) break;
+        if (!details.open) details.open = true;
+        node = details.parentNode;
+      }
+    }
     var detailRow = target.closest ? target.closest('tr.detail-row') : null;
     if (detailRow && detailRow.hidden) {
       detailRow.hidden = false;

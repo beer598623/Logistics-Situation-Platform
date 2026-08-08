@@ -445,6 +445,182 @@ def _events_current_statement(
     )
 
 
+# WO-045: the five Thailand ocean data capabilities the evidence-first summary
+# reports on, in the exact order the copy names them. This is the same
+# 5-item vocabulary thailand_assessment.json's current_capability_coverage
+# already uses -- distinct from the 19-item vocabulary in
+# data/source_status/latest.json's capabilities list (see below).
+_OCEAN_EVIDENCE_CAPABILITY_NAMES = (
+    "thailand_trade_flow",
+    "thailand_port_or_maritime_activity",
+    "operational_event_evidence",
+    "cost_and_freight_context",
+    "global_baseline_context",
+)
+
+# WO-045: each entry names the docs/known_data_gaps.md §2 row it is grounded
+# in (verbatim bolded capability-row text), so the doc reference is checkable
+# rather than asserted. Where the entry declares a "capability" key, its
+# membership is derived: the gap is included only while that
+# source_status.json capability's status != "sufficient", the same
+# derived-not-authored discipline every other current publication list in
+# this build already follows. The two entries with no "capability" key
+# (truck turnaround/dwell, and service reliability) have no capability row
+# of their own in data/source_status/latest.json's 19-item vocabulary --
+# their membership is authored, not derived, and each says so via
+# derived_from. See Issue #85 deviation D-2 for why the truck-turnaround
+# entry is retained despite the weaker evidence chain.
+_OCEAN_MAJOR_GAP_SPECS = (
+    {
+        "gap_id": "current_port_activity",
+        "capability": "port_activity_indicator",
+        "headline": "How busy Thailand's ports are right now.",
+        "explanation": (
+            "No live port-activity source is enabled, so no current throughput, "
+            "vessel-call or cargo figure is published for any Thai port."
+        ),
+        "basis": "docs/known_data_gaps.md §2 (Thailand port activity)",
+    },
+    {
+        "gap_id": "port_congestion_and_waiting_time",
+        "capability": "thailand_port_operations",
+        "headline": "Whether ships are waiting to berth, and for how long.",
+        "explanation": (
+            "No congestion or waiting-time source of any kind is registered -- which is "
+            "why no congestion statement appears anywhere on this page."
+        ),
+        "basis": "docs/known_data_gaps.md §2 (Port operational condition)",
+    },
+    {
+        "gap_id": "berth_and_yard_utilization",
+        "capability": "thailand_port_operations",
+        "headline": "How full the berths and container yards are.",
+        "explanation": (
+            "No berth-occupancy or yard-utilisation measure exists in the platform at all."
+        ),
+        "basis": "docs/known_data_gaps.md §2 (Port operational condition)",
+    },
+    {
+        "gap_id": "truck_turnaround_and_container_dwell",
+        "capability": None,
+        "headline": (
+            "How long trucks take to turn around at the ports, and how long containers "
+            "sit before moving."
+        ),
+        "explanation": (
+            "No truck-turnaround or container-dwell source is registered, so no delay of "
+            "that kind can be stated or ruled out."
+        ),
+        "basis": "docs/known_data_gaps.md §2 (Port operational condition)",
+    },
+    {
+        "gap_id": "thailand_freight_rates",
+        "capability": "freight_benchmark",
+        "headline": "What it actually costs to ship to or from Thailand.",
+        "explanation": (
+            "No Thailand freight rate is published anywhere in this platform. The one "
+            "freight benchmark held is a public index for a different route, kept as "
+            "directional context only."
+        ),
+        "basis": "docs/known_data_gaps.md §2 (Thailand freight rates)",
+    },
+    {
+        "gap_id": "service_reliability_and_schedule_delay",
+        "capability": None,
+        "headline": "Whether services are running to schedule.",
+        "explanation": (
+            "No transit-time or schedule-reliability source is qualified, so service "
+            "quality is only ever inferred from recorded events, never measured."
+        ),
+        "basis": "docs/known_data_gaps.md §2 (Transit time and schedule reliability)",
+    },
+)
+
+# WO-045: the exact, human-authored "what would change this" sentence for the
+# Ocean first-screen summary (Issue #85 tier C, ratified copy amendment 2).
+# Names no organisation as at fault, states no licence status, and changes
+# no licence status -- it is prose describing an already-documented
+# blocker (docs/known_data_gaps.md §8), not a new claim.
+OCEAN_WHAT_WOULD_CHANGE_THIS = (
+    "What would change this. The strongest Thailand data candidates share an "
+    "unresolved licence and publication gap, and some also retain source-specific "
+    "unit, freshness or metadata checks. A current Thailand ocean reading can be "
+    "published only after an applicable licence is established, the source passes "
+    "validation and it is explicitly enabled — or after another qualified "
+    "Thailand source meets the same conditions."
+)
+
+
+def _ocean_evidence_summary(ocean: dict[str, Any], thailand: dict[str, Any]) -> dict[str, Any]:
+    """WO-045: reshapes values this same build already computed into the
+    Ocean evidence-first summary. Consults no source, applies no threshold,
+    computes no new quantity from a raw record -- see Issue #85 Deliverable 7.
+    """
+    dated = (
+        [s["current_period"] for s in ocean["current_port_series"] if s.get("current_period")]
+        + [
+            n["publication_date"]
+            for n in ocean["current_operational_notices"]
+            if n.get("publication_date")
+        ]
+        + [
+            c["active_as_of"]
+            for c in ocean["current_capacity_and_service_evidence"]
+            if c.get("active_as_of")
+        ]
+    )
+    verified_event_ids = {n["event_id"] for n in ocean["current_operational_notices"]} | {
+        c["event_id"] for c in ocean["current_capacity_and_service_evidence"]
+    }
+    coverage_by_name = {
+        item["capability"]: item for item in thailand["current_capability_coverage"]
+    }
+    capabilities_available = sum(
+        1
+        for name in _OCEAN_EVIDENCE_CAPABILITY_NAMES
+        if coverage_by_name.get(name, {}).get("qualified_record_count", 0) > 0
+    )
+    return {
+        "assessable": thailand["evidence_coverage"] == "sufficient",
+        "evidence_coverage": thailand["evidence_coverage"],
+        "latest_evidence_date": max(dated) if dated else None,
+        "verified_current_event_count": len(verified_event_ids),
+        "capabilities_available": capabilities_available,
+        "capabilities_total": len(_OCEAN_EVIDENCE_CAPABILITY_NAMES),
+        "capability_names": list(_OCEAN_EVIDENCE_CAPABILITY_NAMES),
+    }
+
+
+def _ocean_major_gaps(source_status: dict[str, Any]) -> list[dict[str, Any]]:
+    """WO-045: capability-derived membership (gap present only while its named
+    source_status.json capability is not sufficient) plus two documented-gap
+    entries with no capability row of their own, marked as such via
+    ``derived_from``. See Issue #85 deviation D-2.
+    """
+    capability_status = {
+        item["capability"]: item["status"] for item in source_status["capabilities"]
+    }
+    gaps = []
+    for spec in _OCEAN_MAJOR_GAP_SPECS:
+        capability = spec["capability"]
+        if capability is not None and capability_status.get(capability) == "sufficient":
+            continue
+        gaps.append(
+            {
+                "gap_id": spec["gap_id"],
+                "headline": spec["headline"],
+                "explanation": spec["explanation"],
+                "basis": spec["basis"],
+                "derived_from": (
+                    f"capability:{capability}"
+                    if capability is not None
+                    else f"docs/known_data_gaps.md#2:{spec['gap_id']}"
+                ),
+            }
+        )
+    return gaps
+
+
 def build_payloads() -> dict[str, Any]:
     current_as_of, current_as_of_iso = _current_as_of()
     # WO-010-R5 §4: every series this build excludes for being a mixed
@@ -861,6 +1037,12 @@ def build_payloads() -> dict[str, Any]:
             and impact["severity"] != "none"
         ],
     }
+    # WO-045: purely additive -- reshapes values already computed above into
+    # the evidence-first summary Issue #85 specifies. No existing key is
+    # renamed, removed or re-typed. See Deliverable 7 of the accepted plan.
+    ocean["evidence_summary"] = _ocean_evidence_summary(ocean, thailand)
+    ocean["major_gaps"] = _ocean_major_gaps(source_status)
+    ocean["what_would_change_this"] = OCEAN_WHAT_WOULD_CHANGE_THIS
 
     # ---- Trade and Flow ---------------------------------------------------
     trade_lanes = []

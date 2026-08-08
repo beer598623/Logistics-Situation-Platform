@@ -1,0 +1,506 @@
+{
+  "work_order": "WO-043-BV1",
+  "part": "A",
+  "issue": 83,
+  "authorized_host": "datagov.mot.go.th",
+  "generated_at": "2026-08-07T15:23:19.999789+00:00",
+  "disposition": "internal_validation_only",
+  "requests": [
+    {
+      "sequence": 1,
+      "label": "A1_candidate5_field_contract",
+      "method": "GET",
+      "request_url": "https://datagov.mot.go.th/api/3/action/datastore_search?resource_id=4e939162-e8ad-4d6a-9bd2-c6e3b9ccf5db&limit=5",
+      "request_headers_sent": {
+        "User-Agent": "Logistics-Situation-Platform/0.1.2 (WO-043-BV1 bounded validation; internal_validation_only)",
+        "Accept": "*/*"
+      },
+      "retrieval_timestamp": "2026-08-07T15:23:03.479086+00:00",
+      "status": "issued",
+      "http_status": 200,
+      "response_headers": {
+        "Server": "nginx/1.18.0 (Ubuntu)",
+        "Date": "Fri, 07 Aug 2026 15:23:05 GMT",
+        "Content-Type": "application/json;charset=utf-8",
+        "Content-Length": "1066",
+        "Connection": "keep-alive",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Set-cookie": "ckan=255cd20999f379405a48cb3ca62d765a8a69db52gAJ9cQAoWAcAAABfZG9tYWlucQFOWAUAAABfcGF0aHECWAEAAAAvcQNYAwAAAF9pZHEEWCAAAAAxYjI0ODI5MDVmYTI0ZTg3OGU2ZTc5ZmExNGJhMmZiMXEFWAYAAABfZnJlc2hxBolYDgAAAF9jcmVhdGlvbl90aW1lcQdHQdqdfhZSVmlYDgAAAF9hY2Nlc3NlZF90aW1lcQhHQdqdfhZSVmx1Lg==; expires=Tue, 19-Jan-2038 10:14:07 GMT; HttpOnly; Path=/; SameSite=Lax"
+      },
+      "content_type": "application/json;charset=utf-8",
+      "response_bytes": 1066,
+      "byte_limit": 262144,
+      "body_within_limit": true,
+      "content_sha256": "7091d6ba50e37785ef6b6e94ec608159ef29393a57435567073c897b716fc8ec",
+      "body_json": {
+        "help": "https://datagov.mot.go.th/api/3/action/help_show?name=datastore_search",
+        "success": true,
+        "result": {
+          "include_total": true,
+          "limit": 5,
+          "records_format": "objects",
+          "resource_id": "4e939162-e8ad-4d6a-9bd2-c6e3b9ccf5db",
+          "total_estimation_threshold": null,
+          "records": [
+            {
+              "_id": 1,
+              "Mode": "Road",
+              "Type": "import",
+              "Year": 2004,
+              "Freight": 3261
+            },
+            {
+              "_id": 2,
+              "Mode": "Road",
+              "Type": "export",
+              "Year": 2004,
+              "Freight": 7096
+            },
+            {
+              "_id": 3,
+              "Mode": "Railway",
+              "Type": "import",
+              "Year": 2004,
+              "Freight": 0
+            },
+            {
+              "_id": 4,
+              "Mode": "Railway",
+              "Type": "export",
+              "Year": 2004,
+              "Freight": 0
+            },
+            {
+              "_id": 5,
+              "Mode": "Water (Sea)",
+              "Type": "import",
+              "Year": 2004,
+              "Freight": 89476
+            }
+          ],
+          "fields": [
+            {
+              "id": "_id",
+              "type": "int"
+            },
+            {
+              "id": "Mode",
+              "type": "text"
+            },
+            {
+              "id": "Type",
+              "type": "text"
+            },
+            {
+              "id": "Year",
+              "type": "numeric"
+            },
+            {
+              "id": "Freight",
+              "type": "numeric"
+            }
+          ],
+          "_links": {
+            "start": "/api/3/action/datastore_search?resource_id=4e939162-e8ad-4d6a-9bd2-c6e3b9ccf5db&limit=5",
+            "next": "/api/3/action/datastore_search?resource_id=4e939162-e8ad-4d6a-9bd2-c6e3b9ccf5db&limit=5&offset=5"
+          },
+          "total": 264,
+          "total_was_estimated": false
+        }
+      },
+      "outcome": "success",
+      "note": null
+    },
+    {
+      "sequence": 2,
+      "label": "A2_mot_mirror_datastore_fork",
+      "method": "GET",
+      "request_url": "https://datagov.mot.go.th/api/3/action/datastore_search?resource_id=37ea9a19-2d77-4af2-a960-dc0f77d11f1c&limit=5",
+      "request_headers_sent": {
+        "User-Agent": "Logistics-Situation-Platform/0.1.2 (WO-043-BV1 bounded validation; internal_validation_only)",
+        "Accept": "*/*"
+      },
+      "retrieval_timestamp": "2026-08-07T15:23:08.479302+00:00",
+      "status": "issued",
+      "http_status": 200,
+      "response_headers": {
+        "Server": "nginx/1.18.0 (Ubuntu)",
+        "Date": "Fri, 07 Aug 2026 15:23:09 GMT",
+        "Content-Type": "application/json;charset=utf-8",
+        "Content-Length": "3461",
+        "Connection": "keep-alive",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Set-cookie": "ckan=283fcf4ba389e9df2032d8d25f07e1d3c67a8317gAJ9cQAoWAcAAABfZG9tYWlucQFOWAUAAABfcGF0aHECWAEAAAAvcQNYAwAAAF9pZHEEWCAAAAA2OTFmNGI2NWQ5YmQ0MjdlYWE1MWY1ZTVlYzk5NjBjMnEFWAYAAABfZnJlc2hxBolYDgAAAF9jcmVhdGlvbl90aW1lcQdHQdqdfhd8YJ9YDgAAAF9hY2Nlc3NlZF90aW1lcQhHQdqdfhd8YKJ1Lg==; expires=Tue, 19-Jan-2038 10:14:07 GMT; HttpOnly; Path=/; SameSite=Lax"
+      },
+      "content_type": "application/json;charset=utf-8",
+      "response_bytes": 3461,
+      "byte_limit": 262144,
+      "body_within_limit": true,
+      "content_sha256": "83915e5f2b7171ee7f1f7b621c039bf08275cc7bc2fe5d6b763e36c92d6bc5b3",
+      "body_json": {
+        "help": "https://datagov.mot.go.th/api/3/action/help_show?name=datastore_search",
+        "success": true,
+        "result": {
+          "include_total": true,
+          "limit": 5,
+          "records_format": "objects",
+          "resource_id": "37ea9a19-2d77-4af2-a960-dc0f77d11f1c",
+          "total_estimation_threshold": null,
+          "records": [
+            {
+              "_id": 1,
+              "YEAR": 2561,
+              "MONTH": 1,
+              "GENERAL_CARGO_VESSEL": 25.0,
+              "CONTAINER_VESSEL_INTER": 123.0,
+              "CONTAINER_VESSEL_EAST": 117.0,
+              "CONTAINER_VESSEL_WEST": 1.0,
+              "SEMI_CONTAINER_VESSEL": 0.0,
+              "PASSENGER_VESSEL": 3.0,
+              "GOVERNMENT_VESSEL": 0.0,
+              "IMPORT_GENERAL_CARGO": 109855.0,
+              "IMPORT_CONTAINERIZED_CARGO": 848031.0,
+              "EXPORT_GENERAL_CARGO": 0.0,
+              "EXPORT_CONTAINERIZED_CARGO": 704897.0,
+              "IMPORT_CONTAINER": 77944.0,
+              "EXPORT_CONTAINER": 50967.0
+            },
+            {
+              "_id": 2,
+              "YEAR": 2561,
+              "MONTH": 2,
+              "GENERAL_CARGO_VESSEL": 31.0,
+              "CONTAINER_VESSEL_INTER": 125.0,
+              "CONTAINER_VESSEL_EAST": 80.0,
+              "CONTAINER_VESSEL_WEST": 0.0,
+              "SEMI_CONTAINER_VESSEL": 0.0,
+              "PASSENGER_VESSEL": 2.0,
+              "GOVERNMENT_VESSEL": 3.0,
+              "IMPORT_GENERAL_CARGO": 120206.0,
+              "IMPORT_CONTAINERIZED_CARGO": 812315.0,
+              "EXPORT_GENERAL_CARGO": 4443.0,
+              "EXPORT_CONTAINERIZED_CARGO": 681599.0,
+              "IMPORT_CONTAINER": 71709.0,
+              "EXPORT_CONTAINER": 48894.0
+            },
+            {
+              "_id": 3,
+              "YEAR": 2561,
+              "MONTH": 3,
+              "GENERAL_CARGO_VESSEL": 25.0,
+              "CONTAINER_VESSEL_INTER": 135.0,
+              "CONTAINER_VESSEL_EAST": 96.0,
+              "CONTAINER_VESSEL_WEST": 2.0,
+              "SEMI_CONTAINER_VESSEL": 0.0,
+              "PASSENGER_VESSEL": 2.0,
+              "GOVERNMENT_VESSEL": 0.0,
+              "IMPORT_GENERAL_CARGO": 108469.0,
+              "IMPORT_CONTAINERIZED_CARGO": 769729.0,
+              "EXPORT_GENERAL_CARGO": 4636.0,
+              "EXPORT_CONTAINERIZED_CARGO": 848945.0,
+              "IMPORT_CONTAINER": 66466.0,
+              "EXPORT_CONTAINER": 57775.0
+            },
+            {
+              "_id": 4,
+              "YEAR": 2561,
+              "MONTH": 4,
+              "GENERAL_CARGO_VESSEL": 31.0,
+              "CONTAINER_VESSEL_INTER": 125.0,
+              "CONTAINER_VESSEL_EAST": 120.0,
+              "CONTAINER_VESSEL_WEST": 0.0,
+              "SEMI_CONTAINER_VESSEL": 0.0,
+              "PASSENGER_VESSEL": 3.0,
+              "GOVERNMENT_VESSEL": 1.0,
+              "IMPORT_GENERAL_CARGO": 160511.0,
+              "IMPORT_CONTAINERIZED_CARGO": 809109.0,
+              "EXPORT_GENERAL_CARGO": 3907.0,
+              "EXPORT_CONTAINERIZED_CARGO": 691890.0,
+              "IMPORT_CONTAINER": 75472.0,
+              "EXPORT_CONTAINER": 45880.0
+            },
+            {
+              "_id": 5,
+              "YEAR": 2561,
+              "MONTH": 5,
+              "GENERAL_CARGO_VESSEL": 30.0,
+              "CONTAINER_VESSEL_INTER": 127.0,
+              "CONTAINER_VESSEL_EAST": 129.0,
+              "CONTAINER_VESSEL_WEST": 0.0,
+              "SEMI_CONTAINER_VESSEL": 0.0,
+              "PASSENGER_VESSEL": 0.0,
+              "GOVERNMENT_VESSEL": 1.0,
+              "IMPORT_GENERAL_CARGO": 119763.0,
+              "IMPORT_CONTAINERIZED_CARGO": 834522.0,
+              "EXPORT_GENERAL_CARGO": 3903.0,
+              "EXPORT_CONTAINERIZED_CARGO": 732420.0,
+              "IMPORT_CONTAINER": 76450.0,
+              "EXPORT_CONTAINER": 51492.0
+            }
+          ],
+          "fields": [
+            {
+              "id": "_id",
+              "type": "int"
+            },
+            {
+              "id": "YEAR",
+              "type": "numeric"
+            },
+            {
+              "id": "MONTH",
+              "type": "numeric"
+            },
+            {
+              "id": "GENERAL_CARGO_VESSEL",
+              "type": "numeric"
+            },
+            {
+              "id": "CONTAINER_VESSEL_INTER",
+              "type": "numeric"
+            },
+            {
+              "id": "CONTAINER_VESSEL_EAST",
+              "type": "numeric"
+            },
+            {
+              "id": "CONTAINER_VESSEL_WEST",
+              "type": "numeric"
+            },
+            {
+              "id": "SEMI_CONTAINER_VESSEL",
+              "type": "numeric"
+            },
+            {
+              "id": "PASSENGER_VESSEL",
+              "type": "numeric"
+            },
+            {
+              "id": "GOVERNMENT_VESSEL",
+              "type": "numeric"
+            },
+            {
+              "id": "IMPORT_GENERAL_CARGO",
+              "type": "numeric"
+            },
+            {
+              "id": "IMPORT_CONTAINERIZED_CARGO",
+              "type": "numeric"
+            },
+            {
+              "id": "EXPORT_GENERAL_CARGO",
+              "type": "numeric"
+            },
+            {
+              "id": "EXPORT_CONTAINERIZED_CARGO",
+              "type": "numeric"
+            },
+            {
+              "id": "IMPORT_CONTAINER",
+              "type": "numeric"
+            },
+            {
+              "id": "EXPORT_CONTAINER",
+              "type": "numeric"
+            }
+          ],
+          "_links": {
+            "start": "/api/3/action/datastore_search?resource_id=37ea9a19-2d77-4af2-a960-dc0f77d11f1c&limit=5",
+            "next": "/api/3/action/datastore_search?resource_id=37ea9a19-2d77-4af2-a960-dc0f77d11f1c&limit=5&offset=5"
+          },
+          "total": 95,
+          "total_was_estimated": false
+        }
+      },
+      "outcome": "success",
+      "note": null
+    },
+    {
+      "sequence": 3,
+      "label": "A3_candidate4_field_dictionary",
+      "method": "GET",
+      "request_url": "https://datagov.mot.go.th/api/3/action/datastore_search?resource_id=29e49918-bbef-4d02-9297-cfbbe47932ed&limit=25",
+      "request_headers_sent": {
+        "User-Agent": "Logistics-Situation-Platform/0.1.2 (WO-043-BV1 bounded validation; internal_validation_only)",
+        "Accept": "*/*"
+      },
+      "retrieval_timestamp": "2026-08-07T15:23:13.479497+00:00",
+      "status": "issued",
+      "http_status": 200,
+      "response_headers": {
+        "Server": "nginx/1.18.0 (Ubuntu)",
+        "Date": "Fri, 07 Aug 2026 15:23:15 GMT",
+        "Content-Type": "application/json;charset=utf-8",
+        "Content-Length": "2122",
+        "Connection": "keep-alive",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Set-cookie": "ckan=e680747e8cfff84f2185623adf35ed13d1cf0b1egAJ9cQAoWAcAAABfZG9tYWlucQFOWAUAAABfcGF0aHECWAEAAAAvcQNYAwAAAF9pZHEEWCAAAAA4NWU4ZGFmYjNlZTI0MzMyYjE0NWYwOTIzNDEwOTI5M3EFWAYAAABfZnJlc2hxBolYDgAAAF9jcmVhdGlvbl90aW1lcQdHQdqdfhjOUBJYDgAAAF9hY2Nlc3NlZF90aW1lcQhHQdqdfhjOUBR1Lg==; expires=Tue, 19-Jan-2038 10:14:07 GMT; HttpOnly; Path=/; SameSite=Lax"
+      },
+      "content_type": "application/json;charset=utf-8",
+      "response_bytes": 2122,
+      "byte_limit": 262144,
+      "body_within_limit": true,
+      "content_sha256": "724593dfa907db1b5f5c66041ed273927a40c8583a048321eead2f5f78a7fddc",
+      "body_json": {
+        "help": "https://datagov.mot.go.th/api/3/action/help_show?name=datastore_search",
+        "success": true,
+        "result": {
+          "include_total": true,
+          "limit": 25,
+          "records_format": "objects",
+          "resource_id": "29e49918-bbef-4d02-9297-cfbbe47932ed",
+          "total_estimation_threshold": null,
+          "records": [
+            {
+              "_id": 1,
+              "dic_id": 1,
+              "field_name": "Year_BE",
+              "data_type": "numeric",
+              "description_thai": "\u0e1b\u0e35\u0e1e\u0e38\u0e17\u0e18\u0e28\u0e31\u0e01\u0e23\u0e32\u0e0a (\u0e1e.\u0e28.)"
+            },
+            {
+              "_id": 2,
+              "dic_id": 2,
+              "field_name": "Year_AD",
+              "data_type": "numeric",
+              "description_thai": "\u0e1b\u0e35\u0e04\u0e23\u0e34\u0e2a\u0e15\u0e4c\u0e28\u0e31\u0e01\u0e23\u0e32\u0e0a (\u0e04.\u0e28.)"
+            },
+            {
+              "_id": 3,
+              "dic_id": 3,
+              "field_name": "Province",
+              "data_type": "text",
+              "description_thai": "\u0e08\u0e31\u0e07\u0e2b\u0e27\u0e31\u0e14"
+            },
+            {
+              "_id": 4,
+              "dic_id": 4,
+              "field_name": "Province_Eng",
+              "data_type": "text",
+              "description_thai": "\u0e08\u0e31\u0e07\u0e2b\u0e27\u0e31\u0e14(\u0e20\u0e32\u0e29\u0e32\u0e2d\u0e31\u0e07\u0e01\u0e24\u0e29)"
+            },
+            {
+              "_id": 5,
+              "dic_id": 5,
+              "field_name": "ProcessingIndicator",
+              "data_type": "text",
+              "description_thai": "\u0e1b\u0e23\u0e30\u0e40\u0e20\u0e17\u0e02\u0e2d\u0e07\u0e01\u0e23\u0e30\u0e1a\u0e27\u0e19\u0e01\u0e32\u0e23 \u0e40\u0e0a\u0e48\u0e19 \u0e02\u0e32\u0e40\u0e02\u0e49\u0e32 \u0e02\u0e32\u0e2d\u0e2d\u0e01"
+            },
+            {
+              "_id": 6,
+              "dic_id": 6,
+              "field_name": "ProcessingIndicator_Eng",
+              "data_type": "text",
+              "description_thai": "\u0e1b\u0e23\u0e30\u0e40\u0e20\u0e17\u0e02\u0e2d\u0e07\u0e01\u0e23\u0e30\u0e1a\u0e27\u0e19\u0e01\u0e32\u0e23(\u0e20\u0e32\u0e29\u0e32\u0e2d\u0e31\u0e07\u0e01\u0e24\u0e29) \u0e40\u0e0a\u0e48\u0e19 \u0e02\u0e32\u0e40\u0e02\u0e49\u0e32 \u0e02\u0e32\u0e2d\u0e2d\u0e01"
+            },
+            {
+              "_id": 7,
+              "dic_id": 7,
+              "field_name": "GroupGoods",
+              "data_type": "text",
+              "description_thai": "\u0e1b\u0e23\u0e30\u0e40\u0e20\u0e17\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32"
+            },
+            {
+              "_id": 8,
+              "dic_id": 8,
+              "field_name": "GroupGoods_Eng",
+              "data_type": "text",
+              "description_thai": "\u0e1b\u0e23\u0e30\u0e40\u0e20\u0e17\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32(\u0e20\u0e32\u0e29\u0e32\u0e2d\u0e31\u0e07\u0e01\u0e24\u0e29)"
+            },
+            {
+              "_id": 9,
+              "dic_id": 9,
+              "field_name": "Total_Weight",
+              "data_type": "decimal",
+              "description_thai": "\u0e19\u0e49\u0e33\u0e2b\u0e19\u0e31\u0e01\u0e23\u0e27\u0e21(\u0e15\u0e31\u0e19)"
+            }
+          ],
+          "fields": [
+            {
+              "id": "_id",
+              "type": "int"
+            },
+            {
+              "id": "dic_id",
+              "type": "numeric"
+            },
+            {
+              "id": "field_name",
+              "type": "text"
+            },
+            {
+              "id": "data_type",
+              "type": "text"
+            },
+            {
+              "id": "description_thai",
+              "type": "text"
+            }
+          ],
+          "_links": {
+            "start": "/api/3/action/datastore_search?resource_id=29e49918-bbef-4d02-9297-cfbbe47932ed&limit=25",
+            "next": "/api/3/action/datastore_search?resource_id=29e49918-bbef-4d02-9297-cfbbe47932ed&limit=25&offset=25"
+          },
+          "total": 9,
+          "total_was_estimated": false
+        }
+      },
+      "outcome": "success",
+      "note": null
+    },
+    {
+      "sequence": 4,
+      "label": "A4_conditional_request_capability_head",
+      "method": "HEAD",
+      "request_url": "https://datagov.mot.go.th/dataset/60eeb5ac-85b5-4d98-9598-e1fadc45012a/resource/4e939162-e8ad-4d6a-9bd2-c6e3b9ccf5db/download/freightimportexport.csv",
+      "request_headers_sent": {
+        "User-Agent": "Logistics-Situation-Platform/0.1.2 (WO-043-BV1 bounded validation; internal_validation_only)",
+        "Accept": "*/*"
+      },
+      "retrieval_timestamp": "2026-08-07T15:23:18.479686+00:00",
+      "status": "issued",
+      "http_status": 200,
+      "response_headers": {
+        "Server": "nginx/1.18.0 (Ubuntu)",
+        "Date": "Fri, 07 Aug 2026 15:23:19 GMT",
+        "Content-Type": "text/csv",
+        "Content-Length": "6956",
+        "Connection": "keep-alive",
+        "Content-Disposition": "inline; filename=freightimportexport.csv",
+        "Last-Modified": "Mon, 08 Jun 2026 03:27:47 GMT",
+        "Cache-Control": "no-cache, public, max-age=0, must-revalidate",
+        "ETag": "\"1780889267.1073601-6956-1195316886\"",
+        "Set-cookie": "ckan=d1bce76d39bfd00f35a1b3218221e4a8a4d48010gAJ9cQAoWAcAAABfZG9tYWlucQFOWAUAAABfcGF0aHECWAEAAAAvcQNYAwAAAF9pZHEEWCAAAABlNGFlMjk0Mjg5ZGI0YjMxOTQ0YzRhMDQ3Yzk1Mzk3MXEFWAYAAABfZnJlc2hxBolYDgAAAF9jcmVhdGlvbl90aW1lcQdHQdqdfhn7V6NYDgAAAF9hY2Nlc3NlZF90aW1lcQhHQdqdfhn7V6V1Lg==; expires=Tue, 19-Jan-2038 10:14:07 GMT; HttpOnly; Path=/; SameSite=Lax"
+      },
+      "content_type": "text/csv",
+      "response_bytes": 0,
+      "byte_limit": 262144,
+      "body_within_limit": true,
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "body_json": null,
+      "outcome": "success",
+      "note": null
+    },
+    {
+      "sequence": 5,
+      "label": "A5_conditional_get_confirmation",
+      "method": null,
+      "request_url": null,
+      "request_headers_sent": null,
+      "retrieval_timestamp": null,
+      "status": "not_issued_by_gate",
+      "http_status": null,
+      "response_headers": null,
+      "content_type": null,
+      "response_bytes": null,
+      "byte_limit": null,
+      "body_within_limit": null,
+      "content_sha256": null,
+      "body_json": null,
+      "outcome": null,
+      "note": "NOT ISSUED per spec: A4 (HEAD) was supported (did not return 405/501), so A5's escalation gate was not met. Per Issue #83 SS9.1, A5 issues only if A4 returns 405/501."
+    }
+  ],
+  "stop_reason": null,
+  "stopped_after_sequence": null
+}

@@ -587,3 +587,249 @@ def test_fixture_freshness_statuses_are_styled_as_demonstration_not_as_fresh():
     for status in ("fixture_not_live", "historical_validation", "not_applicable"):
         assert status in pills, status
     assert "fixture_not_live: 'pill-demo'" in pills
+
+
+# ---------------------------------------------------------------------------
+# WO-045: Ocean Dashboard Simplification -- evidence-first first screen
+# ---------------------------------------------------------------------------
+
+
+def _html() -> str:
+    return (PUBLIC / "index.html").read_text(encoding="utf-8")
+
+
+def _js() -> str:
+    return (PUBLIC / "assets" / "app.js").read_text(encoding="utf-8")
+
+
+def _js_function_body(js_text: str, name: str) -> str:
+    """Balanced-brace body of a named top-level function, or '' if absent."""
+    match = re.search(r"function\s+" + re.escape(name) + r"\s*\([^)]*\)\s*\{", js_text)
+    if not match:
+        return ""
+    depth = 1
+    i = match.end()
+    while depth > 0 and i < len(js_text):
+        if js_text[i] == "{":
+            depth += 1
+        elif js_text[i] == "}":
+            depth -= 1
+        i += 1
+    return js_text[match.end() : i - 1]
+
+
+def _ocean_section_html() -> str:
+    match = re.search(r'<section id="ocean".*?</section>', _html(), re.S)
+    assert match, "expected to find the #ocean section in index.html"
+    return match.group(0)
+
+
+def test_the_ocean_first_screen_cannot_imply_an_all_clear(payloads):
+    """Issue #85's required top-of-page statement, used verbatim, plus a
+    denylist scan: no reassurance phrase may appear anywhere in the Ocean
+    section or its tier B/C renderers, and the one phrase the approved copy
+    itself legitimately uses ("...not an all-clear") may only ever appear
+    negated the same way."""
+    section = _ocean_section_html()
+    normalized = re.sub(r"\s+", " ", section)
+
+    assert (
+        "Current Thailand Ocean conditions cannot be assessed reliably because no "
+        "qualified live source is enabled." in normalized
+    )
+    assert "This is a coverage gap, not an all-clear." in normalized
+    assert 'id="ocean-headline"' in section
+
+    for match in re.finditer(r"all[- ]clear", normalized, re.I):
+        preceding = normalized[max(0, match.start() - 12) : match.start()].lower()
+        assert "not an " in preceding, (
+            f"unguarded 'all-clear' phrase: "
+            f"...{normalized[max(0, match.start() - 40) : match.start() + 20]}..."
+        )
+
+    banned_phrases = (
+        "no issues",
+        "operating normally",
+        "normal conditions",
+        "no disruption",
+        "no delays",
+        "running smoothly",
+        "everything is fine",
+        "conditions are good",
+    )
+    lowered = normalized.lower()
+    for phrase in banned_phrases:
+        assert phrase not in lowered, f"banned reassurance phrase found in #ocean: {phrase!r}"
+
+    script = _js()
+    for name in ("oceanEvidenceCards", "oceanMajorGapItem", "renderOcean"):
+        body = _js_function_body(script, name)
+        assert body, f"expected to resolve {name}'s body"
+        body_lower = body.lower()
+        for phrase in banned_phrases:
+            assert phrase not in body_lower, f"{name} may construct banned phrase {phrase!r}"
+
+    summary = payloads["ocean.json"]["evidence_summary"]
+    assert summary["assessable"] is False
+    assert payloads["thailand_situation.json"]["evidence_coverage"] == "insufficient"
+
+
+def test_no_demonstration_value_reaches_the_ocean_first_screen(payloads):
+    """Payload half: every evidence_summary value is reproducible from
+    current_* fields alone. Renderer half: the tier B/C renderers reference
+    no demo-only symbol. Builder half: the build-script helper that
+    constructs evidence_summary touches no demo/TECHNICAL_DEMO/
+    HISTORICAL_VALIDATION symbol, and specifically never reads the
+    platform-wide qualified_event_count -- verified_current_event_count is
+    Ocean-scoped, counted from Ocean's own current lists."""
+    ocean = payloads["ocean.json"]
+    summary = ocean["evidence_summary"]
+
+    dated = (
+        [s["current_period"] for s in ocean["current_port_series"] if s.get("current_period")]
+        + [
+            n["publication_date"]
+            for n in ocean["current_operational_notices"]
+            if n.get("publication_date")
+        ]
+        + [
+            c["active_as_of"]
+            for c in ocean["current_capacity_and_service_evidence"]
+            if c.get("active_as_of")
+        ]
+    )
+    assert summary["latest_evidence_date"] == (max(dated) if dated else None)
+
+    expected_events = {n["event_id"] for n in ocean["current_operational_notices"]} | {
+        c["event_id"] for c in ocean["current_capacity_and_service_evidence"]
+    }
+    assert summary["verified_current_event_count"] == len(expected_events)
+
+    script = _js()
+    forbidden_symbols = (
+        "demo_assessment",
+        "demo_port_series",
+        "demo_operational_notices",
+        "demo_capacity_and_service_evidence",
+        "demo_label",
+        "laneDemoBlock(",
+        "DEMO_LABEL",
+    )
+    for name in ("oceanEvidenceCards", "oceanMajorGapItem"):
+        body = _js_function_body(script, name)
+        assert body, f"expected to resolve {name}'s body"
+        for symbol in forbidden_symbols:
+            assert symbol not in body, f"{name} references demo-only symbol {symbol!r}"
+
+    build_src = (ROOT / "scripts" / "build_dashboard.py").read_text(encoding="utf-8")
+    helper_match = re.search(
+        r"def _ocean_evidence_summary\(.*?\n\ndef _ocean_major_gaps\(", build_src, re.S
+    )
+    assert helper_match, "expected to resolve _ocean_evidence_summary's source"
+    helper_src = helper_match.group(0)
+    for symbol in (
+        "TECHNICAL_DEMO",
+        "HISTORICAL_VALIDATION",
+        "demo_assessment",
+        "qualified_event_count",
+    ):
+        assert symbol not in helper_src, (
+            f"_ocean_evidence_summary references {symbol!r} -- it must derive only from Ocean's "
+            "own current_* fields, never a demo/historical symbol or the platform-wide count"
+        )
+
+
+def test_the_ocean_summary_never_renders_a_missing_value_as_zero(payloads):
+    ocean = payloads["ocean.json"]
+    assert ocean["evidence_summary"]["latest_evidence_date"] is None
+
+    script = _js()
+    cards_body = _js_function_body(script, "oceanEvidenceCards")
+    assert cards_body, "expected to resolve oceanEvidenceCards's body"
+    for banned in ("|| 0", "|| '0'", "Number(summary", "?? 0"):
+        assert banned not in cards_body, (
+            f"oceanEvidenceCards must not default a missing value to zero: {banned!r}"
+        )
+
+    assert "Not available" in cards_body
+    assert '<span class="missing">' in cards_body
+    assert "not that nothing is happening" in cards_body
+
+
+def test_no_singapore_context_renders_as_thailand_ocean_evidence(payloads):
+    ocean = payloads["ocean.json"]
+    asean_lane = next(
+        lane for lane in ocean["lanes"] if lane["lane_id"] == "LANE-OCEAN-TH-ASEAN-SG"
+    )
+    assert asean_lane["resolution"] == "regional"
+    assert any(
+        "transship" in limitation.lower() for limitation in asean_lane["known_limitations"]
+    ), "expected the ASEAN/Singapore lane to retain its transshipment-attribution limitation"
+
+    first_screen_payload = json.dumps(
+        {
+            "evidence_summary": ocean["evidence_summary"],
+            "major_gaps": ocean["major_gaps"],
+            "what_would_change_this": ocean["what_would_change_this"],
+        }
+    )
+    assert "Singapore" not in first_screen_payload
+
+    registry = yaml.safe_load((ROOT / "config/sources.yaml").read_text(encoding="utf-8"))
+    mpa_notice = next(source for source in registry["sources"] if source["id"] == "MPA_SG_NOTICE")
+    assert mpa_notice["enabled"] is False
+    assert all(
+        notice.get("source_id") != "MPA_SG_NOTICE"
+        for notice in ocean["current_operational_notices"]
+    )
+
+
+def test_every_major_gap_traces_to_a_recorded_basis(payloads):
+    ocean = payloads["ocean.json"]
+    known_gaps_doc = (ROOT / "docs" / "known_data_gaps.md").read_text(encoding="utf-8")
+    assert 4 <= len(ocean["major_gaps"]) <= 6
+
+    for gap in ocean["major_gaps"]:
+        assert gap["basis"].startswith("docs/known_data_gaps.md"), gap["gap_id"]
+        match = re.search(r"\(([^)]+)\)$", gap["basis"])
+        assert match, f"{gap['gap_id']}'s basis has no (row name): {gap['basis']!r}"
+        row_name = match.group(1)
+        assert f"**{row_name}**" in known_gaps_doc, (
+            f"gap {gap['gap_id']!r}'s basis cites a row not present in "
+            f"known_data_gaps.md: {row_name!r}"
+        )
+        assert gap["derived_from"], f"{gap['gap_id']} must declare how its membership was decided"
+
+
+def test_truck_turnaround_gap_states_absence_of_source_only(payloads):
+    """Issue #85 deviation D-2: this gap has the weakest evidence chain of
+    the six, so its copy must say only that no source is registered --
+    never that a delay exists, and never that one doesn't."""
+    ocean = payloads["ocean.json"]
+    gap = next(
+        g for g in ocean["major_gaps"] if g["gap_id"] == "truck_turnaround_and_container_dwell"
+    )
+    text = (gap["headline"] + " " + gap["explanation"]).lower()
+    assert "no truck-turnaround or container-dwell source is registered" in text
+    assert "can be stated or ruled out" in text
+    for banned in ("delays are", "trucks wait", "containers sit for", "average dwell time is"):
+        assert banned not in text
+
+
+def test_card_four_uses_the_ratified_capabilities_label():
+    """Copy amendment 1 (ratified on Issue #85): card 4's label."""
+    script = _js()
+    body = _js_function_body(script, "oceanEvidenceCards")
+    assert body, "expected to resolve oceanEvidenceCards's body"
+    assert "Thailand-relevant current capabilities" in body
+
+
+def test_what_would_change_this_names_more_than_licence_resolution(payloads):
+    """Copy amendment 2 (ratified on Issue #85): the closing sentence must
+    not present licence resolution as the only remaining source-specific
+    check -- some candidates also carry their own unit/freshness/metadata
+    checks, and the copy must say so."""
+    text = payloads["ocean.json"]["what_would_change_this"]
+    assert "unresolved licence and publication gap" in text
+    assert "source-specific unit, freshness or metadata checks" in text
+    assert "another qualified Thailand source meets the same conditions" in text

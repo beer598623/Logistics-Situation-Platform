@@ -118,23 +118,62 @@ per-series freshness, key changes, and the major data gaps.
 score. **Attention level** is derived from domain directions and open events.
 
 ### 2 — Ocean Logistics
-Thailand port and maritime indicators, the eleven-lane table, chokepoint exposure, official
-operational notices, and capacity/service evidence.
+WO-045 redesigned this view around a single question: can a reader with no data-engineering
+or logistics background understand the platform's Thailand Ocean evidence position within
+ten seconds? The page now opens with a plain-language summary, not a table, and states in
+one sentence, above everything else: **"Current Thailand Ocean conditions cannot be assessed
+reliably because no qualified live source is enabled. This is a coverage gap, not an
+all-clear."**
+
+Below that statement, the view is six tiers, in this order:
+
+- **What the platform knows** — four cards: current evidence status, the latest available
+  evidence date (or *Not available* — never a placeholder date), the count of verified current
+  operational events, and how many of the five Thailand-relevant current capabilities have a
+  qualified record. Every number here counts *records the platform holds*, never a measurement
+  of activity — a card explicitly says so.
+- **What the platform does not know** — four to six major known gaps in plain language (how
+  busy Thailand's ports are; whether ships are waiting to berth; how full the berths and
+  yards are; truck turnaround and container dwell time; Thailand-specific freight rates;
+  service reliability), each traceable to a specific row in `docs/known_data_gaps.md` §2, plus
+  a closing sentence naming what would change the status. Membership is derived from the
+  source-capability registry, not authored as a fixed list — enabling a qualified source
+  removes its gap automatically.
+- **Thailand maritime coverage structure** — the eleven ocean lanes, listed alphabetically by
+  reader-friendly name (never an internal ID), each with what it covers in plain language, how
+  precisely it can be measured, and a single plain-language current-status cell
+  (*Cannot be assessed — no qualified evidence*) rather than a colour-coded attention or
+  direction pill: no provisional lane is ranked against another, and every lane's status cell
+  reads identically. The chokepoint table follows the same treatment, naming which lanes are
+  exposed by name rather than ID and why each chokepoint matters to Thailand. Below that,
+  the same current port-indicator, notice and capacity/service panels this view has always
+  published.
+- **Technical details** (collapsed by default) — the full technical record this view showed
+  directly before WO-045: internal lane and chokepoint IDs, mode, all nine current domain
+  assessments with the threshold rule behind each, selection evidence with its own evidence
+  class, known limitations, and the payload's own provenance. Nothing is removed, only
+  relocated one keyboard-reachable, screen-reader-announced disclosure away — see §9's
+  auditability note.
+- **Historical examples & demonstration material** (collapsed by default) — unchanged in
+  mechanism from WO-030: technical-demonstration port series and lane assessments, and
+  historical-validation notices and capacity/service evidence, each individually marked and
+  never shown beside a current status.
 
 Every port series is labelled **volume only**. Rising throughput means more cargo moved; it
 is not congestion. No congestion, berth-delay, yard-congestion or truck-delay statement is
 made anywhere on this page.
 
-Lanes and, on Sources & Methodology, sources are **expandable-row tables**: a small button
-in the first column expands that one row in place to show the full record, rather than
-navigating to a separate card or page. A lane's blocker or limitation is reachable in a
-single click from its own view, and in a click plus a view switch from anywhere else. Each
-lane states its **resolution** — a regional lane is never displayed as a port-pair lane —
-and its expanded row shows all nine domain assessments with the threshold rule behind each,
-the selection evidence with its own evidence class, and the lane's limitations. Where a lane
-also has a technical-demonstration assessment, the current row carries a plain-text
-cross-reference into the demonstration region below — never the demonstration attention
-level, direction or any other value.
+The technical-details and historical regions are both native `<details>`/`<summary>`
+disclosures — the technical region sits *before* the historical region in document order,
+not after, because it is current-publication material and this platform's standing rule is
+that current material always precedes non-current material in a view's DOM order (§4's rule
+below applies inside this view too, not just across views). A lane's blocker or limitation is
+reachable in a single click from its own view, and in a click plus a view switch from
+anywhere else; the expanded technical row still shows all nine domain assessments with the
+threshold rule behind each, the selection evidence with its own evidence class, and the
+lane's limitations. Where a lane also has a technical-demonstration assessment, its technical
+row carries a plain-text cross-reference into the demonstration region below — never the
+demonstration attention level, direction or any other value.
 
 ### 3 — Air Cargo
 The provisional Air lane set (WO-039), the registered air node (`NODE-THBKKAIR`) and airspace
