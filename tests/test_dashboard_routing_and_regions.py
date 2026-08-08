@@ -625,3 +625,41 @@ def test_reveal_and_focus_opens_every_ancestor_disclosure() -> None:
     assert "var details = target.closest ? target.closest('details') : null;" not in body, (
         "must not regress to the pre-WO-045 single-closest('details') pattern"
     )
+
+
+def test_the_ocean_lane_table_actually_renders_in_alphabetical_order() -> None:
+    """Regression for a review finding on PR #86: the tier D caption
+    (index.html #lane-table-caption) tells the reader the eleven lanes are
+    'listed alphabetically' -- the first of the plan's anti-ranking
+    mechanisms -- but the initial implementation never sorted them, so the
+    page asserted something untrue. renderOcean must sort a copy of
+    data.lanes by name before feeding it to oceanLaneRow; the technical
+    tier (tier F) carries no such claim and is free to keep registry order."""
+    html = _html()
+    assert "listed" in html and "alphabetically" in html, (
+        "expected the lane-table-caption's alphabetical-order claim to still be present"
+    )
+
+    script = _js()
+    body = _js_function_body(script, "renderOcean")
+    assert body, "expected to resolve renderOcean's body"
+
+    sort_match = re.search(r"var\s+(\w+)\s*=\s*data\.lanes\.slice\(\)\.sort\(", body)
+    assert sort_match, (
+        "expected renderOcean to build a sorted copy of data.lanes "
+        "(data.lanes.slice().sort(...)) rather than rendering registry order "
+        "under an 'alphabetically' claim"
+    )
+    sorted_var = sort_match.group(1)
+    assert re.search(
+        r"el\('lane-cards'\)\.innerHTML\s*=\s*" + re.escape(sorted_var) + r"\.map\(oceanLaneRow\)",
+        body,
+    ), "expected #lane-cards to be populated from the sorted lane list, not data.lanes directly"
+
+    ocean = _ocean_payload()
+    names = [lane["name"] for lane in ocean["lanes"]]
+    assert names != sorted(names), (
+        "fixture data happens to already be alphabetical -- this test would pass "
+        "vacuously even without a real sort; the payload should be reordered so the "
+        "regression it guards against is actually exercised"
+    )

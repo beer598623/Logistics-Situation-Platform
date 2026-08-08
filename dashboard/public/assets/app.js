@@ -654,7 +654,10 @@
         : '<tr><td colspan="6">No qualified capacity or service impact is recorded against a ' +
           'currently active event. This is a coverage gap, not an all-clear.</td></tr>';
 
-    el('lane-cards').innerHTML = data.lanes.map(oceanLaneRow).join('');
+    var lanesAlphabetical = data.lanes.slice().sort(function (a, b) {
+      return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+    });
+    el('lane-cards').innerHTML = lanesAlphabetical.map(oceanLaneRow).join('');
     el('lane-technical-rows').innerHTML = data.lanes.map(oceanLaneTechnicalRow).join('');
 
     var laneNamesByChokepoint = {};
