@@ -7,6 +7,42 @@ WO-010 and is not bumped by every Work Order.
 
 ## [Unreleased]
 
+### Changed
+
+- WO-045: Ocean Dashboard Simplification (Issue #85) — evidence-first presentation redesign
+  of the Ocean Operations view. No data, evidence semantics, schema or analysis threshold
+  changed; this is presentation and information-hierarchy only. The view now opens with a
+  static, unconditional statement ("Current Thailand Ocean conditions cannot be assessed
+  reliably because no qualified live source is enabled. This is a coverage gap, not an
+  all-clear."), followed by four evidence-status cards (current evidence status, latest
+  available evidence date, verified current operational events, Thailand-relevant current
+  capabilities), a four-to-six-item plain-language gap list derived from the source-capability
+  registry (membership updates automatically as capabilities change) plus a "what would change
+  this" sentence, and a simplified lane/chokepoint table using reader-friendly names and a
+  single plain-language status cell — no lane is ranked, no internal ID or nine-domain
+  assessment is shown before expansion. Every technical field the view rendered before this
+  Work Order (internal IDs, mode, chokepoint IDs, all nine current domain assessments,
+  selection evidence, known limitations) is preserved, unchanged, one level deeper behind a new
+  collapsed "Technical details" disclosure, which — because it is current-publication material —
+  sits before the historical/demonstration region in DOM order, not after (Issue #85 deviation
+  D-1). The truck-turnaround/container-dwell gap is retained despite having the weakest
+  evidence chain of the six, worded strictly as an absence-of-source statement (deviation D-2).
+  Two new additive `data/ocean.json` fields (`evidence_summary`, `major_gaps`) are pure
+  reshapings of values the build already computed — no new schema, no new source, no new
+  current assessment. Also fixes a pre-existing defect where an empty current-notices panel
+  silently rendered nothing (`''`) instead of stating the coverage gap like every other empty
+  current panel, and a latent `revealAndFocus()` limitation that only opened the nearest
+  ancestor `<details>` rather than every one, which the new nested technical-disclosure
+  structure made reachable for current material. 15 new acceptance tests across
+  `tests/test_current_publication_boundary.py`, `tests/test_dashboard_routing_and_regions.py`
+  and `tests/test_dashboard_accessibility.py` enforce: no all-clear implication; no
+  historical/demo value reaching the first screen; no missing value rendered as zero; no
+  Singapore-scoped record entering Thailand evidence; internal IDs and domain detail hidden
+  before expansion; every technical field remaining reachable; every pre-WO-045 anchor still
+  resolving; native `<details>` disclosures with no hand-rolled substitute;
+  `revealAndFocus()` opening every ancestor disclosure; every major gap traceable to a named
+  `docs/known_data_gaps.md` §2 row; and the two ratified copy amendments' exact wording.
+
 ### Fixed
 
 - WO-042: cross-modal documentation and display hygiene (Issue #81), found by the first

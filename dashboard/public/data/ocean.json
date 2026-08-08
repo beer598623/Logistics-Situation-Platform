@@ -8703,5 +8703,65 @@
         "No transshipment connection-time series is qualified in this registry, so the Thailand-side effect is potential rather than measured."
       ]
     }
-  ]
+  ],
+  "evidence_summary": {
+    "assessable": false,
+    "evidence_coverage": "insufficient",
+    "latest_evidence_date": null,
+    "verified_current_event_count": 0,
+    "capabilities_available": 0,
+    "capabilities_total": 5,
+    "capability_names": [
+      "thailand_trade_flow",
+      "thailand_port_or_maritime_activity",
+      "operational_event_evidence",
+      "cost_and_freight_context",
+      "global_baseline_context"
+    ]
+  },
+  "major_gaps": [
+    {
+      "gap_id": "current_port_activity",
+      "headline": "How busy Thailand's ports are right now.",
+      "explanation": "No live port-activity source is enabled, so no current throughput, vessel-call or cargo figure is published for any Thai port.",
+      "basis": "docs/known_data_gaps.md \u00a72 (Thailand port activity)",
+      "derived_from": "capability:port_activity_indicator"
+    },
+    {
+      "gap_id": "port_congestion_and_waiting_time",
+      "headline": "Whether ships are waiting to berth, and for how long.",
+      "explanation": "No congestion or waiting-time source of any kind is registered -- which is why no congestion statement appears anywhere on this page.",
+      "basis": "docs/known_data_gaps.md \u00a72 (Port operational condition)",
+      "derived_from": "capability:thailand_port_operations"
+    },
+    {
+      "gap_id": "berth_and_yard_utilization",
+      "headline": "How full the berths and container yards are.",
+      "explanation": "No berth-occupancy or yard-utilisation measure exists in the platform at all.",
+      "basis": "docs/known_data_gaps.md \u00a72 (Port operational condition)",
+      "derived_from": "capability:thailand_port_operations"
+    },
+    {
+      "gap_id": "truck_turnaround_and_container_dwell",
+      "headline": "How long trucks take to turn around at the ports, and how long containers sit before moving.",
+      "explanation": "No truck-turnaround or container-dwell source is registered, so no delay of that kind can be stated or ruled out.",
+      "basis": "docs/known_data_gaps.md \u00a72 (Port operational condition)",
+      "derived_from": "docs/known_data_gaps.md#2:truck_turnaround_and_container_dwell"
+    },
+    {
+      "gap_id": "thailand_freight_rates",
+      "headline": "What it actually costs to ship to or from Thailand.",
+      "explanation": "No Thailand freight rate is published anywhere in this platform. The one freight benchmark held is a public index for a different route, kept as directional context only.",
+      "basis": "docs/known_data_gaps.md \u00a72 (Thailand freight rates)",
+      "derived_from": "capability:freight_benchmark"
+    },
+    {
+      "gap_id": "service_reliability_and_schedule_delay",
+      "headline": "Whether services are running to schedule.",
+      "explanation": "No transit-time or schedule-reliability source is qualified, so service quality is only ever inferred from recorded events, never measured.",
+      "basis": "docs/known_data_gaps.md \u00a72 (Transit time and schedule reliability)",
+      "derived_from": "docs/known_data_gaps.md#2:service_reliability_and_schedule_delay"
+    }
+  ],
+  "what_would_change_this": "What would change this. The strongest Thailand data candidates share an unresolved licence and publication gap, and some also retain source-specific unit, freshness or metadata checks. A current Thailand ocean reading can be published only after an applicable licence is established, the source passes validation and it is explicitly enabled \u2014 or after another qualified Thailand source meets the same conditions."
 }

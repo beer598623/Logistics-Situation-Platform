@@ -475,3 +475,33 @@ def test_no_single_data_payload_exceeds_its_documented_budget() -> None:
     assert not oversized, (
         f"these payloads exceed the {_MAX_SINGLE_PAYLOAD_BYTES:,}-byte per-file budget: {oversized}"
     )
+
+
+# ---------------------------------------------------------------------------
+# WO-045: Ocean Dashboard Simplification -- tier E/F disclosures
+# ---------------------------------------------------------------------------
+
+
+def test_the_ocean_disclosures_are_native_details_elements() -> None:
+    """Tier E (historical/demo) and tier F (technical details) must both be
+    genuine <details>/<summary> elements -- native keyboard operation
+    (Tab to focus, Enter/Space to toggle) and correct implicit ARIA come
+    for free. A hand-rolled role="button" + aria-expanded widget would lose
+    both and is not the house pattern (docs/dashboard_user_guide.md §7)."""
+    html = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    for region_id in ("ocean-technical-region", "ocean-demo-region"):
+        opening_tag_match = re.search(
+            r'<details\b[^>]*\bid="' + re.escape(region_id) + r'"[^>]*>', html
+        )
+        assert opening_tag_match, f"expected #{region_id} to be a <details> element"
+        tag = opening_tag_match.group(0)
+        assert 'role="button"' not in tag, f"#{region_id} must not carry role=button"
+        assert "aria-expanded" not in tag, (
+            f"#{region_id} must not carry aria-expanded on the <details> itself"
+        )
+        assert "tabindex" not in tag, f"#{region_id} must not carry a hand-added tabindex"
+
+        summary_match = re.search(re.escape(tag) + r"\s*<summary>(.*?)</summary>", html, re.S)
+        assert summary_match, f"expected #{region_id}'s <details> to open directly onto a <summary>"
+        summary_text = re.sub(r"<[^>]+>", "", summary_match.group(1)).strip()
+        assert summary_text, f"#{region_id}'s <summary> has no visible text"

@@ -179,6 +179,31 @@ html.has-js[data-boot-view="sources"] #sources {
 .region-demo[open] > summary { border-bottom: 1px solid var(--demo-line); }
 .region-demo .region-body { padding: var(--s4); background: var(--surface); }
 
+/* WO-045: technical-detail disclosure. Mirrors .region-demo exactly (same
+   native <details>/<summary> mechanism, same collapsed-by-default,
+   same-shaped body padding) with a neutral border/summary-bar pair instead
+   of the demonstration purple, since this region holds current-publication
+   material, not a fixture. .region-body must render on --surface, exactly
+   as .region-demo's does -- the hand-verified WCAG AA pairings in
+   test_dashboard_accessibility.py assume that background for captions,
+   .missing cells and links. */
+.region-technical {
+  border-left: 4px solid var(--line-strong);
+  background: var(--surface-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: var(--s5) 0 0;
+  padding: 0;
+}
+.region-technical > summary {
+  cursor: pointer; padding: var(--s3) var(--s4); font-weight: 700;
+  font-size: 0.92rem; list-style: none;
+}
+.region-technical > summary::-webkit-details-marker { display: none; }
+.region-technical > summary::before { content: "▸ "; }
+.region-technical[open] > summary::before { content: "▾ "; }
+.region-technical[open] > summary { border-bottom: 1px solid var(--line-strong); }
+.region-technical .region-body { padding: var(--s4); background: var(--surface); }
+
 /* ---------- sections ---------- */
 
 main { padding-bottom: 48px; }
@@ -370,15 +395,15 @@ h2[tabindex="-1"], h3, h4, [id] {
      data-boot-view show-rule accidentally winning -- not real coverage of
      all seven views. */
   .view { display: block !important; }
-  details, .region-demo { display: block !important; }
-  details > *:not(summary), .region-demo > *:not(summary) { display: block !important; }
-  details::details-content, .region-demo::details-content { content-visibility: visible !important; }
+  details, .region-demo, .region-technical { display: block !important; }
+  details > *:not(summary), .region-demo > *:not(summary), .region-technical > *:not(summary) { display: block !important; }
+  details::details-content, .region-demo::details-content, .region-technical::details-content { content-visibility: visible !important; }
   thead { display: table-header-group; }
   h2 { break-after: avoid; }
   h3, h4, caption { break-after: avoid; }
   tr, .card, .event, .series, .demo-panel { break-inside: avoid; }
   .site-header { background: #fff; color: var(--ink); border-bottom: 2px solid var(--accent); }
-  .pill, .banner, .demo-panel, .region-demo {
+  .pill, .banner, .demo-panel, .region-demo, .region-technical {
     print-color-adjust: exact; -webkit-print-color-adjust: exact;
   }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.8em; }
