@@ -1,11 +1,14 @@
 """Tests for scripts/manual_intake.py (WO-047 / Issue #89, item 6).
 
-Every test here uses only synthetic/fixture data and writes only to
-``tmp_path`` -- never to the repository's real ``data/documents/`` or
-``data/claims/``, matching the Work Order's explicit prohibition on writing
-real content there. This module proves the capability; a human uses it later
-for the real, D-2/D-6-gated intake exercise (Issue #89 item 8, out of scope
-here).
+Every test above :func:`test_repository_data_documents_directory_has_no_real_content`
+uses only synthetic/fixture data and writes only to ``tmp_path`` -- never to
+the repository's real ``data/documents/`` or ``data/claims/``. WO-047/WO-049
+deferred the real, D-2/D-6-gated manual-intake exercise itself (Issue #89
+item 8 / Issue #92 item 9) for lack of accessible source content; WO-050
+(Issue #94) performed it -- exactly one real Document (a Port Authority of
+Thailand notice) and its Claims, now committed in ``data/documents/`` and
+``data/claims/``. See that test's own docstring for what the acceptance
+guard now checks.
 """
 
 from __future__ import annotations
@@ -300,17 +303,41 @@ def test_publisher_authority_defaults_to_null(registry):
     assert document["publisher_authority"] is None
 
 
+#: WO-050 (Issue #94) is the one Work Order explicitly authorised to populate
+#: data/documents/ and data/claims/ with real content: exactly one Document
+#: (the PAT special fuel-oil-usage surcharge notice) and its directly
+#: source-supported Claims, previously deferred by WO-047/WO-049 (Issue #89
+#: item 8 / Issue #92 item 9) for lack of accessible source content. Naming
+#: the exact IDs here, rather than only checking a count, keeps this an
+#: acceptance guard rather than a rubber stamp: a bulk/crawler/scheduled
+#: addition would still fail this test even if it happened to add exactly
+#: one document, because it would not be *this* document.
+_WO050_DOCUMENT_ID = "DOC-20260810-001"
+_WO050_CLAIM_IDS = {"CLM-20260810-0001", "CLM-20260810-0002"}
+
+
 def test_repository_data_documents_directory_has_no_real_content():
-    """Acceptance guard: WO-047 must not write real content into
-    data/documents/. An empty scaffold (zero documents/claims) is fine; any
-    populated record is not, since this Work Order's manual-intake exercise
-    (Issue #89 item 8) is explicitly deferred pending D-2/D-6.
+    """Acceptance guard: no *unbounded* real content in data/documents/ or
+    data/claims/. An empty scaffold is fine; so, exactly, is the single real
+    WO-050 (Issue #94) record set -- one Document from MANUAL_NOTICE_INTAKE
+    and its Claims, the platform's first real end-to-end manual intake
+    through the WO-047/WO-049 contracts. Anything else (a second document, a
+    document from any other source, an unrecognised claim) fails loudly:
+    this guard exists to catch exactly the bulk/crawler/scheduled growth
+    WO-050's own hard boundaries forbid, not to forbid the one exercise that
+    Work Order was chartered to perform.
     """
     documents_path = ROOT / "data" / "documents" / "documents.json"
     if documents_path.exists():
         payload = json.loads(documents_path.read_text(encoding="utf-8"))
-        assert payload.get("documents", []) == []
+        documents = payload.get("documents", [])
+        assert documents == [] or [d["document_id"] for d in documents] == [_WO050_DOCUMENT_ID]
+        for document in documents:
+            assert document["source_id"] == "MANUAL_NOTICE_INTAKE"
     claims_path = ROOT / "data" / "claims" / "claims.json"
     if claims_path.exists():
         payload = json.loads(claims_path.read_text(encoding="utf-8"))
-        assert payload.get("claims", []) == []
+        claims = payload.get("claims", [])
+        assert claims == [] or {c["claim_id"] for c in claims} == _WO050_CLAIM_IDS
+        for claim in claims:
+            assert claim["document_id"] == _WO050_DOCUMENT_ID

@@ -1,3 +1,130 @@
 {
-  "claims": []
+  "claims": [
+    {
+      "claim_id": "CLM-20260810-0001",
+      "source_id": "MANUAL_NOTICE_INTAKE",
+      "document_id": "DOC-20260810-001",
+      "event_ids": [],
+      "claim_text": "The Port Authority of Thailand announced revised special fuel-oil-usage surcharge rates for container service at Bangkok Port and Laem Chabang Port, effective 1 April 2026 (excl. VAT): 20-foot loaded THB 58 / empty THB 35; 40-foot loaded THB 116 / empty THB 70; over-40-foot loaded THB 131 / empty THB 83 per container. The notice states PAT will review this rate every 1 Jan/Apr/Jul/Oct against PTT's trailing 3-month diesel price versus the 2004 average, adjusting only if the computed change exceeds 5%.",
+      "claim_type": "official_notice",
+      "assertion": {
+        "subject_type": "government_authority",
+        "subject_ref": "Port Authority of Thailand",
+        "predicate": "announced_tariff_rate_change",
+        "object_value": null,
+        "object_unit": null,
+        "predicate_class": "tariff_or_fee"
+      },
+      "event_start_at": "2026-04-01T00:00:00Z",
+      "event_end_at": null,
+      "event_date_precision": "date",
+      "geography_ids": [
+        "GEO-CTY-TH"
+      ],
+      "country_ids": [
+        "TH"
+      ],
+      "node_ids": [
+        "NODE-THLCH",
+        "NODE-THBKK"
+      ],
+      "chokepoint_ids": [],
+      "lane_ids": [],
+      "measurement": {
+        "value": null,
+        "value_status": "missing",
+        "unit": null,
+        "currency": null
+      },
+      "source_evidence_class": "official_notice",
+      "corroboration_status": "not_assessed",
+      "contradiction_status": "none",
+      "confidence": "high",
+      "extraction_method": "human_transcription",
+      "review_status": "approved",
+      "evidence_layer": "current_evidence",
+      "primary_for_this_claim": true,
+      "independence_group": "IG-PUB-PORT-AUTHORITY-OF-THAILAND-PAT",
+      "attributed_to": null,
+      "thailand_relevance_asserted": "asserted_by_source",
+      "claim_scope": "facility",
+      "supersedes": [],
+      "superseded_by": null,
+      "quotation_used": {
+        "used": false,
+        "word_count": null,
+        "permitted_by": null
+      },
+      "dataset": "current_publication",
+      "known_limitations": [
+        "Establishes only what PAT announced as effective from 1 April 2026; does not establish whether this rate remains in effect as of any later date. Supersession/current-validity beyond this notice is unknown and not further investigated.",
+        "The notice's rate table spans six distinct values (three container sizes x two cargo-fill states); this claim's structured assertion.object_value/measurement fields cannot represent a multi-valued table and are left null -- the table is preserved only as prose in claim_text.",
+        "Contains no information about port congestion, capacity, vessel delay or service disruption; none is inferred here."
+      ],
+      "extraction_prompt_version": null,
+      "extraction_model": null
+    },
+    {
+      "claim_id": "CLM-20260810-0002",
+      "source_id": "MANUAL_NOTICE_INTAKE",
+      "document_id": "DOC-20260810-001",
+      "event_ids": [],
+      "claim_text": "This Port Authority of Thailand notice, dated 20 March 2026, explicitly repeals PAT's prior notice of the same title (special fuel-oil-usage surcharge for container service at Bangkok Port and Laem Chabang Port), which had been dated 23 December 2025. This platform holds no separate Document record for that repealed 2025-12-23 notice.",
+      "claim_type": "official_notice",
+      "assertion": {
+        "subject_type": "government_authority",
+        "subject_ref": "Port Authority of Thailand",
+        "predicate": "repealed_prior_notice",
+        "object_value": null,
+        "object_unit": null,
+        "predicate_class": "tariff_or_fee"
+      },
+      "event_start_at": "2026-03-20T00:00:00Z",
+      "event_end_at": null,
+      "event_date_precision": "date",
+      "geography_ids": [
+        "GEO-CTY-TH"
+      ],
+      "country_ids": [
+        "TH"
+      ],
+      "node_ids": [
+        "NODE-THLCH",
+        "NODE-THBKK"
+      ],
+      "chokepoint_ids": [],
+      "lane_ids": [],
+      "measurement": {
+        "value": null,
+        "value_status": "missing",
+        "unit": null,
+        "currency": null
+      },
+      "source_evidence_class": "official_notice",
+      "corroboration_status": "not_assessed",
+      "contradiction_status": "none",
+      "confidence": "high",
+      "extraction_method": "human_transcription",
+      "review_status": "approved",
+      "evidence_layer": "current_evidence",
+      "primary_for_this_claim": true,
+      "independence_group": "IG-PUB-PORT-AUTHORITY-OF-THAILAND-PAT",
+      "attributed_to": null,
+      "thailand_relevance_asserted": "asserted_by_source",
+      "claim_scope": "facility",
+      "supersedes": [],
+      "superseded_by": null,
+      "quotation_used": {
+        "used": false,
+        "word_count": null,
+        "permitted_by": null
+      },
+      "dataset": "current_publication",
+      "known_limitations": [
+        "Establishes only that this notice's own text states the repeal; does not establish what, if anything, occurred under the repealed 23 December 2025 notice, since no Document record for it exists in this platform (single-notice intake scope)."
+      ],
+      "extraction_prompt_version": null,
+      "extraction_model": null
+    }
+  ]
 }

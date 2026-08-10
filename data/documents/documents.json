@@ -1,3 +1,91 @@
 {
-  "documents": []
+  "documents": [
+    {
+      "document_id": "DOC-20260810-001",
+      "source_id": "MANUAL_NOTICE_INTAKE",
+      "document_type": "official_notice",
+      "evidence_layer": "current_evidence",
+      "evidence_layer_basis": null,
+      "title": "Port Authority of Thailand announcement: special fuel-oil-usage surcharge for container service at Bangkok Port and Laem Chabang Port (\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e01\u0e32\u0e23\u0e17\u0e48\u0e32\u0e40\u0e23\u0e37\u0e2d\u0e41\u0e2b\u0e48\u0e07\u0e1b\u0e23\u0e30\u0e40\u0e17\u0e28\u0e44\u0e17\u0e22 \u0e25\u0e07\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48 20 \u0e21\u0e35\u0e19\u0e32\u0e04\u0e21 2569)",
+      "publisher": "Port Authority of Thailand (PAT)",
+      "publisher_is_originator": true,
+      "originator_publisher": null,
+      "originator_document_url": null,
+      "canonical_url": "https://www.port.co.th/port/index.php/2026/04/20/announcement_published_royal_gazette_year_2026-20260320/",
+      "access_url": null,
+      "language": "th",
+      "published_at": "2026-04-16T00:00:00Z",
+      "published_at_precision": "date",
+      "updated_at": null,
+      "retrieved_at": null,
+      "retrieval_status": "not_applicable",
+      "evidence_origin": "human_reviewed_manual",
+      "content_sha256": "0280b6052e0474940f37c777a3aa59dc03f1671007a2ff117ab985cc094edfb9",
+      "content_hash_scope": "authored_claim_record",
+      "stored_content": "none",
+      "stored_content_location": null,
+      "rights": {
+        "publication_use": "bounded_claim_and_link_only",
+        "quotation_allowed": false,
+        "quotation_max_words": null,
+        "attribution_required": true,
+        "redistribution_status": "link_only",
+        "decided_by": "registry_default",
+        "decided_at": "2026-08-10T12:00:00Z",
+        "reviewer_record": null,
+        "basis": "Registry default publication_use/redistribution_status recorded for 'MANUAL_NOTICE_INTAKE' at manual intake time."
+      },
+      "paywall_encountered": null,
+      "geographies": [
+        "GEO-CTY-TH"
+      ],
+      "transport_modes": [
+        "sea"
+      ],
+      "topics": [
+        "fuel_surcharge",
+        "port_tariff",
+        "container_service_fee"
+      ],
+      "independence_group": "IG-PUB-PORT-AUTHORITY-OF-THAILAND-PAT",
+      "independence_basis": "Derived from the underlying publisher 'Port Authority of Thailand (PAT)' because source_id 'MANUAL_NOTICE_INTAKE' has governance.channel_role: conduit -- never from source_id itself (WO-049 / Issue #92 item 1).",
+      "publisher_authority": {
+        "authority_scope": {
+          "node_ids": [
+            "NODE-THLCH",
+            "NODE-THBKK"
+          ],
+          "chokepoint_ids": [],
+          "country_ids": [
+            "TH"
+          ],
+          "predicate_classes": [
+            "tariff_or_fee"
+          ]
+        },
+        "decided_by": "document_review",
+        "decided_at": "2026-08-10T12:00:00Z",
+        "reviewer_record": "beer598623 (audit identity only -- no external contact; WO-050 / Issue #94)",
+        "basis": "PAT is the statutory port authority operating Bangkok Port and Laem Chabang Port under the Port Authority of Thailand Act B.E. 2494 (1951); this notice itself states its legal basis as Articles 4 and 13 of the PAT Regulation on the Use of Port Services and Facilities B.E. 2544 (2001), issued under that Act, under which PAT sets service/facility usage fees at these two ports. Scope is deliberately limited to tariff_or_fee matters at these two named ports; this document does not establish PAT authority over berth availability, schedules, capacity, customs, hazard or any other operational matter at these ports."
+      },
+      "duplicate_of": null,
+      "supersedes": [],
+      "superseded_by": null,
+      "correction_status": "none",
+      "review_status": "accepted",
+      "reviewer_record": "beer598623 (audit identity only -- no external contact; WO-050 / Issue #94)",
+      "reviewed_at": "2026-08-10T12:00:00Z",
+      "dataset": "current_publication",
+      "known_limitations": [
+        "Automated retrieval of canonical_url was attempted at Work Order start (WebFetch) and failed with EGRESS_BLOCKED -- a categorical domain block from this environment's network egress proxy, not a TLS/auth failure -- consistent with every other external domain tried on this project (docs/known_data_gaps.md). Per WO-050/Issue #94, retrieval stopped there; this notice's content was instead supplied directly by a human as an already-read transcript of the official Royal Gazette PDF (Volume 143, Special Section 98 Ngo, page 19). retrieval_status is 'not_applicable' per the existing MANUAL_NOTICE_INTAKE convention.",
+        "This notice carries three distinct, independently meaningful dates: the notice's own signing/announcement date (20 March 2026, stated in the notice as '\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28 \u0e13 \u0e27\u0e31\u0e19\u0e17\u0e35\u0e48 20 \u0e21\u0e35\u0e19\u0e32\u0e04\u0e21 2569'), the Royal Gazette publication date (16 April 2026, used here as published_at), and the date a human observed this specific PAT website posting of the notice (20 April 2026, embedded in canonical_url's own path segment). None should be conflated with another; only the Royal Gazette date is recorded in the published_at field.",
+        "Article 3 of this notice commits PAT to reviewing this rate on 1 January, 1 April, 1 July and 1 October of every year against a PTT diesel-price formula, adjusting only when the computed change exceeds 5%. The 1 July 2026 review point has already passed as of this record's review date (2026-08-10) with an unknown outcome. This Document and its Claims establish only what PAT announced effective 1 April 2026 -- not whether that rate is still in effect today. Current validity / supersession-since-this-notice is recorded as unknown and was not further investigated (one-notice-only Work Order scope).",
+        "This is purely a tariff/fee-rate notice. It states nothing about port congestion, vessel delay, berth or capacity availability, service disruption, or wider Thailand/regional ocean-freight conditions; none of those is inferred here.",
+        "Only a bounded factual paraphrase and the specific figures in Article 2's rate table are retained; the notice's full text has never been stored in this repository (stored_content: 'none').",
+        "manual_review_event_id below does not yet resolve to a persisted event in data/collection_runs/manual/. scripts/manual_intake.py's non-null contract for human_reviewed_manual origin documents was followed, but no data/collection_runs/manual/MANUAL_NOTICE_INTAKE.json event backing it could be constructed: collectors/collection_runs.py::load_manual_review_events requires a 'reviewed' event's related_record_ids to be non-empty and to resolve in analysis/provenance.py::build_record_index, which indexes only the observations and event_evidence record families -- never Document or Claim records. Because this Document's Claims are correctly unattached (event_ids: [] -- see analysis/attachment.py's rule 6 decision), no event_evidence row was ever minted for them, so there is currently no ID this event could truthfully reference; writing one anyway would either fail the loader's own validation or falsely assert a resolution that doesn't exist. This is a genuine platform gap between the WO-010 manual-review-event binding machinery (built for observation/event_evidence records) and the WO-047/WO-049 Document/Claim plane, surfaced by this Work Order's real evidence -- not a decision to omit backing evidence. Extending build_record_index to also cover Document/Claim records is out of this Work Order's authorized scope (data-only) and is flagged as follow-up work; until then, this field records the intended binding but callers must not treat it as a verified acquisition claim for this specific record."
+      ],
+      "collection_run_id": null,
+      "manual_review_event_id": "MAN-20260810T120000Z-MANUAL_NOTICE_INTAKE"
+    }
+  ]
 }
