@@ -383,7 +383,15 @@ Consequences:
   source would need to be identified and qualified (WO-010 Gate C: access cost, reuse
   status, redistribution status, `publication_use`) before this platform could record its
   first genuinely L3-graded Claim.
-- `data/documents/` and `data/claims/` are empty scaffolds (WO-047 items 1–7, 9, 10 only;
-  item 8's real manual-intake exercise is blocked on Issue #89's D-2/D-6 and out of scope
-  for this Work Order) — see `scripts/manual_intake.py` for the tooling that will populate
-  them once a human answers those two decisions.
+- `data/documents/` and `data/claims/` are empty scaffolds. WO-047 items 1–7, 9 and 10 are
+  implemented; item 8 (one real, human-curated manual-intake exercise) is deferred to a
+  follow-up pass. Issue #89's two blocking decisions were resolved during this Work Order
+  (D-2: pilot source is a real Port Authority of Thailand notice via `MANUAL_NOTICE_INTAKE`;
+  D-6: named reviewer is `s.worachod@gmail.com`), but item 8 still could not be completed in
+  this session: this environment's outbound web-fetch tooling is blocked for `port.co.th` and
+  every other external domain tried, so no real notice's content could be read and honestly
+  paraphrased without fabricating what it says. See `scripts/manual_intake.py` for the
+  tooling, already tested against synthetic data (`tests/test_manual_intake.py`), that will
+  populate these files once either (a) a session with working external web access performs
+  the lookup, or (b) a human pastes the real notice's title/URL/date/content directly for
+  transcription.

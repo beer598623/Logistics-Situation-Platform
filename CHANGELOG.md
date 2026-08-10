@@ -23,7 +23,12 @@ WO-010 and is not bumped by every Work Order.
   intake tooling (`scripts/manual_intake.py`) builds and validates Document/Claim records from
   operator-supplied fields against a rights-cleared source, enforcing
   `underlying_publisher_required`; writes nothing real (`data/documents/`, `data/claims/` are
-  empty scaffolds — the real intake exercise, Issue #89 item 8, is deferred pending D-2/D-6).
+  empty scaffolds). Issue #89's D-2 (pilot source: a real Port Authority of Thailand notice
+  via `MANUAL_NOTICE_INTAKE`) and D-6 (named reviewer: `s.worachod@gmail.com`) were both
+  resolved during this Work Order, but item 8 (the one real, human-curated intake exercise)
+  remains deferred: this environment's outbound web-fetch tooling is blocked for every
+  external domain tried, including the publisher's own site, so no real notice could be read
+  and honestly paraphrased without fabricating its content.
   New `scripts/validate.py` rules (`analysis/claims.py`): the L3 (structural-research)
   firewall, independence counting for `officially_confirmed`, no-AI-invented-dates,
   `RESOLVED` situation-state gating, and regional-scope Thailand-relevance guarding — each
