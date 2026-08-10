@@ -642,6 +642,10 @@
         "enabled_for_public_claims": {
           "type": "boolean",
           "description": "Whether a Claim sourced from this source's Documents may reach current publication. True only for a source whose qualification already carries a rights-cleared bounded-claim path (e.g. manual_intake_status: allowed with licence_status: reviewed); this flag records an existing determination in the new vocabulary and enables nothing by itself."
+        },
+        "channel_role": {
+          "enum": ["originator_channel", "conduit"],
+          "description": "WO-049 (Issue #92) registry v0.5, additive. 'originator_channel' (the default, and correct for 17 of the 18 registered sources): the source itself IS the publisher, so authoritative_for and independence_group apply to it directly. 'conduit': the source is a transcription or aggregation channel for arbitrary underlying publishers (MANUAL_NOTICE_INTAKE is the one example today) -- authority and independence must then be decided per-Document from the underlying publisher, via document.schema.json's publisher_authority and the derived IG-PUB-<publisher> independence_group (scripts/manual_intake.py), never from the conduit source_id itself. Optional so every pre-v0.5 governance record stays valid; scripts/validate.py treats an absent value as 'originator_channel' for the purpose of the conduit rule (fixture/legacy records only -- all 18 real sources carry it explicitly as of v0.5)."
         }
       }
     }

@@ -43,6 +43,7 @@ from analysis.events import (  # noqa: E402
     is_active_at,
     validate_event,
 )
+from analysis.grading import grade_override_problems  # noqa: E402
 from analysis.provenance import (  # noqa: E402
     CURRENT_PUBLICATION,
     LIVE_FRESHNESS_STATUSES,
@@ -62,6 +63,17 @@ from analysis.reference import (  # noqa: E402
     country_index,
     geography_index,
     node_index,
+)
+from analysis.situation_validation import (  # noqa: E402
+    conduit_authority_gate_problems,
+    confirmed_requires_authority_coverage_problems,
+    conflicting_evidence_resolution_basis_problems,
+    explainability_walk_problems,
+    impact_assessment_basis_problems,
+    item_strength_a_requires_authority_coverage_problems,
+    shared_independence_group_without_basis_problems,
+    status_basis_required_problems,
+    status_change_classification_problems,
 )
 
 #: Sources whose governance is settled by a prior Work Order and which WO-010
@@ -863,6 +875,10 @@ def main() -> int:
         print(f"[PASS] events ({len(events)} records)")
     ok &= events_ok
     ok &= report("event semantics", event_problems)
+    ok &= report(
+        "impact_assessment basis fields (elevated_watch/no_material/not_relevant)",
+        impact_assessment_basis_problems(events),
+    )
 
     # ---- Documents and Claims (WO-047 / Issue #89) -------------------------
     # data/documents/documents.json and data/claims/claims.json are empty
@@ -919,6 +935,66 @@ def main() -> int:
     ok &= report("L3 firewall", l3_firewall_problems(events, claims_by_id))
     ok &= report(
         "RESOLVED situation_state gating", resolved_situation_state_problems(events, claims_by_id)
+    )
+
+    # ---- WO-049 (Issue #92) item 10: grading and conduit-authority rules --
+    # Documents/Claims are empty scaffolds in the real repository (item 9,
+    # the real intake exercise, is deferred), so every check below is
+    # exercised by tests/test_validate_situation_rules.py's fixtures and
+    # degrades to a trivial pass on the empty real files, matching the same
+    # discipline WO-047's own item-7 rules established.
+    events_by_id = {item["event_id"]: item for item in events if "event_id" in item}
+    ok &= report("grade_override upward-refusal", grade_override_problems(events))
+    ok &= report(
+        "authority_covers required for grade CONFIRMED",
+        confirmed_requires_authority_coverage_problems(events, claims_by_id, documents_by_id),
+    )
+    ok &= report(
+        "authority_covers required for item strength A",
+        item_strength_a_requires_authority_coverage_problems(
+            evidence, claims_by_id, documents_by_id
+        ),
+    )
+    ok &= report(
+        "the conduit rule (channel_role: conduit requires publisher_authority above "
+        "B/CORROBORATED)",
+        conduit_authority_gate_problems(claims, documents_by_id, events_by_id, registry),
+    )
+    ok &= report(
+        "no shared independence_group without an independence_basis",
+        shared_independence_group_without_basis_problems(documents),
+    )
+    ok &= report(
+        "status-change-vs-contradiction classification",
+        status_change_classification_problems(events, claims_by_id, documents_by_id),
+    )
+    ok &= report(
+        "conflicting_evidence.resolution_basis required when resolved",
+        conflicting_evidence_resolution_basis_problems(events),
+    )
+
+    # ---- mode_situation (WO-049 / Issue #92 item 5) ------------------------
+    situations_payload = load_json(ROOT / "data/situations/situations.json")
+    situations = situations_payload.get("situations", [])
+    situations_ok = True
+    for situation in situations:
+        errors = schema_errors(situation, "mode_situation.schema.json")
+        if errors:
+            print(f"[FAIL] mode_situation/{situation.get('situation_id')}")
+            for error in errors:
+                print(f"  - {error}")
+            situations_ok = False
+    if situations_ok:
+        print(f"[PASS] mode_situation ({len(situations)} record(s))")
+    ok &= situations_ok
+    ok &= report(
+        "mode_situation.status_basis non-empty", status_basis_required_problems(situations)
+    )
+    ok &= report(
+        "mode_situation explainability walk",
+        explainability_walk_problems(
+            situations, events_by_id, claims_by_id, documents_by_id, registry_ids
+        ),
     )
 
     # ---- Assessments ------------------------------------------------------

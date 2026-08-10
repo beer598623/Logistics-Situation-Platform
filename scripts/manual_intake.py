@@ -129,6 +129,17 @@ def _content_hash(*parts: Any) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _normalize_publisher_key(publisher: str) -> str:
+    """Publisher name -> a stable IG-PUB-<NORMALISED> suffix.
+
+    Upper-cases, collapses anything that is not [A-Z0-9] to a single hyphen,
+    and strips leading/trailing hyphens -- deterministic and human-readable,
+    matching the existing ``IG-<SOURCE_ID>`` convention's shape.
+    """
+    normalized = re.sub(r"[^A-Za-z0-9]+", "-", publisher.strip()).strip("-").upper()
+    return normalized or "UNKNOWN"
+
+
 def build_manual_intake(
     *,
     source_id: str,
@@ -158,6 +169,8 @@ def build_manual_intake(
     evidence_layer_override: str | None = None,
     evidence_layer_basis: str | None = None,
     document_id: str | None = None,
+    underlying_publisher_identity_key: str | None = None,
+    publisher_authority: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Build one Document and one-or-more Claim records. Writes nothing.
 
@@ -165,6 +178,20 @@ def build_manual_intake(
     least ``claim_text``, ``claim_type`` and ``claim_scope``; every other
     Claim field has a conservative default (see the body below) that a spec
     entry may override by including the same key.
+
+    ``underlying_publisher_identity_key`` (WO-049 / Issue #92 item 1) is an
+    optional operator-supplied stable identity for the underlying publisher
+    -- used, when the source's ``governance.channel_role`` is ``conduit``,
+    to derive ``independence_group`` instead of the already-required
+    ``publisher`` display string. Two different display strings for the
+    same real publisher (e.g. "Port Authority of Thailand" vs. "PAT") can
+    then still collapse onto one independence group when the operator
+    supplies the same key for both, without depending on exact string
+    matching of the display name. ``publisher_authority`` is an optional
+    ``document.schema.json``-shaped ``publisher_authority`` object (the
+    D-12-style review act: what this underlying publisher is authoritative
+    for); omitted, the built Document's ``publisher_authority`` stays
+    ``null`` (fail-closed: no claim from it can exceed grade B).
 
     Raises ``ValueError`` when: the source is not a registered, allowed
     manual-intake source (``access_method: manual`` and
@@ -196,6 +223,7 @@ def build_manual_intake(
         raise ValueError("at least one claim is required")
 
     governance = source.get("governance") or {}
+    channel_role = governance.get("channel_role") or "originator_channel"
     registry_layer = governance.get("evidence_layer") or "context"
     layer = evidence_layer_override or registry_layer
     layer_basis = evidence_layer_basis
@@ -210,7 +238,27 @@ def build_manual_intake(
             f"Manually overridden downward from the registry default "
             f"{registry_layer!r} for this specific document."
         )
-    independence_group = governance.get("independence_group") or f"IG-{source_id}"
+    # WO-049 (Issue #92) item 1, the B-1 fix: a conduit source (governance.
+    # channel_role: conduit) is not itself the publisher -- MANUAL_NOTICE_INTAKE
+    # transcribes arbitrary underlying publishers, so every Document ingested
+    # through it would otherwise carry the same IG-MANUAL_NOTICE_INTAKE
+    # independence_group regardless of who actually published the notice,
+    # making corroborated_independent structurally unreachable. For a conduit
+    # source, independence_group is derived from the underlying publisher
+    # identity instead: underlying_publisher_identity_key when the operator
+    # supplies one (e.g. a stable slug distinct from the display name), else
+    # the already-required, already-validated `publisher` string itself.
+    if channel_role == "conduit":
+        publisher_key = underlying_publisher_identity_key or publisher
+        independence_group = f"IG-PUB-{_normalize_publisher_key(publisher_key)}"
+        independence_basis = (
+            f"Derived from the underlying publisher {publisher!r} because source_id "
+            f"{source_id!r} has governance.channel_role: conduit -- never from source_id "
+            "itself (WO-049 / Issue #92 item 1)."
+        )
+    else:
+        independence_group = governance.get("independence_group") or f"IG-{source_id}"
+        independence_basis = None
 
     date_part = datetime.fromisoformat(reviewed_at.replace("Z", "+00:00")).strftime("%Y%m%d")
 
@@ -270,7 +318,8 @@ def build_manual_intake(
         "transport_modes": list(transport_modes),
         "topics": list(topics),
         "independence_group": independence_group,
-        "independence_basis": None,
+        "independence_basis": independence_basis,
+        "publisher_authority": dict(publisher_authority) if publisher_authority else None,
         "duplicate_of": None,
         "supersedes": [],
         "superseded_by": None,

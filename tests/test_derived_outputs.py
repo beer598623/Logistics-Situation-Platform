@@ -1,10 +1,12 @@
 """Reproducibility of every generated artefact, and the no-network default.
 
-Three generators (``ingest_fixtures``, ``build_events_from_cases``,
-``build_analysis``) have a ``--check`` mode that regenerates in memory and
-compares against what is committed; exercised directly below. If any of these
-fail, the committed data no longer matches the inputs it claims to be derived
-from. ``generate_synthetic_fixtures`` has no ``--check`` mode -- its
+Four generators (``ingest_fixtures``, ``build_events_from_cases``,
+``build_analysis``, ``build_situations`` (WO-049)) have a ``--check`` mode
+that regenerates in memory and compares against what is committed; the first
+three are exercised directly below, ``build_situations`` in
+``tests/test_build_situations.py``. If any of these fail, the committed data
+no longer matches the inputs it claims to be derived from.
+``generate_synthetic_fixtures`` has no ``--check`` mode -- its
 reproducibility is instead verified by
 ``test_regenerating_the_fixtures_is_a_no_op``, which byte-compares its output
 before and after a fresh run. ``build_dashboard`` and ``build_warehouse`` are
@@ -29,9 +31,14 @@ sys.path.insert(0, str(ROOT))
 
 # Ground truth for which generators genuinely have a --check mode, kept in
 # sync with the real code by test_check_flag_support_matches_what_the_docs_claim
-# below (WO-025). Every doc that claims "every generator has --check" must
-# name exactly these three.
-CHECK_MODE_SCRIPTS = {"ingest_fixtures.py", "build_events_from_cases.py", "build_analysis.py"}
+# below (WO-025; extended WO-049). Every doc that claims "every generator has
+# --check" must name exactly these four.
+CHECK_MODE_SCRIPTS = {
+    "ingest_fixtures.py",
+    "build_events_from_cases.py",
+    "build_analysis.py",
+    "build_situations.py",
+}
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -97,13 +104,15 @@ def _scripts_declaring_a_check_argument() -> set[str]:
 
 
 def test_check_flag_support_matches_what_the_docs_claim():
-    """Regression guard for WO-025: exactly these three scripts have --check.
+    """Regression guard for WO-025 (extended WO-049): exactly these four
+    scripts have --check.
 
     docs/operations_runbook.md, docs/bundle1_architecture.md and
     docs/data_model_and_persistence.md all once claimed every generator has a
-    --check mode; only three genuinely do. If a future change adds or removes
-    --check support from any script in scripts/, this must fail until
-    CHECK_MODE_SCRIPTS and the prose in those three docs are updated to match.
+    --check mode; only four genuinely do (WO-049 added build_situations.py to
+    the original three). If a future change adds or removes --check support
+    from any script in scripts/, this must fail until CHECK_MODE_SCRIPTS and
+    the prose in those three docs are updated to match.
     """
     assert _scripts_declaring_a_check_argument() == CHECK_MODE_SCRIPTS
 

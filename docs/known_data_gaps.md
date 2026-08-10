@@ -395,3 +395,45 @@ Consequences:
   populate these files once either (a) a session with working external web access performs
   the lookup, or (b) a human pastes the real notice's title/URL/date/content directly for
   transcription.
+
+## 11. WO-049 (Issue #92): item 9 (the real intake exercise) still deferred; the same web-fetch block
+
+WO-049 (design in Issue #91, tracked by Issue #92) implemented items 1–8 and 10–13 of its
+scope — the publisher identity plane, full A–D item grading, Development-level `evidence_grade`,
+`assertion_group_id` and the minimal claim→Development attachment path, `mode_situation.schema.json`
+and its computation, the `conflicting_evidence[]` extension, `situation_state` transitions,
+the four `impact_assessment` basis fields, `scripts/validate.py` rules, the `merge_status`
+vocabulary fix, and this doc set — entirely offline, against fixtures and the empty real
+`data/documents/`/`data/claims/` scaffolds. See `docs/situation_synthesis.md` for what was built.
+
+**Item 9 (one real Port Authority of Thailand notice, via `MANUAL_NOTICE_INTAKE`) is still
+deferred**, for the identical reason §10 already recorded for WO-047: this environment's
+outbound web-fetch tooling remains blocked for `port.co.th` and every other external domain
+tried across this project, so no real notice's content could be read and honestly paraphrased
+without fabricating what it says. Neither of Issue #92's two acceptable unblocks was available
+in this session — (a) a human pasting the real notice's title/URL/publication date/content for
+transcription, or (b) a session with working external web access. Acceptance criteria A-4
+through A-6 and A-9 (which all depend on item 9) carry forward unmet, exactly as Issue #92's own
+"Scope out" clause anticipates. `data/documents/documents.json` and `data/claims/claims.json`
+remain the empty scaffolds `{"documents": []}` / `{"claims": []}`.
+
+**D-12** (what the Port Authority of Thailand is authoritative for — `publisher_authority.
+authority_scope`) is consequently also still open: it is a review act performed *on* a real
+Document at intake time, and there is no real Document yet for a reviewer to decide about.
+
+**`expected_cadence_minutes` is null for every registered official-notice or hazard-alert
+source, but not for every L1 (`current_evidence`-layer) source** — worth stating precisely,
+because the design comment's informal claim ("null for every L1 source") is not quite exact
+against the registry as merged. Of the 8 sources carrying `governance.evidence_layer:
+current_evidence`, 7 have `expected_cadence_minutes: null` — `GDACS`, `TMD_CAP`, `PAT_NOTICE`,
+`ACP_ADVISORY`, `SCA_CIRCULAR`, `MPA_SG_NOTICE`, `MANUAL_NOTICE_INTAKE` — because none of their
+underlying publishers states a publication schedule anywhere this platform has found. The one
+exception is `NEWS_DISCOVERY`, whose `expected_cadence_minutes: 1440` reflects the automated
+feed's own polling interval, not a publisher-stated cadence — it is a discovery channel, not a
+notice-issuing authority, and is excluded from `mode_situation`'s `coverage_basis` accordingly
+(`analysis/situations.py::_coverage_basis` only counts `governance.enabled_for_public_claims`
+sources, which `NEWS_DISCOVERY` is not). Practically: every source through which this platform
+could actually publish a current-evidence claim today (`MANUAL_NOTICE_INTAKE`, the only one with
+`enabled_for_public_claims: true`) has an unknown publication cadence, which is exactly the
+"unknown publisher cadence" position `docs/situation_synthesis.md`'s confidence-reduction rule
+already accounts for.

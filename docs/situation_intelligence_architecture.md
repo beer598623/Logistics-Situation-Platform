@@ -1,4 +1,4 @@
-# Situation Intelligence architecture (WO-047)
+# Situation Intelligence architecture (WO-047, extended by WO-049)
 
 **Work Order:** WO-047 · **Issue:** [#89](https://github.com/beer598623/Logistics-Situation-Platform/issues/89)
 **Design reference:** [Issue #88](https://github.com/beer598623/Logistics-Situation-Platform/issues/88)
@@ -10,6 +10,17 @@ for the reuse matrix, structural example, migration plan and this Work Order's e
 recommendation)
 **Status:** Phase 1 in full, plus tooling for the manual-intake half of phase 2. No real
 intake exercise performed — see §6.
+
+**Extended by WO-049** (Issue [#92](https://github.com/beer598623/Logistics-Situation-Platform/issues/92),
+design in Issue [#91](https://github.com/beer598623/Logistics-Situation-Platform/issues/91)): the
+publisher identity plane, full item-level A–D grading, Development-level `evidence_grade`,
+`assertion_group_id` and the minimal claim→Development attachment path, `mode_situation`, the
+`conflicting_evidence[]` extension, and `situation_state` transitions. This document still
+describes what WO-047 itself built (§§1–9 below are otherwise unchanged); **the full account of
+what WO-049 added is `docs/situation_synthesis.md`**, which this document defers to rather than
+duplicates. Two things below are corrected in place because WO-049 made them stale, not merely
+extended: §5's grading description (§5 below) and §9's "what this Work Order did not do" list
+(§9 below), since several items it originally named are now built.
 
 This document is a concise, accurate summary of what this Work Order actually built. It does
 not re-derive the full design rationale; Issue #88 is the authority for *why*, this document
@@ -39,7 +50,7 @@ the existing `event_evidence` shape.
 | 7 | New `scripts/validate.py` rules | `analysis/claims.py`, wired into `scripts/validate.py`'s "Documents and Claims" section |
 | — | Registry v0.4 (`classification`/`governance` blocks) | `schemas/source_contract.schema.json#/$defs/governance`, `config/sources.yaml` |
 | 9 | Labelled synthetic fixtures + rule proofs | `tests/fixtures/situation_intelligence/`, `tests/test_validate_claim_rules.py` |
-| 10 | This document, `docs/evidence_layers.md`, `docs/known_data_gaps.md` §10 | — |
+| 10 | This document, `docs/evidence_layers.md`, `docs/known_data_gaps.md` §10 (`docs/situation_synthesis.md` and `docs/known_data_gaps.md` §11 added by WO-049) | — |
 
 Item 8 (Issue #89) — one real, human-curated intake exercise — is **explicitly deferred**: it
 is blocked on Issue #89's D-2 (which source is the pilot?) and D-6 (who is the named
@@ -129,15 +140,19 @@ the module's docstring:
 - **`evidence_role`** — a discovery-source registry entry always yields `discovery_only`;
   anything not at the `current_evidence` layer, or attributed to an unnamed party, is
   `contextual`; otherwise `confirming`.
-- **`strength` (A–D) / `strength_basis`** — a real, simple heuristic per Issue #88 comment 2
-  §8.2, not a placeholder: `A` requires `primary_for_this_claim`, `current_evidence` layer,
-  and `claim_type` in `{verified_fact, official_notice}`; `B` requires a named attribution or
-  bare primacy; everything else is `C`; a discovery lead or L3 claim is always `D`.
-  `strength_basis` is `expected_at_cutoff` for any fixture-origin Document, `verified` only
-  when content was actually retrieved or human-reviewed. Full multi-signal grading (registry
-  `authoritative_for` coverage, freshness-window interaction, the contradiction clock) is
-  **deferred to a later phase** — this is deliberately the smallest heuristic that is still
-  correct on real data, not a stub.
+- **`strength` (A–D) / `strength_basis`** — **extended to full multi-signal grading by WO-049**
+  (registry authority coverage, freshness-window interaction, the contradiction clock — see
+  `docs/situation_synthesis.md` §3 for the complete rule table and the real per-source
+  freshness numbers). The WO-047 placeholder heuristic described in the previous revision of
+  this section (primary + current-evidence-layer + `{verified_fact, official_notice}` ⇒ A;
+  named attribution or bare primacy ⇒ B; else C; discovery lead/L3 ⇒ D) still runs unchanged,
+  but now only for a fixture-context Document (`evidence_origin` in
+  `{synthetic_test_fixture, historical_validation_fixture}`) — this is what keeps the three
+  committed round-trip fixtures below grading exactly as they did before WO-049
+  (`tests/test_claim_evidence_adapter.py`, acceptance A-2). Every real (non-fixture) Document
+  takes the full heuristic. `strength_basis` is unchanged: `expected_at_cutoff` for any
+  fixture-origin Document, `verified` only when content was actually retrieved or
+  human-reviewed.
 
 **Round-trip proof (acceptance A-2):** `tests/test_claim_evidence_adapter.py` reproduces three
 of the 17 committed `event_evidence` records (`EVD-HVC-001-A`, `EVD-HVC-001-B`,
@@ -220,8 +235,17 @@ partially covered by existing `qualification.geography`/`logistics_role`), `auto
 
 ## 9. What this Work Order explicitly did not do
 
-No AI claim extraction. No clustering rules 5–8. No `mode_situation` computation. No Daily
-Brief. No Dashboard change of any kind — `dashboard/public/**` and `scripts/build_dashboard.py`
-are untouched. No source enabled, scheduled or contacted. No real content in
-`data/documents/`/`data/claims/`. No existing `config/sources.yaml` determination changed. No
-rename of `logistics_event`, its ID prefix or its directory.
+No AI claim extraction. No clustering rules 5–8. No Daily Brief. No Dashboard change of any
+kind — `dashboard/public/**` and `scripts/build_dashboard.py` are untouched. No source enabled,
+scheduled or contacted. No real content in `data/documents/`/`data/claims/`. No existing
+`config/sources.yaml` determination changed. No rename of `logistics_event`, its ID prefix or
+its directory.
+
+**Corrected for WO-049:** this list originally also named "no `mode_situation` computation" and
+"full multi-signal grading deferred to a later phase" (§5) as things WO-047 did not do — both
+are now built; see `docs/situation_synthesis.md`. Everything else in this list remains true
+after WO-049: no AI claim extraction, no clustering rules 5–8 (or S1/S5/S6/S7/S8 — WO-049's
+`analysis/attachment.py` implements only design part 1 §1.4's rules 3, 6 and 7), no Daily
+Brief, no Dashboard change of any kind, no source enabled/scheduled/contacted, no real content
+in `data/documents/`/`data/claims/` (item 9 remains deferred — `docs/known_data_gaps.md` §11),
+no existing registry determination changed, no rename of `logistics_event`.

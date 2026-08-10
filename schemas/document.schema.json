@@ -233,10 +233,86 @@
     "independence_group": {
       "type": "string",
       "minLength": 1,
-      "description": "Copied from the source's registry governance.independence_group at ingest and frozen on the document."
+      "description": "Copied from the source's registry governance.independence_group at ingest and frozen on the document -- except for a conduit source (governance.channel_role: conduit), where it is instead derived from the underlying publisher identity (IG-PUB-<normalised publisher>; scripts/manual_intake.py) so that every publisher transcribed through the same conduit does not collapse onto one independence group (WO-049 / Issue #92 item 1, the B-1 fix)."
     },
     "independence_basis": {
-      "type": ["string", "null"]
+      "type": ["string", "null"],
+      "description": "Required (non-null), by scripts/validate.py convention rather than this schema, whenever independence_group was derived rather than copied verbatim from the source's registry default -- in particular for every conduit-sourced document."
+    },
+    "publisher_authority": {
+      "description": "WO-049 (Issue #92) item 1: what the underlying publisher of this document is authoritative for, in a structured, decidable form -- required (non-null) whenever the document's source has governance.channel_role: conduit (checked in scripts/validate.py, which has the registry; this schema has no cross-record visibility). Absent or null is fail-closed: a claim from a document with no publisher_authority can never exceed grade B/CORROBORATED (analysis/claim_evidence_adapter.py::authority_covers). For an originator_channel source, authority is instead read directly from the registry's own authoritative_for/qualification.geography and this field is expected to stay null.",
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["authority_scope", "decided_by", "decided_at", "reviewer_record", "basis"],
+          "properties": {
+            "authority_scope": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["node_ids", "chokepoint_ids", "country_ids", "predicate_classes"],
+              "description": "A structured scope, not a free-text label, so coverage is decidable by set membership (analysis/claim_evidence_adapter.py::authority_covers) rather than string matching.",
+              "properties": {
+                "node_ids": {
+                  "type": "array",
+                  "items": {"type": "string", "pattern": "^NODE-[A-Z0-9-]+$"},
+                  "uniqueItems": true
+                },
+                "chokepoint_ids": {
+                  "type": "array",
+                  "items": {"type": "string", "pattern": "^CHK-[A-Z0-9-]+$"},
+                  "uniqueItems": true
+                },
+                "country_ids": {
+                  "type": "array",
+                  "items": {"type": "string", "pattern": "^[A-Z]{2}$"},
+                  "uniqueItems": true
+                },
+                "predicate_classes": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "berth_or_facility_availability",
+                      "transit_or_passage",
+                      "service_schedule",
+                      "capacity_or_equipment",
+                      "customs_or_clearance",
+                      "tariff_or_fee",
+                      "sanction_or_regulation",
+                      "hazard_or_security",
+                      "labour_action",
+                      "structural_finding"
+                    ]
+                  },
+                  "uniqueItems": true
+                }
+              }
+            },
+            "decided_by": {
+              "enum": ["registry_source", "document_review", "human_override"]
+            },
+            "decided_at": {"type": "string", "format": "date-time"},
+            "reviewer_record": {
+              "type": ["string", "null"],
+              "description": "Required (non-null) whenever decided_by is not 'registry_source' (the D-12-style review act: a named human states what this publisher is authoritative for)."
+            },
+            "basis": {"type": "string", "minLength": 1}
+          },
+          "allOf": [
+            {
+              "if": {
+                "required": ["decided_by"],
+                "properties": {"decided_by": {"enum": ["document_review", "human_override"]}}
+              },
+              "then": {
+                "required": ["reviewer_record"],
+                "properties": {"reviewer_record": {"type": "string", "minLength": 1}}
+              }
+            }
+          ]
+        }
+      ]
     },
     "duplicate_of": {
       "type": ["string", "null"],

@@ -1,7 +1,10 @@
-"""The Claim x Document -> event_evidence adapter (WO-047 / Issue #89).
+"""The Claim x Document -> event_evidence adapter (WO-047 / Issue #89; item-level
+grading extended to full A-D by WO-049 / Issue #92 item 2).
 
 Design: Issue #88 comment 2 Section 6.6
-(https://github.com/beer598623/Logistics-Situation-Platform/issues/88#issuecomment-5235496493).
+(https://github.com/beer598623/Logistics-Situation-Platform/issues/88#issuecomment-5235496493)
+for the original heuristic; Issue #91 comment (WO-048 design part 1) Section
+2 for the full A-D grading this module now also implements.
 
 ``event_evidence.schema.json`` is **REUSE WITH ADAPTER**, not replaced. This
 module is the deterministic projection: one :func:`project_event_evidence`
@@ -22,14 +25,17 @@ to need revisiting once real (non-synthetic) documents exist:
 
 * :func:`_evidence_role` -- discovery-source detection, L2/L3 contextual
   demotion, is_named-false contextual demotion, else confirming.
-* :func:`_relation` and :func:`_strength`/:func:`_strength_basis` -- a
-  simple, real (not placeholder) A-D grading per Issue #88 comment 2
-  Section 8.2, deliberately conservative: nothing here can grade a claim A
-  unless it is primary, current-evidence-layer, and one of
-  ``verified_fact``/``official_notice``. Full multi-signal grading
-  (registry ``authoritative_for`` coverage, freshness-window checks,
-  contradiction-clock interaction) is deferred to a later phase; this
-  heuristic is what Issue #89's item 7 calls "the simple correct version".
+* :func:`_relation` and :func:`_strength`/:func:`_strength_basis` -- A-D
+  grading per design part 1 Section 2.4. :func:`_strength` dispatches
+  between two implementations, and the split matters: :func:`_full_strength`
+  is the full heuristic WO-049 adds -- it now reads three inputs the WO-047
+  placeholder never did (:func:`authority_covers`, :func:`freshness_state`,
+  ``claim.contradiction_status``) -- and applies to every real (non-fixture)
+  document; :func:`_legacy_strength` is the original WO-047 placeholder,
+  unchanged, and applies only to a fixture-context document
+  (``evidence_origin`` in :data:`_FIXTURE_ORIGINS`), which is what keeps
+  the three round-trip fixtures below grading exactly as they did before
+  this Work Order (see :func:`_strength`'s own docstring for why).
 
 See ``tests/test_claim_evidence_adapter.py`` for the round-trip proof
 (acceptance criterion A-2) and a precise list of the handful of fields that
@@ -40,11 +46,44 @@ adapter's output, with the reason for each.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any
 
 #: Item-level evidence strength grades, weakest first. Used only for
 #: readability in this module; the schema is the source of truth.
 _STRENGTHS = ("A", "B", "C", "D")
+
+#: predicate_class values a claim's assertion may carry (WO-049 / Issue #92
+#: item 1), reused verbatim from document.schema.json's
+#: publisher_authority.authority_scope.predicate_classes and
+#: claim.schema.json's assertion.predicate_class enums -- kept here too as
+#: the single set both :func:`authority_covers` and any caller iterate over.
+PREDICATE_CLASSES = frozenset(
+    {
+        "berth_or_facility_availability",
+        "transit_or_passage",
+        "service_schedule",
+        "capacity_or_equipment",
+        "customs_or_clearance",
+        "tariff_or_fee",
+        "sanction_or_regulation",
+        "hazard_or_security",
+        "labour_action",
+        "structural_finding",
+    }
+)
+
+#: claim.contradiction_status values that mean the claim's own core assertion
+#: is still actively disputed. Full grading (Issue #91/#92, WO-048 design
+#: part 1 Section 2.4) treats only 'unresolved' as disqualifying for grade A;
+#: a claim that was contradicted and has since been resolved, superseded or
+#: had its confidence reduced is not blocked from A on that basis alone.
+_UNRESOLVED_CONTRADICTION = "unresolved"
+
+#: Freshness states, weakest (most stale) last. Mirrors design part 1 Section
+#: 2.5's table exactly: fresh <= 1x window, ageing <= 2x, stale <= 4x, expired
+#: beyond that (or unknown, treated the same as stale/expired for grading).
+FRESHNESS_STATES = ("fresh", "ageing", "stale", "expired", "unknown")
 
 #: Registry qualification.logistics_role / purposes values that mark a
 #: source as a discovery-only channel (Issue #88 comment 2 Section 6.6:
@@ -124,29 +163,99 @@ def _relation(claim: Mapping[str, Any]) -> str:
     return "supports"
 
 
-def _strength(claim: Mapping[str, Any]) -> str:
-    """A/B/C/D per Issue #88 comment 2 Section 8.2, simplified.
+def authority_covers(
+    claim: Mapping[str, Any],
+    document: Mapping[str, Any],
+) -> bool:
+    """Does the document's publisher_authority cover this claim's assertion?
 
-    Deliberately conservative and independent of retrieval/fixture status
-    (strength grades the source's authority and naming, not whether this
-    particular instance was actually retrieved -- that is strength_basis's
-    job, computed separately by :func:`_strength_basis`):
+    WO-049 (Issue #92) item 2 / design part 1 Section 2.3's two-part set
+    test, with no string matching: the claim's ``assertion.predicate_class``
+    must be in the authority scope's ``predicate_classes``, AND the claim
+    must share a node or chokepoint with the scope, or -- only when the claim
+    names neither -- share a country.
 
-    * D -- a discovery lead, or an L3 structural-research claim used as
-      context.
-    * A -- primary for this claim, current-evidence layer, and one of the
-      two claim types the design reserves for a directly-established fact
-      (verified_fact, official_notice).
-    * B -- attributed to a *named* party, or primary but outside the
-      strict A criteria above (e.g. primary but not itself the
-      current-evidence layer's strongest claim type).
-    * C -- everything else: an unnamed/uncharacterised secondary claim.
+    Fail-closed by construction: a document with no ``publisher_authority``
+    (the default for every conduit-sourced document until a human records
+    one -- document.schema.json's own field description) covers nothing, so
+    a claim from it can never satisfy this and can never reach grade A.
+    """
+    publisher_authority = document.get("publisher_authority")
+    if not publisher_authority:
+        return False
+    scope = publisher_authority.get("authority_scope") or {}
+    predicate_class = (claim.get("assertion") or {}).get("predicate_class")
+    if predicate_class is None or predicate_class not in (scope.get("predicate_classes") or []):
+        return False
 
-    Full grading (registry authoritative_for coverage, freshness-window
-    checks) is deferred; this is the "simple correct version" Issue #89's
-    item 7 asks for in preference to a placeholder, with the placeholder
-    fallback (C for anything not clearly A/B/D) built in as the safe
-    default.
+    claim_nodes = set(claim.get("node_ids") or [])
+    claim_chokepoints = set(claim.get("chokepoint_ids") or [])
+    claim_countries = set(claim.get("country_ids") or [])
+    scope_nodes = set(scope.get("node_ids") or [])
+    scope_chokepoints = set(scope.get("chokepoint_ids") or [])
+    scope_countries = set(scope.get("country_ids") or [])
+
+    if claim_nodes & scope_nodes:
+        return True
+    if claim_chokepoints & scope_chokepoints:
+        return True
+    if not claim_nodes and not claim_chokepoints and (claim_countries & scope_countries):
+        return True
+    return False
+
+
+def _reference_instant(document: Mapping[str, Any]) -> datetime | None:
+    for field in ("published_at", "retrieved_at", "updated_at"):
+        value = document.get(field)
+        if value:
+            try:
+                parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    return None
+
+
+def freshness_state(
+    document: Mapping[str, Any],
+    registry: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
+) -> str:
+    """fresh / ageing / stale / expired / unknown, per design part 1 Section 2.5.
+
+    No new field: ``window_minutes`` is the source's registry
+    ``max_stale_minutes``, which is required and populated on all 18
+    sources. The reference instant is the document's ``published_at``,
+    falling back to ``retrieved_at``, falling back to ``updated_at``; when
+    none is set, or the source does not resolve, the answer is ``unknown``,
+    which grading treats exactly as ``stale``/``expired``.
+    """
+    source_entry = _source_entry(registry, document.get("source_id"))
+    window_minutes = source_entry.get("max_stale_minutes")
+    if not window_minutes:
+        return "unknown"
+    reference = _reference_instant(document)
+    if reference is None:
+        return "unknown"
+    reference_now = now or datetime.now(UTC)
+    age_minutes = (reference_now - reference).total_seconds() / 60.0
+    if age_minutes < 0:
+        age_minutes = 0.0
+    if age_minutes <= window_minutes:
+        return "fresh"
+    if age_minutes <= 2 * window_minutes:
+        return "ageing"
+    if age_minutes <= 4 * window_minutes:
+        return "stale"
+    return "expired"
+
+
+def _legacy_strength(claim: Mapping[str, Any]) -> str:
+    """The WO-047 placeholder heuristic, kept verbatim for fixture-context records.
+
+    See :func:`_strength`'s docstring for why this path still exists and
+    exactly which records take it.
     """
     if claim.get("claim_type") == "discovery_lead":
         return "D"
@@ -165,6 +274,111 @@ def _strength(claim: Mapping[str, Any]) -> str:
     if primary:
         return "B"
     return "C"
+
+
+def _full_strength(
+    claim: Mapping[str, Any],
+    document: Mapping[str, Any],
+    registry: Mapping[str, Any],
+    *,
+    now: datetime | None,
+) -> str:
+    """A/B/C/D in full, per design part 1 Section 2.4.
+
+    Three inputs the WO-047 placeholder lacked: :func:`authority_covers`,
+    :func:`freshness_state`, and ``claim.contradiction_status``. Evaluated in
+    order; first match wins.
+    """
+    if claim.get("claim_type") == "discovery_lead":
+        return "D"
+    if claim.get("evidence_layer") == "structural_research":
+        return "D"
+    source_entry = _source_entry(registry, document.get("source_id"))
+    if _is_discovery_source(source_entry):
+        return "D"
+    if document.get("paywall_encountered"):
+        return "D"
+    if document.get("retrieval_status") == "retrieval_failed":
+        return "D"
+
+    primary = bool(claim.get("primary_for_this_claim"))
+    claim_type = claim.get("claim_type")
+    layer = claim.get("evidence_layer")
+    attributed_to = claim.get("attributed_to")
+    named = bool(attributed_to) and attributed_to.get("is_named") is True
+    unnamed = bool(attributed_to) and attributed_to.get("is_named") is False
+
+    covers = authority_covers(claim, document)
+    fresh = freshness_state(document, registry, now=now) == "fresh"
+    contradicted = claim.get("contradiction_status") == _UNRESOLVED_CONTRADICTION
+    verified_basis = _strength_basis(document) == "verified"
+    strongest_claim_type = claim_type in {"verified_fact", "official_notice"}
+
+    if (
+        primary
+        and layer == "current_evidence"
+        and strongest_claim_type
+        and covers
+        and fresh
+        and not contradicted
+        and verified_basis
+        and not unnamed
+    ):
+        return "A"
+
+    near_a = (
+        primary
+        and layer == "current_evidence"
+        and strongest_claim_type
+        and not contradicted
+        and verified_basis
+        and not unnamed
+    )
+    if near_a and (covers != fresh):
+        # Exactly one of authority_covers / freshness=='fresh' holds -- the
+        # A conditions minus one, per design part 1 Section 2.4's B row.
+        return "B"
+    if layer == "current_evidence" and named:
+        return "B"
+    if primary and not strongest_claim_type:
+        return "B"
+
+    return "C"
+
+
+def _strength(
+    claim: Mapping[str, Any],
+    document: Mapping[str, Any],
+    registry: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
+) -> str:
+    """A/B/C/D, dispatching between the full and legacy heuristics.
+
+    Full grading (:func:`_full_strength`, design part 1 Section 2.4) applies
+    to every real (non-fixture) document -- one where ``evidence_origin`` is
+    ``live_retrieved`` or ``human_reviewed_manual``. A fixture-context
+    document (``evidence_origin`` in :data:`_FIXTURE_ORIGINS` --
+    ``synthetic_test_fixture`` / ``historical_validation_fixture``) instead
+    takes the WO-047 placeholder heuristic (:func:`_legacy_strength`)
+    unchanged.
+
+    This split is deliberate, not incidental, and mirrors a distinction the
+    module already drew for ``strength_basis`` (:func:`_strength_basis`): a
+    fixture-context record was authored before the publisher-identity plane
+    existed, has no ``publisher_authority`` and no meaningful freshness
+    window relative to *today's* wall clock (a historical-validation fixture
+    is deliberately dated years in the past), so subjecting it to the full
+    heuristic would silently downgrade the three round-trip fixtures already
+    committed to ``event_evidence.json`` -- exactly the "if your new
+    strength logic changes what those 3 specific committed records would
+    grade to, you have a bug" case the round-trip test guards against. Real
+    evidence (the case this Work Order actually adds capability for) always
+    takes the full heuristic.
+    """
+    if document.get("evidence_origin") in _FIXTURE_ORIGINS:
+        return _legacy_strength(claim)
+    return _full_strength(claim, document, registry, now=now)
 
 
 def _strength_basis(document: Mapping[str, Any]) -> str:
@@ -203,11 +417,34 @@ def _merged_known_limitations(document: Mapping[str, Any], claim: Mapping[str, A
     return merged
 
 
+def strength_basis_of(document: Mapping[str, Any]) -> str:
+    """Public wrapper over :func:`_strength_basis`, for the same reason as
+    :func:`item_strength`."""
+    return _strength_basis(document)
+
+
+def item_strength(
+    claim: Mapping[str, Any],
+    document: Mapping[str, Any],
+    registry: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
+) -> str:
+    """Public wrapper over :func:`_strength`, for callers outside this module
+    (WO-049 / Issue #92 item 3: :mod:`analysis.grading`'s Development-level
+    ``evidence_grade`` computation reads item-level strength per claim
+    without duplicating the A-D heuristic).
+    """
+    return _strength(claim, document, registry, now=now)
+
+
 def project_event_evidence(
     claim: Mapping[str, Any],
     document: Mapping[str, Any],
     event_id: str,
     registry: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Deterministically build one event_evidence.schema.json-conformant dict.
 
@@ -222,7 +459,11 @@ def project_event_evidence(
     Raises ``ValueError`` on any of those three consistency failures. Every
     other field is computed deterministically from ``claim``, ``document``
     and a registry lookup; nothing here is random, timestamped at call
-    time, or otherwise non-reproducible.
+    time, or otherwise non-reproducible -- ``now`` is the one exception
+    (WO-049 / Issue #92 item 2's freshness clock, :func:`freshness_state`),
+    and defaults to the wall clock only when the caller omits it; a caller
+    that wants reproducibility (a test, a build script) should always pass
+    it explicitly.
     """
     if claim.get("document_id") != document.get("document_id"):
         raise ValueError(
@@ -258,7 +499,7 @@ def project_event_evidence(
         "claim_type": claim.get("claim_type"),
         "evidence_role": _evidence_role(claim, source_entry),
         "relation": _relation(claim),
-        "strength": _strength(claim),
+        "strength": _strength(claim, document, registry, now=now),
         "scope_supported": claim.get("claim_scope"),
         "event_date": _date_only(claim.get("event_start_at")),
         "publication_date": _date_only(document.get("published_at")),

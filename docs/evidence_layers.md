@@ -74,13 +74,23 @@ platform yet.
 ## 5. Relationship to item-level evidence grading
 
 `evidence_layer` is a coarse, three-value classification made at the Document/Claim level.
-The existing item-level `event_evidence.strength` (A–D) and the design's four-value
-Development-level `evidence_grade` (`CONFIRMED`/`CORROBORATED`/`REPORTED`/
-`ANALYTICAL_INFERENCE`, added to `schemas/logistics_event.schema.json` as an optional, derived
-field) are finer-grained and computed from the full claim set, not from `evidence_layer`
-alone. `evidence_layer` is a **ceiling**: an L3 claim is always graded `D` at the item level
-and can never contribute to a grade above `ANALYTICAL_INFERENCE` at the Development level —
-but an L1 (`current_evidence`) claim is not automatically graded `A`; it still has to earn it
-(primary, named or authoritative, corroborated). Full Development-level grade computation
-(`evidence_grade`, the four-value scale) is out of this Work Order's scope — see
-`docs/situation_intelligence_architecture.md` §9.
+The item-level `event_evidence.strength` (A–D) and the Development-level `evidence_grade`
+(`CONFIRMED`/`CORROBORATED`/`REPORTED`/`ANALYTICAL_INFERENCE`, on `schemas/logistics_event.
+schema.json` as an optional, derived field) are finer-grained and computed from the full claim
+set, not from `evidence_layer` alone. `evidence_layer` is a **ceiling**: an L3 claim is always
+graded `D` at the item level and can never contribute to a grade above `ANALYTICAL_INFERENCE`
+at the Development level — but an L1 (`current_evidence`) claim is not automatically graded
+`A`; it still has to earn it (primary, authoritative, fresh, uncontradicted, verified).
+
+**Full Development-level grade computation was built by WO-049** (Issue #92) —
+`analysis/claim_evidence_adapter.py`'s item-level `_full_strength` (reading registry
+`authoritative_for`/`publisher_authority` coverage via `authority_covers()`, the freshness
+window via `freshness_state()`, and `claim.contradiction_status`) and
+`analysis/grading.py::compute_evidence_grade` (the pure function over a Development's eligible
+claim set). See `docs/situation_synthesis.md` §§3–4 for the full rule tables, the real
+per-source freshness numbers, and why the grade ladder is deliberately not monotone in document
+count. The WO-047 placeholder heuristic this section originally described still runs, unchanged,
+but only for fixture-context Documents (`evidence_origin` in `{synthetic_test_fixture,
+historical_validation_fixture}`) — kept that way specifically so the three committed round-trip
+fixtures in `tests/test_claim_evidence_adapter.py` (acceptance A-2) keep grading exactly as
+they did before WO-049.

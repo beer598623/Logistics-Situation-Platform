@@ -111,6 +111,24 @@
       "items": {
         "type": "string"
       }
+    },
+    "watch_trigger": {
+      "type": ["string", "null"],
+      "description": "WO-049 (Issue #92) item 8. Required (non-null) by scripts/validate.py::impact_assessment_basis_problems (analysis/situation_validation.py) whenever status is 'elevated_watch' on a current_publication-dataset event: what observation would move this area to 'observed'/'potential' (confirmed) or clear it to 'no_material'/'not_relevant'. Makes the WO-047 'elevated_watch' enum value usable rather than merely valid. Optional/nullable on the schema itself, and the validate.py rule is scoped to dataset: current_publication only, so all 90 pre-WO-049 committed assessments (all historical_validation-dataset) stay valid unchanged."
+    },
+    "no_material_basis": {
+      "type": ["string", "null"],
+      "description": "WO-049 item 8. Required (non-null) by scripts/validate.py::impact_assessment_basis_problems whenever status is 'no_material' on a current_publication-dataset event: the explicit negative operational evidence behind the finding, distinct from the event-level negative_operational_evidence flag it must accompany. Not enforced on historical_validation-dataset events -- nine of the 90 pre-WO-049 committed assessments (EVT-20240614-002) use 'no_material' with no basis recorded, predating this field."
+    },
+    "not_relevant_basis": {
+      "type": ["string", "null"],
+      "description": "WO-049 item 8. Required (non-null) by scripts/validate.py::impact_assessment_basis_problems whenever status is 'not_relevant' on a current_publication-dataset event: why this area was assessed and found out of scope, rather than simply unassessed. Makes the WO-047 'not_relevant' enum value usable rather than merely valid."
+    },
+    "supporting_claim_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+      "uniqueItems": true,
+      "description": "WO-049 item 8. The Claim IDs that actually carry the assertions behind this assessment, distinct from evidence_ids (the projected event_evidence rows). Optional; an empty array is legal and means no claim has been linked yet."
     }
   }
 }
