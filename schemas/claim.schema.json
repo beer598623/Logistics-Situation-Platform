@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "claim.schema.json",
+  "title": "Claim",
+  "description": "One assertion, from one Document, about one thing, at one time (WO-047 / Issue #89, design in Issue #88 comment 2 Section 6). A Claim always names the Document it came from -- the traceability guarantee -- and may be attached to zero, one or (after a split) more than one logistics_event via event_ids. See docs/situation_intelligence_architecture.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claim_id",
+    "source_id",
+    "document_id",
+    "event_ids",
+    "claim_text",
+    "claim_type",
+    "assertion",
+    "event_start_at",
+    "event_end_at",
+    "event_date_precision",
+    "geography_ids",
+    "country_ids",
+    "node_ids",
+    "chokepoint_ids",
+    "lane_ids",
+    "measurement",
+    "source_evidence_class",
+    "corroboration_status",
+    "contradiction_status",
+    "confidence",
+    "extraction_method",
+    "review_status",
+    "evidence_layer",
+    "primary_for_this_claim",
+    "independence_group",
+    "attributed_to",
+    "thailand_relevance_asserted",
+    "claim_scope",
+    "quotation_used",
+    "dataset",
+    "known_limitations"
+  ],
+  "properties": {
+    "claim_id": {
+      "type": "string",
+      "pattern": "^CLM-[0-9]{8}-[0-9]{4}$",
+      "description": "CLM-YYYYMMDD-NNNN."
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$",
+      "description": "Denormalised from the Document, for query and rights checks without a join. Must agree with document_id's own source_id -- enforced in scripts/validate.py, not the schema, matching the house pattern for cross-record checks."
+    },
+    "document_id": {
+      "type": "string",
+      "pattern": "^DOC-[0-9]{8}-[0-9]{3}$",
+      "description": "Required. A claim with no document cannot exist -- this is the traceability guarantee."
+    },
+    "event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"
+      },
+      "uniqueItems": true,
+      "description": "0..n. A claim may be unattached (freshly extracted), attached to one Development, or -- deliberately -- attached to two after a split."
+    },
+    "claim_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "A factual paraphrase authored by the platform, not an extract. Bounded to the same 600-character cap already enforced on event_evidence.claim, so the Claim x Document -> event_evidence adapter is lossless."
+    },
+    "claim_type": {
+      "enum": [
+        "verified_fact",
+        "official_notice",
+        "official_forecast",
+        "reported_claim",
+        "analytical_inference",
+        "discovery_lead",
+        "structural_finding",
+        "historical_fact",
+        "denial_or_correction"
+      ]
+    },
+    "assertion": {
+      "type": "object",
+      "description": "Structured triple where extractable; the prose fallback in claim_text is always retained regardless. Every part nullable.",
+      "additionalProperties": false,
+      "required": ["subject_type", "subject_ref", "predicate", "object_value", "object_unit"],
+      "properties": {
+        "subject_type": {"type": ["string", "null"]},
+        "subject_ref": {"type": ["string", "null"]},
+        "predicate": {"type": ["string", "null"]},
+        "object_value": {"type": ["string", "number", "null"]},
+        "object_unit": {"type": ["string", "null"]}
+      }
+    },
+    "event_start_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "event_end_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "event_date_precision": {
+      "enum": ["date", "datetime", "month", "unknown"]
+    },
+    "geography_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^GEO-[A-Z0-9-]+$"},
+      "uniqueItems": true
+    },
+    "country_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Z]{2}$"},
+      "uniqueItems": true
+    },
+    "node_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^NODE-[A-Z0-9-]+$"},
+      "uniqueItems": true
+    },
+    "chokepoint_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CHK-[A-Z0-9-]+$"},
+      "uniqueItems": true
+    },
+    "lane_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^LANE-[A-Z0-9-]+$"},
+      "uniqueItems": true
+    },
+    "measurement": {
+      "$ref": "observation_common.schema.json#/$defs/measurement",
+      "description": "Nullable-by-default: value is non-null iff value_status is 'available'. This is how a numeric claim in prose can later join the structured-evidence model."
+    },
+    "source_evidence_class": {
+      "$ref": "observation_common.schema.json#/$defs/evidenceClass"
+    },
+    "corroboration_status": {
+      "enum": [
+        "uncorroborated",
+        "corroborated_dependent",
+        "corroborated_independent",
+        "officially_confirmed",
+        "contradicted",
+        "not_assessed"
+      ],
+      "description": "Default 'not_assessed', which is never treated as corroborated."
+    },
+    "contradiction_status": {
+      "enum": ["none", "unresolved", "resolved_by_primary_source", "superseded", "confidence_reduced"],
+      "description": "Default 'none'. Mirrors logistics_event.conflicting_evidence[].resolution_status with an added 'none' state for a claim that is not part of any contradiction."
+    },
+    "confidence": {
+      "enum": ["low", "medium", "high"],
+      "description": "Reuses the impact_assessment.confidence vocabulary deliberately, so the platform has one confidence scale."
+    },
+    "extraction_method": {
+      "enum": [
+        "human_transcription",
+        "human_extraction",
+        "ai_proposed_human_approved",
+        "ai_proposed_unreviewed",
+        "rule_based_parse",
+        "structured_field_map"
+      ]
+    },
+    "review_status": {
+      "enum": ["unreviewed", "approved", "rejected", "needs_review", "superseded"]
+    },
+    "evidence_layer": {
+      "enum": ["current_evidence", "context", "structural_research"],
+      "description": "Copied from the Document and frozen on the claim, so a later registry reclassification cannot retroactively promote a published L3 claim to L1. The L3 firewall's enforcement point."
+    },
+    "primary_for_this_claim": {
+      "type": "boolean",
+      "description": "Per-assertion primary/secondary. A carrier is primary about its own omission and secondary about the canal it transits."
+    },
+    "independence_group": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Copied from the Document, frozen. Corroboration counts distinct values here."
+    },
+    "attributed_to": {
+      "description": "Present when the document attributes the assertion to someone else. is_named: false means the claim can never exceed REPORTED.",
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "role", "is_named"],
+          "properties": {
+            "name": {"type": ["string", "null"]},
+            "role": {"type": ["string", "null"]},
+            "is_named": {"type": "boolean"}
+          }
+        }
+      ]
+    },
+    "thailand_relevance_asserted": {
+      "enum": ["asserted_by_source", "inferred_by_platform", "not_asserted"],
+      "description": "Prevents a regional claim silently becoming Thailand evidence."
+    },
+    "claim_scope": {
+      "enum": ["asset", "facility", "node", "route", "lane", "country", "region", "global"],
+      "description": "Reuses event_evidence.scope_supported's vocabulary. A region-scope claim can never alone support a Thailand-scope conclusion."
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+      "uniqueItems": true
+    },
+    "superseded_by": {
+      "type": ["string", "null"],
+      "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"
+    },
+    "quotation_used": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["used", "word_count", "permitted_by"],
+      "properties": {
+        "used": {"type": "boolean", "description": "Default false."},
+        "word_count": {"type": ["integer", "null"], "minimum": 0},
+        "permitted_by": {
+          "type": ["string", "null"],
+          "description": "Reference to the Document's rights.quotation_allowed basis when used is true. Cross-record agreement with the Document is checked in scripts/validate.py, not this schema, since a Claim does not embed its Document."
+        }
+      },
+      "allOf": [
+        {
+          "if": {"required": ["used"], "properties": {"used": {"const": true}}},
+          "then": {"required": ["permitted_by"], "properties": {"permitted_by": {"type": "string", "minLength": 1}}}
+        }
+      ]
+    },
+    "dataset": {
+      "$ref": "observation_common.schema.json#/$defs/dataset"
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Mandatory; an empty array is a legal but reviewable value."
+    },
+    "extraction_prompt_version": {
+      "type": ["string", "null"]
+    },
+    "extraction_model": {
+      "type": ["string", "null"]
+    }
+  },
+  "allOf": [
+    {
+      "description": "Reproducibility of an AI extraction (Issue #88 comment 2 Section 6.2): both fields required and non-null when extraction_method is one of the two ai_ values.",
+      "if": {
+        "required": ["extraction_method"],
+        "properties": {"extraction_method": {"enum": ["ai_proposed_human_approved", "ai_proposed_unreviewed"]}}
+      },
+      "then": {
+        "required": ["extraction_prompt_version", "extraction_model"],
+        "properties": {
+          "extraction_prompt_version": {"type": "string", "minLength": 1},
+          "extraction_model": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  ]
+}

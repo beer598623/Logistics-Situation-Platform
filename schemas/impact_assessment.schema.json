@@ -36,8 +36,11 @@
         "observed",
         "potential",
         "no_material",
-        "insufficient_evidence"
-      ]
+        "insufficient_evidence",
+        "elevated_watch",
+        "not_relevant"
+      ],
+      "description": "WO-047 (Issue #89): 'elevated_watch' and 'not_relevant' are additive. Existing four values and their order are unchanged."
     },
     "severity": {
       "enum": [

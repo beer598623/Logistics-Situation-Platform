@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "document.schema.json",
+  "title": "Document",
+  "description": "One thing a publisher published (WO-047 / Issue #89, design in Issue #88 comment 2 Section 5). A Document records the act of publication and its rights -- never an interpretation of it: severity, impact and Thailand relevance are properties of Claims and Developments (logistics_event), not of a Document. Reuses observation_common.schema.json's provenance $defs so one Document and one fact_* observation carry the same acquisition-truth vocabulary. See docs/situation_intelligence_architecture.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_id",
+    "source_id",
+    "document_type",
+    "evidence_layer",
+    "title",
+    "publisher",
+    "publisher_is_originator",
+    "published_at",
+    "published_at_precision",
+    "retrieved_at",
+    "retrieval_status",
+    "evidence_origin",
+    "content_sha256",
+    "content_hash_scope",
+    "stored_content",
+    "stored_content_location",
+    "rights",
+    "geographies",
+    "transport_modes",
+    "topics",
+    "independence_group",
+    "correction_status",
+    "review_status",
+    "dataset",
+    "known_limitations"
+  ],
+  "properties": {
+    "document_id": {
+      "type": "string",
+      "pattern": "^DOC-[0-9]{8}-[0-9]{3}$",
+      "description": "DOC-YYYYMMDD-NNN."
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$",
+      "description": "Must resolve in config/sources.yaml (checked as a semantic rule, matching event_evidence's own source_id, so the reserved SYNTHETIC_FIXTURE identifier remains usable for fixtures without a schema-level registry lookup)."
+    },
+    "document_type": {
+      "enum": [
+        "official_notice",
+        "advisory",
+        "circular",
+        "press_release",
+        "news_article",
+        "analysis_report",
+        "statistical_release",
+        "research_paper",
+        "newsletter",
+        "social_post",
+        "dataset_record",
+        "manual_transcription"
+      ]
+    },
+    "evidence_layer": {
+      "enum": ["current_evidence", "context", "structural_research"],
+      "description": "Inherited from the source's registry governance.evidence_layer; may be overridden DOWNWARD only (e.g. a normally current_evidence publisher's opinion piece recorded as context). Frozen onto every Claim built from this Document (Issue #88 comment 2 Section 6.2) -- the L3 firewall's enforcement point."
+    },
+    "evidence_layer_basis": {
+      "type": ["string", "null"],
+      "description": "Required (non-null) when this document's evidence_layer is a downward override of its source's registry default."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "The publisher's own headline or factual identifier for this document."
+    },
+    "publisher": {
+      "type": "string",
+      "minLength": 1
+    },
+    "publisher_is_originator": {
+      "type": "boolean",
+      "description": "False means this document is a syndication or aggregation of another; originator_publisher and originator_document_url are then required (non-null)."
+    },
+    "originator_publisher": {
+      "type": ["string", "null"]
+    },
+    "originator_document_url": {
+      "type": ["string", "null"],
+      "format": "uri"
+    },
+    "canonical_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "After collectors/events.py::canonicalize_url normalisation."
+    },
+    "access_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "What was actually accessed by a human reviewer; may differ from canonical_url."
+    },
+    "language": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$",
+      "description": "BCP-47 language tag."
+    },
+    "published_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Null when the source states no publication time -- some notices are undated."
+    },
+    "published_at_precision": {
+      "enum": ["date", "datetime", "month", "unknown"]
+    },
+    "updated_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "The publisher's own revision timestamp, when stated."
+    },
+    "retrieved_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Null unless retrieval_status is 'retrieved'."
+    },
+    "retrieval_status": {
+      "$ref": "observation_common.schema.json#/$defs/retrievalStatus"
+    },
+    "evidence_origin": {
+      "$ref": "observation_common.schema.json#/$defs/evidenceOrigin"
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "content_hash_scope": {
+      "$ref": "observation_common.schema.json#/$defs/contentHashScope"
+    },
+    "stored_content": {
+      "enum": ["none", "metadata_only", "extracted_text_internal", "full_response_internal"],
+      "description": "Default 'none'. 'extracted_text_internal' and 'full_response_internal' are legal only for a local, gitignored working store -- never in this public repository, where stored_content_location is always null."
+    },
+    "stored_content_location": {
+      "type": "null",
+      "description": "Always null in the public repository. No article body, cache or full response ever enters this repository -- matching the existing rule on event_evidence.raw_snapshot_path."
+    },
+    "rights": {
+      "type": "object",
+      "description": "Snapshot of the effective rights decision at the time this document was taken in (Issue #88 comment 2 Section 5.4), so a later registry change cannot retroactively legitimise or delegitimise an already-published paraphrase. Fail-closed by construction: this object and its publication_use are both required, so a document with no rights block, or no publication_use, fails schema validation.",
+      "additionalProperties": false,
+      "required": [
+        "publication_use",
+        "quotation_allowed",
+        "attribution_required",
+        "redistribution_status",
+        "decided_by",
+        "decided_at",
+        "basis"
+      ],
+      "properties": {
+        "publication_use": {
+          "$ref": "source_contract.schema.json#/$defs/qualification/properties/publication_use"
+        },
+        "quotation_allowed": {
+          "type": "boolean",
+          "description": "Default false."
+        },
+        "quotation_max_words": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Default null, meaning 0."
+        },
+        "attribution_required": {
+          "type": "boolean",
+          "description": "Default true."
+        },
+        "redistribution_status": {
+          "enum": ["permitted", "derived_only", "link_only", "prohibited", "unknown"],
+          "description": "Default 'unknown'."
+        },
+        "decided_by": {
+          "enum": ["registry_default", "document_review", "human_override"]
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reviewer_record": {
+          "type": ["string", "null"],
+          "description": "Required (non-null) when decided_by is 'human_override'."
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["decided_by"],
+            "properties": {"decided_by": {"const": "human_override"}}
+          },
+          "then": {
+            "required": ["reviewer_record"],
+            "properties": {"reviewer_record": {"type": "string", "minLength": 1}}
+          }
+        }
+      ]
+    },
+    "paywall_encountered": {
+      "type": ["boolean", "null"]
+    },
+    "geographies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(GEO-[A-Z0-9-]+|[A-Z]{2})$"
+      },
+      "uniqueItems": true,
+      "description": "GEO-* geography IDs or ISO-3166 alpha-2 country codes. May be empty."
+    },
+    "transport_modes": {
+      "type": "array",
+      "items": {
+        "$ref": "observation_common.schema.json#/$defs/transportMode"
+      },
+      "uniqueItems": true,
+      "description": "May be empty."
+    },
+    "topics": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "May be empty."
+    },
+    "independence_group": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Copied from the source's registry governance.independence_group at ingest and frozen on the document."
+    },
+    "independence_basis": {
+      "type": ["string", "null"]
+    },
+    "duplicate_of": {
+      "type": ["string", "null"],
+      "pattern": "^DOC-[0-9]{8}-[0-9]{3}$",
+      "description": "Set when the same content is re-encountered under a different document_id."
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^DOC-[0-9]{8}-[0-9]{3}$"},
+      "uniqueItems": true
+    },
+    "superseded_by": {
+      "type": ["string", "null"],
+      "pattern": "^DOC-[0-9]{8}-[0-9]{3}$",
+      "description": "Set for a document a correction or retraction has superseded."
+    },
+    "correction_status": {
+      "enum": ["none", "corrected", "retracted", "disputed_by_publisher"],
+      "description": "Default 'none'."
+    },
+    "review_status": {
+      "enum": ["unreviewed", "accepted", "rejected", "needs_review"],
+      "description": "Default 'unreviewed'."
+    },
+    "reviewer_record": {
+      "type": ["string", "null"]
+    },
+    "reviewed_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "dataset": {
+      "$ref": "observation_common.schema.json#/$defs/dataset"
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "collection_run_id": {
+      "type": ["string", "null"],
+      "pattern": "^COL-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$",
+      "description": "Required (non-null) when evidence_origin is 'live_retrieved'."
+    },
+    "manual_review_event_id": {
+      "type": ["string", "null"],
+      "pattern": "^MAN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9_]+$",
+      "description": "Required (non-null) when evidence_origin is 'human_reviewed_manual'."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Matches the retrieval_status/retrieved_at pairing rule already enforced by schemas/event_evidence.schema.json and schemas/observation_common.schema.json.",
+      "if": {
+        "required": ["retrieval_status"],
+        "properties": {"retrieval_status": {"const": "retrieved"}}
+      },
+      "then": {
+        "required": ["retrieved_at"],
+        "properties": {"retrieved_at": {"type": "string"}}
+      }
+    },
+    {
+      "if": {
+        "required": ["retrieval_status"],
+        "properties": {"retrieval_status": {"enum": ["not_retrieved", "retrieval_failed", "not_applicable"]}}
+      },
+      "then": {
+        "properties": {"retrieved_at": {"type": "null"}}
+      }
+    },
+    {
+      "if": {
+        "required": ["publisher_is_originator"],
+        "properties": {"publisher_is_originator": {"const": false}}
+      },
+      "then": {
+        "required": ["originator_publisher", "originator_document_url"],
+        "properties": {
+          "originator_publisher": {"type": "string", "minLength": 1},
+          "originator_document_url": {"type": "string"}
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidence_origin"],
+        "properties": {"evidence_origin": {"const": "live_retrieved"}}
+      },
+      "then": {
+        "required": ["collection_run_id"],
+        "properties": {"collection_run_id": {"type": "string"}}
+      }
+    },
+    {
+      "if": {
+        "required": ["evidence_origin"],
+        "properties": {"evidence_origin": {"const": "human_reviewed_manual"}}
+      },
+      "then": {
+        "required": ["manual_review_event_id"],
+        "properties": {"manual_review_event_id": {"type": "string"}}
+      }
+    },
+    {
+      "description": "Extra safety net (belt and braces): stored_content_location must be present and null, even though its own type declaration already forbids anything else. Every Document carries a rights block (required above), so this rule always applies.",
+      "if": {
+        "required": ["rights"]
+      },
+      "then": {
+        "required": ["stored_content_location"],
+        "properties": {"stored_content_location": {"type": "null"}}
+      }
+    }
+  ]
+}

@@ -1,6 +1,10 @@
-version: "0.3"
+version: "0.4"
 policy: free_public_sources_only
-last_reviewed_at: "2026-07-31"
+last_reviewed_at: "2026-08-10"
+# WO-047 (Issue #89): v0.4 adds a `governance` block to every source (see
+# schemas/source_contract.schema.json#/$defs/governance). Additive only --
+# no existing `enabled`, `licence_status`, `qualification` or `enablement`
+# value changed for any of the 18 sources below.
 sources:
   - id: GDACS
     name: Global Disaster Alert and Coordination System
@@ -52,6 +56,25 @@ sources:
       - Automatic notifications may contain uncertainty or error, do not replace national authorities, and have no guaranteed completeness or timeliness.
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-GDACS
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: current_evidence
+      evidence_layer_basis: >-
+        Reports or notices operational conditions, hazards or events directly (or, for NEWS_DISCOVERY and MANUAL_NOTICE_INTAKE, is the discovery/intake path for such reports); a Document from this source would carry a current-affairs claim, not structural research.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
 
   - id: TMD_CAP
     name: Thai Meteorological Department warnings and CAP services
@@ -107,6 +130,25 @@ sources:
       - "WO-006 (Implementation v0.2.2) added a controlled, manually triggered, single-candidate CAP validation path (collectors/adapters/tmd_candidate.py, TmdCapAdapter.validate_candidate, manual workflow tmd_operation=candidate_cap_validation) that accepts only a bounded candidate reference -- never an arbitrary URL -- derives the fetch target from fixed host/port/path-prefix/filename-grammar policy, resolves and pins DNS with fail-closed non-global-address rejection, makes exactly one physical HTTPS GET, and runs the unchanged strict CAP 1.2 parser. See docs/tmd_candidate_cap_validation.md for the full security boundary, retained/excluded fields, and evidence. WO-006 is implementation only: no live candidate fetch was performed under it, and a separate WO-007 plus human approval is required before any live candidate fetch, source enablement, or publication."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-TMD_CAP
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: current_evidence
+      evidence_layer_basis: >-
+        Reports or notices operational conditions, hazards or events directly (or, for NEWS_DISCOVERY and MANUAL_NOTICE_INTAKE, is the discovery/intake path for such reports); a Document from this source would carry a current-affairs claim, not structural research.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
 
   - id: GSCPI
     name: New York Fed Global Supply Chain Pressure Index
@@ -146,6 +188,25 @@ sources:
       - The index is a global measure. It cannot establish a Thailand-specific or lane-specific conclusion on its own.
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-GSCPI
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -219,6 +280,25 @@ sources:
       - Published customs statistics are all-mode totals unless a mode dimension is explicitly provided; attributing them to ocean freight without that dimension would be an invented precision.
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-TH_CUSTOMS
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -293,6 +373,25 @@ sources:
       - Retail pump prices are a domestic cost-context indicator. They are not bunker fuel prices and must not be presented as a shipping fuel cost.
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-EPPO_FUEL
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -382,6 +481,25 @@ sources:
       - "WO-010: no controlled live validation could be performed; the endpoint field is null and the response envelope is unverified."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-BOT_FX
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free_with_registration
       registration_requirement: api_key
@@ -458,6 +576,25 @@ sources:
       - "WO-010: no controlled live validation could be performed; the endpoint field is null."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-WB_COMMODITY
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -532,6 +669,25 @@ sources:
       - "WO-010: no controlled live validation could be performed; the ArcGIS query endpoint, its envelope shape and its rate limits are all unverified."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-IMF_PORTWATCH
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -607,6 +763,25 @@ sources:
       - "WO-010: no controlled live validation could be performed; the endpoint field is null."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-UNCTAD_MARITIME
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -680,6 +855,25 @@ sources:
       - "WO-010: no controlled live validation could be performed."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-PAT_NOTICE
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: current_evidence
+      evidence_layer_basis: >-
+        Reports or notices operational conditions, hazards or events directly (or, for NEWS_DISCOVERY and MANUAL_NOTICE_INTAKE, is the discovery/intake path for such reports); a Document from this source would carry a current-affairs claim, not structural research.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -754,6 +948,25 @@ sources:
       - "WO-010: no controlled live validation could be performed."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-ACP_ADVISORY
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: current_evidence
+      evidence_layer_basis: >-
+        Reports or notices operational conditions, hazards or events directly (or, for NEWS_DISCOVERY and MANUAL_NOTICE_INTAKE, is the discovery/intake path for such reports); a Document from this source would carry a current-affairs claim, not structural research.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -828,6 +1041,25 @@ sources:
       - "WO-010: no controlled live validation could be performed."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-SCA_CIRCULAR
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: current_evidence
+      evidence_layer_basis: >-
+        Reports or notices operational conditions, hazards or events directly (or, for NEWS_DISCOVERY and MANUAL_NOTICE_INTAKE, is the discovery/intake path for such reports); a Document from this source would carry a current-affairs claim, not structural research.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -902,6 +1134,25 @@ sources:
       - "WO-010: no controlled live validation could be performed."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-MPA_SG_NOTICE
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: current_evidence
+      evidence_layer_basis: >-
+        Reports or notices operational conditions, hazards or events directly (or, for NEWS_DISCOVERY and MANUAL_NOTICE_INTAKE, is the discovery/intake path for such reports); a Document from this source would carry a current-affairs claim, not structural research.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -992,6 +1243,25 @@ sources:
       - "Anonymous rate-limit behaviour is only partially exercised: the two Part B requests succeeded with no throttling response, well under the documented 4-calls/10s anonymous limit, but that is not an independent test of the limit boundary itself."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-MPA_SG_STATISTICS
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -1093,6 +1363,25 @@ sources:
       - Every record must still name the underlying publisher as the evidence source; this contract is the intake mechanism, not the authority.
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-MANUAL_NOTICE_INTAKE
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: current_evidence
+      evidence_layer_basis: >-
+        Reports or notices operational conditions, hazards or events directly (or, for NEWS_DISCOVERY and MANUAL_NOTICE_INTAKE, is the discovery/intake path for such reports); a Document from this source would carry a current-affairs claim, not structural research.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: true
+      # Mirrors this source's existing qualification.manual_intake_status: allowed and licence_status: reviewed -- the one rights-cleared intake path already established (WO-010). This flag records that existing determination in the new governance vocabulary; it enables nothing new.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -1169,6 +1458,25 @@ sources:
       - "WO-010: no controlled live validation could be performed; the endpoint field is null."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-NEWS_DISCOVERY
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: current_evidence
+      evidence_layer_basis: >-
+        Reports or notices operational conditions, hazards or events directly (or, for NEWS_DISCOVERY and MANUAL_NOTICE_INTAKE, is the discovery/intake path for such reports); a Document from this source would carry a current-affairs claim, not structural research.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -1255,6 +1563,25 @@ sources:
       - "WO-010-R1: no controlled live validation could be performed."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-PAT_STATISTICS
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none
@@ -1334,6 +1661,25 @@ sources:
       - "WO-010-R1: no controlled live validation could be performed."
     enabled: false
     required_for_publication: false
+    governance:
+      # WO-047 registry v0.4: additive situation-intelligence governance
+      # classification. Layered on top of qualification/enablement without
+      # changing any existing determination (enabled, licence_status,
+      # qualification stay exactly as recorded above). See
+      # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
+      independence_group: IG-FBX_PUBLIC
+      # Default: one independence group per source. No syndication or common-
+      # ownership relationship between any two of the 18 registered sources is
+      # currently established, so no two sources share a group by default; a
+      # future reviewed relationship (e.g. shared wire-service origin) would
+      # merge groups explicitly, never by inference.
+      evidence_layer: context
+      evidence_layer_basis: >-
+        Publishes a periodic statistical or benchmark series used as background/context for interpretation, not a direct report of an operational event; a Document from this source would support context, not a current-event claim.
+      enabled_for_discovery: false
+      enabled_for_ingestion: false
+      enabled_for_public_claims: false
+      # No source is enabled for automated discovery or ingestion under this Work Order (WO-047 is offline-only); enabled_for_public_claims stays false because this source carries no rights-cleared bounded-claim path today.
     qualification:
       access_cost: free
       registration_requirement: none

@@ -28,6 +28,14 @@ from analysis.assessments import (  # noqa: E402
     validate_preparedness_option,
     validate_scenario_outlook,
 )
+from analysis.claims import (  # noqa: E402
+    ai_date_invention_problems,
+    claim_document_consistency_problems,
+    independence_confirmation_problems,
+    l3_firewall_problems,
+    regional_scope_thailand_relevance_problems,
+    resolved_situation_state_problems,
+)
 from analysis.contracts import load_json, schema_errors  # noqa: E402
 from analysis.events import (  # noqa: E402
     event_qualifies_for_current_publication,
@@ -854,6 +862,59 @@ def main() -> int:
         print(f"[PASS] events ({len(events)} records)")
     ok &= events_ok
     ok &= report("event semantics", event_problems)
+
+    # ---- Documents and Claims (WO-047 / Issue #89) -------------------------
+    # data/documents/documents.json and data/claims/claims.json are empty
+    # scaffolds under this Work Order (item 8's real intake exercise is
+    # blocked on D-2/D-6; see docs/known_data_gaps.md) -- every check below
+    # is exercised by tests/test_validate_claim_rules.py's fixtures and
+    # degrades to a trivial pass on the empty real files, not a skip.
+    documents_payload = load_json(ROOT / "data/documents/documents.json")
+    documents = documents_payload.get("documents", [])
+    documents_ok = True
+    for document in documents:
+        errors = schema_errors(document, "document.schema.json")
+        if errors:
+            print(f"[FAIL] document/{document.get('document_id')}")
+            for error in errors:
+                print(f"  - {error}")
+            documents_ok = False
+    if documents_ok:
+        print(f"[PASS] documents ({len(documents)} records)")
+    ok &= documents_ok
+    documents_by_id = {item["document_id"]: item for item in documents if "document_id" in item}
+
+    claims_payload = load_json(ROOT / "data/claims/claims.json")
+    claims = claims_payload.get("claims", [])
+    claims_ok = True
+    for claim in claims:
+        errors = schema_errors(claim, "claim.schema.json")
+        if errors:
+            print(f"[FAIL] claim/{claim.get('claim_id')}")
+            for error in errors:
+                print(f"  - {error}")
+            claims_ok = False
+    if claims_ok:
+        print(f"[PASS] claims ({len(claims)} records)")
+    ok &= claims_ok
+    claims_by_id = {item["claim_id"]: item for item in claims if "claim_id" in item}
+
+    ok &= report(
+        "claim <-> document consistency",
+        claim_document_consistency_problems(claims, documents_by_id),
+    )
+    ok &= report(
+        "independence confirmation (officially_confirmed)",
+        independence_confirmation_problems(claims),
+    )
+    ok &= report("no AI-invented dates", ai_date_invention_problems(claims))
+    ok &= report(
+        "regional-scope Thailand relevance", regional_scope_thailand_relevance_problems(claims)
+    )
+    ok &= report("L3 firewall", l3_firewall_problems(events, claims_by_id))
+    ok &= report(
+        "RESOLVED situation_state gating", resolved_situation_state_problems(events, claims_by_id)
+    )
 
     # ---- Assessments ------------------------------------------------------
     assessments = load_json(ROOT / "data/assessments/lane_assessments.json")["assessments"]

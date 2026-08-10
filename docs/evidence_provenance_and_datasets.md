@@ -417,3 +417,22 @@ no package hash, did not pass validation, has been superseded, or rests on
 fixture-origin evidence. Approval is a decision made at one moment by one
 person; publication happens later, and must not assume that whatever is sitting
 in the approved directory earned its place.
+
+## Evidence layer (WO-047, additive)
+
+WO-047 (Issue #89) added a second, orthogonal axis: `evidence_layer` (`current_evidence` /
+`context` / `structural_research`), carried on `schemas/document.schema.json` and frozen
+onto every `schemas/claim.schema.json` record built from it. It answers a different question
+than `dataset` above:
+
+- `dataset` (this document, unchanged) -- *which publication surface does this record belong
+  to?* `current_publication` / `technical_demo` / `historical_validation`.
+- `evidence_layer` (new) -- *how current is what this source reports, regardless of
+  publication surface?* A `current_publication`-dataset Claim can still be `context`-layer
+  (e.g. a statistical baseline series); a `structural_research`-layer (L3) source is
+  historical/structural research that must never be presented as reporting a current
+  condition, whatever dataset it happens to sit in.
+
+Full detail, including the L3 firewall `scripts/validate.py` enforces, is in
+`docs/evidence_layers.md`. The Document/Claim contracts this section's `dataset` semantics
+now also apply to are described in `docs/situation_intelligence_architecture.md`.

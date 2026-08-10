@@ -359,3 +359,31 @@ Commerce's border-trade reporting (`tradereport.moc.go.th`) is the one candidate
 secondary evidence but never reached from this environment. WO-041 is now the one
 implementation Work Order landed for Land, Rail and Border; every gap this section records
 stays open regardless.
+
+## 10. Situation Intelligence contracts (WO-047): no L3 (structural-research) source registered
+
+WO-047 (Issue #89, design in Issue #88) added the Document/Claim contracts and a new
+`evidence_layer` axis (`current_evidence` / `context` / `structural_research`, see
+`docs/evidence_layers.md`) that is orthogonal to the existing `dataset` publication boundary.
+Every one of the 18 registered sources' `governance.evidence_layer` was assigned by human
+review as part of registry v0.4 (`schemas/source_contract.schema.json#/$defs/governance`,
+`config/sources.yaml`): 8 as `current_evidence` (notice/hazard/discovery channels) and 10 as
+`context` (statistical/benchmark series). **Zero sources are assigned `structural_research`
+(L3).** No historical-research-paper, academic, or structural-analysis publisher is
+registered anywhere in this platform.
+
+Consequences:
+
+- The L3 firewall (`analysis/claims.py::l3_firewall_problems`, enforced by
+  `scripts/validate.py`) exists and is tested against synthetic fixtures
+  (`tests/test_validate_claim_rules.py`), but has no real data to bite on: every real Claim
+  or Document this platform could currently record is, at most, `context`-layer.
+- The structural example in Issue #88 comment 5 Section 19 (`DOC-SYNTH-005`, an "Institute
+  for Corridor Studies" research paper) has no real-world registry counterpart. A real L3
+  source would need to be identified and qualified (WO-010 Gate C: access cost, reuse
+  status, redistribution status, `publication_use`) before this platform could record its
+  first genuinely L3-graded Claim.
+- `data/documents/` and `data/claims/` are empty scaffolds (WO-047 items 1–7, 9, 10 only;
+  item 8's real manual-intake exercise is blocked on Issue #89's D-2/D-6 and out of scope
+  for this Work Order) — see `scripts/manual_intake.py` for the tooling that will populate
+  them once a human answers those two decisions.
