@@ -85,6 +85,21 @@ _UNRESOLVED_CONTRADICTION = "unresolved"
 #: beyond that (or unknown, treated the same as stale/expired for grading).
 FRESHNESS_STATES = ("fresh", "ageing", "stale", "expired", "unknown")
 
+#: Item-level freshness cap on :func:`_full_strength`'s otherwise-computed
+#: grade, per design part 1 Section 2.5's table exactly: fresh -- no cap;
+#: ageing -- "A -> B" (equivalent to a cap at B, since nothing ranks above A);
+#: stale -- cap at C; expired -- cap at D. ``unknown`` is grouped with
+#: ``expired`` in that same table's State column ("age > 4x window, or
+#: unknown"), so it takes the same D cap -- never treated more leniently than
+#: a state we can positively identify.
+_FRESHNESS_ITEM_CAP: dict[str, str] = {
+    "fresh": "A",
+    "ageing": "B",
+    "stale": "C",
+    "expired": "D",
+    "unknown": "D",
+}
+
 #: Registry qualification.logistics_role / purposes values that mark a
 #: source as a discovery-only channel (Issue #88 comment 2 Section 6.6:
 #: "discovery source => discovery_only").
@@ -276,6 +291,13 @@ def _legacy_strength(claim: Mapping[str, Any]) -> str:
     return "C"
 
 
+def _weaker_strength(left: str, right: str) -> str:
+    """The weaker (higher-index on :data:`_STRENGTHS`) of two item-level
+    grades -- used to apply a cap: capping can only ever make a grade worse,
+    never better."""
+    return left if _STRENGTHS.index(left) >= _STRENGTHS.index(right) else right
+
+
 def _full_strength(
     claim: Mapping[str, Any],
     document: Mapping[str, Any],
@@ -283,11 +305,20 @@ def _full_strength(
     *,
     now: datetime | None,
 ) -> str:
-    """A/B/C/D in full, per design part 1 Section 2.4.
+    """A/B/C/D in full, per design part 1 Sections 2.4 and 2.5.
 
     Three inputs the WO-047 placeholder lacked: :func:`authority_covers`,
-    :func:`freshness_state`, and ``claim.contradiction_status``. Evaluated in
-    order; first match wins.
+    :func:`freshness_state`, and ``claim.contradiction_status``. The base
+    grade (A/B/C) is computed first from everything *except* freshness --
+    Section 2.4's table, keyed off ``authority_covers``, attribution and
+    claim type/primacy -- evaluated in order, first match wins. The
+    freshness clock (Section 2.5) is then applied as an independent cap on
+    top of that base grade via :func:`_weaker_strength`: ``ageing`` caps at
+    B, ``stale`` at C, ``expired`` (and ``unknown``, grouped with it by the
+    Section 2.5 table) at D. This mirrors the "two independent clocks,
+    worse result wins" discipline :func:`analysis.grading.compute_evidence_grade`
+    already applies at Development level (Section 2.7) -- freshness must cap
+    the grade a claim would otherwise reach, not just the one path to A.
     """
     if claim.get("claim_type") == "discovery_lead":
         return "D"
@@ -309,22 +340,10 @@ def _full_strength(
     unnamed = bool(attributed_to) and attributed_to.get("is_named") is False
 
     covers = authority_covers(claim, document)
-    fresh = freshness_state(document, registry, now=now) == "fresh"
+    freshness = freshness_state(document, registry, now=now)
     contradicted = claim.get("contradiction_status") == _UNRESOLVED_CONTRADICTION
     verified_basis = _strength_basis(document) == "verified"
     strongest_claim_type = claim_type in {"verified_fact", "official_notice"}
-
-    if (
-        primary
-        and layer == "current_evidence"
-        and strongest_claim_type
-        and covers
-        and fresh
-        and not contradicted
-        and verified_basis
-        and not unnamed
-    ):
-        return "A"
 
     near_a = (
         primary
@@ -334,16 +353,23 @@ def _full_strength(
         and verified_basis
         and not unnamed
     )
-    if near_a and (covers != fresh):
-        # Exactly one of authority_covers / freshness=='fresh' holds -- the
-        # A conditions minus one, per design part 1 Section 2.4's B row.
-        return "B"
-    if layer == "current_evidence" and named:
-        return "B"
-    if primary and not strongest_claim_type:
-        return "B"
+    if near_a and covers:
+        base = "A"
+    elif near_a:
+        # near_a but authority_covers doesn't hold -- the A conditions minus
+        # authority coverage, per design part 1 Section 2.4's B row (the
+        # freshness half of that row's "exactly one of" is now handled
+        # uniformly by the Section 2.5 cap below instead of being folded in
+        # here).
+        base = "B"
+    elif layer == "current_evidence" and named:
+        base = "B"
+    elif primary and not strongest_claim_type:
+        base = "B"
+    else:
+        base = "C"
 
-    return "C"
+    return _weaker_strength(base, _FRESHNESS_ITEM_CAP[freshness])
 
 
 def _strength(

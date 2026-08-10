@@ -172,6 +172,61 @@ def _step_confidence(level: str, delta: int) -> str:
     return _CONFIDENCE_LEVELS[index]
 
 
+def _would_reach_rule1_or_rule3(
+    event: Mapping[str, Any],
+    claims_by_id: Mapping[str, Mapping[str, Any]],
+    documents_by_id: Mapping[str, Mapping[str, Any]],
+    registry: Mapping[str, Any],
+    *,
+    freshness: str,
+    now: datetime,
+) -> bool:
+    """Would ``event`` satisfy rule 1's or rule 3's *other* conditions if it
+    did not carry its capping existence/status_change contradiction?
+
+    Design part 2 Section 3.5's first ``mixed_evidence`` disjunct scopes rule
+    2 to exactly this: an eligible event "that would otherwise reach rule 1
+    or 3 but carries" the contradiction -- not every eligible event that
+    happens to carry one, regardless of whether it was headed anywhere
+    without it. Recomputes ``evidence_grade`` on a copy of ``event`` with its
+    capping conflicting_evidence entries stripped, then re-checks rule 1's
+    and rule 3's non-contradiction conditions against that grade.
+    """
+    stripped = dict(event)
+    stripped["conflicting_evidence"] = [
+        entry
+        for entry in event.get("conflicting_evidence", []) or []
+        if not (
+            entry.get("resolution_status") == "unresolved"
+            and entry.get("contradiction_type") in _CAPPING_CONTRADICTION_TYPES
+        )
+    ]
+    grade, _basis = compute_evidence_grade(
+        stripped, claims_by_id, documents_by_id, registry, now=now
+    )
+
+    if grade == "CONFIRMED":
+        area, severity = _worst_impact_status_severity(event, frozenset({"observed"}))
+        if area is not None and severity in _MATERIAL_SEVERITIES and freshness == "fresh":
+            return True  # would reach rule 1
+        impacts = event.get("impact_assessments", []) or []
+        if impacts and all(impact.get("status") == "insufficient_evidence" for impact in impacts):
+            return True  # rule 3's "no impact area yet assessed" clause
+        if area is not None and severity in _MATERIAL_SEVERITIES and freshness == "ageing":
+            return True  # rule 3's "drifted to ageing" clause
+
+    if grade in {"CONFIRMED", "CORROBORATED", "REPORTED"}:
+        area, severity = _worst_impact_status_severity(
+            event, frozenset({"potential", "elevated_watch"})
+        )
+        if area is not None and _SEVERITY_ORDER.index(severity) >= _SEVERITY_ORDER.index(
+            "moderate"
+        ):
+            return True  # rule 3's watch-severity clause
+
+    return False
+
+
 def _worst_impact_status_severity(
     event: Mapping[str, Any], statuses: frozenset[str]
 ) -> tuple[str | None, str]:
@@ -308,8 +363,11 @@ def compute_mode_situation(
     if status == "insufficient_current_evidence":
         rule2_hits = [
             (event, grade)
-            for event, grade, _basis, _fresh in eligible
+            for event, grade, _basis, freshness in eligible
             if _has_capping_contradiction(event)
+            and _would_reach_rule1_or_rule3(
+                event, claims_by_id, documents_by_id, registry, freshness=freshness, now=as_of
+            )
         ]
         if rule2_hits:
             status = "mixed_evidence"

@@ -356,13 +356,17 @@ def is_status_change(
     if newer_document is None:
         return False
     newer_published_at = newer_document.get("published_at")
-    if older is not None:
-        older_document = documents_by_id.get(older.get("document_id"))
-        older_published_at = (older_document or {}).get("published_at")
-        if not newer_published_at or (
-            older_published_at and newer_published_at <= older_published_at
-        ):
-            return False
+    if older is None:
+        # No side-A claim carries an event_start_at baseline (_newest_claim
+        # returned None): the strictly-newer-by-published_at requirement
+        # cannot be established at all. Fail closed -- never classify as
+        # status_change -- rather than silently skipping the check as though
+        # it were satisfied.
+        return False
+    older_document = documents_by_id.get(older.get("document_id"))
+    older_published_at = (older_document or {}).get("published_at")
+    if not newer_published_at or (older_published_at and newer_published_at <= older_published_at):
+        return False
     if newer.get("claim_type") not in _STATUS_CHANGE_CLAIM_TYPES:
         return False
     return authority_covers(newer, newer_document)

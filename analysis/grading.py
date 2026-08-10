@@ -266,18 +266,39 @@ def compute_evidence_grade(
         )
 
     freshness_states = {freshness_state(_doc(claim), registry, now=now) for claim in claims}
-    if "expired" in freshness_states or ("unknown" in freshness_states and grade == "CONFIRMED"):
+
+    # Freshness clock caps -- independent, worst-wins, NOT an elif chain: an
+    # expired/unknown contributor must never silently suppress the
+    # stale/ageing caps (that would let a Development with worse evidence
+    # end up graded better than one that is merely stale, which is not
+    # monotone in staleness). Each applicable state's cap is checked against
+    # the *current* grade and applied whenever the grade still ranks above
+    # that cap's target -- so however many states are present, `grade` ends
+    # up at the single most restrictive cap among them. Each state's
+    # informative note is appended whenever that state is present among the
+    # contributors, regardless of whether it was the one that actually moved
+    # `grade` this time, so a reader always sees every freshness reason at
+    # play, not just whichever cap fired first.
+    if "expired" in freshness_states or "unknown" in freshness_states:
+        if GRADE_RANK[grade] > GRADE_RANK["REPORTED"]:
+            grade = "REPORTED"
         basis.append(
-            "At least one contributing claim's Document is expired/unknown freshness; the "
-            "Development should not contribute to mode_situation (Gate 0 condition 7)."
+            "Freshness clock: at least one contributing claim's Document is expired or of "
+            "unknown freshness (caps evidence_grade at REPORTED). The Development should not "
+            "contribute to mode_situation (Gate 0 condition 7)."
         )
-    elif "stale" in freshness_states and grade in {"CONFIRMED", "CORROBORATED"}:
-        grade = "REPORTED"
-        basis.append("Capped at REPORTED: freshness clock -- oldest contributing claim is stale.")
-    elif "ageing" in freshness_states and grade == "CONFIRMED":
-        grade = "CORROBORATED"
+    if "stale" in freshness_states:
+        if GRADE_RANK[grade] > GRADE_RANK["REPORTED"]:
+            grade = "REPORTED"
         basis.append(
-            "Capped at CORROBORATED: freshness clock -- oldest contributing claim is ageing."
+            "Freshness clock: oldest contributing claim is stale (caps evidence_grade at REPORTED)."
+        )
+    if "ageing" in freshness_states:
+        if GRADE_RANK[grade] > GRADE_RANK["CORROBORATED"]:
+            grade = "CORROBORATED"
+        basis.append(
+            "Freshness clock: oldest contributing claim is ageing (caps evidence_grade at "
+            "CORROBORATED)."
         )
 
     return grade, basis

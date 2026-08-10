@@ -578,8 +578,12 @@ def test_full_grade_a_primary_authoritative_fresh_uncontradicted_verified(regist
     assert result["strength"] == "A"
 
 
-def test_full_grade_b_when_authority_covers_but_not_fresh(registry):
-    document = _real_document(published_at="2020-01-01T08:00:00Z")  # expired
+def test_full_grade_b_when_authority_covers_but_ageing(registry):
+    # ~51 days old, within MANUAL_NOTICE_INTAKE's ageing band (30-60d): the
+    # A conditions otherwise all hold, so the freshness clock's "ageing"
+    # cap (design part 1 Section 2.5) is what pulls this down to B, not an
+    # authority_covers mismatch.
+    document = _real_document(published_at="2026-06-20T08:00:00Z")
     claim = _real_claim(
         claim_type="official_notice",
         primary_for_this_claim=True,
@@ -641,3 +645,96 @@ def test_full_grade_c_fallback(registry):
     )
     result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
     assert result["strength"] == "C"
+
+
+# ---------------------------------------------------------------------------
+# HIGH-1 regression: item-level grading must apply the stale/expired caps
+# (design part 1 Section 2.5), not just the ageing "A -> B" case. Reviewer's
+# exact repro for PR #93 / Issue #92: an otherwise-perfect
+# primary/authoritative/official_notice/current_evidence/verified claim
+# against MANUAL_NOTICE_INTAKE (max_stale_minutes: 43200, i.e. a 30-day
+# window) must grade A at 1 day, B at 40 days (ageing), C at 90 days
+# (stale), D at 200 days (expired).
+# ---------------------------------------------------------------------------
+
+
+def _otherwise_perfect_claim(**overrides) -> dict:
+    base = dict(
+        claim_type="official_notice",
+        primary_for_this_claim=True,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to=None,
+    )
+    base.update(overrides)
+    return _real_claim(**base)
+
+
+@pytest.mark.parametrize(
+    ("published_at", "expected_strength", "expected_freshness"),
+    [
+        ("2026-08-09T12:00:00Z", "A", "fresh"),  # 1 day old
+        ("2026-07-01T12:00:00Z", "B", "ageing"),  # 40 days old
+        ("2026-05-12T12:00:00Z", "C", "stale"),  # 90 days old
+        ("2026-01-22T12:00:00Z", "D", "expired"),  # 200 days old
+    ],
+)
+def test_item_grade_freshness_caps_full_table(
+    registry, published_at, expected_strength, expected_freshness
+):
+    document = _real_document(published_at=published_at)
+    claim = _otherwise_perfect_claim()
+    assert freshness_state(document, registry, now=_NOW) == expected_freshness
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == expected_strength
+
+
+def test_item_grade_stale_caps_at_c_even_though_authority_covers_and_type_qualify(registry):
+    """Direct HIGH-1 repro: before the fix, a 'stale' Document (2x-4x window)
+    fell into the same generic 'not fresh' branch as 'ageing' and incorrectly
+    graded B instead of being capped at C."""
+    document = _real_document(published_at="2026-05-15T08:00:00Z")  # ~87 days, stale
+    claim = _otherwise_perfect_claim()
+    assert freshness_state(document, registry, now=_NOW) == "stale"
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "C"
+
+
+def test_item_grade_expired_caps_at_d_even_though_authority_covers_and_type_qualify(registry):
+    """Direct HIGH-1 repro: before the fix, an 'expired' Document also fell
+    into the same generic 'not fresh' branch as 'ageing' and incorrectly
+    graded B instead of being capped at D."""
+    document = _real_document(published_at="2020-01-01T08:00:00Z")  # expired
+    claim = _otherwise_perfect_claim()
+    assert freshness_state(document, registry, now=_NOW) == "expired"
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "D"
+
+
+def test_item_grade_unknown_freshness_capped_at_least_as_strict_as_ageing(registry):
+    """'unknown' freshness (no reference timestamp resolves) must never grade
+    more leniently than 'ageing' -- design part 1 Section 2.5 groups
+    'unknown' with 'expired' in its freshness-state table, so it takes the
+    same D cap."""
+    document = _real_document(published_at=None, retrieved_at=None, updated_at=None)
+    claim = _otherwise_perfect_claim()
+    assert freshness_state(document, registry, now=_NOW) == "unknown"
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "D"
+
+
+def test_item_grade_freshness_cap_also_applies_to_named_attribution_b_branch(registry):
+    """The freshness cap is a universal cap on the computed grade, not only
+    on the primary/authoritative near-A path: a named-attribution B-branch
+    claim on an expired Document must still be capped down to D."""
+    document = _real_document(publisher_authority=None, published_at="2020-01-01T08:00:00Z")
+    claim = _real_claim(
+        claim_type="reported_claim",
+        primary_for_this_claim=False,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to={"name": "A named official", "role": "spokesperson", "is_named": True},
+    )
+    assert freshness_state(document, registry, now=_NOW) == "expired"
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "D"

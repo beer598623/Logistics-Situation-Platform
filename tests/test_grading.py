@@ -372,6 +372,78 @@ def test_ageing_contributor_caps_confirmed_to_corroborated(registry):
 
 
 # ---------------------------------------------------------------------------
+# HIGH-2 regression: the freshness caps must be independent and worst-wins,
+# not an elif chain -- an expired contributor must never silently disable
+# the stale/ageing caps (design part 1 Section 2.7: "two independent clocks,
+# worse result wins"; monotone in staleness).
+# ---------------------------------------------------------------------------
+
+
+def test_expired_contributor_caps_confirmed_to_reported_not_left_confirmed(registry):
+    """Direct HIGH-2 repro: before the fix, an 'expired' freshness_states
+    entry took the *first* branch of an elif chain that appended a basis
+    note but never actually downgraded `grade`, so a Development with an
+    expired contributor incorrectly stayed CONFIRMED -- weaker evidence than
+    a merely-stale contributor (which does correctly cap to REPORTED)."""
+    documents_by_id = {
+        "DOC-20260810-001": _document(document_id="DOC-20260810-001"),
+        "DOC-20260810-002": _document(
+            document_id="DOC-20260810-002", published_at="2025-01-01T08:00:00Z"
+        ),
+    }
+    claims_by_id = {
+        "CLM-20260810-0001": _claim(claim_id="CLM-20260810-0001", document_id="DOC-20260810-001"),
+        "CLM-20260810-0002": _claim(
+            claim_id="CLM-20260810-0002",
+            document_id="DOC-20260810-002",
+            claim_type="verified_fact",
+        ),
+    }
+    event = _event(claim_ids=["CLM-20260810-0001", "CLM-20260810-0002"])
+    grade, basis = compute_evidence_grade(event, claims_by_id, documents_by_id, registry, now=_NOW)
+    assert grade == "REPORTED"
+    assert grade != "CONFIRMED"
+    assert any("expired" in b for b in basis)
+
+
+def test_stale_and_expired_contributors_both_cap_to_reported_stale_not_swallowed(registry):
+    """Three contributors: fresh, stale, and expired. The stale cap must not
+    be silently swallowed by the expired branch firing first in an elif
+    chain -- both independently cap at REPORTED here, so the net result must
+    still be REPORTED (and definitely not CONFIRMED)."""
+    documents_by_id = {
+        "DOC-20260810-001": _document(document_id="DOC-20260810-001"),
+        "DOC-20260810-002": _document(
+            document_id="DOC-20260810-002",
+            published_at="2026-05-15T08:00:00Z",  # stale
+        ),
+        "DOC-20260810-003": _document(
+            document_id="DOC-20260810-003",
+            published_at="2025-01-01T08:00:00Z",  # expired
+        ),
+    }
+    claims_by_id = {
+        "CLM-20260810-0001": _claim(claim_id="CLM-20260810-0001", document_id="DOC-20260810-001"),
+        "CLM-20260810-0002": _claim(
+            claim_id="CLM-20260810-0002",
+            document_id="DOC-20260810-002",
+            claim_type="verified_fact",
+        ),
+        "CLM-20260810-0003": _claim(
+            claim_id="CLM-20260810-0003",
+            document_id="DOC-20260810-003",
+            claim_type="verified_fact",
+        ),
+    }
+    event = _event(claim_ids=["CLM-20260810-0001", "CLM-20260810-0002", "CLM-20260810-0003"])
+    grade, basis = compute_evidence_grade(event, claims_by_id, documents_by_id, registry, now=_NOW)
+    assert grade == "REPORTED"
+    assert grade != "CONFIRMED"
+    assert any("stale" in b for b in basis)
+    assert any("expired" in b for b in basis)
+
+
+# ---------------------------------------------------------------------------
 # grade_override: downgrade-only
 # ---------------------------------------------------------------------------
 

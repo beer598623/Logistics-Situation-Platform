@@ -220,12 +220,39 @@ def decide_attachment(
         or claim.get("country_ids")
     )
     if has_geography:
+        if not matching:
+            gate_basis = (
+                "No candidate Development passes the gate; claim carries geography of its own."
+            )
+        elif len(matching) == 1:
+            # Design part 1 Section 1.4 rule 5: exactly one candidate passes
+            # the gate, but neither S5 (entity match) nor S6 (predicate-class
+            # agreement) confirms it -- a gate-only match without tie-break
+            # confirmation. Out of this Work Order's scope (Issue #92), so no
+            # attachment is made; the basis says so honestly rather than
+            # claiming no candidate passed the gate.
+            gate_basis = (
+                f"Exactly one candidate Development ({matching[0]['event_id']!r}) passes the "
+                "gate, but neither S5 (entity match) nor S6 (predicate-class agreement) confirms "
+                "it; a gate-only match without tie-break confirmation is out of this Work "
+                "Order's scope (design part 1 Section 1.4 rule 5), so no attachment is made."
+            )
+        else:
+            # Design part 1 Section 1.4 rule 4: the gate matched >=2
+            # candidates -- an ambiguous, multi-candidate proposal. Also out
+            # of this Work Order's scope.
+            gate_basis = (
+                f"{len(matching)} candidate Developments pass the gate "
+                f"({sorted(event['event_id'] for event in matching)!r}); multi-candidate "
+                "attachment is out of this Work Order's scope (design part 1 Section 1.4 rule "
+                "4), so no attachment is made."
+            )
         return AttachmentDecision(
             outcome="auto_new",
             event_ids=[],
             merge_status="unmatched",
             rule_id="rule_6",
-            basis="No candidate Development passes the gate; claim carries geography of its own.",
+            basis=gate_basis,
         )
 
     return AttachmentDecision(

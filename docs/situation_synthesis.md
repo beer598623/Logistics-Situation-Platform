@@ -89,9 +89,11 @@ three inputs the WO-047 placeholder heuristic did not:
 | Grade | Requires |
 |---|---|
 | **A** | `primary_for_this_claim` and `evidence_layer: current_evidence` and `claim_type ∈ {verified_fact, official_notice}` and `authority_covers()` and `freshness_state() == fresh` and no unresolved contradiction and `strength_basis == verified` and attribution is not explicitly unnamed |
-| **B** | The A conditions hold except **exactly one** of `authority_covers()` / `freshness_state() == fresh`; or `evidence_layer: current_evidence` with a *named* attribution; or `primary_for_this_claim` with a `claim_type` outside `{verified_fact, official_notice}` |
+| **B** | The A conditions hold except `authority_covers()`; or `evidence_layer: current_evidence` with a *named* attribution; or `primary_for_this_claim` with a `claim_type` outside `{verified_fact, official_notice}` |
 | **C** | Everything else |
 | **D** | A discovery lead, an L3 (`structural_research`) claim, a discovery-source registry entry, a paywalled or retrieval-failed Document |
+
+The freshness clock (below) then applies as an **independent cap** on top of whichever of A/B/C/D the table above produces — never the reverse, and never folded into the B row as an "exactly one of authority/freshness" special case. `ageing` caps at B, `stale` at C, `expired` (and `unknown`, grouped with it) at D; capping can only make the grade worse, never better, so a claim that already lands at C or D from the table above is unaffected by a merely-`ageing` Document.
 
 A fixture-context Document (`evidence_origin` in `{synthetic_test_fixture,
 historical_validation_fixture}`) still takes the original WO-047 placeholder heuristic
@@ -106,12 +108,13 @@ populated on all 18 sources. The reference instant is the Document's `published_
 back to `retrieved_at`, falling back to `updated_at`; when none is set, the state is `unknown`,
 treated exactly as `stale`/`expired` for grading and capping purposes.
 
-| State | Condition |
-|---|---|
-| `fresh` | age ≤ 1× `max_stale_minutes` |
-| `ageing` | 1× < age ≤ 2× |
-| `stale` | 2× < age ≤ 4× |
-| `expired` | age > 4×, or reference instant unknown |
+| State | Condition | Effect on item grade (§2.5) |
+|---|---|---|
+| `fresh` | age ≤ 1× `max_stale_minutes` | none |
+| `ageing` | 1× < age ≤ 2× | cap at B |
+| `stale` | 2× < age ≤ 4× | cap at C |
+| `expired` | age > 4× | cap at D |
+| `unknown` | reference instant unresolved | cap at D — never treated more leniently than `expired` |
 
 The real per-source windows, from `config/sources.yaml` as merged (unchanged by this Work
 Order — `max_stale_minutes` was already populated at WO-047):
@@ -156,10 +159,14 @@ order, first match wins:
 4. **ANALYTICAL_INFERENCE** — everything else with a non-empty `Q(E)`.
 5. **`null`** — `Q(E)` is empty, or every eligible claim is a `discovery_lead`.
 
-Two caps then apply, worse result wins (§2.7 of design part 1): an unresolved `existence`/
-`status_change` contradiction on the core assertion caps CONFIRMED/CORROBORATED at REPORTED;
-the freshness clock caps a `stale` contributor at REPORTED and an `ageing` one at CORROBORATED
-(from CONFIRMED). `grade_override` (`logistics_event.schema.json`, new) may only move the grade
+Two clocks then apply as caps, worse result wins (§2.7 of design part 1): an unresolved
+`existence`/`status_change` contradiction on the core assertion caps CONFIRMED/CORROBORATED at
+REPORTED; the freshness clock caps an `ageing` contributor at CORROBORATED, and a `stale` or
+`expired`/`unknown` contributor at REPORTED. The freshness caps are applied independently — not
+as an `elif` chain — so an `expired` contributor can never silently suppress the `stale`/`ageing`
+caps; whichever cap is most restrictive among the states actually present wins, keeping the
+result monotone in staleness (worse evidence never yields a stronger grade).
+`grade_override` (`logistics_event.schema.json`, new) may only move the grade
 *down* the order `CONFIRMED > CORROBORATED > REPORTED > ANALYTICAL_INFERENCE > null` — an
 upward or lateral override fails `scripts/validate.py`'s dedicated rule
 (`analysis/grading.py::grade_override_problems`).
@@ -215,7 +222,7 @@ condition 1, exactly as `data/situations/situations.json` shows today.
 | Order | `status` | Fires when |
 |---|---|---|
 | 1 | `confirmed_disruption` | An eligible CONFIRMED event has an `observed` impact area at severity ≥ moderate, is `fresh`, and carries no capping contradiction |
-| 2 | `mixed_evidence` | An eligible event carries an unresolved `existence`/`status_change` contradiction |
+| 2 | `mixed_evidence` | An eligible event that would otherwise reach rule 1 or rule 3 carries an unresolved `existence`/`status_change` contradiction (design part 2 §3.5's first `mixed_evidence` disjunct; the second — two eligible events with opposed predicate classes on the same node/chokepoint — is not built, out of this Work Order's scope) |
 | 3 | `elevated_watch` | An eligible CONFIRMED/CORROBORATED/REPORTED event has a `potential`/`elevated_watch` area at severity ≥ moderate; **or a CONFIRMED event whose nine areas are all still `insufficient_evidence`**; or an event that met rule 1 but has drifted to `ageing` |
 | 4 | `no_material_impact_detected` | ≥1 eligible event has `negative_operational_evidence: true` and an area at `no_material` with a `no_material_basis`, **and** the coverage minimum (≥1 qualifying Document from an `enabled_for_public_claims`, `current_evidence`-layer source within its freshness window) is met |
 | 5 | `insufficient_current_evidence` | Default — no eligible event, or the coverage minimum is unmet |

@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from analysis.grading import compute_evidence_grade
 from analysis.situations import compute_mode_situation
 from scripts.manual_intake import build_manual_intake
 from tests.test_build_situations import (
@@ -131,6 +132,22 @@ def test_case_b_unresolved_status_change_contradiction_caps_grade_and_mixes_evid
     assert situation["status_basis"][0]["rule_id"] == "R2"
     assert situation["excluded_event_ids"] == []
 
+    # The contradiction excludes the sole primary claim from the CONFIRMED
+    # candidate set outright (compute_evidence_grade's own "confirming" list
+    # comprehension filters on `not capping_contradiction`), so the grade
+    # lands on REPORTED via the REPORTED entry rule rather than via the
+    # explicit post-hoc cap -- either way, CONFIRMED/CORROBORATED are
+    # unreachable while the contradiction stands, which is what this proves.
+    grade, grade_basis = compute_evidence_grade(
+        event,
+        {claim["claim_id"]: claim},
+        {document["document_id"]: document},
+        registry,
+        now=_NOW,
+    )
+    assert grade == "REPORTED"
+    assert grade_basis
+
 
 def test_case_c_stale_contributor_excluded_not_treated_as_resolved(registry):
     """STRUCTURAL EXAMPLE (c): a claim past its source's max_stale_minutes is
@@ -139,7 +156,12 @@ def test_case_c_stale_contributor_excluded_not_treated_as_resolved(registry):
     get mistaken for the Development having been resolved (situation_state
     stays ACTIVE on the underlying record; mode_situation simply does not
     count it)."""
-    document = dict(_synthetic_document(), published_at="2026-04-01T06:00:00Z")  # >120d stale
+    # MANUAL_NOTICE_INTAKE's max_stale_minutes is 43200 (30d), so the
+    # freshness clock's stale/expired boundary is 4x that -- 120d. This
+    # document is ~131d old as of _NOW, past that boundary, so it is
+    # 'expired', not merely 'stale' (either state is excluded by Gate 0
+    # condition 7 the same way; the label just needs to say the right one).
+    document = dict(_synthetic_document(), published_at="2026-04-01T06:00:00Z")  # ~131d, expired
     claim = _synthetic_claim()
     evidence = _synthetic_event_evidence()
     event = _synthetic_event()
