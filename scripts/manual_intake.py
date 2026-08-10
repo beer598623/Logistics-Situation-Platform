@@ -65,6 +65,19 @@ CLAIMS_PATH = ROOT / "data" / "claims" / "claims.json"
 _DOC_ID_RE = re.compile(r"^DOC-(\d{8})-(\d{3})$")
 _CLM_ID_RE = re.compile(r"^CLM-(\d{8})-(\d{4})$")
 
+#: Rank for evidence_layer, low to high strength, so an override's direction
+#: is checkable: document.schema.json's evidence_layer_basis field documents
+#: that an override "may be overridden DOWNWARD only" -- current_evidence
+#: (L1) can be recorded as context (L2) or structural_research (L3) for a
+#: specific document (e.g. an opinion piece from an otherwise-L1 publisher),
+#: never the reverse, which would let intake quietly promote L3 material
+#: into current-evidence status the L3 firewall exists to prevent.
+_EVIDENCE_LAYER_RANK: dict[str, int] = {
+    "current_evidence": 2,
+    "context": 1,
+    "structural_research": 0,
+}
+
 #: Default source_evidence_class per claim_type, for the three claim_type
 #: values that have no exact counterpart in observation_common's evidenceClass
 #: enum (which claim.schema.json's source_evidence_class reuses unchanged).
@@ -183,12 +196,19 @@ def build_manual_intake(
         raise ValueError("at least one claim is required")
 
     governance = source.get("governance") or {}
-    layer = evidence_layer_override or governance.get("evidence_layer") or "context"
+    registry_layer = governance.get("evidence_layer") or "context"
+    layer = evidence_layer_override or registry_layer
     layer_basis = evidence_layer_basis
-    if evidence_layer_override and evidence_layer_override != governance.get("evidence_layer"):
+    if evidence_layer_override and evidence_layer_override != registry_layer:
+        if _EVIDENCE_LAYER_RANK[evidence_layer_override] > _EVIDENCE_LAYER_RANK[registry_layer]:
+            raise ValueError(
+                f"evidence_layer_override {evidence_layer_override!r} is upward from the "
+                f"registry default {registry_layer!r} for {source_id!r}; an override may only "
+                "move downward (document.schema.json's evidence_layer_basis contract)"
+            )
         layer_basis = layer_basis or (
             f"Manually overridden downward from the registry default "
-            f"{governance.get('evidence_layer')!r} for this specific document."
+            f"{registry_layer!r} for this specific document."
         )
     independence_group = governance.get("independence_group") or f"IG-{source_id}"
 

@@ -125,6 +125,30 @@ def test_underlying_publisher_required_is_enforced(registry):
         build_manual_intake(**kwargs)
 
 
+def test_downward_evidence_layer_override_is_accepted(registry):
+    """MANUAL_NOTICE_INTAKE's registry default is current_evidence; recording
+    one specific document as context (e.g. an opinion piece) is a legal
+    downward override."""
+    kwargs = _base_kwargs(registry, evidence_layer_override="context")
+    document, _claims = build_manual_intake(**kwargs)
+    assert document["evidence_layer"] == "context"
+    assert document["evidence_layer_basis"] is not None
+
+
+def test_upward_evidence_layer_override_is_refused(registry):
+    """An override may only move downward (document.schema.json's
+    evidence_layer_basis contract) -- promoting a document above its
+    source's registry default would let intake quietly bypass the L3
+    firewall for that document."""
+    demoted_registry = json.loads(json.dumps(registry))
+    for source in demoted_registry["sources"]:
+        if source["id"] == "MANUAL_NOTICE_INTAKE":
+            source["governance"]["evidence_layer"] = "context"
+    kwargs = _base_kwargs(demoted_registry, evidence_layer_override="current_evidence")
+    with pytest.raises(ValueError, match="upward"):
+        build_manual_intake(**kwargs)
+
+
 def test_no_claims_is_refused(registry):
     kwargs = _base_kwargs(registry, claims=[])
     with pytest.raises(ValueError, match="at least one claim"):

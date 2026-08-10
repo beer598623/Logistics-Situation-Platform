@@ -22,6 +22,7 @@ from __future__ import annotations
 from analysis.claims import (
     ai_date_invention_problems,
     claim_document_consistency_problems,
+    corroboration_independence_problems,
     independence_confirmation_problems,
     l3_firewall_problems,
     regional_scope_thailand_relevance_problems,
@@ -283,6 +284,40 @@ def test_claim_with_unresolvable_document_fails():
     assert any("does not resolve" in problem for problem in problems)
 
 
+def test_quotation_used_without_document_permission_fails():
+    documents_by_id = {
+        "DOC-20260810-001": _document(rights={"quotation_allowed": False}),
+    }
+    claim = _claim(
+        document_id="DOC-20260810-001",
+        quotation_used={"used": True, "word_count": 12, "permitted_by": "editorial guidance"},
+    )
+    problems = claim_document_consistency_problems([claim], documents_by_id)
+    assert any("quotation_used.used is true" in problem for problem in problems)
+
+
+def test_quotation_used_with_document_permission_passes():
+    documents_by_id = {
+        "DOC-20260810-001": _document(rights={"quotation_allowed": True}),
+    }
+    claim = _claim(
+        document_id="DOC-20260810-001",
+        quotation_used={"used": True, "word_count": 12, "permitted_by": "editorial guidance"},
+    )
+    assert claim_document_consistency_problems([claim], documents_by_id) == []
+
+
+def test_quotation_not_used_passes_regardless_of_document_rights():
+    documents_by_id = {
+        "DOC-20260810-001": _document(rights={"quotation_allowed": False}),
+    }
+    claim = _claim(
+        document_id="DOC-20260810-001",
+        quotation_used={"used": False, "word_count": None, "permitted_by": None},
+    )
+    assert claim_document_consistency_problems([claim], documents_by_id) == []
+
+
 # ---------------------------------------------------------------------------
 # The 600-char claim-text cap (Issue #89 item 7): already schema-enforced by
 # claim.schema.json's claim_text maxLength: 600, matching event_evidence.claim.
@@ -436,7 +471,12 @@ def test_document_with_rights_missing_publication_use_fails_schema_validation():
 
 
 def _synthetic_document(
-    document_id: str, *, publisher_is_originator: bool, independence_group: str
+    document_id: str,
+    *,
+    publisher_is_originator: bool,
+    independence_group: str,
+    canonical_url: str,
+    originator_document_url: str | None = None,
 ) -> dict:
     return {
         "document_id": document_id,
@@ -444,6 +484,8 @@ def _synthetic_document(
         "publisher_is_originator": publisher_is_originator,
         "independence_group": independence_group,
         "evidence_layer": "current_evidence",
+        "canonical_url": canonical_url,
+        "originator_document_url": originator_document_url,
     }
 
 
@@ -451,44 +493,106 @@ def test_case_syndication_cluster_does_not_corroborate_independently():
     """STRUCTURAL EXAMPLE (a): two claims from documents where one has
     publisher_is_originator: false pointing at the other must NOT produce
     corroborated_independent -- it must be corroborated_dependent (Issue #88
-    comment 2 Section 6.5). This test asserts the concrete, testable
-    behaviour: a claim whose corroboration_status is set to
-    'corroborated_independent' while its document is a syndication
-    (publisher_is_originator: false) is treated as inconsistent by
-    claim_document_consistency semantics extended here inline, matching
-    what analysis/claims.py checks for evidence_layer/independence_group
-    agreement -- corroboration_status is a claim-authored field, not
-    document-derived, so the platform-side guarantee is that
-    'corroborated_independent' is never assigned when the originating
-    document set has fewer than 2 distinct independence_group values. Two
-    synthetic documents sharing one independence_group (the syndication
-    case) yield exactly one independence group, never two.
+    comment 2 Section 6.5: "corroborated_dependent: ... all trace to one
+    originator_document_url. This is not corroboration"). This exercises
+    corroboration_independence_problems directly: a syndication pair
+    wrongly marked corroborated_independent is flagged; the honest
+    corroborated_dependent marking is not.
     """
     doc_a = _synthetic_document(
-        "DOC-SYNTH-001", publisher_is_originator=True, independence_group="SYNTH-IG-GSW"
+        "DOC-SYNTH-001",
+        publisher_is_originator=True,
+        independence_group="SYNTH-IG-GSW",
+        canonical_url="https://example.invalid/synth/gsw-original",
     )
     doc_b = _synthetic_document(
-        "DOC-SYNTH-002", publisher_is_originator=False, independence_group="SYNTH-IG-GSW"
+        "DOC-SYNTH-002",
+        publisher_is_originator=False,
+        independence_group="SYNTH-IG-AGGREGATOR",
+        canonical_url="https://example.invalid/synth/gsw-syndicated",
+        originator_document_url="https://example.invalid/synth/gsw-original",
     )
-    independence_groups = {doc_a["independence_group"], doc_b["independence_group"]}
-    assert len(independence_groups) == 1
-    # A claim set drawn only from these two documents can never legitimately
-    # be marked corroborated_independent (Section 6.5 requires >=2 distinct
-    # independence_group values); corroborated_dependent is the honest state.
+    documents_by_id = {"DOC-SYNTH-001": doc_a, "DOC-SYNTH-002": doc_b}
+
     claim_a = _claim(
         claim_id="CLM-SYNTH-0001",
         document_id="DOC-SYNTH-001",
         independence_group="SYNTH-IG-GSW",
-        corroboration_status="corroborated_dependent",
+        event_ids=["EVT-SYNTH-003"],
+        corroboration_status="uncorroborated",
     )
-    claim_b = _claim(
+    # Misuse: doc_b's independence_group differs from doc_a's, but doc_b is a
+    # syndication of doc_a (its originator_document_url IS doc_a's
+    # canonical_url) -- a distinct independence_group alone is not enough;
+    # the syndication link must also be checked, or a source that merely
+    # republishes under a different byline would wrongly count as independent.
+    claim_b_misused = _claim(
         claim_id="CLM-SYNTH-0002",
         document_id="DOC-SYNTH-002",
-        independence_group="SYNTH-IG-GSW",
+        independence_group="SYNTH-IG-AGGREGATOR",
+        event_ids=["EVT-SYNTH-003"],
+        corroboration_status="corroborated_independent",
+    )
+    problems = corroboration_independence_problems([claim_a, claim_b_misused], documents_by_id)
+    assert any("CLM-SYNTH-0002" in problem for problem in problems)
+
+    # The honest marking for the same pair raises no problem.
+    claim_b_honest = _claim(
+        claim_id="CLM-SYNTH-0002",
+        document_id="DOC-SYNTH-002",
+        independence_group="SYNTH-IG-AGGREGATOR",
+        event_ids=["EVT-SYNTH-003"],
         corroboration_status="corroborated_dependent",
     )
-    documents_by_id = {"DOC-SYNTH-001": doc_a, "DOC-SYNTH-002": doc_b}
-    assert claim_document_consistency_problems([claim_a, claim_b], documents_by_id) == []
+    assert corroboration_independence_problems([claim_a, claim_b_honest], documents_by_id) == []
+
+
+def test_genuinely_independent_corroboration_passes():
+    """Two claims from distinct independence_groups, neither a syndication
+    of the other, sharing an event_id: corroborated_independent is honest
+    and raises no problem."""
+    doc_a = _synthetic_document(
+        "DOC-SYNTH-010",
+        publisher_is_originator=True,
+        independence_group="SYNTH-IG-PORT-AUTHORITY",
+        canonical_url="https://example.invalid/synth/notice-a",
+    )
+    doc_b = _synthetic_document(
+        "DOC-SYNTH-011",
+        publisher_is_originator=True,
+        independence_group="SYNTH-IG-SHIPPING-NEWS",
+        canonical_url="https://example.invalid/synth/notice-b",
+    )
+    documents_by_id = {"DOC-SYNTH-010": doc_a, "DOC-SYNTH-011": doc_b}
+    claim_a = _claim(
+        claim_id="CLM-SYNTH-0010",
+        document_id="DOC-SYNTH-010",
+        independence_group="SYNTH-IG-PORT-AUTHORITY",
+        event_ids=["EVT-SYNTH-004"],
+        corroboration_status="corroborated_independent",
+    )
+    claim_b = _claim(
+        claim_id="CLM-SYNTH-0011",
+        document_id="DOC-SYNTH-011",
+        independence_group="SYNTH-IG-SHIPPING-NEWS",
+        event_ids=["EVT-SYNTH-004"],
+        corroboration_status="corroborated_independent",
+    )
+    assert corroboration_independence_problems([claim_a, claim_b], documents_by_id) == []
+
+
+def test_corroborated_independent_with_no_event_ids_fails():
+    claim = _claim(corroboration_status="corroborated_independent", event_ids=[])
+    problems = corroboration_independence_problems([claim], {})
+    assert any("no event_ids" in problem for problem in problems)
+
+
+def test_corroborated_independent_with_no_cluster_fails():
+    """A claim naming an event_id but no other claim sharing it: nothing
+    actually corroborates it."""
+    claim = _claim(corroboration_status="corroborated_independent", event_ids=["EVT-SYNTH-005"])
+    problems = corroboration_independence_problems([claim], {})
+    assert any("CLM-20260810-0001" in problem for problem in problems)
 
 
 def test_case_unresolved_contradiction_blocks_resolved_state():
@@ -505,22 +609,12 @@ def test_case_unresolved_contradiction_blocks_resolved_state():
     event = _event(
         event_id="EVT-SYNTH-001", situation_state="RESOLVED", claim_ids=["CLM-SYNTH-0003"]
     )
-    # The RESOLVED gate itself only checks claim_type membership (an
-    # unresolved contradiction is a *grading* concern, per Issue #88 comment
-    # 2 Section 8.5's contradiction clock, not a claim_ids-membership
-    # concern) -- so this test asserts the claim actually carries the
-    # unresolved marker a reviewer or a later grading pass must catch,
-    # rather than asserting resolved_situation_state_problems flags it
-    # (which would conflate two different checks).
-    assert claim["contradiction_status"] == "unresolved"
-    # The claim_type-membership gate alone is satisfied...
-    assert resolved_situation_state_problems([event], {"CLM-SYNTH-0003": claim}) == []
-    # ...which is exactly why Section 8.5's contradiction clock is a
-    # necessary second gate a grading implementation must apply before
-    # trusting a RESOLVED event backed by a contradicted claim; this
-    # repository defers full grade computation (Issue #89 scope --out:
-    # "no mode_situation computation") and states that explicitly rather
-    # than half-implementing it.
+    problems = resolved_situation_state_problems([event], {"CLM-SYNTH-0003": claim})
+    assert any("contradiction_status 'unresolved'" in problem for problem in problems)
+
+    # The same claim, once its contradiction is resolved, does qualify.
+    resolved_claim = dict(claim, contradiction_status="resolved_by_primary_source")
+    assert resolved_situation_state_problems([event], {"CLM-SYNTH-0003": resolved_claim}) == []
 
 
 def test_case_l3_only_claim_set_cannot_support_active_situation_state():

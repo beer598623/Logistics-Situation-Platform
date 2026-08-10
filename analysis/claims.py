@@ -116,6 +116,79 @@ def independence_confirmation_problems(claims: Sequence[Mapping[str, Any]]) -> l
     return problems
 
 
+def corroboration_independence_problems(
+    claims: Sequence[Mapping[str, Any]],
+    documents_by_id: Mapping[str, Mapping[str, Any]],
+) -> list[str]:
+    """A claim marked ``corroborated_independent`` must actually have a
+    corroborating claim from a distinct ``independence_group`` that is not a
+    syndication of it (Issue #88 comment 2 Section 6.5: "corroborated_independent:
+    >=2 documents from >=2 distinct independence_group values, neither a
+    syndication of the other" -- "corroborated_dependent: ... all trace to
+    one originator_document_url. This is not corroboration").
+
+    Cluster membership is approximated by shared ``event_ids`` -- the only
+    structural link between claims this Work Order provides; a full
+    assertion-similarity clustering engine (matching two claims as being
+    about the very same fact rather than merely the same Development) is out
+    of scope. A claim with no ``event_ids`` has no cluster to check against
+    and is reported, not silently passed: a claim cannot honestly claim
+    independent corroboration while naming nothing it is corroborated
+    against.
+
+    Two documents "trace to one originator_document_url" when either names
+    the other's ``canonical_url`` as its ``originator_document_url`` -- a
+    syndication pair collapses to one origin regardless of which one is
+    treated as "the" originator in the pair.
+    """
+
+    def _origin_url(document: Mapping[str, Any] | None) -> str | None:
+        if document is None:
+            return None
+        return document.get("originator_document_url") or document.get("canonical_url")
+
+    problems: list[str] = []
+    for claim in claims:
+        if claim.get("corroboration_status") != "corroborated_independent":
+            continue
+        claim_id = claim.get("claim_id", "<unknown>")
+        event_ids = set(claim.get("event_ids", []) or [])
+        if not event_ids:
+            problems.append(
+                f"{claim_id}: corroboration_status is 'corroborated_independent' but the claim "
+                "has no event_ids, so no corroborating cluster can be identified"
+            )
+            continue
+
+        this_document = documents_by_id.get(claim.get("document_id"))
+        this_group = claim.get("independence_group")
+        this_origin = _origin_url(this_document)
+
+        found_independent_corroborator = False
+        for other in claims:
+            if other is claim:
+                continue
+            if not (set(other.get("event_ids", []) or []) & event_ids):
+                continue
+            other_group = other.get("independence_group")
+            if other_group == this_group:
+                continue  # same independence_group: dependent, not independent
+            other_document = documents_by_id.get(other.get("document_id"))
+            other_origin = _origin_url(other_document)
+            if this_origin is not None and other_origin == this_origin:
+                continue  # traces to the same originator_document_url: a syndication
+            found_independent_corroborator = True
+            break
+
+        if not found_independent_corroborator:
+            problems.append(
+                f"{claim_id}: corroboration_status is 'corroborated_independent' but no other "
+                "claim sharing an event_id comes from a distinct independence_group that is not "
+                "a syndication of this claim's document; this is at most corroborated_dependent"
+            )
+    return problems
+
+
 def ai_date_invention_problems(claims: Sequence[Mapping[str, Any]]) -> list[str]:
     """No AI-invented dates (Issue #88 comment 2 Section 7.4: "AI may never
     infer a date. Precision must degrade, not be invented").
@@ -163,12 +236,16 @@ def resolved_situation_state_problems(
     events: Sequence[Mapping[str, Any]],
     claims_by_id: Mapping[str, Mapping[str, Any]],
 ) -> list[str]:
-    """``situation_state: RESOLVED`` requires a qualifying claim (Issue #88
-    comment 2 Section 7.3: "An event never becomes RESOLVED by timing out").
+    """``situation_state: RESOLVED`` requires a qualifying, uncontradicted
+    claim (Issue #88 comment 2 Section 7.3: "An event never becomes RESOLVED
+    by timing out").
 
     An event with ``situation_state == 'RESOLVED'`` must have ``claim_ids``
     containing at least one claim whose ``claim_type`` is one of
-    :data:`RESOLVING_CLAIM_TYPES`. This is a cross-record check: it needs the
+    :data:`RESOLVING_CLAIM_TYPES` AND whose ``contradiction_status`` is not
+    ``'unresolved'`` -- a claim the platform itself still records as
+    unresolved-contradicted cannot be the evidence that settles an event
+    (Issue #89 item 9(b)). This is a cross-record check: it needs the
     actual claim records ``claim_ids`` names, not just the ID strings, so it
     only bites once real events reference real claims (``data/claims/`` is
     an empty scaffold under this Work Order -- see docs/known_data_gaps.md).
@@ -203,6 +280,19 @@ def resolved_situation_state_problems(
             problems.append(
                 f"{event_id}: situation_state is 'RESOLVED' but none of claim_ids "
                 f"{sorted(claim_ids)} has a claim_type in {sorted(RESOLVING_CLAIM_TYPES)}"
+            )
+            continue
+        uncontradicted_qualifying = [
+            cid
+            for cid in qualifying
+            if claims_by_id[cid].get("contradiction_status") != "unresolved"
+        ]
+        if not uncontradicted_qualifying:
+            problems.append(
+                f"{event_id}: situation_state is 'RESOLVED' but every qualifying claim in "
+                f"claim_ids {sorted(qualifying)} has contradiction_status 'unresolved'; an "
+                "event cannot be settled on the strength of a claim the platform itself still "
+                "records as unresolved-contradicted"
             )
     return problems
 
@@ -245,7 +335,10 @@ def claim_document_consistency_problems(
     ``evidence_layer`` / ``independence_group`` must agree with the
     Document they were frozen from (Issue #88 comment 2 Section 6.2:
     evidence_layer and independence_group are "copied from the Document and
-    frozen on the claim").
+    frozen on the claim"). Also checks ``quotation_used.used`` against the
+    Document's ``rights.quotation_allowed`` -- ``claim.schema.json``'s own
+    field description says this cross-record agreement "is checked in
+    scripts/validate.py, not this schema".
     """
     problems: list[str] = []
     for claim in claims:
@@ -272,5 +365,14 @@ def claim_document_consistency_problems(
                 f"{claim_id}: independence_group {claim.get('independence_group')!r} disagrees "
                 f"with document {document_id!r}'s independence_group "
                 f"{document.get('independence_group')!r}"
+            )
+        quotation_used = claim.get("quotation_used") or {}
+        if quotation_used.get("used") and not (document.get("rights") or {}).get(
+            "quotation_allowed"
+        ):
+            problems.append(
+                f"{claim_id}: quotation_used.used is true but document {document_id!r}'s "
+                "rights.quotation_allowed is not true; a quotation may only be used when the "
+                "Document's rights explicitly permit it"
             )
     return problems

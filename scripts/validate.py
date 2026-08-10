@@ -31,6 +31,7 @@ from analysis.assessments import (  # noqa: E402
 from analysis.claims import (  # noqa: E402
     ai_date_invention_problems,
     claim_document_consistency_problems,
+    corroboration_independence_problems,
     independence_confirmation_problems,
     l3_firewall_problems,
     regional_scope_thailand_relevance_problems,
@@ -906,6 +907,10 @@ def main() -> int:
     ok &= report(
         "independence confirmation (officially_confirmed)",
         independence_confirmation_problems(claims),
+    )
+    ok &= report(
+        "corroboration independence counting",
+        corroboration_independence_problems(claims, documents_by_id),
     )
     ok &= report("no AI-invented dates", ai_date_invention_problems(claims))
     ok &= report(
