@@ -90,6 +90,7 @@ jobs:
           python scripts/ingest_fixtures.py --check
           python scripts/build_events_from_cases.py --check
           python scripts/build_analysis.py --check
+          python scripts/build_situations.py --check
       - name: Replay historical validation cases
         run: python scripts/run_historical_validation.py
       - name: Build derived analytical warehouse

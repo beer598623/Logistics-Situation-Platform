@@ -92,7 +92,23 @@
         "subject_ref": {"type": ["string", "null"]},
         "predicate": {"type": ["string", "null"]},
         "object_value": {"type": ["string", "number", "null"]},
-        "object_unit": {"type": ["string", "null"]}
+        "object_unit": {"type": ["string", "null"]},
+        "predicate_class": {
+          "description": "WO-049 (Issue #92) item 1: the controlled vocabulary that makes registry authority coverage decidable by set membership (analysis/claim_evidence_adapter.py::authority_covers) rather than string matching. Optional and nullable so every WO-047 claim stays valid unchanged.",
+          "enum": [
+            "berth_or_facility_availability",
+            "transit_or_passage",
+            "service_schedule",
+            "capacity_or_equipment",
+            "customs_or_clearance",
+            "tariff_or_fee",
+            "sanction_or_regulation",
+            "hazard_or_security",
+            "labour_action",
+            "structural_finding",
+            null
+          ]
+        }
       }
     },
     "event_start_at": {
@@ -248,6 +264,11 @@
     },
     "extraction_model": {
       "type": ["string", "null"]
+    },
+    "assertion_group_id": {
+      "type": ["string", "null"],
+      "pattern": "^AGRP-[0-9]{8}-[0-9]{4}$",
+      "description": "WO-049 (Issue #92) item 4. Two claims share a group iff they are judged to be the 'same claim' (design part 1 Section 1.6): the claims are never merged into one record -- each keeps its own document_id and independence_group -- this is the field that makes 'N reports, M origins' computable. Null means not yet grouped, never 'unique'. Optional so every WO-047 claim stays valid unchanged."
     }
   },
   "allOf": [

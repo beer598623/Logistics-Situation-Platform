@@ -1,10 +1,16 @@
-version: "0.4"
+version: "0.5"
 policy: free_public_sources_only
 last_reviewed_at: "2026-08-10"
 # WO-047 (Issue #89): v0.4 adds a `governance` block to every source (see
 # schemas/source_contract.schema.json#/$defs/governance). Additive only --
 # no existing `enabled`, `licence_status`, `qualification` or `enablement`
 # value changed for any of the 18 sources below.
+# WO-049 (Issue #92): v0.5 adds `governance.channel_role` to every source --
+# `conduit` for MANUAL_NOTICE_INTAKE (the only source through which arbitrary
+# underlying publishers are transcribed), `originator_channel` for the other
+# 17 (the source itself is the publisher). Additive only -- diff-proven to
+# change no existing `enabled`/`licence_status`/`qualification`/`enablement`/
+# `authoritative_for` value for any of the 18 sources below.
 sources:
   - id: GDACS
     name: Global Disaster Alert and Coordination System
@@ -63,6 +69,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-GDACS
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -137,6 +144,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-TMD_CAP
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -195,6 +203,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-GSCPI
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -287,6 +296,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-TH_CUSTOMS
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -380,6 +390,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-EPPO_FUEL
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -488,6 +499,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-BOT_FX
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -583,6 +595,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-WB_COMMODITY
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -676,6 +689,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-IMF_PORTWATCH
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -770,6 +784,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-UNCTAD_MARITIME
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -862,6 +877,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-PAT_NOTICE
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -955,6 +971,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-ACP_ADVISORY
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -1048,6 +1065,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-SCA_CIRCULAR
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -1141,6 +1159,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-MPA_SG_NOTICE
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -1250,6 +1269,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-MPA_SG_STATISTICS
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -1370,6 +1390,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-MANUAL_NOTICE_INTAKE
+      channel_role: conduit
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -1465,6 +1486,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-NEWS_DISCOVERY
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -1570,6 +1592,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-PAT_STATISTICS
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a
@@ -1668,6 +1691,7 @@ sources:
       # qualification stay exactly as recorded above). See
       # docs/evidence_layers.md and docs/situation_intelligence_architecture.md.
       independence_group: IG-FBX_PUBLIC
+      channel_role: originator_channel
       # Default: one independence group per source. No syndication or common-
       # ownership relationship between any two of the 18 registered sources is
       # currently established, so no two sources share a group by default; a

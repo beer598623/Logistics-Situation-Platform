@@ -257,10 +257,79 @@
               "unresolved",
               "resolved_by_primary_source",
               "superseded",
-              "confidence_reduced"
-            ]
+              "confidence_reduced",
+              "escalated_for_verification",
+              "resolved_as_status_change"
+            ],
+            "description": "WO-049 (Issue #92) item 6: two additive values (escalated_for_verification, resolved_as_status_change), matching the precedent of WO-035's additive enum extension and WO-047's own impact_assessment.status +2. The original four values are unchanged."
+          },
+          "contradiction_type": {
+            "type": ["string", "null"],
+            "enum": [
+              "existence",
+              "magnitude",
+              "duration",
+              "causation",
+              "scope",
+              "attribution",
+              "status_change",
+              "retraction",
+              null
+            ],
+            "description": "WO-049 (Issue #92) item 6, additive. Only 'existence' and 'status_change' cap the Development-level evidence_grade and force situation_state UNCERTAIN (analysis/grading.py); the other six are recorded and displayed without degrading the assessment. Optional and nullable so every one of the 10 committed events (conflicting_evidence: []) stays valid unchanged."
+          },
+          "claim_ids_side_a": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+            "uniqueItems": true,
+            "description": "WO-049 item 6, additive. The claims on one side of the disagreement -- never a merged sentence."
+          },
+          "claim_ids_side_b": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+            "uniqueItems": true,
+            "description": "WO-049 item 6, additive. The claims on the other side."
+          },
+          "independence_groups_a": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "WO-049 item 6, additive. Derived from claim_ids_side_a's documents; lets a card say '3 origins vs 1 origin' rather than 'sources disagree'."
+          },
+          "independence_groups_b": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "WO-049 item 6, additive. Derived from claim_ids_side_b's documents."
+          },
+          "first_detected_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "WO-049 item 6, additive. When the disagreement was first recorded."
+          },
+          "last_reviewed_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "WO-049 item 6, additive. The re-verification SLA clock."
+          },
+          "resolution_basis": {
+            "type": ["string", "null"],
+            "description": "WO-049 item 6, additive. Required (non-empty) whenever resolution_status is not 'unresolved' -- no contradiction may leave 'unresolved' without a stated reason, and no contradiction may be resolved without one either. Checked in scripts/validate.py, not this schema, since it is a conditional-on-value rule this schema already expresses the same way document.schema.json's rights.reviewer_record does."
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": ["resolution_status"],
+              "properties": {"resolution_status": {"const": "unresolved"}}
+            },
+            "then": {},
+            "else": {
+              "required": ["resolution_basis"],
+              "properties": {
+                "resolution_basis": {"type": "string", "minLength": 1}
+              }
+            }
+          }
+        ]
       }
     },
     "transmission_chain": {
@@ -466,12 +535,13 @@
         "merge_status": {
           "enum": [
             "unmatched",
-            "matched_source_record",
-            "matched_cluster_key",
+            "matched_external_id",
+            "matched_fingerprint",
             "merge_suggested",
             "merged_approved",
             "split_required"
-          ]
+          ],
+          "description": "WO-049 (Issue #92) item 11: standardised on collectors/event_identity.py::MERGE_STATUSES' vocabulary (matched_external_id / matched_fingerprint), not the matched_source_record / matched_cluster_key values this field previously declared. That original vocabulary was never referenced by any code path or committed record; event_identity.py's vocabulary is the one actually used by resolve_event_identity, candidate_event.schema.json, reviewed_event.schema.json and data/reviewed/current_events.json, so it is the load-bearing one. The four other values are unchanged. matched_external_id now also covers the claim-attachment rule 2 case (design part 1 Section 1.4: an exact official-identifier or attribution-chain match); matched_fingerprint covers rule 3 (the deterministic type/date/geography/entity gate)."
         },
         "merged_event_ids": {
           "type": "array",
@@ -568,6 +638,25 @@
       "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
       "uniqueItems": true,
       "description": "WO-047. Derived; never authored directly."
+    },
+    "grade_override": {
+      "description": "WO-049 (Issue #92) item 3: a downgrade-only override of the computed evidence_grade (analysis/grading.py::compute_evidence_grade). 'to' must be strictly weaker than the computed grade on the order CONFIRMED > CORROBORATED > REPORTED > ANALYTICAL_INFERENCE > null -- an upward override is not representable by this schema's enum alone and is refused by scripts/validate.py's grade_override upward-refusal rule, mirroring scripts/manual_intake.py's evidence_layer directional check. Optional and nullable so every WO-047 event stays valid unchanged.",
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["to", "reason", "reviewer_record", "at"],
+          "properties": {
+            "to": {
+              "enum": ["CONFIRMED", "CORROBORATED", "REPORTED", "ANALYTICAL_INFERENCE", null]
+            },
+            "reason": {"type": "string", "minLength": 1},
+            "reviewer_record": {"type": "string", "minLength": 1},
+            "at": {"type": "string", "format": "date-time"}
+          }
+        }
+      ]
     }
   }
 }

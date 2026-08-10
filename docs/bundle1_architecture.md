@@ -119,10 +119,11 @@ Added by WO-026, field names and endpoint corrected by WO-027:
 plus `validate`, `collect --dry-run`, `build_review_package`, `import_review`,
 `review_decision`, and the pre-existing `manual_live_source_test`.
 
-Three generators — `ingest_fixtures`, `build_events_from_cases`, `build_analysis` — have a
-`--check` mode that regenerates in memory and fails if the committed output no longer matches
-its inputs; `tests/test_derived_outputs.py` runs all three. Two others, `build_dashboard` and
-`generate_synthetic_fixtures`, accept no CLI arguments at all:
+Four generators — `ingest_fixtures`, `build_events_from_cases`, `build_analysis`,
+`build_situations` (WO-049) — have a `--check` mode that regenerates in memory and fails if the
+committed output no longer matches its inputs; `tests/test_derived_outputs.py` runs the first
+three (`build_situations` is exercised directly in `tests/test_build_situations.py`). Two
+others, `build_dashboard` and `generate_synthetic_fixtures`, accept no CLI arguments at all:
 `build_dashboard`'s reproducibility is instead enforced by CI's build-then-`git status
 --porcelain` step, and `generate_synthetic_fixtures`'s by a byte-comparison test
 (`test_regenerating_the_fixtures_is_a_no_op`). See `docs/operations_runbook.md` §1.

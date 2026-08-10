@@ -1,0 +1,94 @@
+{
+  "situations": [
+    {
+      "situation_id": "SIT-SEA-CTY-TH-20260724T000000Z",
+      "mode": "sea",
+      "geography_id": "GEO-CTY-TH",
+      "as_of": "2026-07-24T00:00:00Z",
+      "evidence_cutoff_at": "2026-07-24T00:00:00Z",
+      "status": "insufficient_current_evidence",
+      "status_basis": [],
+      "confidence": "low",
+      "confidence_reductions": [
+        "No eligible event; confidence reflects the empty evidence base."
+      ],
+      "material_event_count": 0,
+      "contributing_event_ids": [],
+      "watch_event_ids": [],
+      "excluded_event_ids": [
+        {
+          "event_id": "EVT-20190227-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20200318-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20220301-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20231030-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20231218-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20240326-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20240520-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20240614-002",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20241118-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        },
+        {
+          "event_id": "EVT-20260715-001",
+          "exclusion_reason": "event belongs to the 'historical_validation' dataset, not the current publication dataset"
+        }
+      ],
+      "evidence_composition": {
+        "by_grade": {
+          "CONFIRMED": 0,
+          "CORROBORATED": 0,
+          "REPORTED": 0,
+          "ANALYTICAL_INFERENCE": 0
+        },
+        "by_layer": {
+          "l1": 0,
+          "l2": 0,
+          "l3": 0
+        },
+        "document_count": 0,
+        "claim_count": 0,
+        "independent_group_count": 0
+      },
+      "freshness": {
+        "newest_verification_at": null,
+        "oldest_contributing_verification_at": null,
+        "state": "unknown"
+      },
+      "gaps": [],
+      "coverage_basis": {
+        "sources_with_public_claims": [],
+        "qualifying_document_count": 0,
+        "window_minutes": null
+      },
+      "known_limitations": [
+        "Development->Development relatedness (contradiction rule 2's second clause, opposed-predicate node/chokepoint overlap across two distinct events) is not computed by this Work Order; only a single event's own unresolved contradiction is checked. gaps[] is not computed (WO-045's #ocean-major-gaps derivation is a Dashboard-facing mechanism this Work Order does not touch)."
+      ],
+      "methodology_version": "0.8",
+      "dataset": "current_publication"
+    }
+  ]
+}

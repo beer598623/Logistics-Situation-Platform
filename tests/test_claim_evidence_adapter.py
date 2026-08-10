@@ -429,3 +429,312 @@ def test_round_trip_context_layer_reported_claim(registry, committed_evidence_by
     _assert_round_trip(committed, projected)
     assert projected["strength"] == "C" == committed["strength"]
     assert projected["relation"] == "contextual" == committed["relation"]
+
+
+# ---------------------------------------------------------------------------
+# Full A-D grading (WO-049 / Issue #92 item 2): authority_covers(),
+# freshness_state(), and the contradiction-status input, exercised against
+# real (non-fixture) Documents -- the case the round-trip tests above never
+# hit, since all three use evidence_origin: historical_validation_fixture.
+# ---------------------------------------------------------------------------
+
+from datetime import UTC, datetime  # noqa: E402
+
+from analysis.claim_evidence_adapter import authority_covers, freshness_state  # noqa: E402
+
+_NOW = datetime(2026, 8, 10, 12, 0, 0, tzinfo=UTC)
+
+
+def _real_document(**overrides) -> dict:
+    base = {
+        "evidence_origin": "human_reviewed_manual",
+        "retrieval_status": "not_applicable",
+        "dataset": "current_publication",
+        "manual_review_event_id": "MAN-20260810T080000Z-MANUAL_NOTICE_INTAKE",
+        "published_at": "2026-08-10T08:00:00Z",
+        "publisher_authority": {
+            "authority_scope": {
+                "node_ids": ["NODE-SYNTH-NGT"],
+                "chokepoint_ids": [],
+                "country_ids": [],
+                "predicate_classes": ["berth_or_facility_availability"],
+            },
+            "decided_by": "document_review",
+            "decided_at": "2026-08-10T07:00:00Z",
+            "reviewer_record": "STRUCTURAL EXAMPLE reviewer",
+            "basis": "STRUCTURAL EXAMPLE authority scope.",
+        },
+    }
+    base.update(overrides)
+    return _document(**base)
+
+
+def _real_claim(**overrides) -> dict:
+    base = {
+        "dataset": "current_publication",
+        "node_ids": ["NODE-SYNTH-NGT"],
+        "assertion": {
+            "subject_type": "node",
+            "subject_ref": "NODE-SYNTH-NGT",
+            "predicate": "berths_suspended",
+            "object_value": "3-5",
+            "object_unit": None,
+            "predicate_class": "berth_or_facility_availability",
+        },
+    }
+    base.update(overrides)
+    return _claim(**base)
+
+
+def test_authority_covers_true_on_matching_predicate_class_and_node(registry):
+    document = _real_document()
+    claim = _real_claim()
+    assert authority_covers(claim, document) is True
+
+
+def test_authority_covers_false_with_no_publisher_authority(registry):
+    document = _real_document(publisher_authority=None)
+    claim = _real_claim()
+    assert authority_covers(claim, document) is False
+
+
+def test_authority_covers_false_on_predicate_class_mismatch(registry):
+    document = _real_document()
+    claim = _real_claim(
+        assertion={
+            "subject_type": "node",
+            "subject_ref": "NODE-SYNTH-NGT",
+            "predicate": "toll_changed",
+            "object_value": None,
+            "object_unit": None,
+            "predicate_class": "tariff_or_fee",
+        }
+    )
+    assert authority_covers(claim, document) is False
+
+
+def test_authority_covers_false_on_node_mismatch(registry):
+    document = _real_document()
+    claim = _real_claim(node_ids=["NODE-SYNTH-OTHER"])
+    assert authority_covers(claim, document) is False
+
+
+def test_authority_covers_true_on_country_fallback_when_claim_names_no_node_or_chokepoint(
+    registry,
+):
+    document = _real_document(
+        publisher_authority={
+            "authority_scope": {
+                "node_ids": [],
+                "chokepoint_ids": [],
+                "country_ids": ["TH"],
+                "predicate_classes": ["berth_or_facility_availability"],
+            },
+            "decided_by": "document_review",
+            "decided_at": "2026-08-10T07:00:00Z",
+            "reviewer_record": "STRUCTURAL EXAMPLE reviewer",
+            "basis": "STRUCTURAL EXAMPLE authority scope.",
+        }
+    )
+    claim = _real_claim(node_ids=[], chokepoint_ids=[], country_ids=["TH"])
+    assert authority_covers(claim, document) is True
+
+
+def test_freshness_state_fresh_within_window(registry):
+    document = _real_document(published_at="2026-08-01T08:00:00Z")  # MANUAL_NOTICE_INTAKE: 30d
+    assert freshness_state(document, registry, now=_NOW) == "fresh"
+
+
+def test_freshness_state_ageing_between_one_and_two_windows(registry):
+    document = _real_document(published_at="2026-06-20T08:00:00Z")  # ~51 days old
+    assert freshness_state(document, registry, now=_NOW) == "ageing"
+
+
+def test_freshness_state_stale_between_two_and_four_windows(registry):
+    document = _real_document(published_at="2026-05-15T08:00:00Z")  # ~87 days old
+    assert freshness_state(document, registry, now=_NOW) == "stale"
+
+
+def test_freshness_state_expired_beyond_four_windows(registry):
+    document = _real_document(published_at="2020-01-01T08:00:00Z")
+    assert freshness_state(document, registry, now=_NOW) == "expired"
+
+
+def test_freshness_state_unknown_with_no_reference_timestamp(registry):
+    document = _real_document(published_at=None, retrieved_at=None, updated_at=None)
+    assert freshness_state(document, registry, now=_NOW) == "unknown"
+
+
+def test_full_grade_a_primary_authoritative_fresh_uncontradicted_verified(registry):
+    document = _real_document()
+    claim = _real_claim(
+        claim_type="official_notice",
+        primary_for_this_claim=True,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to=None,
+    )
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "A"
+
+
+def test_full_grade_b_when_authority_covers_but_ageing(registry):
+    # ~51 days old, within MANUAL_NOTICE_INTAKE's ageing band (30-60d): the
+    # A conditions otherwise all hold, so the freshness clock's "ageing"
+    # cap (design part 1 Section 2.5) is what pulls this down to B, not an
+    # authority_covers mismatch.
+    document = _real_document(published_at="2026-06-20T08:00:00Z")
+    claim = _real_claim(
+        claim_type="official_notice",
+        primary_for_this_claim=True,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to=None,
+    )
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "B"
+
+
+def test_full_grade_b_when_fresh_but_authority_does_not_cover(registry):
+    document = _real_document(publisher_authority=None)
+    claim = _real_claim(
+        claim_type="official_notice",
+        primary_for_this_claim=True,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to=None,
+    )
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "B"
+
+
+def test_full_grade_capped_below_a_by_unresolved_contradiction(registry):
+    document = _real_document()
+    claim = _real_claim(
+        claim_type="official_notice",
+        primary_for_this_claim=True,
+        evidence_layer="current_evidence",
+        contradiction_status="unresolved",
+        attributed_to=None,
+    )
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] != "A"
+
+
+def test_full_grade_b_named_attribution_current_evidence(registry):
+    document = _real_document(publisher_authority=None)
+    claim = _real_claim(
+        claim_type="reported_claim",
+        primary_for_this_claim=False,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to={"name": "A named official", "role": "spokesperson", "is_named": True},
+    )
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "B"
+
+
+def test_full_grade_c_fallback(registry):
+    document = _real_document(publisher_authority=None)
+    claim = _real_claim(
+        claim_type="reported_claim",
+        primary_for_this_claim=False,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to={"name": None, "role": "operator", "is_named": False},
+    )
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "C"
+
+
+# ---------------------------------------------------------------------------
+# HIGH-1 regression: item-level grading must apply the stale/expired caps
+# (design part 1 Section 2.5), not just the ageing "A -> B" case. Reviewer's
+# exact repro for PR #93 / Issue #92: an otherwise-perfect
+# primary/authoritative/official_notice/current_evidence/verified claim
+# against MANUAL_NOTICE_INTAKE (max_stale_minutes: 43200, i.e. a 30-day
+# window) must grade A at 1 day, B at 40 days (ageing), C at 90 days
+# (stale), D at 200 days (expired).
+# ---------------------------------------------------------------------------
+
+
+def _otherwise_perfect_claim(**overrides) -> dict:
+    base = dict(
+        claim_type="official_notice",
+        primary_for_this_claim=True,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to=None,
+    )
+    base.update(overrides)
+    return _real_claim(**base)
+
+
+@pytest.mark.parametrize(
+    ("published_at", "expected_strength", "expected_freshness"),
+    [
+        ("2026-08-09T12:00:00Z", "A", "fresh"),  # 1 day old
+        ("2026-07-01T12:00:00Z", "B", "ageing"),  # 40 days old
+        ("2026-05-12T12:00:00Z", "C", "stale"),  # 90 days old
+        ("2026-01-22T12:00:00Z", "D", "expired"),  # 200 days old
+    ],
+)
+def test_item_grade_freshness_caps_full_table(
+    registry, published_at, expected_strength, expected_freshness
+):
+    document = _real_document(published_at=published_at)
+    claim = _otherwise_perfect_claim()
+    assert freshness_state(document, registry, now=_NOW) == expected_freshness
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == expected_strength
+
+
+def test_item_grade_stale_caps_at_c_even_though_authority_covers_and_type_qualify(registry):
+    """Direct HIGH-1 repro: before the fix, a 'stale' Document (2x-4x window)
+    fell into the same generic 'not fresh' branch as 'ageing' and incorrectly
+    graded B instead of being capped at C."""
+    document = _real_document(published_at="2026-05-15T08:00:00Z")  # ~87 days, stale
+    claim = _otherwise_perfect_claim()
+    assert freshness_state(document, registry, now=_NOW) == "stale"
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "C"
+
+
+def test_item_grade_expired_caps_at_d_even_though_authority_covers_and_type_qualify(registry):
+    """Direct HIGH-1 repro: before the fix, an 'expired' Document also fell
+    into the same generic 'not fresh' branch as 'ageing' and incorrectly
+    graded B instead of being capped at D."""
+    document = _real_document(published_at="2020-01-01T08:00:00Z")  # expired
+    claim = _otherwise_perfect_claim()
+    assert freshness_state(document, registry, now=_NOW) == "expired"
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "D"
+
+
+def test_item_grade_unknown_freshness_capped_at_least_as_strict_as_ageing(registry):
+    """'unknown' freshness (no reference timestamp resolves) must never grade
+    more leniently than 'ageing' -- design part 1 Section 2.5 groups
+    'unknown' with 'expired' in its freshness-state table, so it takes the
+    same D cap."""
+    document = _real_document(published_at=None, retrieved_at=None, updated_at=None)
+    claim = _otherwise_perfect_claim()
+    assert freshness_state(document, registry, now=_NOW) == "unknown"
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "D"
+
+
+def test_item_grade_freshness_cap_also_applies_to_named_attribution_b_branch(registry):
+    """The freshness cap is a universal cap on the computed grade, not only
+    on the primary/authoritative near-A path: a named-attribution B-branch
+    claim on an expired Document must still be capped down to D."""
+    document = _real_document(publisher_authority=None, published_at="2020-01-01T08:00:00Z")
+    claim = _real_claim(
+        claim_type="reported_claim",
+        primary_for_this_claim=False,
+        evidence_layer="current_evidence",
+        contradiction_status="none",
+        attributed_to={"name": "A named official", "role": "spokesperson", "is_named": True},
+    )
+    assert freshness_state(document, registry, now=_NOW) == "expired"
+    result = project_event_evidence(claim, document, "EVT-20260810-001", registry, now=_NOW)
+    assert result["strength"] == "D"

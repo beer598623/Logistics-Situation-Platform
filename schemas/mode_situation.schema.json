@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mode_situation.schema.json",
+  "title": "Mode Situation",
+  "description": "WO-049 (Issue #92) item 5, design in Issue #91 comment 2 (WO-048 design part 2) Section 3.3. 'What is happening now, according to source-backed Developments', in a five-value vocabulary, for one (mode, geography) pair. Computed deterministically -- Gate 0 plus five ordered rules, analysis/situations.py::compute_mode_situation -- from already-approved logistics_event/claim/document records; never authored directly by AI or a human. Consumes the existing nine-area impact_assessment machinery; does not recompute it. Written to data/situations/situations.json in the existing data/events/-style single-combined-file layout.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "situation_id",
+    "mode",
+    "geography_id",
+    "as_of",
+    "evidence_cutoff_at",
+    "status",
+    "status_basis",
+    "confidence",
+    "confidence_reductions",
+    "material_event_count",
+    "contributing_event_ids",
+    "watch_event_ids",
+    "excluded_event_ids",
+    "evidence_composition",
+    "freshness",
+    "gaps",
+    "coverage_basis",
+    "known_limitations",
+    "methodology_version",
+    "dataset"
+  ],
+  "properties": {
+    "situation_id": {
+      "type": "string",
+      "pattern": "^SIT-[A-Z]+-[A-Z0-9-]+-[0-9]{8}T[0-9]{6}Z$",
+      "description": "Derived from (mode, geography_id, as_of): SIT-<MODE>-<GEOGRAPHY>-<as_of as YYYYMMDDTHHMMSSZ>."
+    },
+    "mode": {
+      "$ref": "observation_common.schema.json#/$defs/transportMode"
+    },
+    "geography_id": {
+      "type": "string",
+      "pattern": "^GEO-[A-Z0-9-]+$"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Build time -- when this record was computed."
+    },
+    "evidence_cutoff_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The newest published_at among contributing Documents, or as_of if no event contributed. Distinct from as_of on purpose: a build run this morning over evidence current only to last night must say so."
+    },
+    "status": {
+      "enum": [
+        "confirmed_disruption",
+        "elevated_watch",
+        "mixed_evidence",
+        "no_material_impact_detected",
+        "insufficient_current_evidence"
+      ],
+      "description": "Design part 2 Section 3.5's five ordered rules, first match wins. No averaging, no weighting, no count-based dilution."
+    },
+    "status_basis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_id", "rule_id", "contribution"],
+        "properties": {
+          "event_id": {"type": "string", "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"},
+          "rule_id": {"type": "string", "minLength": 1},
+          "contribution": {"type": "string", "minLength": 1}
+        }
+      },
+      "description": "Non-empty for every status except 'insufficient_current_evidence' -- enforced in scripts/validate.py, not this schema (an empty array is structurally legal so an 'insufficient_current_evidence' record, which has nothing to cite, still validates)."
+    },
+    "confidence": {
+      "enum": ["low", "medium", "high"],
+      "description": "Reuses the one confidence scale already on claim.schema.json and impact_assessment.schema.json."
+    },
+    "confidence_reductions": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Every reason confidence was reduced from the leading contributing event's own confidence, named explicitly. A confidence with no stated basis is not publishable -- the same discipline as logistics_event.active_basis. May be empty only when confidence was not reduced from its starting point."
+    },
+    "material_event_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "len(contributing_event_ids)."
+    },
+    "contributing_event_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"},
+      "uniqueItems": true,
+      "description": "Events that passed Gate 0 and actually drove the status."
+    },
+    "watch_event_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"},
+      "uniqueItems": true,
+      "description": "Events that passed Gate 0 but did not drive the status (e.g. below the leading rule's threshold)."
+    },
+    "excluded_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_id", "exclusion_reason"],
+        "properties": {
+          "event_id": {"type": "string", "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$"},
+          "exclusion_reason": {"type": "string", "minLength": 1}
+        }
+      },
+      "description": "Every event Gate 0 rejected, with its reason -- what makes the assessment explainable in the negative direction. is_active_at's own human-readable ActivityDecision.reason strings are reused directly."
+    },
+    "evidence_composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["by_grade", "by_layer", "document_count", "claim_count", "independent_group_count"],
+      "properties": {
+        "by_grade": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["CONFIRMED", "CORROBORATED", "REPORTED", "ANALYTICAL_INFERENCE"],
+          "properties": {
+            "CONFIRMED": {"type": "integer", "minimum": 0},
+            "CORROBORATED": {"type": "integer", "minimum": 0},
+            "REPORTED": {"type": "integer", "minimum": 0},
+            "ANALYTICAL_INFERENCE": {"type": "integer", "minimum": 0}
+          }
+        },
+        "by_layer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["l1", "l2", "l3"],
+          "properties": {
+            "l1": {"type": "integer", "minimum": 0},
+            "l2": {"type": "integer", "minimum": 0},
+            "l3": {"type": "integer", "minimum": 0}
+          }
+        },
+        "document_count": {"type": "integer", "minimum": 0},
+        "claim_count": {"type": "integer", "minimum": 0},
+        "independent_group_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["newest_verification_at", "oldest_contributing_verification_at", "state"],
+      "properties": {
+        "newest_verification_at": {"type": ["string", "null"], "format": "date-time"},
+        "oldest_contributing_verification_at": {"type": ["string", "null"], "format": "date-time"},
+        "state": {
+          "enum": ["fresh", "ageing", "stale", "expired", "unknown"],
+          "description": "The OLDEST contributor governs the state -- a stale contributor must be visible, not averaged away."
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Capability-registry gap identifiers relevant to this situation. Deliberately not computed by this Work Order (WO-045's #ocean-major-gaps derivation is a Dashboard-facing mechanism this Work Order does not touch); always an empty array today -- see docs/situation_synthesis.md."
+    },
+    "coverage_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sources_with_public_claims", "qualifying_document_count", "window_minutes"],
+      "properties": {
+        "sources_with_public_claims": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+          "uniqueItems": true
+        },
+        "qualifying_document_count": {"type": "integer", "minimum": 0},
+        "window_minutes": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "min(max_stale_minutes) over sources_with_public_claims, or null when the set is empty."
+        }
+      },
+      "description": "The input to rule 4's coverage minimum (design part 2 Section 3.5)."
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "methodology_version": {
+      "const": "0.8"
+    },
+    "dataset": {
+      "const": "current_publication",
+      "description": "A mode_situation record exists only on the current surface."
+    }
+  }
+}

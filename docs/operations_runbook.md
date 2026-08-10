@@ -9,16 +9,17 @@ python scripts/generate_synthetic_fixtures.py    # no-op on a clean tree
 python scripts/ingest_fixtures.py                # fixtures  → observations
 python scripts/build_events_from_cases.py        # cases     → events + evidence
 python scripts/build_analysis.py                 # → indicators, lane and Thailand assessments
+python scripts/build_situations.py               # → mode_situation (WO-049)
 python scripts/run_historical_validation.py --write-report
 python scripts/build_warehouse.py                # derived DuckDB (gitignored)
 python scripts/build_dashboard.py                # static payloads
 python scripts/validate.py                       # contracts + semantics
 ```
 
-Three generators accept `--check`, which regenerates in memory and exits non-zero if the
+Four generators accept `--check`, which regenerates in memory and exits non-zero if the
 committed output no longer matches its inputs: `ingest_fixtures.py`,
-`build_events_from_cases.py`, `build_analysis.py`. CI runs all three
-(`.github/workflows/validate-pr.yml`, "Verify generated data is reproducible"). The other
+`build_events_from_cases.py`, `build_analysis.py`, `build_situations.py` (WO-049). CI runs all
+four (`.github/workflows/validate-pr.yml`, "Verify generated data is reproducible"). The other
 generators accept no CLI arguments at all — an unrecognized flag such as `--check` now fails
 fast (exit 2) rather than being silently ignored. Their reproducibility is enforced
 differently: `build_dashboard.py`'s by CI's own "Confirm the build produced no uncommitted
@@ -48,6 +49,7 @@ python scripts/run_historical_validation.py
 python scripts/ingest_fixtures.py --check
 python scripts/build_events_from_cases.py --check
 python scripts/build_analysis.py --check
+python scripts/build_situations.py --check
 ```
 
 None of these makes a network request. One command in this runbook is the exception, and it

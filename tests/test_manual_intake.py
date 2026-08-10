@@ -184,6 +184,122 @@ def test_write_intake_rejects_duplicate_document_id(registry, tmp_path):
         write_intake(document2, claims2, documents_path=documents_path, claims_path=claims_path)
 
 
+# ---------------------------------------------------------------------------
+# WO-049 / Issue #92 item 1: conduit-derived independence_group (the B-1 fix)
+# ---------------------------------------------------------------------------
+
+
+def test_conduit_source_derives_independence_group_from_publisher(registry):
+    """MANUAL_NOTICE_INTAKE has governance.channel_role: conduit -- its
+    independence_group must be derived from the underlying publisher, never
+    from source_id (which used to make every Document from this source
+    collapse onto IG-MANUAL_NOTICE_INTAKE, the B-1 bug this fix closes)."""
+    document, claims = build_manual_intake(
+        **_base_kwargs(registry, publisher="Port Authority of Aurelia (STRUCTURAL EXAMPLE)")
+    )
+    assert document["independence_group"] == "IG-PUB-PORT-AUTHORITY-OF-AURELIA-STRUCTURAL-EXAMPLE"
+    assert document["independence_group"] != "IG-MANUAL_NOTICE_INTAKE"
+    assert document["independence_basis"] is not None
+    assert claims[0]["independence_group"] == document["independence_group"]
+
+
+def test_two_distinct_publishers_through_the_conduit_yield_two_independence_groups(registry):
+    """STRUCTURAL EXAMPLE (the B-1 regression, acceptance A-10): two
+    Documents from two distinct underlying publishers, both ingested through
+    the same conduit source (MANUAL_NOTICE_INTAKE), must NOT share an
+    independence_group."""
+    document_a, _claims_a = build_manual_intake(
+        **_base_kwargs(
+            registry,
+            publisher="Port Authority of Aurelia (STRUCTURAL EXAMPLE)",
+            document_id="DOC-20260810-101",
+        )
+    )
+    document_b, _claims_b = build_manual_intake(
+        **_base_kwargs(
+            registry,
+            publisher="Aurelia Maritime Register (STRUCTURAL EXAMPLE)",
+            document_id="DOC-20260810-102",
+        )
+    )
+    assert document_a["independence_group"] != document_b["independence_group"]
+
+
+def test_underlying_publisher_identity_key_overrides_display_string(registry):
+    """A stable identity key collapses two differently-worded display names
+    for the same real publisher onto one independence group, without
+    depending on exact string matching."""
+    document_a, _claims_a = build_manual_intake(
+        **_base_kwargs(
+            registry,
+            publisher="Port Authority of Aurelia",
+            underlying_publisher_identity_key="PORT-AUTHORITY-OF-AURELIA",
+            document_id="DOC-20260810-201",
+        )
+    )
+    document_b, _claims_b = build_manual_intake(
+        **_base_kwargs(
+            registry,
+            publisher="PAA (official notices)",
+            underlying_publisher_identity_key="PORT-AUTHORITY-OF-AURELIA",
+            document_id="DOC-20260810-202",
+        )
+    )
+    assert document_a["independence_group"] == document_b["independence_group"]
+
+
+def test_originator_channel_source_keeps_registry_default_independence_group(registry):
+    """A non-conduit source (governance.channel_role: originator_channel,
+    17 of the 18 registered sources) is unaffected: independence_group still
+    comes from the registry default, exactly as WO-047 shipped it. Every
+    real ``access_method: manual`` + ``manual_intake_status: allowed``
+    source today is MANUAL_NOTICE_INTAKE itself (a conduit), so this test
+    exercises the originator_channel branch against a synthetic
+    STRUCTURAL EXAMPLE registry entry rather than a real source_id."""
+    import copy
+
+    synthetic_registry = copy.deepcopy(registry)
+    synthetic_source = copy.deepcopy(
+        next(s for s in synthetic_registry["sources"] if s["id"] == "MANUAL_NOTICE_INTAKE")
+    )
+    synthetic_source["id"] = "SYNTH_MANUAL_ORIGINATOR"
+    synthetic_source["governance"]["channel_role"] = "originator_channel"
+    synthetic_source["governance"]["independence_group"] = "IG-SYNTH_MANUAL_ORIGINATOR"
+    synthetic_registry["sources"].append(synthetic_source)
+
+    document, _claims = build_manual_intake(
+        **_base_kwargs(
+            synthetic_registry,
+            source_id="SYNTH_MANUAL_ORIGINATOR",
+            publisher="Port Authority of Aurelia (STRUCTURAL EXAMPLE)",
+        )
+    )
+    assert document["independence_group"] == "IG-SYNTH_MANUAL_ORIGINATOR"
+    assert document["independence_basis"] is None
+
+
+def test_publisher_authority_passthrough(registry):
+    authority = {
+        "authority_scope": {
+            "node_ids": ["NODE-THLCH"],
+            "chokepoint_ids": [],
+            "country_ids": [],
+            "predicate_classes": ["berth_or_facility_availability"],
+        },
+        "decided_by": "document_review",
+        "decided_at": "2026-08-10T09:00:00Z",
+        "reviewer_record": "Jane Reviewer (STRUCTURAL EXAMPLE)",
+        "basis": "STRUCTURAL EXAMPLE D-12-style review act.",
+    }
+    document, _claims = build_manual_intake(**_base_kwargs(registry, publisher_authority=authority))
+    assert document["publisher_authority"] == authority
+
+
+def test_publisher_authority_defaults_to_null(registry):
+    document, _claims = build_manual_intake(**_base_kwargs(registry))
+    assert document["publisher_authority"] is None
+
+
 def test_repository_data_documents_directory_has_no_real_content():
     """Acceptance guard: WO-047 must not write real content into
     data/documents/. An empty scaffold (zero documents/claims) is fine; any
