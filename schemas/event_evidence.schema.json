@@ -87,8 +87,12 @@
         "official_forecast",
         "reported_claim",
         "analytical_inference",
-        "discovery_lead"
-      ]
+        "discovery_lead",
+        "structural_finding",
+        "historical_fact",
+        "denial_or_correction"
+      ],
+      "description": "WO-047 (Issue #89): the last three values are additive, adopted from schemas/claim.schema.json's claim_type so the Claim x Document -> event_evidence adapter never needs a lossy remapping. Existing six values and their order are unchanged."
     },
     "evidence_role": {
       "description": "Whether this item may carry a material conclusion. A discovery source may detect a lead but may never be the sole evidence for a material impact conclusion; 'discovery_only' marks items that are structurally barred from doing so.",

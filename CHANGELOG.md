@@ -7,6 +7,41 @@ WO-010 and is not bumped by every Work Order.
 
 ## [Unreleased]
 
+### Added
+
+- WO-047: Situation Intelligence Contracts and Manual Curated Intake (Issue #89, design in
+  Issue #88) — additive Document (`schemas/document.schema.json`) and Claim
+  (`schemas/claim.schema.json`) contracts, so a source-backed Development can exist and be
+  traced without a numeric time series attached to it. A deterministic Claim × Document →
+  `event_evidence` adapter (`analysis/claim_evidence_adapter.py`) keeps every existing
+  downstream consumer (`analysis/`, `scripts/build_dashboard.py`, `scripts/validate.py`, all
+  existing tests) working unchanged; round-trip-tested against 3 of the 17 committed
+  `event_evidence` records. New optional/nullable `logistics_event.schema.json` fields
+  (`situation_state`, `claim_ids`, `evidence_grade`, `superseded_by`, and the four derived
+  claim-partition arrays) leave every existing committed event record valid unchanged.
+  Additive `claim_type` (+3) and `impact_assessment.status` (+2) enum extensions. Manual
+  intake tooling (`scripts/manual_intake.py`) builds and validates Document/Claim records from
+  operator-supplied fields against a rights-cleared source, enforcing
+  `underlying_publisher_required`; writes nothing real (`data/documents/`, `data/claims/` are
+  empty scaffolds). Issue #89's D-2 (pilot source: a real Port Authority of Thailand notice
+  via `MANUAL_NOTICE_INTAKE`) and D-6 (named reviewer: `s.worachod@gmail.com`) were both
+  resolved during this Work Order, but item 8 (the one real, human-curated intake exercise)
+  remains deferred: this environment's outbound web-fetch tooling is blocked for every
+  external domain tried, including the publisher's own site, so no real notice could be read
+  and honestly paraphrased without fabricating its content.
+  New `scripts/validate.py` rules (`analysis/claims.py`): the L3 (structural-research)
+  firewall, independence counting for `officially_confirmed`, no-AI-invented-dates,
+  `RESOLVED` situation-state gating, and regional-scope Thailand-relevance guarding — each
+  with passing/failing fixture proofs in `tests/test_validate_claim_rules.py`. Registry v0.4
+  (`schemas/source_contract.schema.json#/$defs/governance`) adds an `independence_group` /
+  `evidence_layer` / `enabled_for_discovery` / `enabled_for_ingestion` /
+  `enabled_for_public_claims` block to all 18 `config/sources.yaml` entries, changing no
+  existing `enabled`/`licence_status`/`qualification` determination; zero sources are assigned
+  the L3 evidence layer (`docs/known_data_gaps.md` §10). New docs:
+  `docs/situation_intelligence_architecture.md`, `docs/evidence_layers.md`. No Dashboard
+  change of any kind; no source enabled, scheduled or contacted; no AI extraction;
+  no `logistics_event` rename.
+
 ### Changed
 
 - WO-045: Ocean Dashboard Simplification (Issue #85) — evidence-first presentation redesign

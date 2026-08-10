@@ -523,6 +523,51 @@
         "null"
       ],
       "description": "What establishes that the event was still active at active_as_of. Required alongside active_as_of; an assertion of activity with no basis is not publishable."
+    },
+    "situation_state": {
+      "type": ["string", "null"],
+      "enum": ["EMERGING", "ACTIVE", "DEVELOPING", "STABLE", "EASING", "RESOLVED", "UNCERTAIN", null],
+      "description": "WO-047 (Issue #89) / Issue #88 comment 2 Section 7.3. Additive, optional and nullable so every existing committed record remains valid unchanged. Orthogonal to lifecycle_status: lifecycle_status answers 'how well do we know this?', situation_state answers 'what is the situation doing?'. Not authored directly by AI for RESOLVED (Issue #88 comment 2 Section 7.4); scripts/validate.py enforces the L3 firewall and the RESOLVED gating rule."
+    },
+    "claim_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+      "uniqueItems": true,
+      "description": "WO-047. Optional; absent or empty means no Claim has been attached to this event yet. The Claim x Document -> event_evidence adapter (analysis/claim_evidence_adapter.py) is what actually populates evidence_ids from these."
+    },
+    "evidence_grade": {
+      "type": ["string", "null"],
+      "enum": ["CONFIRMED", "CORROBORATED", "REPORTED", "ANALYTICAL_INFERENCE", null],
+      "description": "WO-047. The four user-facing evidence-grade categories (Issue #88 comment 2 Section 8), computed from the claim set -- never authored directly. Optional and nullable; distinct from the existing item-level evidence.strength A-D, which is unchanged."
+    },
+    "superseded_by": {
+      "type": ["string", "null"],
+      "pattern": "^EVT-[0-9]{8}-[0-9]{3,}$",
+      "description": "WO-047. The forward counterpart to the existing supersedes array, needed for a clean merge: the absorbed event points forward to the event it was merged into."
+    },
+    "verified_facts": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+      "uniqueItems": true,
+      "description": "WO-047. Derived partition of claim_ids by claim_type; never authored directly. One of the four claim-partition arrays that keep facts, reports and inference physically separate (Issue #88 comment 2 Section 7.2)."
+    },
+    "reported_claims": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+      "uniqueItems": true,
+      "description": "WO-047. Derived; never authored directly."
+    },
+    "analytical_inferences": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+      "uniqueItems": true,
+      "description": "WO-047. Derived; never authored directly."
+    },
+    "conflicting_claims": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CLM-[0-9]{8}-[0-9]{4}$"},
+      "uniqueItems": true,
+      "description": "WO-047. Derived; never authored directly."
     }
   }
 }

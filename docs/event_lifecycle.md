@@ -152,3 +152,26 @@ carrying `evidence_origin: historical_validation_fixture`,
 `content_hash_scope: authored_claim_record`, and a `strength_basis: expected_at_cutoff`.
 Publisher URLs are retained for independent verification, with the explicit limitation that
 the content behind them was never retrieved by this platform.
+
+## 11. Situation state (WO-047, additive)
+
+WO-047 (Issue #89) added `situation_state` to `schemas/logistics_event.schema.json`:
+`EMERGING | ACTIVE | DEVELOPING | STABLE | EASING | RESOLVED | UNCERTAIN`, optional and
+nullable so every event above is unaffected. It is **not** a replacement for
+`lifecycle_status` above -- the two answer different questions and are kept deliberately
+separate:
+
+- `lifecycle_status` (this document, unchanged) -- *how well do we know this?* Evidence
+  strength: `discovery_lead` through `operational_impact_observed`.
+- `situation_state` (new) -- *what is the situation doing?* A well-evidenced but easing
+  disruption (`verified_event` + `EASING`) and a poorly-evidenced worsening one
+  (`reported_event` + `DEVELOPING`) are different intelligence products; collapsing the two
+  axes into one would destroy that distinction.
+
+`situation_state: RESOLVED` may never be set by timing out -- it requires a qualifying claim
+(`official_notice`, `verified_fact` or `denial_or_correction`) stating termination, enforced
+by `analysis/claims.py::resolved_situation_state_problems`. An L3 (`structural_research`)
+-only claim set may never carry an active `situation_state`, enforced by
+`analysis/claims.py::l3_firewall_problems`. See `docs/situation_intelligence_architecture.md`
+for the full Document/Claim/Development model these fields belong to, and
+`docs/evidence_layers.md` for the L1/L2/L3 evidence-layer axis.

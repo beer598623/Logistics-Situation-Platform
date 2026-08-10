@@ -471,6 +471,30 @@ def test_the_platform_status_no_material_is_not_accepted_from_an_ai_output():
     assert any("not accepted from a returned AI assessment" in problem for problem in problems)
 
 
+def test_the_platform_status_not_relevant_is_not_accepted_from_an_ai_output():
+    """WO-047 (Issue #89): 'not_relevant' carries the same all-clear risk
+    Principle 6 gates 'no_material' against, so it gets the same AI-output
+    bar."""
+    output = base_output(
+        observed_impacts=[
+            {
+                "area": "cost",
+                "status": "not_relevant",
+                "severity": "none",
+                "description": "Not applicable.",
+                "transmission_mechanism": [],
+                "evidence_ids": [],
+                "evidence_strength": "B",
+                "confidence": "low",
+                "time_horizon": "1-4_weeks",
+                "known_limitations": [],
+            }
+        ]
+    )
+    problems = validate_output(output, base_package())
+    assert any("not accepted from a returned AI assessment" in problem for problem in problems)
+
+
 def test_an_incomplete_transmission_chain_in_the_output_is_rejected():
     output = base_output(
         transmission_chains=[

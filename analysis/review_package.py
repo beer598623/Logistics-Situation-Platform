@@ -1969,11 +1969,13 @@ def validate_output(
                     f"{group}[{index}] ({impact.get('area')}): material impact has no "
                     "transmission mechanism"
                 )
-            if impact.get("status") == "no_material":
+            if impact.get("status") in ("no_material", "not_relevant"):
                 problems.append(
-                    f"{group}[{index}] ({impact.get('area')}): 'no_material' is a platform "
-                    "assessment status recorded against negative operational evidence and "
-                    "is not accepted from a returned AI assessment"
+                    f"{group}[{index}] ({impact.get('area')}): {impact.get('status')!r} is a "
+                    "platform assessment status recorded against negative operational evidence "
+                    "and is not accepted from a returned AI assessment (WO-047 / Issue #89: "
+                    "'not_relevant' carries the same all-clear risk Principle 6 gates "
+                    "'no_material' against)"
                 )
 
     for index, chain in enumerate(output.get("transmission_chains", [])):
